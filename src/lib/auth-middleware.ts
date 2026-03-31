@@ -43,7 +43,8 @@ export function withAuth(
 export function RequireRole(requiredRole: UserRole) {
   return (
     handler: (req: NextRequest, context: unknown, user: JwtPayload) => Promise<NextResponse>
-  ) => async (req: NextRequest, context: unknown): Promise<NextResponse> => {
+  ) =>
+    async (req: NextRequest, context: unknown): Promise<NextResponse> => {
       const result = withAuth(req, requiredRole);
       if (result instanceof NextResponse) return result;
       return handler(req, context, result.user);
