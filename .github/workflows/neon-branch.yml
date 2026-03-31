@@ -48,13 +48,39 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
 
-      - name: Debug Neon Outputs
+      - name: Get Neon Branch Connection String
+        id: neon_connection
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          BRANCH_NAME: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
         run: |
-          echo "Available outputs from create_neon_branch:"
-          echo "db_url: ${{ steps.create_neon_branch.outputs.db_url }}"
-          echo "db_url_with_pooler: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
-          echo "host: ${{ steps.create_neon_branch.outputs.host }}"
-          echo "branch_id: ${{ steps.create_neon_branch.outputs.branch_id }}"
+          # Get branch endpoint
+          BRANCH_ID=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" | \
+            grep -o "\"id\":\"[^\"]*.*$BRANCH_NAME" | tail -1 | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+          
+          echo "branch_id=$BRANCH_ID" >> $GITHUB_OUTPUT
+          
+          if [ -z "$BRANCH_ID" ]; then
+            echo "❌ Failed to get branch ID"
+            exit 1
+          fi
+          
+          echo "✅ Branch ID: $BRANCH_ID"
+          
+          # Get connection string with pooler
+          DB_URL=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri?branch=$BRANCH_ID&pooled=true" | \
+            grep -o '"connection_uri":"[^"]*' | cut -d'"' -f4)
+          
+          if [ -z "$DB_URL" ]; then
+            echo "❌ Failed to get connection string"
+            exit 1
+          fi
+          
+          echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
+          echo "✅ Got pooled connection string"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -78,12 +104,12 @@ jobs:
           echo "Database URL set: ${#DATABASE_URL}"
           echo "URL preview: ${DATABASE_URL:0:50}..."
         env:
-          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.neon_connection.outputs.database_url }}
 
       - name: Run Migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.neon_connection.outputs.database_url }}
 
       - name: Post Schema Diff Comment to PR
         uses: neondatabase/schema-diff-action@v1
