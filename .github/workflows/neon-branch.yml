@@ -55,27 +55,34 @@ jobs:
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
           BRANCH_NAME: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
         run: |
-          # Get branch endpoint
-          BRANCH_ID=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
-            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" | \
-            grep -o "\"id\":\"[^\"]*.*$BRANCH_NAME" | tail -1 | grep -o '"id":"[^"]*' | cut -d'"' -f4)
+          # Get branch list and find the branch ID for our preview branch
+          BRANCHES_JSON=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches")
+          
+          BRANCH_ID=$(echo "$BRANCHES_JSON" | grep -o '"name":"[^"]*' | grep "$BRANCH_NAME" -A 1 | head -1 | grep -o '"id":"[^"]*' | cut -d'"' -f4)
           
           echo "branch_id=$BRANCH_ID" >> $GITHUB_OUTPUT
           
           if [ -z "$BRANCH_ID" ]; then
-            echo "❌ Failed to get branch ID"
+            echo "❌ Failed to get branch ID for $BRANCH_NAME"
+            echo "Response: $BRANCHES_JSON"
             exit 1
           fi
           
           echo "✅ Branch ID: $BRANCH_ID"
           
-          # Get connection string with pooler
-          DB_URL=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
-            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri?branch=$BRANCH_ID&pooled=true" | \
-            grep -o '"connection_uri":"[^"]*' | cut -d'"' -f4)
+          # Get connection string with pooler - use proper query parameters
+          CONNECTION_JSON=$(curl -s -G \
+            -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri" \
+            --data-urlencode "branch=$BRANCH_ID" \
+            --data-urlencode "pooled=true")
+          
+          DB_URL=$(echo "$CONNECTION_JSON" | grep -o '"connection_uri":"[^"]*' | cut -d'"' -f4)
           
           if [ -z "$DB_URL" ]; then
             echo "❌ Failed to get connection string"
+            echo "Response: $CONNECTION_JSON"
             exit 1
           fi
           
