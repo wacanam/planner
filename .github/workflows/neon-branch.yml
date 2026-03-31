@@ -111,12 +111,18 @@ jobs:
           DATABASE_URL: ${{ steps.neon_cli.outputs.database_url_unpooled }}
 
       - name: Post Schema Diff Comment to PR
-        uses: neondatabase/schema-diff-action@v1
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          compare_branch: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Post a simple comment to the PR with migration status
+          gh pr comment ${{ github.event.number }} \
+            --body "✅ **Database Schema**
+            
+Preview database branch created and migrations ran successfully!
+
+**Branch:** \`preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}\`
+
+For detailed schema changes, check the Neon console."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Vercel Preview Environment Variables
         run: |
