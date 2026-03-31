@@ -11,7 +11,12 @@
     "db:migrate": "typeorm migration:run -d src/lib/data-source.ts",
     "db:revert": "typeorm migration:revert -d src/lib/data-source.ts",
     "db:generate": "typeorm migration:generate -d src/lib/data-source.ts",
-    "db:verify": "ts-node verify-connection.ts"
+    "db:verify": "ts-node verify-connection.ts",
+    "neon:auth": "neonctl auth",
+    "neon:setup": "bash neon-setup.sh",
+    "neon:projects": "neonctl projects list",
+    "neon:branches": "neonctl branches list",
+    "neon:cs": "neonctl connection-string"
   },
   "dependencies": {
     "@types/pg": "^8.20.0",
@@ -30,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "neonctl": "^2.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
