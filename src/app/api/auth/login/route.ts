@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
 import { User } from '@/entities/User';
 import { signToken } from '@/lib/jwt';
+import { AppError, handleApiError, errorResponse, successResponse } from '@/lib/error-handler';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
@@ -10,7 +11,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { email, password } = body as { email: string; password: string };
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'email and password are required' }, { status: 400 });
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Email and password are required',
+        400,
+      );
     }
 
     if (!AppDataSource.isInitialized) {
@@ -20,16 +25,39 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({ where: { email } });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    // Generic message to avoid revealing which emails exist
+    if (!user) {
+      throw new AppError(
+        'INVALID_CREDENTIALS',
+        'Invalid email or password. Please check and try again.',
+        401,
+      );
+    }
+
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) {
+      throw new AppError(
+        'INVALID_CREDENTIALS',
+        'Invalid email or password. Please check and try again.',
+        401,
+      );
     }
 
     if (!user.isActive) {
-      return NextResponse.json({ error: 'Account is disabled' }, { status: 403 });
+      throw new AppError(
+        'ACCOUNT_DISABLED',
+        'Your account has been disabled. Contact support for assistance.',
+        403,
+      );
     }
 
     // Update last login timestamp
-    await userRepo.update(user.id, { lastLoginAt: new Date() });
+    try {
+      await userRepo.update(user.id, { lastLoginAt: new Date() });
+    } catch (err) {
+      console.warn('[login] Failed to update last login:', err);
+      // Don't fail the login if this fails
+    }
 
     const token = signToken({
       userId: user.id,
@@ -38,18 +66,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       congregationId: user.congregationId,
     });
 
-    return NextResponse.json({
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        congregationId: user.congregationId,
-      },
-    });
+    return NextResponse.json(
+      successResponse(
+        {
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            congregationId: user.congregationId,
+          },
+        },
+        'Login successful',
+      ),
+    );
   } catch (err) {
-    console.error('[login]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const [message, status] = handleApiError(err);
+    console.error('[login error]', message);
+
+    return NextResponse.json(errorResponse(message), { status });
   }
 }

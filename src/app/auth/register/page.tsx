@@ -94,7 +94,9 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Registration failed. Please try again.');
+        // Handle new error format: { error: { message, code }, timestamp }
+        const errorMessage = data.error?.message || data.error || 'Registration failed. Please try again.';
+        setError(errorMessage);
       } else {
         setSuccess('Account created! Redirecting to sign in…');
         setTimeout(() => router.push('/auth/login'), 1500);

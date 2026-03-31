@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
 import { User, UserRole } from '@/entities/User';
 import { signToken } from '@/lib/jwt';
+import { AppError, handleApiError, errorResponse, successResponse } from '@/lib/error-handler';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
@@ -15,17 +16,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       congregationId?: string;
     };
 
+    // Validation
     if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: 'email, password, and name are required' },
-        { status: 400 }
+      throw new AppError(
+        'VALIDATION_ERROR',
+        'Email, password, and name are required',
+        400,
       );
     }
 
+    if (!email.includes('@')) {
+      throw new AppError('INVALID_EMAIL', 'Please provide a valid email address', 400);
+    }
+
     if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'Password must be at least 8 characters' },
-        { status: 400 }
+      throw new AppError(
+        'PASSWORD_TOO_SHORT',
+        'Password must be at least 8 characters',
+        400,
       );
     }
 
@@ -35,13 +43,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const userRepo = AppDataSource.getRepository(User);
 
+    // Check if email already exists
     const existing = await userRepo.findOne({ where: { email } });
     if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
+      throw new AppError(
+        'EMAIL_ALREADY_EXISTS',
+        'This email is already registered. Please sign in instead.',
+        409,
+      );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password
+    let hashedPassword: string;
+    try {
+      hashedPassword = await bcrypt.hash(password, 12);
+    } catch (err) {
+      throw new AppError(
+        'PASSWORD_HASH_ERROR',
+        'Failed to secure your password. Please try again.',
+        500,
+      );
+    }
 
+    // Create user
     const user = userRepo.create({
       email,
       password: hashedPassword,
@@ -52,6 +76,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     await userRepo.save(user);
 
+    // Generate token
     const token = signToken({
       userId: user.id,
       email: user.email,
@@ -60,20 +85,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     return NextResponse.json(
-      {
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          congregationId: user.congregationId,
+      successResponse(
+        {
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            congregationId: user.congregationId,
+          },
         },
-      },
-      { status: 201 }
+        'Account created successfully',
+      ),
+      { status: 201 },
     );
   } catch (err) {
-    console.error('[register]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const [message, status] = handleApiError(err);
+    console.error('[register error]', message);
+
+    return NextResponse.json(errorResponse(message), { status });
   }
 }
+
