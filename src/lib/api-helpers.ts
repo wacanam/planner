@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 import {
   ApiResponse,
   ApiErrorResponse,
   ApiPaginatedResponse,
   HTTP_STATUS,
   ERROR_CODES,
-} from './api-response'
-import crypto from 'crypto'
+} from './api-response';
+import crypto from 'crypto';
 
 /**
  * Generate unique request ID for tracking
  */
 export function generateRequestId(): string {
-  return crypto.randomUUID()
+  return crypto.randomUUID();
 }
 
 /**
@@ -22,7 +22,7 @@ export function successResponse<T>(
   data: T,
   message?: string,
   statusCode: number = HTTP_STATUS.OK,
-  requestId?: string,
+  requestId?: string
 ): NextResponse<ApiResponse<T>> {
   const response: ApiResponse<T> = {
     success: true,
@@ -30,9 +30,9 @@ export function successResponse<T>(
     message,
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-  }
+  };
 
-  return NextResponse.json(response, { status: statusCode })
+  return NextResponse.json(response, { status: statusCode });
 }
 
 /**
@@ -43,9 +43,9 @@ export function paginatedResponse<T>(
   total: number,
   page: number,
   limit: number,
-  requestId?: string,
+  requestId?: string
 ): NextResponse<ApiPaginatedResponse<T>> {
-  const totalPages = Math.ceil(total / limit)
+  const totalPages = Math.ceil(total / limit);
 
   const response: ApiPaginatedResponse<T> = {
     success: true,
@@ -59,9 +59,9 @@ export function paginatedResponse<T>(
     },
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-  }
+  };
 
-  return NextResponse.json(response, { status: HTTP_STATUS.OK })
+  return NextResponse.json(response, { status: HTTP_STATUS.OK });
 }
 
 /**
@@ -72,7 +72,7 @@ export function errorResponse(
   message: string,
   statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR,
   details?: Record<string, unknown>,
-  requestId?: string,
+  requestId?: string
 ): NextResponse<ApiErrorResponse> {
   const response: ApiErrorResponse = {
     success: false,
@@ -83,9 +83,9 @@ export function errorResponse(
     },
     timestamp: new Date().toISOString(),
     requestId: requestId || generateRequestId(),
-  }
+  };
 
-  return NextResponse.json(response, { status: statusCode })
+  return NextResponse.json(response, { status: statusCode });
 }
 
 /**
@@ -93,10 +93,22 @@ export function errorResponse(
  */
 export const ApiErrors = {
   badRequest: (message: string, details?: Record<string, unknown>, requestId?: string) =>
-    errorResponse(ERROR_CODES.VALIDATION_ERROR, message, HTTP_STATUS.BAD_REQUEST, details, requestId),
+    errorResponse(
+      ERROR_CODES.VALIDATION_ERROR,
+      message,
+      HTTP_STATUS.BAD_REQUEST,
+      details,
+      requestId
+    ),
 
   unauthorized: (message: string = 'Unauthorized', requestId?: string) =>
-    errorResponse(ERROR_CODES.UNAUTHORIZED, message, HTTP_STATUS.UNAUTHORIZED, undefined, requestId),
+    errorResponse(
+      ERROR_CODES.UNAUTHORIZED,
+      message,
+      HTTP_STATUS.UNAUTHORIZED,
+      undefined,
+      requestId
+    ),
 
   forbidden: (message: string = 'Access denied', requestId?: string) =>
     errorResponse(ERROR_CODES.FORBIDDEN, message, HTTP_STATUS.FORBIDDEN, undefined, requestId),
@@ -107,7 +119,7 @@ export const ApiErrors = {
       `${resource} not found`,
       HTTP_STATUS.NOT_FOUND,
       undefined,
-      requestId,
+      requestId
     ),
 
   conflict: (message: string, requestId?: string) =>
@@ -119,7 +131,7 @@ export const ApiErrors = {
       message,
       HTTP_STATUS.UNPROCESSABLE_ENTITY,
       details,
-      requestId,
+      requestId
     ),
 
   internalError: (message: string = 'Internal server error', requestId?: string) =>
@@ -128,7 +140,7 @@ export const ApiErrors = {
       message,
       HTTP_STATUS.INTERNAL_SERVER_ERROR,
       undefined,
-      requestId,
+      requestId
     ),
 
   invalidCredentials: (requestId?: string) =>
@@ -137,7 +149,7 @@ export const ApiErrors = {
       'Invalid email or password',
       HTTP_STATUS.UNAUTHORIZED,
       undefined,
-      requestId,
+      requestId
     ),
 
   tokenExpired: (requestId?: string) =>
@@ -146,7 +158,7 @@ export const ApiErrors = {
       'Token has expired',
       HTTP_STATUS.UNAUTHORIZED,
       undefined,
-      requestId,
+      requestId
     ),
 
   insufficientPermissions: (requestId?: string) =>
@@ -155,9 +167,9 @@ export const ApiErrors = {
       'You do not have permission to access this resource',
       HTTP_STATUS.FORBIDDEN,
       undefined,
-      requestId,
+      requestId
     ),
-}
+};
 
 /**
  * Validation helper - checks required fields
@@ -165,9 +177,9 @@ export const ApiErrors = {
 export function validateRequired(
   data: Record<string, unknown>,
   requiredFields: string[],
-  requestId?: string,
+  requestId?: string
 ): NextResponse<ApiErrorResponse> | null {
-  const missing = requiredFields.filter((field) => !data[field])
+  const missing = requiredFields.filter((field) => !data[field]);
 
   if (missing.length > 0) {
     return errorResponse(
@@ -175,9 +187,9 @@ export function validateRequired(
       `Missing required fields: ${missing.join(', ')}`,
       HTTP_STATUS.BAD_REQUEST,
       { missingFields: missing },
-      requestId,
-    )
+      requestId
+    );
   }
 
-  return null
+  return null;
 }

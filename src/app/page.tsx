@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  Map,
+  Map as MapIcon,
   WifiOff,
   ClipboardCheck,
   BarChart3,
@@ -16,7 +16,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const features = [
   {
-    icon: Map,
+    icon: MapIcon,
     title: 'Territory Management',
     description:
       'Organize ministry territories with intuitive maps and location-based assignments. Never lose track of a block.',
@@ -129,9 +129,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-6 leading-tight">
-              Organize Your{' '}
-              <span className="text-primary">Congregation&apos;s</span>{' '}
-              Ministry
+              Organize Your <span className="text-primary">Congregation&apos;s</span> Ministry
             </h1>
 
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -265,13 +263,18 @@ export default function LandingPage() {
                   key={type.title}
                   className={`rounded-2xl border-2 p-8 ${type.color} transition-all duration-300 hover:shadow-md`}
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${type.iconColor}`}>
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${type.iconColor}`}
+                  >
                     <Icon size={22} />
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-4">{type.title}</h3>
                   <ul className="space-y-3">
                     {type.benefits.map((benefit) => (
-                      <li key={benefit} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <li
+                        key={benefit}
+                        className="flex items-start gap-2.5 text-sm text-muted-foreground"
+                      >
                         <span className="mt-0.5 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                         </span>

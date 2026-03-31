@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { Menu, X, MapPin } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
@@ -62,6 +61,7 @@ export function Header() {
             {/* Mobile menu toggle */}
             {!isAuthPage && (
               <button
+                type="button"
                 className="md:hidden ml-1 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-all"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle menu"

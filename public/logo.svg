@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="Ministry Planner Logo">
+  <!-- Background circle -->
+  <circle cx="24" cy="24" r="24" fill="#6B9ECC" opacity="0.15"/>
+  <!-- Map marker outline -->
+  <path d="M24 6C17.373 6 12 11.373 12 18C12 27 24 42 24 42C24 42 36 27 36 18C36 11.373 30.627 6 24 6Z" fill="#6B9ECC"/>
+  <!-- Inner congregation symbol (simplified building/people) -->
+  <circle cx="24" cy="18" r="5" fill="white" opacity="0.9"/>
+  <!-- Small cross / people symbol inside -->
+  <rect x="23" y="14.5" width="2" height="7" rx="1" fill="#6B9ECC"/>
+  <rect x="20.5" y="17" width="7" height="2" rx="1" fill="#6B9ECC"/>
+</svg>
