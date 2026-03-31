@@ -48,45 +48,12 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
 
-      - name: Get Neon Branch Connection String
-        id: neon_connection
-        env:
-          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
-          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-          BRANCH_ID: ${{ steps.create_neon_branch.outputs.branch_id }}
+      - name: Verify Neon Outputs
         run: |
-          echo "Using branch ID: $BRANCH_ID"
-          
-          if [ -z "$BRANCH_ID" ]; then
-            echo "❌ No branch ID from create action"
-            exit 1
-          fi
-          
-          # Get connection string with pooler
-          echo "Querying connection URI..."
-          CONNECTION_JSON=$(curl -s -G \
-            -H "Authorization: Bearer $NEON_API_KEY" \
-            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri" \
-            --data-urlencode "branch_id=$BRANCH_ID" \
-            --data-urlencode "pooled=true")
-          
-          echo "Response: $CONNECTION_JSON"
-          
-          # Try multiple patterns to extract connection_uri
-          DB_URL=$(echo "$CONNECTION_JSON" | grep -o '"connection_uri":"[^"]*' | head -1 | cut -d'"' -f4)
-          
-          if [ -z "$DB_URL" ]; then
-            # Try alternative pattern
-            DB_URL=$(echo "$CONNECTION_JSON" | grep -oP '(?<="connection_uri":")[^"]+' | head -1)
-          fi
-          
-          if [ -z "$DB_URL" ]; then
-            echo "❌ Failed to extract connection string"
-            exit 1
-          fi
-          
-          echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
-          echo "✅ Got pooled connection string (length: ${#DB_URL})"
+          echo "Branch ID: ${{ steps.create_neon_branch.outputs.branch_id }}"
+          echo "DB URL (unpooled): ${{ steps.create_neon_branch.outputs.db_url }}"
+          echo "DB URL (pooled): ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
+          echo "Host: ${{ steps.create_neon_branch.outputs.host }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -107,15 +74,20 @@ jobs:
 
       - name: Verify Database Connection
         run: |
-          echo "Database URL set: ${#DATABASE_URL}"
-          echo "URL preview: ${DATABASE_URL:0:50}..."
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL is empty!"
+            exit 1
+          fi
+          echo "✅ DATABASE_URL is set"
+          echo "URL length: ${#DATABASE_URL}"
+          echo "URL preview: ${DATABASE_URL:0:60}..."
         env:
-          DATABASE_URL: ${{ steps.neon_connection.outputs.database_url }}
+          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run Migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.neon_connection.outputs.database_url }}
+          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Post Schema Diff Comment to PR
         uses: neondatabase/schema-diff-action@v1
