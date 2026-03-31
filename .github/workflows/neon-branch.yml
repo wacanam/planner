@@ -48,6 +48,14 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
 
+      - name: Debug Neon Outputs
+        run: |
+          echo "Available outputs from create_neon_branch:"
+          echo "db_url: ${{ steps.create_neon_branch.outputs.db_url }}"
+          echo "db_url_with_pooler: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
+          echo "host: ${{ steps.create_neon_branch.outputs.host }}"
+          echo "branch_id: ${{ steps.create_neon_branch.outputs.branch_id }}"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -64,6 +72,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify Database Connection
+        run: |
+          echo "Database URL set: ${#DATABASE_URL}"
+          echo "URL preview: ${DATABASE_URL:0:50}..."
+        env:
+          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run Migrations
         run: pnpm db:migrate
