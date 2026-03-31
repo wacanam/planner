@@ -17,8 +17,7 @@ export const AppDataSource = new DataSource({
   migrations: ['src/migrations/**/*.js'], // Use .js migrations
   migrationsRun: true,
   subscribers: [],
-  extra: {
-    // PostGIS support
-    options: '-c search_path=public',
-  },
+  // Note: Do NOT use extra.options with pooled connections (Vercel)
+  // PgBouncer doesn't support search_path parameter in startup
+  // PostGIS still works without explicit search_path in pooled mode
 });

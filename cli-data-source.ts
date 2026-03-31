@@ -18,6 +18,7 @@ config({
 });
 
 // Standalone DataSource for CLI operations (migrations)
+// Uses UNPOOLED connection when DATABASE_URL doesn't have -pooler
 export const CliDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
@@ -38,7 +39,10 @@ export const CliDataSource = new DataSource({
   ],
   migrations: ['src/migrations/**/*.{js,ts}'],
   subscribers: [],
-  extra: {
-    options: '-c search_path=public',
-  },
+  // Note: search_path only works with unpooled connections
+  // For migrations, we use unpooled URLs, so this is safe
+  extra:
+    process.env.DATABASE_URL?.includes('-pooler') ?
+      {} // No search_path for pooled connections
+      : { options: '-c search_path=public' }, // Use search_path for unpooled
 });
