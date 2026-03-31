@@ -48,12 +48,27 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
 
-      - name: Verify Neon Outputs
+      - name: Get Connection String with Neon CLI
+        id: neon_cli
         run: |
-          echo "Branch ID: ${{ steps.create_neon_branch.outputs.branch_id }}"
-          echo "DB URL (unpooled): ${{ steps.create_neon_branch.outputs.db_url }}"
-          echo "DB URL (pooled): ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
-          echo "Host: ${{ steps.create_neon_branch.outputs.host }}"
+          # Install Neon CLI
+          npm install -g neonctl
+          
+          # Get connection string using Neon CLI
+          DB_URL=$(neonctl connection-string \
+            --project-id ${{ vars.NEON_PROJECT_ID }} \
+            --branch preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }} \
+            --pooled)
+          
+          if [ -z "$DB_URL" ]; then
+            echo "❌ Failed to get connection string from neonctl"
+            exit 1
+          fi
+          
+          echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
+          echo "✅ Got connection string (length: ${#DB_URL})"
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,12 +97,12 @@ jobs:
           echo "URL length: ${#DATABASE_URL}"
           echo "URL preview: ${DATABASE_URL:0:60}..."
         env:
-          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.neon_cli.outputs.database_url }}
 
       - name: Run Migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.neon_cli.outputs.database_url }}
 
       - name: Post Schema Diff Comment to PR
         uses: neondatabase/schema-diff-action@v1
