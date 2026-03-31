@@ -11,13 +11,13 @@ import {
 @Index('idx_zone_geom', { spatial: true })
 export class Zone {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({
     type: 'geometry',
@@ -25,17 +25,17 @@ export class Zone {
     srid: 4326,
     nullable: true,
   })
-  boundary: string; // GeoJSON Polygon
+  boundary?: string; // GeoJSON Polygon
 
   @Column({ type: 'float', nullable: true })
-  areaSquareKm: number;
+  areaSquareKm?: number;
 
   @Column({ type: 'varchar', length: 50, default: 'active' })
-  status: 'active' | 'inactive' | 'archived';
+  status: 'active' | 'inactive' | 'archived' = 'active';
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

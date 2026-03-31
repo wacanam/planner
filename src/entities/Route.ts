@@ -11,13 +11,13 @@ import {
 @Index('idx_route_geom', { spatial: true })
 export class Route {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({
     type: 'geometry',
@@ -25,20 +25,20 @@ export class Route {
     srid: 4326,
     nullable: true,
   })
-  path: string; // GeoJSON LineString
+  path?: string; // GeoJSON LineString
 
   @Column({ type: 'float', nullable: true })
-  distanceKm: number;
+  distanceKm?: number;
 
   @Column({ type: 'int', nullable: true })
-  estimatedMinutes: number;
+  estimatedMinutes?: number;
 
   @Column({ type: 'varchar', length: 50, default: 'planned' })
-  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled' = 'planned';
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

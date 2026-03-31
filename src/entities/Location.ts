@@ -11,13 +11,13 @@ import {
 @Index('idx_location_geom', { spatial: true })
 export class Location {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({
     type: 'geometry',
@@ -25,11 +25,11 @@ export class Location {
     srid: 4326,
     nullable: true,
   })
-  coordinates: string; // GeoJSON format: { type: 'Point', coordinates: [lon, lat] }
+  coordinates?: string; // GeoJSON format: { type: 'Point', coordinates: [lon, lat] }
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

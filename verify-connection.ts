@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import 'dotenv/config';
 import { AppDataSource } from './src/lib/data-source';
 
 async function verify() {

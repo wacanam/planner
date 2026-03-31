@@ -1,6 +1,11 @@
 import 'reflect-metadata';
-import 'dotenv/config';
+import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+
+// Load environment variables from .env.local or .env
+config({
+  path: ['.env.local', '.env'],
+});
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -9,7 +14,8 @@ export const AppDataSource = new DataSource({
   synchronize: false, // Use migrations in production
   logging: process.env.NODE_ENV === 'development',
   entities: ['src/entities/**/*.ts'],
-  migrations: ['src/migrations/**/*.ts'],
+  migrations: ['src/migrations/**/*.js'], // Use .js migrations
+  migrationsRun: true,
   subscribers: [],
   extra: {
     // PostGIS support
