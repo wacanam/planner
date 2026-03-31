@@ -54,11 +54,11 @@ jobs:
           # Install Neon CLI
           npm install -g neonctl
           
-          # Get connection string using Neon CLI
+          # Get UNPOOLED connection string for migrations
+          # (Pooled connections have search_path parameter that PgBouncer doesn't support)
           DB_URL=$(neonctl connection-string \
             --project-id ${{ vars.NEON_PROJECT_ID }} \
-            --branch preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }} \
-            --pooled)
+            --branch preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }})
           
           if [ -z "$DB_URL" ]; then
             echo "❌ Failed to get connection string from neonctl"
@@ -66,7 +66,7 @@ jobs:
           fi
           
           echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
-          echo "✅ Got connection string (length: ${#DB_URL})"
+          echo "✅ Got unpooled connection string (length: ${#DB_URL})"
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
 
