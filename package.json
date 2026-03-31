@@ -6,10 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "biome lint",
+    "format": "biome format --write .",
+    "db:migrate": "typeorm migration:run -d src/lib/data-source.ts",
+    "db:revert": "typeorm migration:revert -d src/lib/data-source.ts",
+    "db:generate": "typeorm migration:generate -d src/lib/data-source.ts",
+    "db:verify": "ts-node verify-connection.ts"
   },
   "dependencies": {
     "@types/pg": "^8.20.0",
+    "dotenv": "^17.3.1",
     "next": "16.2.1",
     "next-pwa": "^5.6.0",
     "pg": "^8.20.0",
@@ -25,6 +31,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }
