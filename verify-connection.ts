@@ -22,9 +22,7 @@ async function verify() {
     console.log('PostgreSQL version:', result.rows[0].version);
 
     // Test PostGIS
-    const postgisResult = await client.query(
-      "SELECT PostGIS_Version() AS postgis_version"
-    );
+    const postgisResult = await client.query('SELECT PostGIS_Version() AS postgis_version');
     console.log('PostGIS version:', postgisResult.rows[0].postgis_version);
 
     console.log('✅ Data Source has been destroyed successfully.');

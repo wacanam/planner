@@ -13,7 +13,7 @@ export const AppDataSource = new DataSource({
   ssl: true, // Enable SSL for Neon
   synchronize: false, // Use migrations in production
   logging: process.env.NODE_ENV === 'development',
-  entities: ['src/entities/**/*.ts'],
+  entities: ['src/**/*.ts'],
   migrations: ['src/migrations/**/*.js'], // Use .js migrations
   migrationsRun: true,
   subscribers: [],
