@@ -1,16 +1,16 @@
 # Database Migrations Guide
 
-This project uses **TypeORM auto-generated migrations** in TypeScript (`.ts`).
+This project uses **TypeORM migrations in TypeScript** (`.ts`).
 
 ## Why TypeScript Migrations?
 
 - ✅ Full type safety
 - ✅ Direct execution via `tsx` (no compilation needed)
 - ✅ Consistency with entities and config (all `.ts`)
-- ✅ No manual conversion step
-- ✅ Seamless with Next.js and modern tooling
+- ✅ Better IDE support and autocomplete
+- ✅ Seamless with Next.js
 
-## Simple Workflow
+## Workflow 1: Auto-Generated Migrations ⚡
 
 ### Step 1: Create/Update Entity
 
@@ -32,7 +32,7 @@ export class YourEntity {
 }
 ```
 
-### Step 2: Register Entity in CLI Config
+### Step 2: Register Entity
 
 Add to `cli-data-source.ts`:
 
@@ -40,18 +40,17 @@ Add to `cli-data-source.ts`:
 import { YourEntity } from './src/entities/YourEntity';
 
 export const CliDataSource = new DataSource({
-  // ... other config
   entities: [Location, Zone, Route, Task, YourEntity], // ← Add here
 });
 ```
 
-### Step 3: Auto-Generate Migration
+### Step 3: Generate Migration
 
 ```bash
 pnpm db:generate -- --name YourDescriptiveName
 ```
 
-✅ Creates `src/migrations/TIMESTAMP-YourDescriptiveName.ts` with full SQL
+✅ Creates `src/migrations/TIMESTAMP-YourDescriptiveName.ts`
 
 ### Step 4: Run Migration
 
@@ -59,27 +58,55 @@ pnpm db:generate -- --name YourDescriptiveName
 pnpm db:migrate
 ```
 
-**That's it!** No conversion, no manual SQL needed.
+## Workflow 2: Manual Migrations 🛠️
 
-## TypeORM Auto-Generated Example
+For custom SQL or complex changes:
+
+### Step 1: Create Entity (if needed)
+
+`src/entities/YourEntity.ts` - same as above
+
+### Step 2: Register Entity (if needed)
+
+Add to `cli-data-source.ts`
+
+### Step 3: Create Migration Manually
+
+`src/migrations/1774947846042-CreateYourEntityTable.ts`:
 
 ```typescript
-// src/migrations/1774947846041-InitialMigration.ts
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class InitialMigration1774947846041 implements MigrationInterface {
-    name = 'InitialMigration1774947846041'
+export class CreateYourEntityTable1774947846042 implements MigrationInterface {
+  name = 'CreateYourEntityTable1774947846042';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // SQL queries auto-generated from your entities
-        await queryRunner.query(`...`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "your_entities" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "name" varchar(255) NOT NULL,
+        "description" text,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // Rollback queries
-        await queryRunner.query(`...`);
-    }
+    // Create indexes
+    await queryRunner.query(
+      'CREATE INDEX IF NOT EXISTS idx_your_entities_name ON "your_entities" ("name")'
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('DROP TABLE IF EXISTS "your_entities" CASCADE');
+  }
 }
+```
+
+### Step 4: Run Migration
+
+```bash
+pnpm db:migrate
 ```
 
 ## Available Commands
@@ -99,46 +126,69 @@ pnpm db:verify
 
 ```
 src/
-├── entities/           ← TypeScript entity definitions
+├── entities/           ← TypeScript entities
 │   ├── Location.ts
 │   ├── Zone.ts
 │   ├── Route.ts
 │   └── Task.ts
-└── migrations/         ← TypeScript migrations (auto-generated)
+└── migrations/         ← TypeScript migrations (auto or manual)
     └── 1774947846041-InitialMigration.ts
+    └── 1774947846042-CreateYourEntityTable.ts (manual example)
 ```
 
 ## How It Works
 
-1. **Entity Comparison:** TypeORM compares your `.ts` entities to the database
-2. **SQL Generation:** Automatically generates `up()` and `down()` methods
-3. **Direct Execution:** `tsx` runs `.ts` files directly without compilation
-4. **TypeORM Runner:** `run-migrations.ts` uses TypeORM's `runMigrations()` API
+1. **Entity → SQL:** TypeORM compares `.ts` entities to database
+2. **Auto Generation:** Creates `up()` and `down()` methods automatically
+3. **Direct Execution:** `tsx` runs `.ts` files directly
+4. **TypeORM Runner:** `run-migrations.ts` calls `runMigrations()` API
 
 ## Best Practices
 
 ✅ **Do:**
-- Let TypeORM generate migrations from entities
+- Use auto-generate for entity changes (fastest)
+- Use manual for custom SQL (control)
 - Always define `down()` for rollback
-- Test migrations in develop branch
 - Register all entities in `cli-data-source.ts`
-- Keep entities and migrations in sync
+- Test migrations in develop branch
+- Keep migrations in sync with entities
 
 ❌ **Don't:**
-- Manually edit generated migrations (delete and regenerate)
-- Create migrations without corresponding entities
-- Forget to run migrations before deploying
+- Edit generated migrations (delete and regenerate)
+- Create migrations without entities
+- Forget the `name` property
+- Skip testing before merging
+
+## TypeScript Migration Template
+
+```typescript
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class YourMigrationName1774947846042 implements MigrationInterface {
+  name = 'YourMigrationName1774947846042';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Add your SQL queries here
+    await queryRunner.query(`...`);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // Add rollback queries here
+    await queryRunner.query(`...`);
+  }
+}
+```
 
 ## Troubleshooting
 
 **Error: "Cannot find module..."**
-- Ensure `cli-data-source.ts` exists in project root
-- Check all entity imports in `cli-data-source.ts`
+- Check `cli-data-source.ts` exists in project root
+- Verify all entity imports are correct
 
 **Error: "No migrations are pending"**
-- TypeORM found no changes between entities and database
-- Make sure you've registered new entities in `cli-data-source.ts`
+- TypeORM found no differences between entities and database
+- Check if you registered new entities in `cli-data-source.ts`
 
-**Spatial indexes not created**
-- Use geometry columns (PostGIS) in entities
-- TypeORM auto-creates GiST indexes for spatial columns
+**Spatial indexes missing**
+- Use PostGIS geometry columns in entities
+- TypeORM auto-creates GiST indexes for spatial data
