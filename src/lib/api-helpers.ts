@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import {
-  ApiResponse,
-  ApiErrorResponse,
-  ApiPaginatedResponse,
+  type ApiResponse,
+  type ApiErrorResponse,
+  type ApiPaginatedResponse,
   HTTP_STATUS,
   ERROR_CODES,
 } from './api-response';
-import crypto from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Generate unique request ID for tracking
  */
 export function generateRequestId(): string {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 /**
