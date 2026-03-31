@@ -53,41 +53,40 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
-          BRANCH_NAME: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
+          BRANCH_ID: ${{ steps.create_neon_branch.outputs.branch_id }}
         run: |
-          # Get branch list and find the branch ID for our preview branch
-          BRANCHES_JSON=$(curl -s -H "Authorization: Bearer $NEON_API_KEY" \
-            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches")
-          
-          BRANCH_ID=$(echo "$BRANCHES_JSON" | grep -o '"name":"[^"]*' | grep "$BRANCH_NAME" -A 1 | head -1 | grep -o '"id":"[^"]*' | cut -d'"' -f4)
-          
-          echo "branch_id=$BRANCH_ID" >> $GITHUB_OUTPUT
+          echo "Using branch ID: $BRANCH_ID"
           
           if [ -z "$BRANCH_ID" ]; then
-            echo "❌ Failed to get branch ID for $BRANCH_NAME"
-            echo "Response: $BRANCHES_JSON"
+            echo "❌ No branch ID from create action"
             exit 1
           fi
           
-          echo "✅ Branch ID: $BRANCH_ID"
-          
-          # Get connection string with pooler - use proper query parameters
+          # Get connection string with pooler
+          echo "Querying connection URI..."
           CONNECTION_JSON=$(curl -s -G \
             -H "Authorization: Bearer $NEON_API_KEY" \
             "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/connection_uri" \
-            --data-urlencode "branch=$BRANCH_ID" \
+            --data-urlencode "branch_id=$BRANCH_ID" \
             --data-urlencode "pooled=true")
           
-          DB_URL=$(echo "$CONNECTION_JSON" | grep -o '"connection_uri":"[^"]*' | cut -d'"' -f4)
+          echo "Response: $CONNECTION_JSON"
+          
+          # Try multiple patterns to extract connection_uri
+          DB_URL=$(echo "$CONNECTION_JSON" | grep -o '"connection_uri":"[^"]*' | head -1 | cut -d'"' -f4)
           
           if [ -z "$DB_URL" ]; then
-            echo "❌ Failed to get connection string"
-            echo "Response: $CONNECTION_JSON"
+            # Try alternative pattern
+            DB_URL=$(echo "$CONNECTION_JSON" | grep -oP '(?<="connection_uri":")[^"]+' | head -1)
+          fi
+          
+          if [ -z "$DB_URL" ]; then
+            echo "❌ Failed to extract connection string"
             exit 1
           fi
           
           echo "database_url=$DB_URL" >> $GITHUB_OUTPUT
-          echo "✅ Got pooled connection string"
+          echo "✅ Got pooled connection string (length: ${#DB_URL})"
 
       - name: Checkout code
         uses: actions/checkout@v4
