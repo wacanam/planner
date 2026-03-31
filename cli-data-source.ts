@@ -5,6 +5,12 @@ import { Location } from './src/entities/Location';
 import { Zone } from './src/entities/Zone';
 import { Route } from './src/entities/Route';
 import { Task } from './src/entities/Task';
+import { Congregation } from './src/entities/Congregation';
+import { User } from './src/entities/User';
+import { Territory } from './src/entities/Territory';
+import { TerritoryAssignment } from './src/entities/TerritoryAssignment';
+import { ServiceGroup } from './src/entities/ServiceGroup';
+import { TerritoryRotation } from './src/entities/TerritoryRotation';
 
 // Load environment variables
 config({
@@ -18,7 +24,18 @@ export const CliDataSource = new DataSource({
   ssl: true,
   synchronize: false,
   logging: false,
-  entities: [Location, Zone, Route, Task],
+  entities: [
+    Location,
+    Zone,
+    Route,
+    Task,
+    Congregation,
+    User,
+    Territory,
+    TerritoryAssignment,
+    ServiceGroup,
+    TerritoryRotation,
+  ],
   migrations: ['src/migrations/**/*.{js,ts}'],
   subscribers: [],
   extra: {
