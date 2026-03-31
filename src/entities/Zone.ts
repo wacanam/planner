@@ -4,11 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  Index,
 } from 'typeorm';
 
 @Entity('zones')
-@Index('idx_zone_geom', { spatial: true })
 export class Zone {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

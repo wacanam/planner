@@ -10,6 +10,8 @@
     "format": "biome format --write .",
     "db:migrate": "ts-node run-migrations.ts",
     "db:verify": "ts-node verify-connection.ts",
+    "db:generate": "tsx ./node_modules/typeorm/cli.js migration:generate src/migrations/InitialMigration -d cli-data-source.ts",
+    "db:create": "tsx ./node_modules/typeorm/cli.js migration:create src/migrations/CreateMigration",
     "neon:auth": "neonctl auth",
     "neon:setup": "bash neon-setup.sh",
     "neon:projects": "neonctl projects list",
@@ -36,6 +38,7 @@
     "neonctl": "^2.22.0",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

@@ -4,11 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  Index,
 } from 'typeorm';
 
 @Entity('routes')
-@Index('idx_route_geom', { spatial: true })
 export class Route {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
