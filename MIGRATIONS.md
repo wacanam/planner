@@ -1,14 +1,20 @@
 # Database Migrations Guide
 
-This project supports **both auto-generated and manual migrations** using TypeORM.
+This project uses **TypeORM auto-generated migrations** in TypeScript (`.ts`).
 
-## Workflow: Auto-Generate Migrations ✨
+## Why TypeScript Migrations?
 
-TypeORM can automatically generate migrations by comparing your entity definitions to the database schema.
+- ✅ Full type safety
+- ✅ Direct execution via `tsx` (no compilation needed)
+- ✅ Consistency with entities and config (all `.ts`)
+- ✅ No manual conversion step
+- ✅ Seamless with Next.js and modern tooling
 
-### Step 1: Define/Update Entity
+## Simple Workflow
 
-Create or modify your entity in `src/entities/YourEntity.ts`:
+### Step 1: Create/Update Entity
+
+`src/entities/YourEntity.ts`:
 
 ```typescript
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
@@ -28,7 +34,7 @@ export class YourEntity {
 
 ### Step 2: Register Entity in CLI Config
 
-Add your entity to `cli-data-source.ts` in the entities array:
+Add to `cli-data-source.ts`:
 
 ```typescript
 import { YourEntity } from './src/entities/YourEntity';
@@ -45,87 +51,35 @@ export const CliDataSource = new DataSource({
 pnpm db:generate -- --name YourDescriptiveName
 ```
 
-TypeORM will:
-- ✅ Compare current entities to database schema
-- ✅ Generate SQL changes automatically
-- ✅ Create `src/migrations/TIMESTAMP-YourDescriptiveName.ts`
+✅ Creates `src/migrations/TIMESTAMP-YourDescriptiveName.ts` with full SQL
 
-### Step 4: Convert TypeScript to JavaScript
-
-**Important:** Generated migrations are TypeScript. Convert them:
-
-1. Open the generated `.ts` file and copy the SQL queries
-2. Create a `.js` file with the same name
-3. Convert to CommonJS format:
-
-```javascript
-// Generated: src/migrations/1704069000000-YourMigration.ts
-export class YourMigration1704069000000 implements MigrationInterface { ... }
-
-// Convert to JavaScript: src/migrations/1704069000000-YourMigration.js
-class YourMigration1704069000000 {
-  async up(queryRunner) {
-    // ... copy queries here
-  }
-  async down(queryRunner) {
-    // ... copy rollback queries here
-  }
-}
-module.exports = { YourMigration1704069000000 };
-```
-
-4. Delete the `.ts` file
-5. Run migration: `pnpm db:migrate`
-
-## Workflow: Manual Migration
-
-If auto-generation doesn't work or you need custom SQL:
-
-### 1. Create Entity
-
-`src/entities/YourEntity.ts` - same as above
-
-### 2. Register Entity
-
-Add to `cli-data-source.ts` entities array
-
-### 3. Create Migration (JavaScript)
-
-`src/migrations/1704069000000-CreateYourEntityTable.js`:
-
-```javascript
-const { MigrationInterface, QueryRunner } = require('typeorm');
-
-class CreateYourEntityTable1704069000000 {
-  async up(queryRunner) {
-    await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "your_entities" (
-        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "name" varchar(255) NOT NULL,
-        "description" text,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create indexes
-    await queryRunner.query(
-      'CREATE INDEX IF NOT EXISTS idx_your_entities_name ON "your_entities" ("name")'
-    );
-  }
-
-  async down(queryRunner) {
-    await queryRunner.query('DROP TABLE IF EXISTS "your_entities" CASCADE');
-  }
-}
-
-module.exports = { CreateYourEntityTable1704069000000 };
-```
-
-### 4. Run Migration
+### Step 4: Run Migration
 
 ```bash
 pnpm db:migrate
+```
+
+**That's it!** No conversion, no manual SQL needed.
+
+## TypeORM Auto-Generated Example
+
+```typescript
+// src/migrations/1774947846041-InitialMigration.ts
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class InitialMigration1774947846041 implements MigrationInterface {
+    name = 'InitialMigration1774947846041'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        // SQL queries auto-generated from your entities
+        await queryRunner.query(`...`);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        // Rollback queries
+        await queryRunner.query(`...`);
+    }
+}
 ```
 
 ## Available Commands
@@ -134,10 +88,7 @@ pnpm db:migrate
 # Auto-generate migration from entity changes
 pnpm db:generate -- --name MigrationName
 
-# Create empty migration template
-pnpm db:create src/migrations/MigrationName
-
-# Run all migrations
+# Run all pending migrations
 pnpm db:migrate
 
 # Test database connection
@@ -153,52 +104,41 @@ src/
 │   ├── Zone.ts
 │   ├── Route.ts
 │   └── Task.ts
-├── migrations/         ← JavaScript migration files ONLY
-│   ├── 1704067200000-InitialSetup.js
-│   ├── 1704068400000-CreateTasksTable.js
-│   └── 1774947522635-InitialMigration.js
-└── lib/
-    └── cli-data-source.ts  ← TypeORM config for migrations
+└── migrations/         ← TypeScript migrations (auto-generated)
+    └── 1774947846041-InitialMigration.ts
 ```
 
-## Workaround: Using tsx + TypeORM CLI
+## How It Works
 
-The project uses **tsx** (TypeScript executor) to run TypeORM CLI commands without compilation:
+1. **Entity Comparison:** TypeORM compares your `.ts` entities to the database
+2. **SQL Generation:** Automatically generates `up()` and `down()` methods
+3. **Direct Execution:** `tsx` runs `.ts` files directly without compilation
+4. **TypeORM Runner:** `run-migrations.ts` uses TypeORM's `runMigrations()` API
 
-```bash
-# Under the hood, pnpm db:generate runs:
-tsx ./node_modules/typeorm/cli.js migration:generate src/migrations/YourMigration -d cli-data-source.ts
-```
-
-This bypasses Next.js build issues and works directly with TypeScript entities.
-
-## Migration Best Practices
+## Best Practices
 
 ✅ **Do:**
-- Define entities in TypeScript (`.ts`)
-- Keep migration files in JavaScript (`.js`)
-- Use `IF NOT EXISTS` for idempotent migrations
-- Test migrations before pushing to main
-- Include both `up()` and `down()` methods
-- Use descriptive migration names
+- Let TypeORM generate migrations from entities
+- Always define `down()` for rollback
+- Test migrations in develop branch
+- Register all entities in `cli-data-source.ts`
+- Keep entities and migrations in sync
 
 ❌ **Don't:**
-- Use TypeScript migrations in the codebase
-- Forget to register entities in `cli-data-source.ts`
+- Manually edit generated migrations (delete and regenerate)
 - Create migrations without corresponding entities
-- Edit existing migrations (create new ones instead)
-- Hardcode values without PostGIS syntax considerations
+- Forget to run migrations before deploying
 
 ## Troubleshooting
 
-**Error: "Cannot find module 'cli-data-source'"**
-- Verify `cli-data-source.ts` exists in project root
-- Check all entity imports are correct
+**Error: "Cannot find module..."**
+- Ensure `cli-data-source.ts` exists in project root
+- Check all entity imports in `cli-data-source.ts`
 
-**Error: "TypeORM generates TypeScript not JavaScript"**
-- This is expected! Follow Step 4 to convert to JavaScript
-- Always keep `.js` files in src/migrations/
+**Error: "No migrations are pending"**
+- TypeORM found no changes between entities and database
+- Make sure you've registered new entities in `cli-data-source.ts`
 
-**Spatial indexes missing**
-- Use GiST indexes for PostGIS geometry
-- Example: `CREATE INDEX idx_name ON table USING GiST (column)`
+**Spatial indexes not created**
+- Use geometry columns (PostGIS) in entities
+- TypeORM auto-creates GiST indexes for spatial columns
