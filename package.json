@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "biome lint",
     "format": "biome format --write .",
-    "db:migrate": "ts-node run-migrations.ts",
+    "db:migrate": "tsx run-migrations.ts",
     "db:verify": "ts-node verify-connection.ts",
     "db:generate": "tsx ./node_modules/typeorm/cli.js migration:generate src/migrations/InitialMigration -d cli-data-source.ts",
     "db:create": "tsx ./node_modules/typeorm/cli.js migration:create src/migrations/CreateMigration",
