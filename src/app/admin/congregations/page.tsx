@@ -155,7 +155,7 @@ export default function AdminCongregationsPage() {
 
   return (
     <ProtectedPage requiredRole={UserRole.ADMIN}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
@@ -185,7 +185,7 @@ export default function AdminCongregationsPage() {
         </div>
 
         {/* Table / list */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
