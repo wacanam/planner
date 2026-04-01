@@ -202,28 +202,28 @@ export default function AdminCongregationsPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[400px]">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Name
                       </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
+                      <th className="text-left px-3 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
                         Location
                       </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-3 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Status
                       </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                      <th className="text-left px-3 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
                         Created
                       </th>
-                      <th className="px-6 py-3" />
+                      <th className="px-3 sm:px-6 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filtered.map((c) => (
                       <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                               <Building2 size={14} className="text-primary" />
@@ -234,7 +234,7 @@ export default function AdminCongregationsPage() {
                         <td className="px-6 py-4 text-muted-foreground hidden sm:table-cell">
                           {[c.city, c.country].filter(Boolean).join(', ') || '—'}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-4">
                           <Badge
                             variant="outline"
                             className={
@@ -249,7 +249,7 @@ export default function AdminCongregationsPage() {
                         <td className="px-6 py-4 text-muted-foreground text-xs hidden md:table-cell">
                           {new Date(c.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-4">
                           <div className="flex items-center gap-1 justify-end">
                             <Button asChild size="sm" variant="ghost">
                               <Link href={`/congregation/${c.id}/dashboard`}>
