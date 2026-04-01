@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { congregationMembers, db, users } from '@/db';
+import { congregationMembers, db, users, MemberStatus } from '@/db';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -55,7 +55,12 @@ export const authOptions: NextAuthOptions = {
             const [membership] = await db
               .select()
               .from(congregationMembers)
-              .where(eq(congregationMembers.userId, user.id))
+              .where(
+                and(
+                  eq(congregationMembers.userId, user.id),
+                  eq(congregationMembers.status, MemberStatus.ACTIVE)
+                )
+              )
               .limit(1);
             congregationId = membership?.congregationId ?? null;
           }
@@ -72,8 +77,8 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
-            congregationId,
+            role: user.role as import('@/db').UserRole,
+            congregationId: congregationId ?? undefined,
           };
         } catch (err) {
           if (err instanceof Error) {
@@ -92,6 +97,10 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.congregationId = user.congregationId;
+      }
+      // Allow client-side session.update({ congregationId }) to refresh the token
+      if (trigger === 'update' && session?.congregationId !== undefined) {
+        token.congregationId = session.congregationId;
       }
       // Allow client-side session.update({ congregationId }) to refresh the token
       if (trigger === 'update' && session?.congregationId !== undefined) {
