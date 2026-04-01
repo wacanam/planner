@@ -124,9 +124,9 @@ export default function RegisterPage() {
           router.push('/auth/login');
         }, 2000);
       } else if (signInResult?.ok) {
-        setSuccess('Welcome! Redirecting to dashboard…');
+        setSuccess('Welcome! Setting up your account…');
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/onboarding');
           router.refresh();
         }, 1000);
       }
