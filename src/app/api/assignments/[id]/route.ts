@@ -74,13 +74,17 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
         ? new Date()
         : assignment.returnedAt;
 
-    const updated = await db.transaction(async (tx) => {
-      if (newStatus === AssignmentStatus.COMPLETED || newStatus === AssignmentStatus.RETURNED) {
-        const newTerritoryStatus =
-          newStatus === AssignmentStatus.COMPLETED
-            ? TerritoryStatus.COMPLETED
-            : TerritoryStatus.AVAILABLE;
-        await tx
+    let updated: typeof territoryAssignments.$inferSelect;
+
+    if (newStatus === AssignmentStatus.COMPLETED || newStatus === AssignmentStatus.RETURNED) {
+      const newTerritoryStatus =
+        newStatus === AssignmentStatus.COMPLETED
+          ? TerritoryStatus.COMPLETED
+          : TerritoryStatus.AVAILABLE;
+
+      // db.batch uses neon's HTTP batch API which executes both statements atomically
+      const [, updatedRows] = await db.batch([
+        db
           .update(territories)
           .set({
             status: newTerritoryStatus,
@@ -88,10 +92,22 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
             groupId: null,
             updatedAt: new Date(),
           })
-          .where(eq(territories.id, assignment.territoryId));
-      }
-
-      const [result] = await tx
+          .where(eq(territories.id, assignment.territoryId)),
+        db
+          .update(territoryAssignments)
+          .set({
+            status: newStatus,
+            notes: (body.notes as string) ?? assignment.notes,
+            dueAt: (body.dueAt as Date) ?? assignment.dueAt,
+            returnedAt,
+            updatedAt: new Date(),
+          })
+          .where(eq(territoryAssignments.id, id))
+          .returning(),
+      ] as const);
+      updated = updatedRows[0];
+    } else {
+      const [result] = await db
         .update(territoryAssignments)
         .set({
           status: newStatus,
@@ -102,9 +118,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
         })
         .where(eq(territoryAssignments.id, id))
         .returning();
-
-      return result;
-    });
+      updated = result;
+    }
 
     return successResponse(updated, 'Assignment updated', 200, requestId);
   } catch (err) {

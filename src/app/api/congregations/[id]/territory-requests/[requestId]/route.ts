@@ -48,22 +48,24 @@ export async function PATCH(
     return NextResponse.json({ error: 'Request has already been processed' }, { status: 409 });
   }
 
-  const updated = await db.transaction(async (tx) => {
-    const [updatedRequest] = await tx
-      .update(territoryRequests)
-      .set({
-        status,
-        approvedBy: user.userId,
-        approvedAt: new Date(),
-        responseMessage: responseMessage?.trim() || null,
-      })
-      .where(eq(territoryRequests.id, requestId))
-      .returning();
+  let updatedRequest: typeof territoryRequests.$inferSelect;
 
-    // When approved and a specific territory was requested, create an assignment
-    if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
+  if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
+    // db.batch uses neon's HTTP batch API which executes both statements atomically,
+    // so the request status and territory status are updated together.
+    const [updatedRequestRows, assignedTerritoryRows] = await db.batch([
+      db
+        .update(territoryRequests)
+        .set({
+          status,
+          approvedBy: user.userId,
+          approvedAt: new Date(),
+          responseMessage: responseMessage?.trim() || null,
+        })
+        .where(eq(territoryRequests.id, requestId))
+        .returning(),
       // Guard against race conditions: only update if the territory is still available
-      const [assignedTerritory] = await tx
+      db
         .update(territories)
         .set({
           status: TerritoryStatus.ASSIGNED,
@@ -76,21 +78,34 @@ export async function PATCH(
             eq(territories.status, TerritoryStatus.AVAILABLE)
           )
         )
-        .returning();
+        .returning(),
+    ] as const);
 
-      if (assignedTerritory) {
-        await tx.insert(territoryAssignments).values({
-          territoryId: assignedTerritory.id,
-          userId: request.publisherId,
-          status: AssignmentStatus.ACTIVE,
-          assignedAt: new Date(),
-          coverageAtAssignment: assignedTerritory.coveragePercent ?? '0',
-        });
-      }
+    updatedRequest = updatedRequestRows[0];
+    const assignedTerritory = assignedTerritoryRows[0];
+
+    if (assignedTerritory) {
+      await db.insert(territoryAssignments).values({
+        territoryId: assignedTerritory.id,
+        userId: request.publisherId,
+        status: AssignmentStatus.ACTIVE,
+        assignedAt: new Date(),
+        coverageAtAssignment: assignedTerritory.coveragePercent ?? '0',
+      });
     }
+  } else {
+    const [result] = await db
+      .update(territoryRequests)
+      .set({
+        status,
+        approvedBy: user.userId,
+        approvedAt: new Date(),
+        responseMessage: responseMessage?.trim() || null,
+      })
+      .where(eq(territoryRequests.id, requestId))
+      .returning();
+    updatedRequest = result;
+  }
 
-    return updatedRequest;
-  });
-
-  return NextResponse.json({ data: updated });
+  return NextResponse.json({ data: updatedRequest });
 }

@@ -68,8 +68,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const assignment = await db.transaction(async (tx) => {
-      await tx
+    // db.batch uses neon's HTTP batch API which executes both statements atomically
+    const [, insertedRows] = await db.batch([
+      db
         .update(territories)
         .set({
           status: TerritoryStatus.ASSIGNED,
@@ -77,9 +78,8 @@ export async function POST(req: NextRequest) {
           groupId: (body.serviceGroupId as string) ?? null,
           updatedAt: new Date(),
         })
-        .where(eq(territories.id, territory.id));
-
-      const [inserted] = await tx
+        .where(eq(territories.id, territory.id)),
+      db
         .insert(territoryAssignments)
         .values({
           territoryId: body.territoryId as string,
@@ -91,10 +91,9 @@ export async function POST(req: NextRequest) {
           notes: (body.notes as string) ?? null,
           coverageAtAssignment: territory.coveragePercent ?? '0',
         })
-        .returning();
-
-      return inserted;
-    });
+        .returning(),
+    ] as const);
+    const assignment = insertedRows[0];
 
     return successResponse(assignment, 'Territory assigned', 201, requestId);
   } catch (err) {
