@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -86,25 +86,44 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Use NextAuth's credentials provider with signup mode
-      const result = await signIn('credentials', {
+      // Step 1: Call /api/auth/register to create user
+      const registerRes = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          name,
+        }),
+      });
+
+      const registerData = await registerRes.json();
+
+      if (!registerRes.ok) {
+        setError(registerData.error || 'Registration failed. Please try again.');
+        return;
+      }
+
+      console.log('[register] User created:', registerData.user);
+      setSuccess('Account created! Signing you in…');
+
+      // Step 2: Sign in the newly created user
+      const signInResult = await signIn('credentials', {
         email: form.email,
         password: form.password,
-        name,
-        mode: 'signup',
         redirect: false,
       });
 
-      console.log('[register] signIn result:', result);
+      console.log('[register] signIn result:', signInResult);
 
-      if (result?.error) {
-        console.error('[register] signIn error:', result.error);
-        setError(result.error || 'Registration failed. Please try again.');
-      } else if (!result?.ok) {
-        console.error('[register] signIn not ok:', result);
-        setError('Registration failed. Please try again.');
-      } else {
-        setSuccess('Account created! Redirecting to dashboard…');
+      if (signInResult?.error) {
+        console.error('[register] signIn error:', signInResult.error);
+        setError('Account created, but sign-in failed. Please try signing in manually.');
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 2000);
+      } else if (signInResult?.ok) {
+        setSuccess('Welcome! Redirecting to dashboard…');
         setTimeout(() => {
           router.push('/dashboard');
           router.refresh();
@@ -259,55 +278,52 @@ export default function RegisterPage() {
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-
-              {passwordsMatch && (
-                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-                  <CheckCircle2 size={14} /> Passwords match
-                </p>
-              )}
               {passwordsDontMatch && (
-                <p className="text-xs text-red-600 dark:text-red-400">Passwords do not match</p>
+                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+              )}
+              {passwordsMatch && (
+                <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>
               )}
             </div>
 
-            {/* Terms */}
-            <div className="flex items-start gap-2">
+            {/* Terms checkbox */}
+            <div className="flex items-start gap-2 pt-2">
               <input
-                id="agreeTerms"
+                id="terms"
                 type="checkbox"
                 checked={form.agreeTerms}
                 onChange={(e) => update('agreeTerms', e.target.checked)}
                 disabled={loading}
-                className="w-4 h-4 rounded border border-border mt-1 accent-primary"
+                className="w-4 h-4 rounded border-border bg-background cursor-pointer mt-0.5"
               />
-              <label htmlFor="agreeTerms" className="text-sm text-muted-foreground leading-relaxed">
+              <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
                 I agree to the{' '}
-                <a href="#" className="text-primary hover:underline">
-                  Terms of Service
-                </a>{' '}
+                <Link href="/terms" className="text-accent hover:underline">
+                  terms
+                </Link>{' '}
                 and{' '}
-                <a href="#" className="text-primary hover:underline">
-                  Privacy Policy
-                </a>
+                <Link href="/privacy" className="text-accent hover:underline">
+                  privacy policy
+                </Link>
               </label>
             </div>
 
             {/* Submit button */}
             <Button
               type="submit"
-              disabled={loading || !passwordsMatch || !form.agreeTerms}
+              disabled={loading || !form.agreeTerms}
               className="w-full mt-6"
+              size="lg"
             >
               {loading ? 'Creating account…' : 'Create account'}
-              {!loading && <ArrowRight size={16} className="ml-1.5" />}
             </Button>
           </form>
 
           {/* Sign in link */}
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link href="/auth/login" className="text-primary hover:underline font-medium">
-              Sign in
+            <Link href="/auth/login" className="text-accent font-medium hover:underline">
+              Sign in here
             </Link>
           </p>
         </div>

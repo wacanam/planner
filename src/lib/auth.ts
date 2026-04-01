@@ -2,7 +2,7 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
-import { User, UserRole } from '@/entities/User';
+import { User } from '@/entities/User';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -21,8 +21,6 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
-        name: { label: 'Name', type: 'text' },
-        mode: { label: 'Mode', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -38,62 +36,8 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        const userRepo = AppDataSource.getRepository(User);
-        const mode = credentials.mode || 'signin';
-
-        // SIGNUP MODE
-        if (mode === 'signup') {
-          if (!credentials.name) {
-            throw new Error('Name is required for registration');
-          }
-
-          if (credentials.password.length < 8) {
-            throw new Error('Password must be at least 8 characters');
-          }
-
-          try {
-            // Check if email already exists
-            const existing = await userRepo.findOne({ where: { email: credentials.email } });
-            if (existing) {
-              throw new Error('This email is already registered. Please sign in instead.');
-            }
-
-            // Hash password and create user
-            const hashedPassword = await bcrypt.hash(credentials.password, 12);
-            const user = userRepo.create({
-              email: credentials.email,
-              password: hashedPassword,
-              name: credentials.name,
-              role: UserRole.USER,
-            });
-
-            // Save and wait for completion
-            const savedUser = await userRepo.save(user);
-            console.log('[auth] User created successfully:', {
-              id: savedUser.id,
-              email: savedUser.email,
-              name: savedUser.name,
-            });
-
-            return {
-              id: savedUser.id,
-              email: savedUser.email,
-              name: savedUser.name,
-              role: savedUser.role,
-              congregationId: savedUser.congregationId ?? null,
-            };
-          } catch (err) {
-            if (err instanceof Error) {
-              console.error('[auth signup error]', err.message);
-              throw err;
-            }
-            console.error('[auth signup error]', err);
-            throw new Error('Failed to create account. Please try again.');
-          }
-        }
-
-        // SIGNIN MODE (default)
         try {
+          const userRepo = AppDataSource.getRepository(User);
           const user = await userRepo.findOne({ where: { email: credentials.email } });
 
           if (!user) {
@@ -110,6 +54,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           await userRepo.update(user.id, { lastLoginAt: new Date() });
+
+          console.log('[auth] User signed in:', user.id, user.email);
 
           return {
             id: user.id,
