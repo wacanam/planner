@@ -260,8 +260,8 @@ export default function CongregationTerritoriesPage() {
                     )}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto w-full">
+                    <table className="w-full text-sm min-w-[600px]">
                       <thead>
                         <tr className="border-b border-border">
                           <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -270,7 +270,7 @@ export default function CongregationTerritoriesPage() {
                           <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Status
                           </th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Assigned To
                           </th>
                         </tr>
@@ -301,7 +301,7 @@ export default function CongregationTerritoriesPage() {
                                 {t.status}
                               </Badge>
                             </td>
-                            <td className="px-6 py-4 text-muted-foreground text-xs hidden sm:table-cell">
+                            <td className="px-6 py-4 text-muted-foreground text-xs">
                               {t.publisher?.name ?? t.group?.name ?? '—'}
                             </td>
                           </tr>

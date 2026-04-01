@@ -161,17 +161,17 @@ export default function CongregationMembersPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-sm min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Member
                       </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden sm:table-cell">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Role
                       </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Joined
                       </th>
                       <th className="px-6 py-3" />
@@ -191,7 +191,7 @@ export default function CongregationMembersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 hidden sm:table-cell">
+                        <td className="px-6 py-4">
                           {m.congregationRole ? (
                             <Badge variant="outline" className="capitalize text-xs">
                               {m.congregationRole.replace('_', ' ')}
@@ -200,7 +200,7 @@ export default function CongregationMembersPage() {
                             <span className="text-muted-foreground text-xs">member</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-xs text-muted-foreground hidden md:table-cell">
+                        <td className="px-6 py-4 text-xs text-muted-foreground">
                           {new Date(m.joinedAt).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
