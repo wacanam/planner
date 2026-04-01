@@ -58,6 +58,8 @@ export default function CongregationMembersPage() {
     myRole === CongregationRole.SERVICE_OVERSEER ||
     myRole === CongregationRole.TERRITORY_SERVANT;
 
+  const canApprove = myRole === CongregationRole.SERVICE_OVERSEER;
+
   const [tab, setTab] = useState<Tab>('members');
 
   // Members
@@ -433,24 +435,32 @@ export default function CongregationMembersPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900/20 gap-1"
-                            onClick={() => openReview(r, 'active')}
-                          >
-                            <Check size={13} />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive border-destructive/30 hover:bg-destructive/5 gap-1"
-                            onClick={() => openReview(r, 'rejected')}
-                          >
-                            <X size={13} />
-                            Reject
-                          </Button>
+                          {canApprove ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900/20 gap-1"
+                                onClick={() => openReview(r, 'active')}
+                              >
+                                <Check size={13} />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive border-destructive/30 hover:bg-destructive/5 gap-1"
+                                onClick={() => openReview(r, 'rejected')}
+                              >
+                                <X size={13} />
+                                Reject
+                              </Button>
+                            </>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+                              Pending
+                            </Badge>
+                          )}
                         </div>
                       </td>
                     </tr>
