@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,21 +14,22 @@ type StrengthInfo = {
   label: string;
   width: string;
   color: string;
+  bg: string;
   score: number;
 };
 
 function getPasswordStrength(password: string): StrengthInfo {
-  if (password.length === 0) return { label: '', width: '0%', color: 'bg-border', score: 0 };
+  if (password.length === 0) return { label: '', width: '0%', color: 'text-border', bg: 'bg-border', score: 0 };
   if (password.length < 6)
-    return { label: 'Too short', width: '20%', color: 'bg-red-400', score: 1 };
-  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'bg-orange-400', score: 2 };
+    return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400', score: 1 };
+  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400', score: 2 };
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
   const extras = [hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-  if (extras === 0) return { label: 'Fair', width: '55%', color: 'bg-yellow-400', score: 3 };
-  if (extras <= 1) return { label: 'Good', width: '75%', color: 'bg-accent', score: 4 };
-  return { label: 'Strong', width: '100%', color: 'bg-green-400', score: 5 };
+  if (extras === 0) return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400', score: 3 };
+  if (extras <= 1) return { label: 'Good', width: '75%', color: 'text-accent', bg: 'bg-accent', score: 4 };
+  return { label: 'Strong', width: '100%', color: 'text-green-400', bg: 'bg-green-400', score: 5 };
 }
 
 export default function RegisterPage() {
@@ -85,21 +87,51 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
+      // Step 1: Call /api/auth/register to create user
+      const registerRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, password: form.password, name }),
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          name,
+        }),
       });
 
-      const data = await res.json();
+      const registerData = await registerRes.json();
 
-      if (!res.ok) {
-        setError(data.error ?? 'Registration failed. Please try again.');
-      } else {
-        setSuccess('Account created! Redirecting to sign in…');
-        setTimeout(() => router.push('/auth/login'), 1500);
+      if (!registerRes.ok) {
+        setError(registerData.error || 'Registration failed. Please try again.');
+        return;
       }
-    } catch {
+
+      console.log('[register] User created:', registerData.user);
+      setSuccess('Account created! Signing you in…');
+
+      // Step 2: Sign in the newly created user
+      const signInResult = await signIn('credentials', {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+
+      console.log('[register] signIn result:', signInResult);
+
+      if (signInResult?.error) {
+        console.error('[register] signIn error:', signInResult.error);
+        setError('Account created, but sign-in failed. Please try signing in manually.');
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 2000);
+      } else if (signInResult?.ok) {
+        setSuccess('Welcome! Redirecting to dashboard…');
+        setTimeout(() => {
+          router.push('/dashboard');
+          router.refresh();
+        }, 1000);
+      }
+    } catch (err) {
+      console.error('[register] catch error:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -107,7 +139,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5">
+    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-linear-to-br from-accent/5 via-background to-primary/5">
       <div className="w-full max-w-md">
         <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
           {/* Logo & heading */}
@@ -157,9 +189,10 @@ export default function RegisterPage() {
                   id="lastName"
                   type="text"
                   autoComplete="family-name"
+                  required
                   value={form.lastName}
                   onChange={(e) => update('lastName', e.target.value)}
-                  placeholder="Smith"
+                  placeholder="Doe"
                   disabled={loading}
                 />
               </div>
@@ -191,7 +224,7 @@ export default function RegisterPage() {
                   required
                   value={form.password}
                   onChange={(e) => update('password', e.target.value)}
-                  placeholder="Min. 8 characters"
+                  placeholder="••••••••"
                   disabled={loading}
                   className="pr-10"
                 />
@@ -199,26 +232,30 @@ export default function RegisterPage() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={loading}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {/* Strength meter */}
-              {form.password.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
-                      style={{ width: strength.width }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{strength.label}</p>
+
+              {/* Password strength indicator */}
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">Password strength</span>
+                  {strength.label && (
+                    <span className={`text-xs font-medium ${strength.color}`}>{strength.label}</span>
+                  )}
                 </div>
-              )}
+                <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${strength.bg}`}
+                    style={{ width: strength.width }}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Confirm Password */}
+            {/* Confirm password */}
             <div className="space-y-1.5">
               <Label htmlFor="confirmPassword">Confirm password</Label>
               <div className="relative">
@@ -231,89 +268,63 @@ export default function RegisterPage() {
                   onChange={(e) => update('confirmPassword', e.target.value)}
                   placeholder="••••••••"
                   disabled={loading}
-                  className={`pr-10 ${passwordsMatch ? 'border-green-400 focus-visible:ring-green-400' : ''} ${passwordsDontMatch ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                  className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                  disabled={loading}
                 >
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {passwordsDontMatch && <p className="text-xs text-red-500">Passwords do not match</p>}
+              {passwordsDontMatch && (
+                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+              )}
               {passwordsMatch && (
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle2 size={12} /> Passwords match
-                </p>
+                <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>
               )}
             </div>
 
-            {/* Terms */}
-            <div className="flex items-start gap-2.5 pt-1">
+            {/* Terms checkbox */}
+            <div className="flex items-start gap-2 pt-2">
               <input
                 id="terms"
                 type="checkbox"
                 checked={form.agreeTerms}
                 onChange={(e) => update('agreeTerms', e.target.checked)}
                 disabled={loading}
-                className="mt-0.5 w-4 h-4 rounded border-input accent-primary cursor-pointer"
+                className="w-4 h-4 rounded border-border bg-background cursor-pointer mt-0.5"
               />
               <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
                 I agree to the{' '}
-                <Link href="#" className="text-primary hover:underline">
-                  Terms of Service
+                <Link href="/terms" className="text-accent hover:underline">
+                  terms
                 </Link>{' '}
                 and{' '}
-                <Link href="#" className="text-primary hover:underline">
-                  Privacy Policy
+                <Link href="/privacy" className="text-accent hover:underline">
+                  privacy policy
                 </Link>
               </label>
             </div>
 
-            {/* Submit */}
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Creating account…
-                </span>
-              ) : (
-                <>
-                  Create Account
-                  <ArrowRight size={16} />
-                </>
-              )}
+            {/* Submit button */}
+            <Button
+              type="submit"
+              disabled={loading || !form.agreeTerms}
+              className="w-full mt-6"
+              size="lg"
+            >
+              {loading ? 'Creating account…' : 'Create account'}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          {/* Sign in link */}
+          <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link
-              href="/auth/login"
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              Sign in
+            <Link href="/auth/login" className="text-accent font-medium hover:underline">
+              Sign in here
             </Link>
           </p>
         </div>

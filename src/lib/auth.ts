@@ -7,7 +7,14 @@ import { User } from '@/entities/User';
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // Update every 24h
   },
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET,
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -21,34 +28,50 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!AppDataSource.isInitialized) {
-          await AppDataSource.initialize();
+          try {
+            await AppDataSource.initialize();
+          } catch (err) {
+            console.error('[auth] Failed to initialize AppDataSource:', err);
+            throw new Error('Database connection failed. Please try again.');
+          }
         }
 
-        const userRepo = AppDataSource.getRepository(User);
-        const user = await userRepo.findOne({ where: { email: credentials.email } });
+        try {
+          const userRepo = AppDataSource.getRepository(User);
+          const user = await userRepo.findOne({ where: { email: credentials.email } });
 
-        if (!user) {
-          throw new Error('Invalid credentials');
+          if (!user) {
+            throw new Error('Invalid email or password. Please check and try again.');
+          }
+
+          const isValid = await bcrypt.compare(credentials.password, user.password);
+          if (!isValid) {
+            throw new Error('Invalid email or password. Please check and try again.');
+          }
+
+          if (!user.isActive) {
+            throw new Error('Your account has been disabled. Contact support for assistance.');
+          }
+
+          await userRepo.update(user.id, { lastLoginAt: new Date() });
+
+          console.log('[auth] User signed in:', user.id, user.email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            congregationId: user.congregationId ?? null,
+          };
+        } catch (err) {
+          if (err instanceof Error) {
+            console.error('[auth signin error]', err.message);
+            throw err;
+          }
+          console.error('[auth signin error]', err);
+          throw new Error('Failed to sign in. Please try again.');
         }
-
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error('Invalid credentials');
-        }
-
-        if (!user.isActive) {
-          throw new Error('Account is disabled');
-        }
-
-        await userRepo.update(user.id, { lastLoginAt: new Date() });
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          congregationId: user.congregationId ?? null,
-        };
       },
     }),
   ],

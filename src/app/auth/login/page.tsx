@@ -31,12 +31,16 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError('Invalid email or password. Please try again.');
+        // Show the actual error from NextAuth
+        setError(result.error || 'Invalid email or password. Please try again.');
+      } else if (!result?.ok) {
+        setError('Sign in failed. Please try again.');
       } else {
         router.push('/dashboard');
         router.refresh();
       }
-    } catch {
+    } catch (err) {
+      console.error('[login error]', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);

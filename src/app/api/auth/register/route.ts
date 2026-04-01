@@ -2,78 +2,120 @@ import { type NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
 import { User, UserRole } from '@/entities/User';
-import { signToken } from '@/lib/jwt';
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { email, password, name, role, congregationId } = body as {
-      email: string;
-      password: string;
-      name: string;
-      role?: UserRole;
-      congregationId?: string;
-    };
+    const { email, password, name } = await req.json();
 
-    if (!email || !password || !name) {
+    // Validate inputs
+    if (!email?.trim()) {
       return NextResponse.json(
-        { error: 'email, password, and name are required' },
+        { error: 'Email is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address.' },
+        { status: 400 }
+      );
+    }
+
+    if (!password?.trim()) {
+      return NextResponse.json(
+        { error: 'Password is required.' },
         { status: 400 }
       );
     }
 
     if (password.length < 8) {
       return NextResponse.json(
-        { error: 'Password must be at least 8 characters' },
+        { error: 'Password must be at least 8 characters.' },
         { status: 400 }
       );
     }
 
+    if (!name?.trim()) {
+      return NextResponse.json(
+        { error: 'Name is required.' },
+        { status: 400 }
+      );
+    }
+
+    // Initialize database
     if (!AppDataSource.isInitialized) {
-      await AppDataSource.initialize();
+      try {
+        await AppDataSource.initialize();
+      } catch (err) {
+        console.error('[register] Failed to initialize database:', err);
+        return NextResponse.json(
+          { error: 'Database connection failed. Please try again.' },
+          { status: 500 }
+        );
+      }
     }
 
     const userRepo = AppDataSource.getRepository(User);
 
-    const existing = await userRepo.findOne({ where: { email } });
+    // Check if email already exists
+    const existing = await userRepo.findOne({ where: { email: email.toLowerCase() } });
     if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'This email is already registered. Please sign in instead.' },
+        { status: 409 }
+      );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password
+    let hashedPassword: string;
+    try {
+      hashedPassword = await bcrypt.hash(password, 12);
+    } catch (_err) {
+      return NextResponse.json(
+        { error: 'Failed to secure your password. Please try again.' },
+        { status: 500 }
+      );
+    }
 
+    // Create user
     const user = userRepo.create({
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
       name,
-      role: role ?? UserRole.USER,
-      congregationId,
+      role: UserRole.USER,
+      isActive: true,
     });
 
-    await userRepo.save(user);
+    const savedUser = await userRepo.save(user);
 
-    const token = signToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      congregationId: user.congregationId,
-    });
+    console.log('[register] User created:', savedUser.id, savedUser.email);
 
     return NextResponse.json(
       {
-        token,
+        success: true,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          congregationId: user.congregationId,
+          id: savedUser.id,
+          email: savedUser.email,
+          name: savedUser.name,
+          role: savedUser.role,
         },
       },
       { status: 201 }
     );
   } catch (err) {
-    console.error('[register]', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[register error]', err);
+
+    if (err instanceof Error) {
+      return NextResponse.json(
+        { error: err.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Registration failed. Please try again.' },
+      { status: 500 }
+    );
   }
 }
