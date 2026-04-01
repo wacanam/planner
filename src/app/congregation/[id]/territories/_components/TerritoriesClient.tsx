@@ -2,7 +2,7 @@
 
 import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
@@ -100,6 +100,9 @@ export default function CongregationTerritoriesPage() {
   const [assignError, setAssignError] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [debouncedMemberSearch, setDebouncedMemberSearch] = useState('');
+  const comboboxRef = useRef<HTMLDivElement>(null);
 
   // Return dialog
   const [returnOpen, setReturnOpen] = useState(false);
@@ -162,6 +165,23 @@ export default function CongregationTerritoriesPage() {
     }
     setFiltered(list);
   }, [search, statusFilter, territories]);
+
+  // Debounce member search for combobox
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedMemberSearch(memberSearch), 400);
+    return () => clearTimeout(timer);
+  }, [memberSearch]);
+
+  // Close combobox dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setComboboxOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -238,6 +258,8 @@ export default function CongregationTerritoriesPage() {
     setAssignError('');
     setAssignSuccess('');
     setMemberSearch('');
+    setDebouncedMemberSearch('');
+    setComboboxOpen(false);
     setAssignOpen(true);
   }
 
@@ -353,11 +375,11 @@ export default function CongregationTerritoriesPage() {
   const completedCount = territories.filter((t) => t.status === 'completed').length;
 
   const activeMembers = members.filter((m) => m.status === 'active');
-  const filteredMembers = memberSearch
+  const filteredMembers = debouncedMemberSearch
     ? activeMembers.filter(
         (m) =>
-          m.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-          m.user?.email?.toLowerCase().includes(memberSearch.toLowerCase())
+          m.user?.name?.toLowerCase().includes(debouncedMemberSearch.toLowerCase()) ||
+          m.user?.email?.toLowerCase().includes(debouncedMemberSearch.toLowerCase())
       )
     : activeMembers;
 
@@ -723,28 +745,47 @@ export default function CongregationTerritoriesPage() {
             )}
             <div className="space-y-1.5">
               <Label>Publisher *</Label>
-              <Input
-                placeholder="Search publishers…"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-              />
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-                {filteredMembers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-3 text-center">No members found</p>
-                ) : (
-                  filteredMembers.map((m) => (
-                    <button
-                      type="button"
-                      key={m.id}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
-                        assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
-                      }`}
-                      onClick={() => setAssignUserId(m.userId)}
-                    >
-                      <span className="font-medium">{m.user?.name}</span>
-                      <span className="text-xs text-muted-foreground">{m.user?.email}</span>
-                    </button>
-                  ))
+              <div ref={comboboxRef} className="relative">
+                <Input
+                  placeholder="Search publishers…"
+                  value={memberSearch}
+                  onFocus={() => setComboboxOpen(true)}
+                  onChange={(e) => {
+                    setMemberSearch(e.target.value);
+                    setAssignUserId('');
+                    setComboboxOpen(true);
+                  }}
+                  autoComplete="off"
+                />
+                {comboboxOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                    <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                      {filteredMembers.length === 0 ? (
+                        <p className="text-xs text-muted-foreground p-3 text-center">
+                          {debouncedMemberSearch ? 'No publishers match your search' : 'No active publishers'}
+                        </p>
+                      ) : (
+                        filteredMembers.map((m) => (
+                          <button
+                            type="button"
+                            key={m.id}
+                            className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
+                              assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
+                            }`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setAssignUserId(m.userId);
+                              setMemberSearch(m.user?.name ?? '');
+                              setComboboxOpen(false);
+                            }}
+                          >
+                            <span className="font-medium truncate">{m.user?.name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{m.user?.email}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
