@@ -18,17 +18,17 @@ type StrengthInfo = {
 };
 
 function getPasswordStrength(password: string): StrengthInfo {
-  if (password.length === 0) return { label: '', width: '0%', color: 'bg-border', score: 0 };
+  if (password.length === 0) return { label: '', width: '0%', color: 'border', score: 0 };
   if (password.length < 6)
-    return { label: 'Too short', width: '20%', color: 'bg-red-400', score: 1 };
-  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'bg-orange-400', score: 2 };
+    return { label: 'Too short', width: '20%', color: 'red-400', score: 1 };
+  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'orange-400', score: 2 };
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
   const extras = [hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-  if (extras === 0) return { label: 'Fair', width: '55%', color: 'bg-yellow-400', score: 3 };
-  if (extras <= 1) return { label: 'Good', width: '75%', color: 'bg-accent', score: 4 };
-  return { label: 'Strong', width: '100%', color: 'bg-green-400', score: 5 };
+  if (extras === 0) return { label: 'Fair', width: '55%', color: 'yellow-400', score: 3 };
+  if (extras <= 1) return { label: 'Good', width: '75%', color: 'accent', score: 4 };
+  return { label: 'Strong', width: '100%', color: 'green-400', score: 5 };
 }
 
 export default function RegisterPage() {
@@ -242,12 +242,12 @@ export default function RegisterPage() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-muted-foreground">Password strength</span>
                   {strength.label && (
-                    <span className={`text-xs font-medium ${strength.color}`}>{strength.label}</span>
+                    <span className={`text-xs font-medium text-${strength.color}`}>{strength.label}</span>
                   )}
                 </div>
                 <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-300 ${strength.color}`}
+                    className={`h-full transition-all duration-300 bg-${strength.color}`}
                     style={{ width: strength.width }}
                   />
                 </div>
