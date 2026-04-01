@@ -24,8 +24,8 @@ export default function DashboardRedirectPage() {
     } else if (user.congregationId) {
       router.replace(`/congregation/${user.congregationId}/dashboard`);
     } else {
-      // No congregation yet — show a simple page
-      router.replace('/auth/login');
+      // No congregation yet — show a holding page
+      router.replace('/no-congregation');
     }
   }, [session, status, router]);
 
