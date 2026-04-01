@@ -4,6 +4,7 @@ import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'l
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -28,8 +29,8 @@ interface Territory {
   name: string;
   status: string;
   notes?: string;
-  publisher?: { name: string };
-  group?: { name: string };
+  publisherName?: string | null;
+  groupName?: string | null;
 }
 
 interface TerritoryRequest {
@@ -175,7 +176,8 @@ export default function CongregationTerritoriesPage() {
         (t) =>
           t.name.toLowerCase().includes(s) ||
           t.number.toLowerCase().includes(s) ||
-          t.publisher?.name?.toLowerCase().includes(s)
+          t.publisherName?.toLowerCase().includes(s) ||
+          t.groupName?.toLowerCase().includes(s)
       );
     }
     setFiltered(list);
@@ -569,9 +571,12 @@ export default function CongregationTerritoriesPage() {
                               <MapPin size={14} className="text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">
+                              <Link
+                                href={`/territories/${t.id}`}
+                                className="font-medium text-foreground hover:text-primary hover:underline"
+                              >
                                 #{t.number} {t.name}
-                              </p>
+                              </Link>
                               {t.notes && (
                                 <p className="text-xs text-muted-foreground">{t.notes}</p>
                               )}
@@ -584,7 +589,7 @@ export default function CongregationTerritoriesPage() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {t.publisher?.name ?? t.group?.name ?? '—'}
+                          {t.publisherName ?? t.groupName ?? '—'}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">

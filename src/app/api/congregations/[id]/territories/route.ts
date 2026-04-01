@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { db, territories, CongregationRole, TerritoryStatus } from '@/db';
+import { db, territories, users, serviceGroups, CongregationRole, TerritoryStatus } from '@/db';
 
 // GET /api/congregations/:id/territories
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,7 +9,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
 
-  const rows = await db.select().from(territories).where(eq(territories.congregationId, id));
+  const rows = await db
+    .select({
+      id: territories.id,
+      number: territories.number,
+      name: territories.name,
+      notes: territories.notes,
+      status: territories.status,
+      householdsCount: territories.householdsCount,
+      coveragePercent: territories.coveragePercent,
+      congregationId: territories.congregationId,
+      publisherId: territories.publisherId,
+      groupId: territories.groupId,
+      createdAt: territories.createdAt,
+      updatedAt: territories.updatedAt,
+      publisherName: users.name,
+      groupName: serviceGroups.name,
+    })
+    .from(territories)
+    .leftJoin(users, eq(territories.publisherId, users.id))
+    .leftJoin(serviceGroups, eq(territories.groupId, serviceGroups.id))
+    .where(eq(territories.congregationId, id));
 
   return NextResponse.json({ data: rows });
 }
