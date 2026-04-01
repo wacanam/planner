@@ -70,7 +70,12 @@ export async function POST(req: NextRequest) {
 
     await db
       .update(territories)
-      .set({ status: TerritoryStatus.ASSIGNED, updatedAt: new Date() })
+      .set({
+        status: TerritoryStatus.ASSIGNED,
+        publisherId: (body.userId as string) ?? null,
+        groupId: (body.serviceGroupId as string) ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(territories.id, territory.id));
 
     const [assignment] = await db
@@ -83,7 +88,7 @@ export async function POST(req: NextRequest) {
         assignedAt: new Date(),
         dueAt: body.dueAt ? new Date(body.dueAt as string) : null,
         notes: (body.notes as string) ?? null,
-        coverageAtAssignment: territory.coveragePercent,
+        coverageAtAssignment: territory.coveragePercent ?? '0',
       })
       .returning();
 

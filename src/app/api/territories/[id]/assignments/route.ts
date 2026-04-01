@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db, territoryAssignments, users, serviceGroups } from '@/db';
+import { db, territoryAssignments, users, groups } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -27,11 +27,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       createdAt: territoryAssignments.createdAt,
       assigneeName: users.name,
       assigneeEmail: users.email,
-      groupName: serviceGroups.name,
+      groupName: groups.name,
     })
     .from(territoryAssignments)
     .leftJoin(users, eq(territoryAssignments.userId, users.id))
-    .leftJoin(serviceGroups, eq(territoryAssignments.serviceGroupId, serviceGroups.id))
+    .leftJoin(groups, eq(territoryAssignments.serviceGroupId, groups.id))
     .where(eq(territoryAssignments.territoryId, id))
     .orderBy(territoryAssignments.createdAt);
 

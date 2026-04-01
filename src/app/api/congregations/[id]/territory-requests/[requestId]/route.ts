@@ -64,7 +64,11 @@ export async function PATCH(
     // Guard against race conditions: only update if the territory is still available
     const [assignedTerritory] = await db
       .update(territories)
-      .set({ status: TerritoryStatus.ASSIGNED, updatedAt: new Date() })
+      .set({
+        status: TerritoryStatus.ASSIGNED,
+        publisherId: request.publisherId,
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(territories.id, request.territoryId),
@@ -79,7 +83,7 @@ export async function PATCH(
         userId: request.publisherId,
         status: AssignmentStatus.ACTIVE,
         assignedAt: new Date(),
-        coverageAtAssignment: assignedTerritory.coveragePercent,
+        coverageAtAssignment: assignedTerritory.coveragePercent ?? '0',
       });
     }
   }

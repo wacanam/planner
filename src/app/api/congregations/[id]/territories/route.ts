@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { db, territories, users, serviceGroups, CongregationRole, TerritoryStatus } from '@/db';
+import { db, territories, users, groups, CongregationRole, TerritoryStatus } from '@/db';
 
 // GET /api/congregations/:id/territories
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,11 +24,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       createdAt: territories.createdAt,
       updatedAt: territories.updatedAt,
       publisherName: users.name,
-      groupName: serviceGroups.name,
+      groupName: groups.name,
     })
     .from(territories)
     .leftJoin(users, eq(territories.publisherId, users.id))
-    .leftJoin(serviceGroups, eq(territories.groupId, serviceGroups.id))
+    .leftJoin(groups, eq(territories.groupId, groups.id))
     .where(eq(territories.congregationId, id));
 
   return NextResponse.json({ data: rows });
