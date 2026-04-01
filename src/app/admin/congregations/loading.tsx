@@ -11,10 +11,15 @@ export default function Loading() {
       <div className="h-10 w-64 rounded-lg bg-muted" />
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="border-b border-border px-6 py-3 flex gap-6">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-3 flex-1 max-w-[100px] rounded bg-muted" />)}
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-3 flex-1 max-w-[100px] rounded bg-muted" />
+          ))}
         </div>
-        {[1,2,3,4,5].map(i => (
-          <div key={i} className="border-b border-border last:border-0 px-6 py-4 flex gap-6 items-center">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="border-b border-border last:border-0 px-6 py-4 flex gap-6 items-center"
+          >
             <div className="flex items-center gap-3 flex-1">
               <div className="h-8 w-8 rounded-xl bg-muted shrink-0" />
               <div className="h-4 w-32 rounded bg-muted" />

@@ -117,7 +117,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
                 href={link.href}
                 className={cn(
                   'px-3 py-1.5 text-sm rounded-lg transition-all',
-                  pathname === link.href || pathname.startsWith(link.href + '/')
+                  pathname === link.href || pathname.startsWith(`${link.href}/`)
                     ? 'text-primary bg-primary/10 font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
                 )}
@@ -175,7 +175,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
                 href={link.href}
                 className={cn(
                   'px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-all',
-                  pathname === link.href || pathname.startsWith(link.href + '/')
+                  pathname === link.href || pathname.startsWith(`${link.href}/`)
                     ? 'text-primary bg-primary/10 font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
                 )}

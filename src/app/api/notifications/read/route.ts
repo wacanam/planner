@@ -17,9 +17,7 @@ export async function POST(req: NextRequest) {
     await db
       .update(notifications)
       .set({ isRead: true })
-      .where(
-        and(eq(notifications.userId, user.userId), inArray(notifications.id, ids))
-      );
+      .where(and(eq(notifications.userId, user.userId), inArray(notifications.id, ids)));
   } else {
     // Mark all as read
     await db

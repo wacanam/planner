@@ -15,11 +15,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
   try {
     const { id } = await ctx.params;
-    const [territory] = await db
-      .select()
-      .from(territories)
-      .where(eq(territories.id, id))
-      .limit(1);
+    const [territory] = await db.select().from(territories).where(eq(territories.id, id)).limit(1);
     if (!territory) return ApiErrors.notFound('Territory', requestId);
     return successResponse(territory, undefined, 200, requestId);
   } catch (err) {

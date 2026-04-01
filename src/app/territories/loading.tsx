@@ -3,7 +3,7 @@ export default function Loading() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-pulse">
       <div className="h-7 w-40 rounded-lg bg-muted" />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1,2,3,4,5,6].map(i => (
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-muted shrink-0" />

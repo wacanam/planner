@@ -9,15 +9,20 @@ export default function Loading() {
         <div className="h-9 w-32 rounded-lg bg-muted" />
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-2xl bg-muted" />)}
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-24 rounded-2xl bg-muted" />
+        ))}
       </div>
       <div className="flex gap-3">
         <div className="h-10 flex-1 rounded-lg bg-muted max-w-xs" />
         <div className="h-10 w-28 rounded-lg bg-muted" />
       </div>
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        {[1,2,3,4,5].map(i => (
-          <div key={i} className="border-b border-border last:border-0 px-6 py-4 flex gap-6 items-center">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="border-b border-border last:border-0 px-6 py-4 flex gap-6 items-center"
+          >
             <div className="flex items-center gap-3 flex-1">
               <div className="h-9 w-9 rounded-xl bg-muted shrink-0" />
               <div className="space-y-1.5">

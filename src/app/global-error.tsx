@@ -51,11 +51,19 @@ export default function GlobalError({
             {error.message || 'A critical error occurred. Please refresh the page.'}
           </p>
           {error.digest && (
-            <p style={{ fontSize: '0.75rem', color: '#999', marginBottom: 16, fontFamily: 'monospace' }}>
+            <p
+              style={{
+                fontSize: '0.75rem',
+                color: '#999',
+                marginBottom: 16,
+                fontFamily: 'monospace',
+              }}
+            >
               Error ID: {error.digest}
             </p>
           )}
           <button
+            type="button"
             onClick={reset}
             style={{
               padding: '0.5rem 1.5rem',

@@ -2,7 +2,6 @@
 
 import { ArrowRight, Building2, Globe, Plus, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
@@ -28,7 +27,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const json = await fetchWithAuth('/api/congregations');
+        const json = await fetchWithAuth<{ data: Congregation[] }>('/api/congregations');
         if (json.data) setCongregations(json.data);
       } catch {
         // ignore

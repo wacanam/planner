@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Check,
-  Clock,
-  MessageSquare,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  Users,
-  X,
-} from 'lucide-react';
+import { Check, Clock, MessageSquare, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
@@ -47,17 +37,18 @@ export default function CongregationMembersPage() {
   const congregationId = params?.id as string;
   const { data: session } = useSession();
 
-  const sessionUser = session?.user as {
-    id?: string;
-    role?: string;
-    congregationId?: string;
-  } | undefined;
+  const sessionUser = session?.user as
+    | {
+        id?: string;
+        role?: string;
+        congregationId?: string;
+      }
+    | undefined;
 
   // Check if current user is a privileged role (via API response member role)
   const [myRole, setMyRole] = useState<string | null>(null);
   const isPrivileged =
-    myRole === CongregationRole.SERVICE_OVERSEER ||
-    myRole === CongregationRole.TERRITORY_SERVANT;
+    myRole === CongregationRole.SERVICE_OVERSEER || myRole === CongregationRole.TERRITORY_SERVANT;
 
   const canApprove = myRole === CongregationRole.SERVICE_OVERSEER;
 
@@ -105,7 +96,7 @@ export default function CongregationMembersPage() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const json = await fetchWithAuth(`/api/congregations/${congregationId}/members`);
+      const json = await fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`);
       if (json.data) {
         const active = json.data.filter((m: Member) => m.status === 'active');
         setMembers(active);
@@ -125,7 +116,7 @@ export default function CongregationMembersPage() {
   const fetchRequests = useCallback(async () => {
     setRequestsLoading(true);
     try {
-      const json = await fetchWithAuth(
+      const json = await fetchWithAuth<{ data: Member[] }>(
         `/api/congregations/${congregationId}/join-requests?status=pending`
       );
       if (json.data) {
@@ -185,10 +176,9 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await fetchWithAuth(
-        `/api/congregations/${congregationId}/members/${removeTarget.userId}`,
-        { method: 'DELETE' }
-      );
+      await fetchWithAuth(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
+        method: 'DELETE',
+      });
       setRemoveOpen(false);
       await fetchMembers();
     } catch {
@@ -208,13 +198,10 @@ export default function CongregationMembersPage() {
     if (!editRoleTarget) return;
     setEditRoleLoading(true);
     try {
-      await fetchWithAuth(
-        `/api/congregations/${congregationId}/members/${editRoleTarget.userId}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ congregationRole: editRoleValue }),
-        }
-      );
+      await fetchWithAuth(`/api/congregations/${congregationId}/members/${editRoleTarget.userId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ congregationRole: editRoleValue }),
+      });
       setEditRoleOpen(false);
       await fetchMembers();
     } catch {
@@ -224,7 +211,8 @@ export default function CongregationMembersPage() {
     }
   }
 
-  function openReview(member: Member, action: 'active' | 'rejected') {    setReviewTarget(member);
+  function openReview(member: Member, action: 'active' | 'rejected') {
+    setReviewTarget(member);
     setReviewAction(action);
     setReviewNote('');
     setReviewOpen(true);
@@ -234,13 +222,10 @@ export default function CongregationMembersPage() {
     if (!reviewTarget) return;
     setReviewLoading(true);
     try {
-      await fetchWithAuth(
-        `/api/congregations/${congregationId}/join-requests/${reviewTarget.id}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ status: reviewAction, reviewNote }),
-        }
-      );
+      await fetchWithAuth(`/api/congregations/${congregationId}/join-requests/${reviewTarget.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: reviewAction, reviewNote }),
+      });
       setReviewOpen(false);
       await Promise.all([fetchMembers(), fetchRequests()]);
     } catch {
@@ -395,11 +380,7 @@ export default function CongregationMembersPage() {
                         <td className="px-6 py-4">
                           <div className="flex justify-end gap-1">
                             {canEditRole && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openEditRole(m)}
-                              >
+                              <Button size="sm" variant="ghost" onClick={() => openEditRole(m)}>
                                 <Pencil size={14} />
                               </Button>
                             )}
@@ -407,7 +388,10 @@ export default function CongregationMembersPage() {
                               size="sm"
                               variant="ghost"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => { setRemoveTarget(m); setRemoveOpen(true); }}
+                              onClick={() => {
+                                setRemoveTarget(m);
+                                setRemoveOpen(true);
+                              }}
                             >
                               <Trash2 size={14} />
                             </Button>
@@ -473,7 +457,9 @@ export default function CongregationMembersPage() {
                             <span className="line-clamp-2">{r.joinMessage}</span>
                           </span>
                         ) : (
-                          <span className="text-muted-foreground/50 italic text-xs">No message</span>
+                          <span className="text-muted-foreground/50 italic text-xs">
+                            No message
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-muted-foreground text-xs whitespace-nowrap">
@@ -503,7 +489,10 @@ export default function CongregationMembersPage() {
                               </Button>
                             </>
                           ) : (
-                            <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+                            <Badge
+                              variant="outline"
+                              className="text-amber-600 border-amber-200 bg-amber-50 dark:bg-amber-900/20"
+                            >
                               Pending
                             </Badge>
                           )}
@@ -588,7 +577,11 @@ export default function CongregationMembersPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditRoleOpen(false)} disabled={editRoleLoading}>
+            <Button
+              variant="outline"
+              onClick={() => setEditRoleOpen(false)}
+              disabled={editRoleLoading}
+            >
               Cancel
             </Button>
             <Button onClick={handleEditRole} disabled={editRoleLoading}>
@@ -629,8 +622,8 @@ export default function CongregationMembersPage() {
             <DialogDescription>
               {reviewAction === 'active' ? (
                 <>
-                  <span className="font-semibold">{reviewTarget?.user?.name}</span> will be added
-                  as a member of this congregation.
+                  <span className="font-semibold">{reviewTarget?.user?.name}</span> will be added as
+                  a member of this congregation.
                 </>
               ) : (
                 <>
@@ -650,8 +643,7 @@ export default function CongregationMembersPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="reviewNote">
-              Note to requester{' '}
-              <span className="text-muted-foreground text-xs">(optional)</span>
+              Note to requester <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <textarea
               id="reviewNote"

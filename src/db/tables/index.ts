@@ -15,4 +15,3 @@ export * from './territory-requests';
 export * from './territory-rotations';
 export * from './users';
 export * from './visits';
-

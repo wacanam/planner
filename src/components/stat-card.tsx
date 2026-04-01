@@ -58,7 +58,14 @@ const colorMap = {
   },
 };
 
-export function StatCard({ title, value, subtitle, icon: Icon, color = 'default', loading }: StatCardProps) {
+export function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  color = 'default',
+  loading,
+}: StatCardProps) {
   const colors = colorMap[color];
 
   if (loading) {
@@ -78,7 +85,9 @@ export function StatCard({ title, value, subtitle, icon: Icon, color = 'default'
       <CardContent className={cn('p-4', colors.bg, 'rounded-2xl')}>
         <div className="flex items-start justify-between">
           <div>
-            <p className={cn('text-xs font-medium uppercase tracking-wide', colors.label)}>{title}</p>
+            <p className={cn('text-xs font-medium uppercase tracking-wide', colors.label)}>
+              {title}
+            </p>
             <p className={cn('text-2xl font-bold mt-1', colors.value)}>{value}</p>
             {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>

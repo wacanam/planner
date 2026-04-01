@@ -22,5 +22,8 @@ export async function GET(req: NextRequest) {
   const results = await query;
   const filtered = unreadOnly ? results.filter((n) => !n.isRead) : results;
 
-  return NextResponse.json({ data: filtered, unreadCount: results.filter((n) => !n.isRead).length });
+  return NextResponse.json({
+    data: filtered,
+    unreadCount: results.filter((n) => !n.isRead).length,
+  });
 }

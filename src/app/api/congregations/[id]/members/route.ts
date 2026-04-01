@@ -4,10 +4,7 @@ import { withCongregationAuth } from '@/lib/auth-middleware';
 import { db, congregationMembers, users, CongregationRole, UserRole } from '@/db';
 
 // GET /api/congregations/:id/members
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
@@ -36,10 +33,7 @@ export async function GET(
 }
 
 // POST /api/congregations/:id/members
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
@@ -64,12 +58,7 @@ export async function POST(
   const [existing] = await db
     .select({ id: congregationMembers.id })
     .from(congregationMembers)
-    .where(
-      and(
-        eq(congregationMembers.userId, userId),
-        eq(congregationMembers.congregationId, id)
-      )
-    )
+    .where(and(eq(congregationMembers.userId, userId), eq(congregationMembers.congregationId, id)))
     .limit(1);
 
   if (existing) {

@@ -7,7 +7,9 @@ export default function Loading() {
           <div className="h-7 w-48 rounded-lg bg-muted" />
           <div className="h-4 w-56 rounded-lg bg-muted" />
         </div>
-        {[1,2,3,4,5].map(i => <div key={i} className="h-10 rounded-lg bg-muted" />)}
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-10 rounded-lg bg-muted" />
+        ))}
         <div className="h-11 rounded-lg bg-muted" />
       </div>
     </div>

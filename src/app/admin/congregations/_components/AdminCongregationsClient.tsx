@@ -7,7 +7,6 @@ import { ProtectedPage } from '@/components/protected-page';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -60,7 +59,7 @@ export default function AdminCongregationsPage() {
 
   const fetchCongregations = useCallback(async () => {
     try {
-      const json = await fetchWithAuth('/api/congregations');
+      const json = await fetchWithAuth<{ data: Congregation[] }>('/api/congregations');
       if (json.data) {
         setCongregations(json.data);
         setFiltered(json.data);
@@ -97,7 +96,7 @@ export default function AdminCongregationsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      const json = await fetchWithAuth('/api/congregations', {
+      await fetchWithAuth('/api/congregations', {
         method: 'POST',
         body: JSON.stringify({ name: createName, city: createCity, country: createCountry }),
       });
@@ -186,95 +185,95 @@ export default function AdminCongregationsPage() {
 
         {/* Table / list */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
-            {loading ? (
-              <div className="p-6 space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+          {loading ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <Building2 size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground">
+                {search ? 'No congregations match your search' : 'No congregations yet'}
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Name
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Location
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Created
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((c) => (
+                  <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <Building2 size={14} className="text-primary" />
+                        </div>
+                        <span className="font-medium text-foreground">{c.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground">
+                      {[c.city, c.country].filter(Boolean).join(', ') || '—'}
+                    </td>
+                    <td className="px-4 py-4">
+                      <Badge
+                        variant="outline"
+                        className={
+                          c.status === 'active'
+                            ? 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
+                            : 'text-muted-foreground'
+                        }
+                      >
+                        {c.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground text-xs">
+                      {new Date(c.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-1 justify-end">
+                        <Button asChild size="sm" variant="ghost">
+                          <Link href={`/congregation/${c.id}/dashboard`}>
+                            <Eye size={14} />
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          onClick={() => {
+                            setDeleteTarget(c);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-16">
-                <Building2 size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  {search ? 'No congregations match your search' : 'No congregations yet'}
-                </p>
-              </div>
-            ) : (
-              <table className="w-full text-sm min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Name
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Location
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Status
-                      </th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Created
-                      </th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filtered.map((c) => (
-                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                              <Building2 size={14} className="text-primary" />
-                            </div>
-                            <span className="font-medium text-foreground">{c.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">
-                          {[c.city, c.country].filter(Boolean).join(', ') || '—'}
-                        </td>
-                        <td className="px-4 py-4">
-                          <Badge
-                            variant="outline"
-                            className={
-                              c.status === 'active'
-                                ? 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-                                : 'text-muted-foreground'
-                            }
-                          >
-                            {c.status}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {new Date(c.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1 justify-end">
-                            <Button asChild size="sm" variant="ghost">
-                              <Link href={`/congregation/${c.id}/dashboard`}>
-                                <Eye size={14} />
-                              </Link>
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
-                              <Pencil size={14} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              onClick={() => {
-                                setDeleteTarget(c);
-                                setDeleteOpen(true);
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-            )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

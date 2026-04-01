@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function Error({
+export default function PageError({
   error,
   reset,
 }: {
@@ -25,9 +25,7 @@ export default function Error({
         {error.message || 'An unexpected error occurred. Please try again.'}
       </p>
       {error.digest && (
-        <p className="text-xs text-muted-foreground/60 mb-4 font-mono">
-          Error ID: {error.digest}
-        </p>
+        <p className="text-xs text-muted-foreground/60 mb-4 font-mono">Error ID: {error.digest}</p>
       )}
       <Button onClick={reset} className="gap-2">
         <RefreshCw size={15} />

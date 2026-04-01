@@ -36,7 +36,7 @@ export default function TerritoriesPage() {
         setTotalPages(json.pagination.totalPages || 1);
         setPage(p);
       } else {
-        if ("error" in json) setError(json.error.message || 'Failed to load territories');
+        if ('error' in json) setError(json.error.message || 'Failed to load territories');
       }
     } catch {
       setError('Network error');

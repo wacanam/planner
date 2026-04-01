@@ -68,8 +68,8 @@ export default function CongregationTerritoriesPage() {
 
   const fetchData = useCallback(async () => {
     const [tJson, rJson] = await Promise.all([
-      fetchWithAuth(`/api/congregations/${congregationId}/territories`),
-      fetchWithAuth(`/api/congregations/${congregationId}/territory-requests?status=pending`),
+      fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
+      fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
     ]);
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
@@ -163,6 +163,7 @@ export default function CongregationTerritoriesPage() {
           <StatCard title="Total" value={territories.length} color="blue" loading={loading} />
           <StatCard title="Available" value={availableCount} color="green" loading={loading} />
           <StatCard title="Assigned" value={assignedCount} color="purple" loading={loading} />
+          <StatCard title="Completed" value={completedCount} color="default" loading={loading} />
           <StatCard
             title="Pending Requests"
             value={requests.length}
@@ -237,76 +238,73 @@ export default function CongregationTerritoriesPage() {
             </div>
 
             <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
-                {loading ? (
-                  <div className="p-6 space-y-3">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+              {loading ? (
+                <div className="p-6 space-y-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-16">
+                  <MapPin size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {search || statusFilter !== 'all'
+                      ? 'No territories match your filter'
+                      : 'No territories yet'}
+                  </p>
+                  {!search && statusFilter === 'all' && (
+                    <Button className="mt-4" onClick={() => setCreateOpen(true)}>
+                      <Plus size={14} />
+                      Add Territory
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <table className="w-full text-sm min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Territory
+                      </th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Status
+                      </th>
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Assigned To
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filtered.map((t) => (
+                      <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                              <MapPin size={14} className="text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                #{t.number} {t.name}
+                              </p>
+                              {t.notes && (
+                                <p className="text-xs text-muted-foreground">{t.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant="outline" className={statusColors[t.status] ?? ''}>
+                            {t.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-muted-foreground text-xs">
+                          {t.publisher?.name ?? t.group?.name ?? '—'}
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div className="text-center py-16">
-                    <MapPin size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      {search || statusFilter !== 'all'
-                        ? 'No territories match your filter'
-                        : 'No territories yet'}
-                    </p>
-                    {!search && statusFilter === 'all' && (
-                      <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-                        <Plus size={14} />
-                        Add Territory
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <table className="w-full text-sm min-w-[600px]">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Territory
-                          </th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Status
-                          </th>
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            Assigned To
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {filtered.map((t) => (
-                          <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                                  <MapPin
-                                    size={14}
-                                    className="text-green-600 dark:text-green-400"
-                                  />
-                                </div>
-                                <div>
-                                  <p className="font-medium text-foreground">
-                                    #{t.number} {t.name}
-                                  </p>
-                                  {t.notes && (
-                                    <p className="text-xs text-muted-foreground">{t.notes}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <Badge variant="outline" className={statusColors[t.status] ?? ''}>
-                                {t.status}
-                              </Badge>
-                            </td>
-                            <td className="px-6 py-4 text-muted-foreground text-xs">
-                              {t.publisher?.name ?? t.group?.name ?? '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                )}
+                  </tbody>
+                </table>
+              )}
             </div>
           </>
         )}

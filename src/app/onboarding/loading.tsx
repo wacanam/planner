@@ -9,7 +9,7 @@ export default function Loading() {
             <div className="h-4 w-64 rounded-lg bg-muted" />
           </div>
           <div className="space-y-3">
-            {[1,2,3].map(i => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="h-20 rounded-2xl bg-muted" />
             ))}
           </div>

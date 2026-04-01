@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { ilike, or, eq } from 'drizzle-orm';
+import { ilike, or } from 'drizzle-orm';
 import { withAuth } from '@/lib/auth-middleware';
 import { db, congregations } from '@/db';
 
@@ -12,10 +12,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get('q')?.trim();
 
   if (!q || q.length < 2) {
-    return NextResponse.json(
-      { error: 'Query must be at least 2 characters.' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Query must be at least 2 characters.' }, { status: 400 });
   }
 
   const results = await db

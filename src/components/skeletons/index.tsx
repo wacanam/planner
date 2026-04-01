@@ -15,7 +15,10 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
       </div>
       {/* Data rows */}
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="border-b border-border last:border-0 px-6 py-4 flex gap-4 items-center">
+        <div
+          key={i}
+          className="border-b border-border last:border-0 px-6 py-4 flex gap-4 items-center"
+        >
           <div className="flex items-center gap-3 flex-1">
             <Skeleton className="h-8 w-8 rounded-full shrink-0" />
             <div className="space-y-1.5 flex-1">

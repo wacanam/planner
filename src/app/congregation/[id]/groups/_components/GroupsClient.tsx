@@ -45,7 +45,7 @@ export default function CongregationGroupsPage() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const json = await fetchWithAuth(`/api/congregations/${congregationId}/groups`);
+      const json = await fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`);
       if (json.data) {
         setGroups(json.data);
         setFiltered(json.data);

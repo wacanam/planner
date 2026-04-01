@@ -4,10 +4,7 @@ import { withCongregationAuth } from '@/lib/auth-middleware';
 import { db, congregationMembers, users, MemberStatus, CongregationRole } from '@/db';
 
 // GET /api/congregations/:id/join-requests — list pending requests (territory_servant+)
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await withCongregationAuth(req, id, CongregationRole.TERRITORY_SERVANT);
   if (auth instanceof NextResponse) return auth;
@@ -32,12 +29,7 @@ export async function GET(
     })
     .from(congregationMembers)
     .leftJoin(users, eq(congregationMembers.userId, users.id))
-    .where(
-      and(
-        eq(congregationMembers.congregationId, id),
-        eq(congregationMembers.status, status)
-      )
-    )
+    .where(and(eq(congregationMembers.congregationId, id), eq(congregationMembers.status, status)))
     .orderBy(desc(congregationMembers.joinedAt));
 
   return NextResponse.json({ data: requests });

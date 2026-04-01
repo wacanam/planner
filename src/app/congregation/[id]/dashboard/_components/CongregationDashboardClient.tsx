@@ -63,11 +63,11 @@ export default function CongregationDashboardPage() {
 
     async function fetchAll() {
       const [congJson, memberJson, groupJson, territoryJson, requestJson] = await Promise.all([
-        fetchWithAuth(`/api/congregations/${congregationId}`),
-        fetchWithAuth(`/api/congregations/${congregationId}/members`),
-        fetchWithAuth(`/api/congregations/${congregationId}/groups`),
-        fetchWithAuth(`/api/congregations/${congregationId}/territories`),
-        fetchWithAuth(`/api/congregations/${congregationId}/territory-requests?status=pending`),
+        fetchWithAuth<{ data: { name: string } }>(`/api/congregations/${congregationId}`),
+        fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
+        fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`),
+        fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
+        fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
       ]);
 
       if (congJson.data) setCongregation(congJson.data);
@@ -81,7 +81,6 @@ export default function CongregationDashboardPage() {
     fetchAll().catch(() => setLoading(false));
   }, [congregationId]);
 
-  const assignedTerritories = territories.filter((t) => t.status === 'assigned').length;
   const availableTerritories = territories.filter((t) => t.status === 'available').length;
   const pendingRequests = requests.length;
 

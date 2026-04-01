@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,7 +10,6 @@ import {
   Search,
   AlertCircle,
   ArrowRight,
-  CheckCircle2,
   Users,
   Clock,
   ChevronRight,
@@ -176,7 +175,8 @@ export default function OnboardingPage() {
               Welcome{firstName ? `, ${firstName}` : ''}! 👋
             </h1>
             <p className="text-muted-foreground text-base max-w-sm mx-auto">
-              You&apos;re almost in. Are you setting up a new congregation or joining an existing one?
+              You&apos;re almost in. Are you setting up a new congregation or joining an existing
+              one?
             </p>
           </div>
 
@@ -196,7 +196,10 @@ export default function OnboardingPage() {
                   Start fresh. You&apos;ll be the administrator.
                 </p>
               </div>
-              <ChevronRight size={18} className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors" />
+              <ChevronRight
+                size={18}
+                className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors"
+              />
             </button>
 
             {/* Join card */}
@@ -214,7 +217,10 @@ export default function OnboardingPage() {
                   Find your congregation and request access.
                 </p>
               </div>
-              <ChevronRight size={18} className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors" />
+              <ChevronRight
+                size={18}
+                className="ml-auto text-muted-foreground group-hover:text-foreground transition-colors"
+              />
             </button>
           </div>
         </div>
@@ -277,7 +283,10 @@ export default function OnboardingPage() {
                   Country <span className="text-muted-foreground text-xs">(optional)</span>
                 </Label>
                 <div className="relative">
-                  <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Globe
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <Input
                     id="cong-country"
                     value={createForm.country}
@@ -290,20 +299,43 @@ export default function OnboardingPage() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setMode('choose')} disabled={createLoading} className="flex-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMode('choose')}
+                  disabled={createLoading}
+                  className="flex-1"
+                >
                   Back
                 </Button>
-                <Button type="submit" disabled={createLoading || !createForm.name.trim()} className="flex-[2]">
+                <Button
+                  type="submit"
+                  disabled={createLoading || !createForm.name.trim()}
+                  className="flex-[2]"
+                >
                   {createLoading ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </svg>
                       Creating…
                     </span>
                   ) : (
-                    <>Create congregation <ArrowRight size={16} className="ml-1" /></>
+                    <>
+                      Create congregation <ArrowRight size={16} className="ml-1" />
+                    </>
                   )}
                 </Button>
               </div>
@@ -326,7 +358,8 @@ export default function OnboardingPage() {
               </div>
               <h1 className="text-2xl font-bold text-foreground">Find your congregation</h1>
               <p className="text-muted-foreground mt-1.5 text-sm">
-                Search by name or city. Your request will be sent to the service overseer for approval.
+                Search by name or city. Your request will be sent to the service overseer for
+                approval.
               </p>
             </div>
 
@@ -334,7 +367,10 @@ export default function OnboardingPage() {
             {!selectedCong && (
               <form onSubmit={handleSearch} className="flex gap-2 mb-4">
                 <div className="relative flex-1">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -346,11 +382,24 @@ export default function OnboardingPage() {
                 </div>
                 <Button type="submit" disabled={searchLoading || searchQuery.trim().length < 2}>
                   {searchLoading ? (
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </svg>
-                  ) : 'Search'}
+                  ) : (
+                    'Search'
+                  )}
                 </Button>
               </form>
             )}
@@ -435,20 +484,39 @@ export default function OnboardingPage() {
                 )}
 
                 <div className="flex gap-3 pt-1">
-                  <Button type="button" variant="outline" onClick={() => setSelectedCong(null)} disabled={joinLoading} className="flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedCong(null)}
+                    disabled={joinLoading}
+                    className="flex-1"
+                  >
                     Back
                   </Button>
                   <Button type="submit" disabled={joinLoading} className="flex-[2]">
                     {joinLoading ? (
                       <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
                         </svg>
                         Sending…
                       </span>
                     ) : (
-                      <>Send join request <ArrowRight size={16} className="ml-1" /></>
+                      <>
+                        Send join request <ArrowRight size={16} className="ml-1" />
+                      </>
                     )}
                   </Button>
                 </div>
@@ -456,7 +524,12 @@ export default function OnboardingPage() {
             )}
 
             {!selectedCong && (
-              <Button type="button" variant="ghost" onClick={() => setMode('choose')} className="w-full mt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setMode('choose')}
+                className="w-full mt-2"
+              >
                 ← Back
               </Button>
             )}
@@ -482,7 +555,11 @@ export default function OnboardingPage() {
           The service overseer will review your request. You&apos;ll receive a notification once
           it&apos;s been approved.
         </p>
-        <Button variant="outline" onClick={() => router.push('/no-congregation')} className="w-full">
+        <Button
+          variant="outline"
+          onClick={() => router.push('/no-congregation')}
+          className="w-full"
+        >
           Back to home
         </Button>
       </div>

@@ -3,7 +3,7 @@ import { verifyToken, extractBearerToken } from '@/lib/jwt';
 import { hasPermission } from '@/lib/permissions';
 import type { JwtPayload } from '@/lib/jwt';
 import { eq, and } from 'drizzle-orm';
-import { db, users, congregationMembers, UserRole, CongregationRole, MemberStatus } from '@/db';
+import { db, congregationMembers, UserRole, CongregationRole, MemberStatus } from '@/db';
 import type { CongregationMember } from '@/db';
 
 export type AuthenticatedRequest = NextRequest & { user: JwtPayload };
@@ -91,7 +91,10 @@ export async function withCongregationAuth(
     );
   }
 
-  console.log('[withCongregationAuth] User is member with congregation role:', member.congregationRole);
+  console.log(
+    '[withCongregationAuth] User is member with congregation role:',
+    member.congregationRole
+  );
 
   // Check congregation role if required
   if (requiredCongregationRole) {
@@ -101,7 +104,10 @@ export async function withCongregationAuth(
       : -1;
     const requiredIndex = roleHierarchy.indexOf(requiredCongregationRole);
     if (memberRoleIndex < requiredIndex) {
-      console.log('[withCongregationAuth] Insufficient congregation role:', member.congregationRole);
+      console.log(
+        '[withCongregationAuth] Insufficient congregation role:',
+        member.congregationRole
+      );
       return NextResponse.json(
         { error: 'Forbidden: insufficient congregation role' },
         { status: 403 }
@@ -134,14 +140,14 @@ export function WithCongregationAuth(requiredCongregationRole?: CongregationRole
   return (
     handler: (
       req: NextRequest,
-      context: { params: { id: string;[key: string]: string } },
+      context: { params: { id: string; [key: string]: string } },
       user: JwtPayload,
       member: CongregationMember | null
     ) => Promise<NextResponse>
   ) =>
     async (
       req: NextRequest,
-      context: { params: { id: string;[key: string]: string } }
+      context: { params: { id: string; [key: string]: string } }
     ): Promise<NextResponse> => {
       const { id } = context.params;
       const result = await withCongregationAuth(req, id, requiredCongregationRole);

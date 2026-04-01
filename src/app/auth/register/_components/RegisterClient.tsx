@@ -19,16 +19,20 @@ type StrengthInfo = {
 };
 
 function getPasswordStrength(password: string): StrengthInfo {
-  if (password.length === 0) return { label: '', width: '0%', color: 'text-border', bg: 'bg-border', score: 0 };
+  if (password.length === 0)
+    return { label: '', width: '0%', color: 'text-border', bg: 'bg-border', score: 0 };
   if (password.length < 6)
     return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400', score: 1 };
-  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400', score: 2 };
+  if (password.length < 8)
+    return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400', score: 2 };
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
   const extras = [hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-  if (extras === 0) return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400', score: 3 };
-  if (extras <= 1) return { label: 'Good', width: '75%', color: 'text-accent', bg: 'bg-accent', score: 4 };
+  if (extras === 0)
+    return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400', score: 3 };
+  if (extras <= 1)
+    return { label: 'Good', width: '75%', color: 'text-accent', bg: 'bg-accent', score: 4 };
   return { label: 'Strong', width: '100%', color: 'text-green-400', bg: 'bg-green-400', score: 5 };
 }
 
@@ -243,7 +247,9 @@ export default function RegisterPage() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-muted-foreground">Password strength</span>
                   {strength.label && (
-                    <span className={`text-xs font-medium ${strength.color}`}>{strength.label}</span>
+                    <span className={`text-xs font-medium ${strength.color}`}>
+                      {strength.label}
+                    </span>
                   )}
                 </div>
                 <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
@@ -282,9 +288,7 @@ export default function RegisterPage() {
               {passwordsDontMatch && (
                 <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
               )}
-              {passwordsMatch && (
-                <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>
-              )}
+              {passwordsMatch && <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>}
             </div>
 
             {/* Terms checkbox */}
