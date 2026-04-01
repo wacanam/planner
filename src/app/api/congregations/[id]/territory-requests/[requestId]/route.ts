@@ -48,45 +48,49 @@ export async function PATCH(
     return NextResponse.json({ error: 'Request has already been processed' }, { status: 409 });
   }
 
-  const [updated] = await db
-    .update(territoryRequests)
-    .set({
-      status,
-      approvedBy: user.userId,
-      approvedAt: new Date(),
-      responseMessage: responseMessage?.trim() || null,
-    })
-    .where(eq(territoryRequests.id, requestId))
-    .returning();
-
-  // When approved and a specific territory was requested, create an assignment
-  if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
-    // Guard against race conditions: only update if the territory is still available
-    const [assignedTerritory] = await db
-      .update(territories)
+  const updated = await db.transaction(async (tx) => {
+    const [updatedRequest] = await tx
+      .update(territoryRequests)
       .set({
-        status: TerritoryStatus.ASSIGNED,
-        publisherId: request.publisherId,
-        updatedAt: new Date(),
+        status,
+        approvedBy: user.userId,
+        approvedAt: new Date(),
+        responseMessage: responseMessage?.trim() || null,
       })
-      .where(
-        and(
-          eq(territories.id, request.territoryId),
-          eq(territories.status, TerritoryStatus.AVAILABLE)
-        )
-      )
+      .where(eq(territoryRequests.id, requestId))
       .returning();
 
-    if (assignedTerritory) {
-      await db.insert(territoryAssignments).values({
-        territoryId: assignedTerritory.id,
-        userId: request.publisherId,
-        status: AssignmentStatus.ACTIVE,
-        assignedAt: new Date(),
-        coverageAtAssignment: assignedTerritory.coveragePercent ?? '0',
-      });
+    // When approved and a specific territory was requested, create an assignment
+    if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
+      // Guard against race conditions: only update if the territory is still available
+      const [assignedTerritory] = await tx
+        .update(territories)
+        .set({
+          status: TerritoryStatus.ASSIGNED,
+          publisherId: request.publisherId,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(territories.id, request.territoryId),
+            eq(territories.status, TerritoryStatus.AVAILABLE)
+          )
+        )
+        .returning();
+
+      if (assignedTerritory) {
+        await tx.insert(territoryAssignments).values({
+          territoryId: assignedTerritory.id,
+          userId: request.publisherId,
+          status: AssignmentStatus.ACTIVE,
+          assignedAt: new Date(),
+          coverageAtAssignment: assignedTerritory.coveragePercent ?? '0',
+        });
+      }
     }
-  }
+
+    return updatedRequest;
+  });
 
   return NextResponse.json({ data: updated });
 }

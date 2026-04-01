@@ -68,29 +68,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await db
-      .update(territories)
-      .set({
-        status: TerritoryStatus.ASSIGNED,
-        publisherId: (body.userId as string) ?? null,
-        groupId: (body.serviceGroupId as string) ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(territories.id, territory.id));
+    const assignment = await db.transaction(async (tx) => {
+      await tx
+        .update(territories)
+        .set({
+          status: TerritoryStatus.ASSIGNED,
+          publisherId: (body.userId as string) ?? null,
+          groupId: (body.serviceGroupId as string) ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(territories.id, territory.id));
 
-    const [assignment] = await db
-      .insert(territoryAssignments)
-      .values({
-        territoryId: body.territoryId as string,
-        userId: (body.userId as string) ?? null,
-        serviceGroupId: (body.serviceGroupId as string) ?? null,
-        status: AssignmentStatus.ACTIVE,
-        assignedAt: new Date(),
-        dueAt: body.dueAt ? new Date(body.dueAt as string) : null,
-        notes: (body.notes as string) ?? null,
-        coverageAtAssignment: territory.coveragePercent ?? '0',
-      })
-      .returning();
+      const [inserted] = await tx
+        .insert(territoryAssignments)
+        .values({
+          territoryId: body.territoryId as string,
+          userId: (body.userId as string) ?? null,
+          serviceGroupId: (body.serviceGroupId as string) ?? null,
+          status: AssignmentStatus.ACTIVE,
+          assignedAt: new Date(),
+          dueAt: body.dueAt ? new Date(body.dueAt as string) : null,
+          notes: (body.notes as string) ?? null,
+          coverageAtAssignment: territory.coveragePercent ?? '0',
+        })
+        .returning();
+
+      return inserted;
+    });
 
     return successResponse(assignment, 'Territory assigned', 201, requestId);
   } catch (err) {

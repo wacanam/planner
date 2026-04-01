@@ -69,36 +69,42 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     }
 
     const newStatus = (body.status as AssignmentStatus) ?? assignment.status;
-    let returnedAt = assignment.returnedAt;
+    const returnedAt =
+      newStatus === AssignmentStatus.COMPLETED || newStatus === AssignmentStatus.RETURNED
+        ? new Date()
+        : assignment.returnedAt;
 
-    if (newStatus === AssignmentStatus.COMPLETED || newStatus === AssignmentStatus.RETURNED) {
-      returnedAt = new Date();
-      const newTerritoryStatus =
-        newStatus === AssignmentStatus.COMPLETED
-          ? TerritoryStatus.COMPLETED
-          : TerritoryStatus.AVAILABLE;
-      await db
-        .update(territories)
+    const updated = await db.transaction(async (tx) => {
+      if (newStatus === AssignmentStatus.COMPLETED || newStatus === AssignmentStatus.RETURNED) {
+        const newTerritoryStatus =
+          newStatus === AssignmentStatus.COMPLETED
+            ? TerritoryStatus.COMPLETED
+            : TerritoryStatus.AVAILABLE;
+        await tx
+          .update(territories)
+          .set({
+            status: newTerritoryStatus,
+            publisherId: null,
+            groupId: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(territories.id, assignment.territoryId));
+      }
+
+      const [result] = await tx
+        .update(territoryAssignments)
         .set({
-          status: newTerritoryStatus,
-          publisherId: null,
-          groupId: null,
+          status: newStatus,
+          notes: (body.notes as string) ?? assignment.notes,
+          dueAt: (body.dueAt as Date) ?? assignment.dueAt,
+          returnedAt,
           updatedAt: new Date(),
         })
-        .where(eq(territories.id, assignment.territoryId));
-    }
+        .where(eq(territoryAssignments.id, id))
+        .returning();
 
-    const [updated] = await db
-      .update(territoryAssignments)
-      .set({
-        status: newStatus,
-        notes: (body.notes as string) ?? assignment.notes,
-        dueAt: (body.dueAt as Date) ?? assignment.dueAt,
-        returnedAt,
-        updatedAt: new Date(),
-      })
-      .where(eq(territoryAssignments.id, id))
-      .returning();
+      return result;
+    });
 
     return successResponse(updated, 'Assignment updated', 200, requestId);
   } catch (err) {
