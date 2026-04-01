@@ -4,6 +4,7 @@ import {
   Check,
   Clock,
   MessageSquare,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -27,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchWithAuth } from '@/lib/api-client';
-import { CongregationRole } from '@/db';
+import { CongregationRole, UserRole } from '@/db';
 
 interface Member {
   id: string;
@@ -60,6 +61,11 @@ export default function CongregationMembersPage() {
 
   const canApprove = myRole === CongregationRole.SERVICE_OVERSEER;
 
+  const canEditRole =
+    sessionUser?.role === UserRole.SUPER_ADMIN ||
+    sessionUser?.role === UserRole.ADMIN ||
+    myRole === CongregationRole.SERVICE_OVERSEER;
+
   const [tab, setTab] = useState<Tab>('members');
 
   // Members
@@ -83,6 +89,12 @@ export default function CongregationMembersPage() {
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
   const [removeLoading, setRemoveLoading] = useState(false);
+
+  // Edit role
+  const [editRoleOpen, setEditRoleOpen] = useState(false);
+  const [editRoleTarget, setEditRoleTarget] = useState<Member | null>(null);
+  const [editRoleValue, setEditRoleValue] = useState<string | null>(null);
+  const [editRoleLoading, setEditRoleLoading] = useState(false);
 
   // Approve/reject
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -186,8 +198,33 @@ export default function CongregationMembersPage() {
     }
   }
 
-  function openReview(member: Member, action: 'active' | 'rejected') {
-    setReviewTarget(member);
+  function openEditRole(member: Member) {
+    setEditRoleTarget(member);
+    setEditRoleValue(member.congregationRole ?? null);
+    setEditRoleOpen(true);
+  }
+
+  async function handleEditRole() {
+    if (!editRoleTarget) return;
+    setEditRoleLoading(true);
+    try {
+      await fetchWithAuth(
+        `/api/congregations/${congregationId}/members/${editRoleTarget.userId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ congregationRole: editRoleValue }),
+        }
+      );
+      setEditRoleOpen(false);
+      await fetchMembers();
+    } catch {
+      // ignore
+    } finally {
+      setEditRoleLoading(false);
+    }
+  }
+
+  function openReview(member: Member, action: 'active' | 'rejected') {    setReviewTarget(member);
     setReviewAction(action);
     setReviewNote('');
     setReviewOpen(true);
@@ -356,7 +393,16 @@ export default function CongregationMembersPage() {
                           {new Date(m.joinedAt).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-1">
+                            {canEditRole && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openEditRole(m)}
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="ghost"
@@ -500,6 +546,55 @@ export default function CongregationMembersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editRoleOpen} onOpenChange={setEditRoleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Member Role</DialogTitle>
+            <DialogDescription>
+              Update the congregation role for{' '}
+              <span className="font-semibold">{editRoleTarget?.user?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            {[
+              { value: CongregationRole.SERVICE_OVERSEER, label: 'Service Overseer' },
+              { value: CongregationRole.TERRITORY_SERVANT, label: 'Territory Servant' },
+              { value: null, label: 'Publisher (no special role)' },
+            ].map((option) => (
+              <label
+                key={String(option.value)}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
+                  editRoleValue === option.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:bg-muted/50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value={String(option.value)}
+                  checked={editRoleValue === option.value}
+                  onChange={() => setEditRoleValue(option.value)}
+                  className="accent-primary"
+                />
+                <span className="text-sm font-medium text-foreground">{option.label}</span>
+              </label>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRoleOpen(false)} disabled={editRoleLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditRole} disabled={editRoleLoading}>
+              {editRoleLoading ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
