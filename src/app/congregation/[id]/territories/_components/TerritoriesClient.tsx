@@ -50,6 +50,11 @@ interface Member {
   status: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+}
+
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
@@ -76,6 +81,7 @@ export default function CongregationTerritoriesPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [requests, setRequests] = useState<TerritoryRequest[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [filtered, setFiltered] = useState<Territory[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -103,6 +109,13 @@ export default function CongregationTerritoriesPage() {
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [debouncedMemberSearch, setDebouncedMemberSearch] = useState('');
   const comboboxRef = useRef<HTMLDivElement>(null);
+  // Group combobox state
+  const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
+  const [assignGroupId, setAssignGroupId] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState('');
+  const [groupComboboxOpen, setGroupComboboxOpen] = useState(false);
+  const groupComboboxRef = useRef<HTMLDivElement>(null);
 
   // Return dialog
   const [returnOpen, setReturnOpen] = useState(false);
@@ -127,10 +140,11 @@ export default function CongregationTerritoriesPage() {
   const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
 
   const fetchData = useCallback(async () => {
-    const [tJson, rJson, mJson] = await Promise.all([
+    const [tJson, rJson, mJson, gJson] = await Promise.all([
       fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
       fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
       fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
+      fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`),
     ]);
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
@@ -142,6 +156,7 @@ export default function CongregationTerritoriesPage() {
         if (me?.congregationRole) setMyRole(me.congregationRole);
       }
     }
+    if (gJson.data) setGroups(gJson.data);
     setLoading(false);
   }, [congregationId, sessionUser?.id]);
 
@@ -172,11 +187,20 @@ export default function CongregationTerritoriesPage() {
     return () => clearTimeout(timer);
   }, [memberSearch]);
 
+  // Debounce group search for combobox
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedGroupSearch(groupSearch), 400);
+    return () => clearTimeout(timer);
+  }, [groupSearch]);
+
   // Close combobox dropdown on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
       if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
         setComboboxOpen(false);
+      }
+      if (groupComboboxRef.current && !groupComboboxRef.current.contains(e.target as Node)) {
+        setGroupComboboxOpen(false);
       }
     }
     document.addEventListener('mousedown', handleOutside);
@@ -252,21 +276,31 @@ export default function CongregationTerritoriesPage() {
 
   function openAssignDialog(territory: Territory) {
     setAssignTerritory(territory);
+    setAssignType('publisher');
     setAssignUserId('');
+    setAssignGroupId('');
     setAssignDueAt('');
     setAssignNotes('');
     setAssignError('');
     setAssignSuccess('');
     setMemberSearch('');
     setDebouncedMemberSearch('');
+    setGroupSearch('');
+    setDebouncedGroupSearch('');
     setComboboxOpen(false);
+    setGroupComboboxOpen(false);
     setAssignOpen(true);
   }
 
   async function handleAssign(e: React.FormEvent) {
     e.preventDefault();
-    if (!assignTerritory || !assignUserId) {
+    if (!assignTerritory) return;
+    if (assignType === 'publisher' && !assignUserId) {
       setAssignError('Please select a publisher');
+      return;
+    }
+    if (assignType === 'group' && !assignGroupId) {
+      setAssignError('Please select a group');
       return;
     }
     setAssignLoading(true);
@@ -276,7 +310,7 @@ export default function CongregationTerritoriesPage() {
         method: 'POST',
         body: JSON.stringify({
           territoryId: assignTerritory.id,
-          userId: assignUserId,
+          ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
           dueAt: assignDueAt || undefined,
           notes: assignNotes || undefined,
         }),
@@ -382,6 +416,10 @@ export default function CongregationTerritoriesPage() {
           m.user?.email?.toLowerCase().includes(debouncedMemberSearch.toLowerCase())
       )
     : activeMembers;
+
+  const filteredGroups = debouncedGroupSearch
+    ? groups.filter((g) => g.name.toLowerCase().includes(debouncedGroupSearch.toLowerCase()))
+    : groups;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -729,7 +767,7 @@ export default function CongregationTerritoriesPage() {
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>
             <DialogDescription>
-              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher.
+              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher or group.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssign} className="space-y-4 mt-2">
@@ -743,51 +781,115 @@ export default function CongregationTerritoriesPage() {
                 {assignSuccess}
               </p>
             )}
-            <div className="space-y-1.5">
-              <Label>Publisher *</Label>
-              <div ref={comboboxRef} className="relative">
-                <Input
-                  placeholder="Search publishers…"
-                  value={memberSearch}
-                  onChange={(e) => {
-                    setMemberSearch(e.target.value);
-                    setAssignUserId('');
-                    setComboboxOpen(e.target.value.length > 0);
-                  }}
-                  autoComplete="off"
-                />
-                {comboboxOpen && memberSearch.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                    <div className="max-h-48 overflow-y-auto divide-y divide-border">
-                      {filteredMembers.length === 0 ? (
-                        <p className="text-xs text-muted-foreground p-3 text-center">
-                          {debouncedMemberSearch ? 'No publishers match your search' : 'No active publishers'}
-                        </p>
-                      ) : (
-                        filteredMembers.map((m) => (
-                          <button
-                            type="button"
-                            key={m.id}
-                            className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
-                              assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
-                            }`}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setAssignUserId(m.userId);
-                              setMemberSearch(m.user?.name ?? '');
-                              setComboboxOpen(false);
-                            }}
-                          >
-                            <span className="font-medium truncate">{m.user?.name}</span>
-                            <span className="text-xs text-muted-foreground shrink-0">{m.user?.email}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Assign type toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setAssignType('publisher'); setAssignGroupId(''); setGroupSearch(''); setGroupComboboxOpen(false); }}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'publisher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Publisher
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAssignType('group'); setAssignUserId(''); setMemberSearch(''); setComboboxOpen(false); }}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Group
+              </button>
             </div>
+            {assignType === 'publisher' ? (
+              <div className="space-y-1.5">
+                <Label>Publisher *</Label>
+                <div ref={comboboxRef} className="relative">
+                  <Input
+                    placeholder="Search publishers…"
+                    value={memberSearch}
+                    onChange={(e) => {
+                      setMemberSearch(e.target.value);
+                      setAssignUserId('');
+                      setComboboxOpen(e.target.value.length > 0);
+                    }}
+                    autoComplete="off"
+                  />
+                  {comboboxOpen && memberSearch.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                        {filteredMembers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-3 text-center">
+                            {debouncedMemberSearch ? 'No publishers match your search' : 'No active publishers'}
+                          </p>
+                        ) : (
+                          filteredMembers.map((m) => (
+                            <button
+                              type="button"
+                              key={m.id}
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
+                                assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setAssignUserId(m.userId);
+                                setMemberSearch(m.user?.name ?? '');
+                                setComboboxOpen(false);
+                              }}
+                            >
+                              <span className="font-medium truncate">{m.user?.name}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">{m.user?.email}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Group *</Label>
+                <div ref={groupComboboxRef} className="relative">
+                  <Input
+                    placeholder="Search groups…"
+                    value={groupSearch}
+                    onChange={(e) => {
+                      setGroupSearch(e.target.value);
+                      setAssignGroupId('');
+                      setGroupComboboxOpen(e.target.value.length > 0);
+                    }}
+                    autoComplete="off"
+                  />
+                  {groupComboboxOpen && groupSearch.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                        {filteredGroups.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-3 text-center">
+                            {debouncedGroupSearch ? 'No groups match your search' : 'No groups found'}
+                          </p>
+                        ) : (
+                          filteredGroups.map((g) => (
+                            <button
+                              type="button"
+                              key={g.id}
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${
+                                assignGroupId === g.id ? 'bg-primary/10 text-primary' : ''
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setAssignGroupId(g.id);
+                                setGroupSearch(g.name);
+                                setGroupComboboxOpen(false);
+                              }}
+                            >
+                              <span className="font-medium">{g.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="assign-due">Due Date (optional)</Label>
               <Input
@@ -814,7 +916,7 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={assignLoading || !assignUserId}>
+              <Button type="submit" disabled={assignLoading || (assignType === 'publisher' ? !assignUserId : !assignGroupId)}>
                 {assignLoading ? 'Assigning…' : 'Assign Territory'}
               </Button>
             </DialogFooter>
