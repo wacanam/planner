@@ -66,7 +66,7 @@ export default function RootLayout({
           <ServiceWorkerRegistrar />
           <Providers>
             <Header />
-            <main className="flex-1 flex flex-col">{children}</main>
+            <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
           </Providers>
         </ThemeProvider>
