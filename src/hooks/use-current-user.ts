@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { UserRole } from '@/entities/User';
+import { UserRole } from '@/db';
 
 export interface SessionUser {
   id: string;

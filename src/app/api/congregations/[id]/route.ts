@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { Congregation } from '@/entities/Congregation';
-import { UserRole } from '@/entities/User';
+import { db, congregations, UserRole } from '@/db';
 
 // GET /api/congregations/:id
 export async function GET(
@@ -13,13 +12,11 @@ export async function GET(
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-  const congregation = await congregationRepo.findOne({
-    where: { id },
-    relations: ['createdBy'],
-  });
+  const [congregation] = await db
+    .select()
+    .from(congregations)
+    .where(eq(congregations.id, id))
+    .limit(1);
 
   if (!congregation) {
     return NextResponse.json({ error: 'Congregation not found' }, { status: 404 });
@@ -28,7 +25,7 @@ export async function GET(
   return NextResponse.json({ data: congregation });
 }
 
-// PATCH /api/congregations/:id — admin or super admin only
+// PATCH /api/congregations/:id
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -37,10 +34,11 @@ export async function PATCH(
   const auth = withAuth(req, UserRole.ADMIN);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-  const congregation = await congregationRepo.findOne({ where: { id } });
+  const [congregation] = await db
+    .select()
+    .from(congregations)
+    .where(eq(congregations.id, id))
+    .limit(1);
 
   if (!congregation) {
     return NextResponse.json({ error: 'Congregation not found' }, { status: 404 });
@@ -49,17 +47,22 @@ export async function PATCH(
   const body = await req.json();
   const { name, city, country, status } = body;
 
-  if (name) congregation.name = name;
-  if (city !== undefined) congregation.city = city;
-  if (country !== undefined) congregation.country = country;
-  if (status) congregation.status = status;
+  const [updated] = await db
+    .update(congregations)
+    .set({
+      ...(name ? { name } : {}),
+      ...(city !== undefined ? { city } : {}),
+      ...(country !== undefined ? { country } : {}),
+      ...(status ? { status } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(congregations.id, id))
+    .returning();
 
-  await congregationRepo.save(congregation);
-
-  return NextResponse.json({ data: congregation });
+  return NextResponse.json({ data: updated });
 }
 
-// DELETE /api/congregations/:id — super admin only
+// DELETE /api/congregations/:id
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,16 +71,17 @@ export async function DELETE(
   const auth = withAuth(req, UserRole.SUPER_ADMIN);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-  const congregation = await congregationRepo.findOne({ where: { id } });
+  const [congregation] = await db
+    .select()
+    .from(congregations)
+    .where(eq(congregations.id, id))
+    .limit(1);
 
   if (!congregation) {
     return NextResponse.json({ error: 'Congregation not found' }, { status: 404 });
   }
 
-  await congregationRepo.remove(congregation);
+  await db.delete(congregations).where(eq(congregations.id, id));
 
   return NextResponse.json({ success: true });
 }

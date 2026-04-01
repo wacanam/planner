@@ -8,7 +8,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { UserRole } from '@/entities/User';
+import { UserRole } from '@/db';
 import { cn } from '@/lib/utils';
 
 function roleLabel(role: UserRole): string {

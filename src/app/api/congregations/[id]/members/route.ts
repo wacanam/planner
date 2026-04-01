@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { CongregationMember, CongregationRole } from '@/entities/CongregationMember';
-import { UserRole } from '@/entities/User';
+import { db, congregationMembers, users, CongregationRole, UserRole } from '@/db';
 
 // GET /api/congregations/:id/members
 export async function GET(
@@ -13,36 +12,44 @@ export async function GET(
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-  const members = await memberRepo.find({
-    where: { congregationId: id },
-    relations: ['user'],
-  });
+  const members = await db
+    .select({
+      id: congregationMembers.id,
+      userId: congregationMembers.userId,
+      congregationId: congregationMembers.congregationId,
+      congregationRole: congregationMembers.congregationRole,
+      joinedAt: congregationMembers.joinedAt,
+      user: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+      },
+    })
+    .from(congregationMembers)
+    .leftJoin(users, eq(congregationMembers.userId, users.id))
+    .where(eq(congregationMembers.congregationId, id));
 
   return NextResponse.json({ data: members });
 }
 
-// POST /api/congregations/:id/members — add a member
+// POST /api/congregations/:id/members
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  // Must be a member with service_overseer role or global admin
-  const auth = await withCongregationAuth(req, id, CongregationRole.SERVICE_OVERSEER);
-  if (auth instanceof NextResponse) {
-    // Allow if global admin
-    const authBasic = await withCongregationAuth(req, id);
-    if (authBasic instanceof NextResponse) return authBasic;
-    if (
-      authBasic.user.role !== UserRole.SUPER_ADMIN &&
-      authBasic.user.role !== UserRole.ADMIN &&
-      authBasic.member?.congregationRole !== CongregationRole.SERVICE_OVERSEER
-    ) {
-      return NextResponse.json({ error: 'Forbidden: service_overseer required' }, { status: 403 });
-    }
+  const auth = await withCongregationAuth(req, id);
+  if (auth instanceof NextResponse) return auth;
+  const { user, member } = auth;
+
+  const isPrivileged =
+    user.role === UserRole.SUPER_ADMIN ||
+    user.role === UserRole.ADMIN ||
+    member?.congregationRole === CongregationRole.SERVICE_OVERSEER;
+
+  if (!isPrivileged) {
+    return NextResponse.json({ error: 'Forbidden: service_overseer required' }, { status: 403 });
   }
 
   const body = await req.json();
@@ -52,17 +59,25 @@ export async function POST(
     return NextResponse.json({ error: 'userId is required' }, { status: 400 });
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+  const [existing] = await db
+    .select({ id: congregationMembers.id })
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, userId),
+        eq(congregationMembers.congregationId, id)
+      )
+    )
+    .limit(1);
 
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-
-  const existing = await memberRepo.findOne({ where: { userId, congregationId: id } });
   if (existing) {
     return NextResponse.json({ error: 'User is already a member' }, { status: 409 });
   }
 
-  const member = memberRepo.create({ userId, congregationId: id });
-  await memberRepo.save(member);
+  const [newMember] = await db
+    .insert(congregationMembers)
+    .values({ userId, congregationId: id })
+    .returning();
 
-  return NextResponse.json({ data: member }, { status: 201 });
+  return NextResponse.json({ data: newMember }, { status: 201 });
 }

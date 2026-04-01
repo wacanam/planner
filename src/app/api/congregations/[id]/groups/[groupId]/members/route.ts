@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { GroupMember, GroupRole } from '@/entities/GroupMember';
-import { Group } from '@/entities/Group';
-import { CongregationRole } from '@/entities/CongregationMember';
+import { db, groups, groupMembers, CongregationRole, GroupRole } from '@/db';
 
 // POST /api/congregations/:id/groups/:groupId/members
 export async function POST(
@@ -29,23 +27,30 @@ export async function POST(
     );
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+  const [group] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(and(eq(groups.id, groupId), eq(groups.congregationId, id)))
+    .limit(1);
 
-  // Verify group belongs to congregation
-  const groupRepo = AppDataSource.getRepository(Group);
-  const group = await groupRepo.findOne({ where: { id: groupId, congregationId: id } });
   if (!group) {
     return NextResponse.json({ error: 'Group not found in this congregation' }, { status: 404 });
   }
 
-  const memberRepo = AppDataSource.getRepository(GroupMember);
-  const existing = await memberRepo.findOne({ where: { userId, groupId } });
+  const [existing] = await db
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, userId), eq(groupMembers.groupId, groupId)))
+    .limit(1);
+
   if (existing) {
     return NextResponse.json({ error: 'User is already in this group' }, { status: 409 });
   }
 
-  const member = memberRepo.create({ userId, groupId, groupRole });
-  await memberRepo.save(member);
+  const [member] = await db
+    .insert(groupMembers)
+    .values({ userId, groupId, groupRole })
+    .returning();
 
   return NextResponse.json({ data: member }, { status: 201 });
 }

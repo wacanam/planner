@@ -1,17 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { TerritoryRequest, TerritoryRequestStatus } from '@/entities/TerritoryRequest';
-import { CongregationRole } from '@/entities/CongregationMember';
+import { db, territoryRequests, CongregationRole, TerritoryRequestStatus } from '@/db';
 
-// PATCH /api/congregations/:id/territory-requests/:requestId — approve/reject
+// PATCH /api/congregations/:id/territory-requests/:requestId
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; requestId: string }> }
 ) {
   const { id, requestId } = await params;
 
-  // Requires territory_servant or service_overseer
   const auth = await withCongregationAuth(req, id, CongregationRole.TERRITORY_SERVANT);
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
@@ -26,12 +24,13 @@ export async function PATCH(
     );
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const requestRepo = AppDataSource.getRepository(TerritoryRequest);
-  const request = await requestRepo.findOne({
-    where: { id: requestId, congregationId: id },
-  });
+  const [request] = await db
+    .select()
+    .from(territoryRequests)
+    .where(
+      and(eq(territoryRequests.id, requestId), eq(territoryRequests.congregationId, id))
+    )
+    .limit(1);
 
   if (!request) {
     return NextResponse.json({ error: 'Territory request not found' }, { status: 404 });
@@ -41,11 +40,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Request has already been processed' }, { status: 409 });
   }
 
-  request.status = status;
-  request.approvedBy = user.userId;
-  request.approvedAt = new Date();
+  const [updated] = await db
+    .update(territoryRequests)
+    .set({ status, approvedBy: user.userId, approvedAt: new Date() })
+    .where(eq(territoryRequests.id, requestId))
+    .returning();
 
-  await requestRepo.save(request);
-
-  return NextResponse.json({ data: request });
+  return NextResponse.json({ data: updated });
 }

@@ -1,16 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { CongregationMember, CongregationRole } from '@/entities/CongregationMember';
+import { db, congregationMembers, CongregationRole } from '@/db';
 
-// PATCH /api/congregations/:id/members/:userId — assign congregation role
+// PATCH /api/congregations/:id/members/:userId
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   const { id, userId } = await params;
 
-  // Must be service_overseer or global admin
   const auth = await withCongregationAuth(req, id, CongregationRole.SERVICE_OVERSEER);
   if (auth instanceof NextResponse) return auth;
 
@@ -25,17 +24,26 @@ export async function PATCH(
     );
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-  const member = await memberRepo.findOne({ where: { userId, congregationId: id } });
+  const [member] = await db
+    .select()
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, userId),
+        eq(congregationMembers.congregationId, id)
+      )
+    )
+    .limit(1);
 
   if (!member) {
     return NextResponse.json({ error: 'Member not found' }, { status: 404 });
   }
 
-  member.congregationRole = congregationRole;
-  await memberRepo.save(member);
+  const [updated] = await db
+    .update(congregationMembers)
+    .set({ congregationRole })
+    .where(eq(congregationMembers.id, member.id))
+    .returning();
 
-  return NextResponse.json({ data: member });
+  return NextResponse.json({ data: updated });
 }

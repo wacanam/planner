@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq, asc } from 'drizzle-orm';
+import { db, territories, UserRole } from '@/db';
 import { RequireRole } from '@/lib/auth-middleware';
 import { paginatedResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
@@ -19,17 +18,15 @@ export const GET = RequireRole(UserRole.SERVICE_OVERSEER)(
       if (!congregationId)
         return ApiErrors.badRequest('congregationId is required', undefined, requestId);
 
-      if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-      const repo = AppDataSource.getRepository(Territory);
+      const all = await db
+        .select()
+        .from(territories)
+        .where(eq(territories.congregationId, congregationId))
+        .orderBy(asc(territories.number));
 
-      const [territories, total] = await repo.findAndCount({
-        where: { congregationId },
-        order: { number: 'ASC' },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
-
-      return paginatedResponse(territories, total, page, limit, requestId);
+      const total = all.length;
+      const paginated = all.slice((page - 1) * limit, page * limit);
+      return paginatedResponse(paginated, total, page, limit, requestId);
     } catch (err) {
       console.error('[GET /api/dashboard/territories]', err);
       return ApiErrors.internalError(undefined, requestId);

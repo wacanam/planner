@@ -11,7 +11,7 @@ import { StatCard } from '@/components/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UserRole } from '@/entities/User';
+import { UserRole } from '@/db';
 
 interface Congregation {
   id: string;

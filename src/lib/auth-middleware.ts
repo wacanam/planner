@@ -2,10 +2,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { verifyToken, extractBearerToken } from '@/lib/jwt';
 import { hasPermission } from '@/lib/permissions';
 import type { JwtPayload } from '@/lib/jwt';
-import { UserRole } from '@/entities/User';
-import { CongregationRole } from '@/entities/CongregationMember';
-import { AppDataSource } from '@/lib/data-source';
-import { CongregationMember } from '@/entities/CongregationMember';
+import { eq, and } from 'drizzle-orm';
+import { db, users, congregationMembers, UserRole, CongregationRole } from '@/db';
+import type { CongregationMember } from '@/db';
 
 export type AuthenticatedRequest = NextRequest & { user: JwtPayload };
 
@@ -55,19 +54,21 @@ export async function withCongregationAuth(
   const { user } = authResult;
 
   // Global admins bypass congregation checks
-  if (GLOBAL_ROLES.includes(user.role)) {
+  if ((GLOBAL_ROLES as string[]).includes(user.role)) {
     return { user, member: null };
   }
 
   // Verify congregation membership
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
-  }
-
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-  const member = await memberRepo.findOne({
-    where: { userId: user.userId, congregationId },
-  });
+  const [member] = await db
+    .select()
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, user.userId),
+        eq(congregationMembers.congregationId, congregationId)
+      )
+    )
+    .limit(1);
 
   if (!member) {
     return NextResponse.json(
@@ -80,7 +81,7 @@ export async function withCongregationAuth(
   if (requiredCongregationRole) {
     const roleHierarchy = [CongregationRole.TERRITORY_SERVANT, CongregationRole.SERVICE_OVERSEER];
     const memberRoleIndex = member.congregationRole
-      ? roleHierarchy.indexOf(member.congregationRole)
+      ? roleHierarchy.indexOf(member.congregationRole as CongregationRole)
       : -1;
     const requiredIndex = roleHierarchy.indexOf(requiredCongregationRole);
     if (memberRoleIndex < requiredIndex) {

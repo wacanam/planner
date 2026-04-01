@@ -1,8 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { Group } from '@/entities/Group';
-import { CongregationRole } from '@/entities/CongregationMember';
+import { db, groups, groupMembers, users, CongregationRole } from '@/db';
 
 // GET /api/congregations/:id/groups
 export async function GET(
@@ -13,18 +12,20 @@ export async function GET(
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+  const rows = await db
+    .select({
+      id: groups.id,
+      congregationId: groups.congregationId,
+      name: groups.name,
+      createdAt: groups.createdAt,
+    })
+    .from(groups)
+    .where(eq(groups.congregationId, id));
 
-  const groupRepo = AppDataSource.getRepository(Group);
-  const groups = await groupRepo.find({
-    where: { congregationId: id },
-    relations: ['members', 'members.user'],
-  });
-
-  return NextResponse.json({ data: groups });
+  return NextResponse.json({ data: rows });
 }
 
-// POST /api/congregations/:id/groups — create group (service_overseer or admin)
+// POST /api/congregations/:id/groups
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,11 +41,10 @@ export async function POST(
     return NextResponse.json({ error: 'name is required' }, { status: 400 });
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const groupRepo = AppDataSource.getRepository(Group);
-  const group = groupRepo.create({ congregationId: id, name });
-  await groupRepo.save(group);
+  const [group] = await db
+    .insert(groups)
+    .values({ congregationId: id, name })
+    .returning();
 
   return NextResponse.json({ data: group }, { status: 201 });
 }

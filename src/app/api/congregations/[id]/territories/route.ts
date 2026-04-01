@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { Territory } from '@/entities/Territory';
-import { CongregationRole } from '@/entities/CongregationMember';
-import { TerritoryStatus } from '@/entities/Territory';
+import { db, territories, users, groups, CongregationRole, TerritoryStatus } from '@/db';
 
 // GET /api/congregations/:id/territories
 export async function GET(
@@ -14,18 +12,15 @@ export async function GET(
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+  const rows = await db
+    .select()
+    .from(territories)
+    .where(eq(territories.congregationId, id));
 
-  const territoryRepo = AppDataSource.getRepository(Territory);
-  const territories = await territoryRepo.find({
-    where: { congregationId: id },
-    relations: ['publisher', 'group'],
-  });
-
-  return NextResponse.json({ data: territories });
+  return NextResponse.json({ data: rows });
 }
 
-// POST /api/congregations/:id/territories — territory_servant or above
+// POST /api/congregations/:id/territories
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,7 +35,6 @@ export async function POST(
   if (!name) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 });
   }
-
   if (publisherId && groupId) {
     return NextResponse.json(
       { error: 'A territory can only be assigned to a publisher OR a group, not both' },
@@ -48,20 +42,18 @@ export async function POST(
     );
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const territoryRepo = AppDataSource.getRepository(Territory);
-  const territory = territoryRepo.create({
-    congregationId: id,
-    name,
-    number: number ?? name,
-    notes,
-    publisherId: publisherId ?? undefined,
-    groupId: groupId ?? undefined,
-    status: publisherId || groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
-  });
-
-  await territoryRepo.save(territory);
+  const [territory] = await db
+    .insert(territories)
+    .values({
+      congregationId: id,
+      name,
+      number: number ?? name,
+      notes,
+      publisherId: publisherId ?? null,
+      groupId: groupId ?? null,
+      status: publisherId || groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
+    })
+    .returning();
 
   return NextResponse.json({ data: territory }, { status: 201 });
 }
