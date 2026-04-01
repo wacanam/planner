@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { UserRole } from '@/db';
 import { useCurrentUser } from '@/hooks/use-current-user';
@@ -129,6 +130,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
 
             {/* User info */}
