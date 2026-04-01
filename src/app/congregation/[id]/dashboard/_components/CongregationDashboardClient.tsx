@@ -129,6 +129,18 @@ export default function CongregationDashboardPage() {
   );
   const myRequests = isOverseer ? [] : requests;
 
+  // Set of territory IDs the publisher already has a pending request for
+  const requestedTerritoryIds = new Set(
+    myRequests.filter((r) => r.territoryId).map((r) => r.territoryId as string)
+  );
+
+  // Helper to look up territory name by id
+  const getTerritoryLabel = (territoryId?: string | null) => {
+    if (!territoryId) return 'Any available territory';
+    const t = territories.find((t) => t.id === territoryId);
+    return t ? `#${t.number} ${t.name}` : 'Specific territory';
+  };
+
   return (
     <ProtectedPage congregationId={congregationId}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -423,23 +435,23 @@ export default function CongregationDashboardPage() {
           /* ── PUBLISHER VIEW ────────────────────────────────────────── */
           <>
             {/* Quick stats bar */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <StatCard
-                title="My Assigned"
+                title="Assigned"
                 value={loading ? '—' : myActiveTerritories.length}
                 icon={MapPin}
                 color="blue"
                 loading={loading}
               />
               <StatCard
-                title="Pending Requests"
+                title="Pending"
                 value={loading ? '—' : myRequests.length}
                 icon={ClipboardList}
                 color={myRequests.length > 0 ? 'orange' : 'default'}
                 loading={loading}
               />
               <StatCard
-                title="Congregation Size"
+                title="Members"
                 value={loading ? '—' : members.length}
                 icon={Users}
                 color="purple"
@@ -487,7 +499,7 @@ export default function CongregationDashboardPage() {
                         </p>
                       </div>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
+                        <Link href={`/territories/${t.id}`}>
                           View
                           <ArrowRight size={12} />
                         </Link>
@@ -526,7 +538,7 @@ export default function CongregationDashboardPage() {
                     >
                       <div>
                         <p className="text-sm font-medium">
-                          {r.territoryId ? 'Specific territory' : 'Any available territory'}
+                          {getTerritoryLabel(r.territoryId)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(r.requestedAt).toLocaleDateString()}
@@ -589,8 +601,12 @@ export default function CongregationDashboardPage() {
                         territoryName={`#${t.number} ${t.name}`}
                         onSuccess={loadAll}
                         trigger={
-                          <Button size="sm" variant="outline">
-                            Request
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={requestedTerritoryIds.has(t.id)}
+                          >
+                            {requestedTerritoryIds.has(t.id) ? 'Requested' : 'Request'}
                           </Button>
                         }
                       />

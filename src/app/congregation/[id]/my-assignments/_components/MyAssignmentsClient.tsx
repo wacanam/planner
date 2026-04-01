@@ -158,7 +158,7 @@ export default function MyAssignmentsClient() {
                       assigned
                     </Badge>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
+                      <Link href={`/territories/${t.id}`}>
                         View
                         <ArrowRight size={12} />
                       </Link>
@@ -242,7 +242,7 @@ export default function MyAssignmentsClient() {
                         {t.status}
                       </Badge>
                       <Button asChild size="sm" variant="ghost">
-                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
+                        <Link href={`/territories/${t.id}`}>
                           View
                         </Link>
                       </Button>
