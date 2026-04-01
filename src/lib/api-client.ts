@@ -58,7 +58,9 @@ export async function fetchWithAuth<T = Record<string, unknown>>(url: string, op
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Request failed' }));
-      const errorMsg = error.error || `HTTP ${res.status}`;
+      const errorData = error.error;
+      const errorMsg =
+        (typeof errorData === 'string' ? errorData : errorData?.message) || `HTTP ${res.status}`;
 
       if (res.status === 401) {
         // Clear token cache and provide helpful message
