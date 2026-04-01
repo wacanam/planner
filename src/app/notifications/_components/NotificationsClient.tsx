@@ -101,10 +101,10 @@ export function NotificationsClient() {
 
   if (loading) {
     return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="h-9 w-48 rounded-lg bg-muted animate-pulse" />
+          <div className="h-9 w-56 rounded-lg bg-muted animate-pulse" />
           <div className="h-9 w-32 rounded-full bg-muted animate-pulse" />
         </div>
         {/* Group label */}
@@ -112,10 +112,10 @@ export function NotificationsClient() {
         {/* Cards */}
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+            <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 w-full">
               <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0 mt-0.5" />
               <div className="flex-1 space-y-2 min-w-0">
-                <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-1/3 rounded bg-muted animate-pulse" />
                 <div className="h-3 w-full rounded bg-muted animate-pulse" />
                 <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
                 <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
@@ -131,7 +131,7 @@ export function NotificationsClient() {
 
   if (notifications.length === 0) {
     return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6">Notifications</h1>
         <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
           <Bell size={40} className="opacity-30" />
@@ -145,7 +145,7 @@ export function NotificationsClient() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
         {hasUnread && (
