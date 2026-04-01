@@ -145,8 +145,7 @@ export default function CongregationMembersPage() {
           />
         </div>
 
-        <Card>
-          <CardContent className="p-0">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full">
             {loading ? (
               <div className="p-6 space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -161,8 +160,7 @@ export default function CongregationMembersPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto w-full">
-                <table className="w-full text-sm min-w-[600px]">
+              <table className="w-full text-sm min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -220,10 +218,8 @@ export default function CongregationMembersPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
             )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
       {/* Add member dialog */}

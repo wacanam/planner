@@ -185,8 +185,7 @@ export default function AdminCongregationsPage() {
         </div>
 
         {/* Table / list */}
-        <Card>
-          <CardContent className="p-0">
+        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full">
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -201,8 +200,7 @@ export default function AdminCongregationsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[640px]">
+              <table className="w-full text-sm min-w-[640px]">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -276,10 +274,8 @@ export default function AdminCongregationsPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
             )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
 
       {/* Create dialog */}
