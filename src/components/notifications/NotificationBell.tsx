@@ -92,7 +92,7 @@ function NotificationList({
       </div>
 
       {/* List */}
-      <div className="overflow-y-auto max-h-[60vh] sm:max-h-96">
+      <div className="overflow-y-auto flex-1" style={{ maxHeight: '60vh' }}>
         {notifications.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
             No notifications yet
@@ -261,7 +261,8 @@ export function NotificationBell() {
       {/* Sheet — fixed to bottom of viewport */}
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl"
+        className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl sheet-slide-up flex flex-col"
+        style={{ maxHeight: '85vh' }}
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">
