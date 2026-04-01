@@ -572,7 +572,7 @@ export default function CongregationTerritoriesPage() {
                             </div>
                             <div>
                               <Link
-                                href={`/territories/${t.id}`}
+                                href={`/congregation/${congregationId}/territories/${t.id}`}
                                 className="font-medium text-foreground hover:text-primary hover:underline"
                               >
                                 #{t.number} {t.name}

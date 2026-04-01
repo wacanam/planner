@@ -499,7 +499,7 @@ export default function CongregationDashboardPage() {
                         </p>
                       </div>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/territories/${t.id}`}>
+                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                           View
                           <ArrowRight size={12} />
                         </Link>
