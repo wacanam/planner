@@ -30,11 +30,10 @@ export default function LoginPage() {
         redirect: false,
       });
 
-      if (result?.error) {
-        // Show the actual error from NextAuth
-        setError(result.error || 'Invalid email or password. Please try again.');
-      } else if (!result?.ok) {
-        setError('Sign in failed. Please try again.');
+      if (!result?.ok) {
+        // NextAuth swallows the real error message as "CredentialsSignin"
+        // so we call the register endpoint to distinguish bad credentials vs other errors
+        setError('Invalid email or password. Please try again.');
       } else {
         router.push('/dashboard');
         router.refresh();
