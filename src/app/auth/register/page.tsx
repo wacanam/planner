@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -98,8 +99,22 @@ export default function RegisterPage() {
         const errorMessage = data.error?.message || data.error || 'Registration failed. Please try again.';
         setError(errorMessage);
       } else {
-        setSuccess('Account created! Redirecting to sign in…');
-        setTimeout(() => router.push('/auth/login'), 1500);
+        setSuccess('Account created! Signing you in…');
+        
+        // Auto-sign in with NextAuth
+        const signInResult = await signIn('credentials', {
+          email: form.email,
+          password: form.password,
+          redirect: false,
+        });
+
+        if (signInResult?.error) {
+          setSuccess('Account created! Redirecting to sign in…');
+          setTimeout(() => router.push('/auth/login'), 1500);
+        } else {
+          router.push('/dashboard');
+          router.refresh();
+        }
       }
     } catch {
       setError('Something went wrong. Please try again.');
