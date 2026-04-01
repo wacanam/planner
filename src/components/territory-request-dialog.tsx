@@ -44,7 +44,7 @@ export function TerritoryRequestDialog({
     try {
       await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests`, {
         method: 'POST',
-        body: JSON.stringify({ territoryId: territoryId ?? null, notes }),
+        body: JSON.stringify({ territoryId: territoryId ?? null, message: notes }),
       });
       setSuccess(true);
       onSuccess?.();
