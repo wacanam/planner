@@ -95,8 +95,14 @@ export default function RegisterPage() {
         redirect: false,
       });
 
+      console.log('[register] signIn result:', result);
+
       if (result?.error) {
+        console.error('[register] signIn error:', result.error);
         setError(result.error || 'Registration failed. Please try again.');
+      } else if (!result?.ok) {
+        console.error('[register] signIn not ok:', result);
+        setError('Registration failed. Please try again.');
       } else {
         setSuccess('Account created! Redirecting to dashboard…');
         setTimeout(() => {
@@ -104,7 +110,8 @@ export default function RegisterPage() {
           router.refresh();
         }, 1000);
       }
-    } catch {
+    } catch (err) {
+      console.error('[register] catch error:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
