@@ -18,7 +18,7 @@ interface Notification {
 }
 
 interface NotificationsResponse {
-  notifications: Notification[];
+  data: Notification[];
   unreadCount: number;
 }
 
@@ -63,7 +63,7 @@ export function NotificationsClient() {
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await fetchWithAuth<NotificationsResponse>('/api/notifications');
-      setNotifications(data.notifications);
+      setNotifications(data.data ?? []);
     } catch {
       // ignore
     } finally {
@@ -99,13 +99,44 @@ export function NotificationsClient() {
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="h-9 w-56 rounded-lg bg-muted animate-pulse" />
+          <div className="h-9 w-32 rounded-full bg-muted animate-pulse" />
+        </div>
+        {/* Group label */}
+        <div className="h-3 w-12 rounded bg-muted animate-pulse mb-3" />
+        {/* Cards */}
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 w-full">
+              <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-2 min-w-0">
+                <div className="h-4 w-1/3 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-full rounded bg-muted animate-pulse" />
+                <div className="h-3 w-4/5 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-3/5 rounded bg-muted animate-pulse" />
+                <div className="h-3 w-2/5 rounded bg-muted animate-pulse" />
+              </div>
+              <div className="h-4 w-16 rounded bg-muted animate-pulse shrink-0 mt-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
-        <Bell size={40} className="opacity-30" />
-        <p className="text-sm">No notifications yet</p>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-foreground mb-6">Notifications</h1>
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
+          <Bell size={40} className="opacity-30" />
+          <p className="text-sm">No notifications yet</p>
+        </div>
       </div>
     );
   }
@@ -114,14 +145,15 @@ export function NotificationsClient() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="space-y-6">
-      {hasUnread && (
-        <div className="flex justify-end">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+        {hasUnread && (
           <Button variant="outline" size="sm" onClick={markAllAsRead}>
             Mark all as read
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {(Object.entries(groups) as [string, Notification[]][])
         .filter(([, items]) => items.length > 0)

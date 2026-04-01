@@ -1,4 +1,4 @@
-import { pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { TerritoryRequestStatus } from '../enums';
 
 export const territoryRequests = pgTable('territory_requests', {
@@ -7,8 +7,10 @@ export const territoryRequests = pgTable('territory_requests', {
   publisherId: uuid('publisherId').notNull(),
   territoryId: uuid('territoryId'),
   status: varchar('status', { length: 20 }).notNull().default(TerritoryRequestStatus.PENDING),
+  message: text('message'),
   approvedBy: uuid('approvedBy'),
   approvedAt: timestamp('approvedAt'),
+  responseMessage: text('responseMessage'),
   requestedAt: timestamp('requestedAt').defaultNow().notNull(),
 });
 

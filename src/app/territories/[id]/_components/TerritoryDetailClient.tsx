@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CoverageChart } from '@/components/coverage-chart';
-import { ArrowLeft, Pencil, Save, X, User, History } from 'lucide-react';
+import { ArrowLeft, Pencil, Save, X, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/api-client';
 
 type Territory = {
   id: string;
@@ -31,6 +32,7 @@ type Assignment = {
   notes: string | null;
   assigneeName: string | null;
   assigneeEmail: string | null;
+  groupName: string | null;
 };
 
 const statusColors: Record<string, string> = {
@@ -46,10 +48,13 @@ const assignmentStatusColors: Record<string, string> = {
   returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
+function getAssigneeDisplayName(a: Assignment): string {
+  return a.assigneeName ?? a.groupName ?? 'Unknown';
+}
+
 export default function TerritoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const _router = useRouter();
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,30 +66,29 @@ export default function TerritoryDetailPage() {
   async function load() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token ?? ''}` };
-
-      const [territoryRes, assignmentsRes] = await Promise.all([
-        fetch(`/api/territories/${id}`, { headers }),
-        fetch(`/api/territories/${id}/assignments`, { headers }),
+      const [territoryData, assignmentsData] = await Promise.all([
+        fetchWithAuth<{ success: boolean; data: Territory; error?: { message: string } }>(
+          `/api/territories/${id}`
+        ),
+        fetchWithAuth<{ success: boolean; data: Assignment[] }>(
+          `/api/territories/${id}/assignments`
+        ).catch(() => ({ success: false, data: [] as Assignment[] })),
       ]);
 
-      const data = (await territoryRes.json()) as { success: boolean; data: Territory };
-      if (data.success) {
-        setTerritory(data.data);
+      if (territoryData.success && territoryData.data) {
+        setTerritory(territoryData.data);
         setForm({
-          name: data.data.name,
-          number: data.data.number,
-          notes: data.data.notes ?? '',
-          householdsCount: String(data.data.householdsCount),
+          name: territoryData.data.name,
+          number: territoryData.data.number,
+          notes: territoryData.data.notes ?? '',
+          householdsCount: String(territoryData.data.householdsCount),
         });
       } else {
         setError('Territory not found');
       }
 
-      if (assignmentsRes.ok) {
-        const aData = (await assignmentsRes.json()) as { success: boolean; data: Assignment[] };
-        if (aData.success) setAssignments(aData.data);
+      if (assignmentsData.success && assignmentsData.data) {
+        setAssignments(assignmentsData.data);
       }
     } catch {
       setError('Failed to load territory');
@@ -96,13 +100,12 @@ export default function TerritoryDetailPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/territories/${id}`, {
+      const data = await fetchWithAuth<{
+        success: boolean;
+        data: Territory;
+        error?: { message: string };
+      }>(`/api/territories/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token ?? ''}`,
-        },
         body: JSON.stringify({
           name: form.name,
           number: form.number,
@@ -110,19 +113,14 @@ export default function TerritoryDetailPage() {
           householdsCount: Number(form.householdsCount),
         }),
       });
-      const data = (await res.json()) as {
-        success: boolean;
-        data: Territory;
-        error?: { message: string };
-      };
       if (data.success) {
         setTerritory(data.data);
         setEditing(false);
       } else {
         setError(data.error?.message ?? 'Failed to save');
       }
-    } catch {
-      setError('Network error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
     } finally {
       setSaving(false);
     }
@@ -249,15 +247,21 @@ export default function TerritoryDetailPage() {
         <Card className="border-blue-200 dark:border-blue-900/40">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-500" />
+              {activeAssignment.groupName ? (
+                <Users className="h-4 w-4 text-blue-500" />
+              ) : (
+                <User className="h-4 w-4 text-blue-500" />
+              )}
               Current Assignment
             </CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <dt className="text-gray-500">Assigned To</dt>
-                <dd className="font-medium">{activeAssignment.assigneeName ?? '—'}</dd>
+                <dt className="text-gray-500">
+                  {activeAssignment.groupName ? 'Assigned Group' : 'Assigned To'}
+                </dt>
+                <dd className="font-medium">{getAssigneeDisplayName(activeAssignment)}</dd>
               </div>
               {activeAssignment.assignedAt && (
                 <div>
@@ -311,7 +315,7 @@ export default function TerritoryDetailPage() {
                 className="flex items-start justify-between p-3 rounded-xl border border-border text-sm"
               >
                 <div className="space-y-0.5">
-                  <p className="font-medium">{a.assigneeName ?? 'Unknown'}</p>
+                  <p className="font-medium">{getAssigneeDisplayName(a)}</p>
                   {a.assignedAt && (
                     <p className="text-xs text-muted-foreground">
                       Assigned: {new Date(a.assignedAt).toLocaleDateString()}

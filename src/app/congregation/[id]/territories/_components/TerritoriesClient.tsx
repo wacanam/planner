@@ -2,8 +2,9 @@
 
 import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -28,14 +29,16 @@ interface Territory {
   name: string;
   status: string;
   notes?: string;
-  publisher?: { name: string };
-  group?: { name: string };
+  publisherName?: string | null;
+  groupName?: string | null;
 }
 
 interface TerritoryRequest {
   id: string;
+  territoryId?: string | null;
   status: string;
-  publisher?: { name: string };
+  message?: string | null;
+  publisher?: { name: string } | null;
   approver?: { name: string };
   requestedAt: string;
 }
@@ -46,6 +49,11 @@ interface Member {
   user: { id: string; name: string; email: string };
   congregationRole?: string | null;
   status: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -74,6 +82,7 @@ export default function CongregationTerritoriesPage() {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [requests, setRequests] = useState<TerritoryRequest[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [filtered, setFiltered] = useState<Territory[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -98,6 +107,16 @@ export default function CongregationTerritoriesPage() {
   const [assignError, setAssignError] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
+  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [debouncedMemberSearch, setDebouncedMemberSearch] = useState('');
+  const comboboxRef = useRef<HTMLDivElement>(null);
+  // Group combobox state
+  const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
+  const [assignGroupId, setAssignGroupId] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
+  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState('');
+  const [groupComboboxOpen, setGroupComboboxOpen] = useState(false);
+  const groupComboboxRef = useRef<HTMLDivElement>(null);
 
   // Return dialog
   const [returnOpen, setReturnOpen] = useState(false);
@@ -106,15 +125,27 @@ export default function CongregationTerritoriesPage() {
   const [returnLoading, setReturnLoading] = useState(false);
   const [returnError, setReturnError] = useState('');
 
-  // Request confirmation
-  const [requestingTerritoryId, setRequestingTerritoryId] = useState<string | null>(null);
+  // Request dialog
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [requestTargetTerritory, setRequestTargetTerritory] = useState<Territory | null>(null);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
 
+  // Approve/Reject confirmation dialog
+  const [confirmRequest, setConfirmRequest] = useState<TerritoryRequest | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+  const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
+
   const fetchData = useCallback(async () => {
-    const [tJson, rJson, mJson] = await Promise.all([
+    const [tJson, rJson, mJson, gJson] = await Promise.all([
       fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
       fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
       fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
+      fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`),
     ]);
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
@@ -126,6 +157,7 @@ export default function CongregationTerritoriesPage() {
         if (me?.congregationRole) setMyRole(me.congregationRole);
       }
     }
+    if (gJson.data) setGroups(gJson.data);
     setLoading(false);
   }, [congregationId, sessionUser?.id]);
 
@@ -144,11 +176,38 @@ export default function CongregationTerritoriesPage() {
         (t) =>
           t.name.toLowerCase().includes(s) ||
           t.number.toLowerCase().includes(s) ||
-          t.publisher?.name?.toLowerCase().includes(s)
+          t.publisherName?.toLowerCase().includes(s) ||
+          t.groupName?.toLowerCase().includes(s)
       );
     }
     setFiltered(list);
   }, [search, statusFilter, territories]);
+
+  // Debounce member search for combobox
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedMemberSearch(memberSearch), 400);
+    return () => clearTimeout(timer);
+  }, [memberSearch]);
+
+  // Debounce group search for combobox
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedGroupSearch(groupSearch), 400);
+    return () => clearTimeout(timer);
+  }, [groupSearch]);
+
+  // Close combobox dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setComboboxOpen(false);
+      }
+      if (groupComboboxRef.current && !groupComboboxRef.current.contains(e.target as Node)) {
+        setGroupComboboxOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -175,37 +234,75 @@ export default function CongregationTerritoriesPage() {
     }
   }
 
-  async function handleApproveRequest(requestId: string) {
-    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'approved' }),
-    });
-    await fetchData();
+  function openConfirmDialog(request: TerritoryRequest, action: 'approve' | 'reject') {
+    setConfirmRequest(request);
+    setConfirmAction(action);
+    setConfirmError('');
+    setConfirmResponseMessage('');
   }
 
-  async function handleRejectRequest(requestId: string) {
-    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'rejected' }),
-    });
-    await fetchData();
+  function closeConfirmDialog() {
+    setConfirmRequest(null);
+    setConfirmAction(null);
+    setConfirmError('');
+    setConfirmResponseMessage('');
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmRequest || !confirmAction) return;
+    if (confirmAction === 'reject' && !confirmResponseMessage.trim()) {
+      setConfirmError('A reason is required when rejecting a request.');
+      return;
+    }
+    setConfirmLoading(true);
+    setConfirmError('');
+    try {
+      await fetchWithAuth(
+        `/api/congregations/${congregationId}/territory-requests/${confirmRequest.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            status: confirmAction === 'approve' ? 'approved' : 'rejected',
+            responseMessage: confirmResponseMessage.trim() || null,
+          }),
+        }
+      );
+      closeConfirmDialog();
+      await fetchData();
+    } catch {
+      setConfirmError('Failed to process request. Please try again.');
+    } finally {
+      setConfirmLoading(false);
+    }
   }
 
   function openAssignDialog(territory: Territory) {
     setAssignTerritory(territory);
+    setAssignType('publisher');
     setAssignUserId('');
+    setAssignGroupId('');
     setAssignDueAt('');
     setAssignNotes('');
     setAssignError('');
     setAssignSuccess('');
     setMemberSearch('');
+    setDebouncedMemberSearch('');
+    setGroupSearch('');
+    setDebouncedGroupSearch('');
+    setComboboxOpen(false);
+    setGroupComboboxOpen(false);
     setAssignOpen(true);
   }
 
   async function handleAssign(e: React.FormEvent) {
     e.preventDefault();
-    if (!assignTerritory || !assignUserId) {
+    if (!assignTerritory) return;
+    if (assignType === 'publisher' && !assignUserId) {
       setAssignError('Please select a publisher');
+      return;
+    }
+    if (assignType === 'group' && !assignGroupId) {
+      setAssignError('Please select a group');
       return;
     }
     setAssignLoading(true);
@@ -215,7 +312,7 @@ export default function CongregationTerritoriesPage() {
         method: 'POST',
         body: JSON.stringify({
           territoryId: assignTerritory.id,
-          userId: assignUserId,
+          ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
           dueAt: assignDueAt || undefined,
           notes: assignNotes || undefined,
         }),
@@ -226,8 +323,8 @@ export default function CongregationTerritoriesPage() {
         setAssignSuccess('');
       }, 1200);
       await fetchData();
-    } catch {
-      setAssignError('Failed to assign territory');
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
     } finally {
       setAssignLoading(false);
     }
@@ -269,20 +366,43 @@ export default function CongregationTerritoriesPage() {
     }
   }
 
-  async function handleRequest(territoryId: string) {
-    setRequestingTerritoryId(territoryId);
-    setRequestSuccess(null);
+  function openRequestDialog(territory: Territory) {
+    setRequestTargetTerritory(territory);
+    setRequestMessage('');
+    setRequestError('');
+    setRequestDialogOpen(true);
+  }
+
+  async function handleRequest() {
+    if (!requestTargetTerritory) return;
+    if (!requestMessage.trim()) {
+      setRequestError('A message to the overseer is required.');
+      return;
+    }
+    setRequestLoading(true);
+    setRequestError('');
     try {
       await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests`, {
         method: 'POST',
-        body: JSON.stringify({ territoryId }),
+        body: JSON.stringify({
+          territoryId: requestTargetTerritory.id,
+          message: requestMessage.trim(),
+        }),
       });
-      setRequestSuccess(territoryId);
-      setTimeout(() => setRequestSuccess(null), 3000);
-    } catch {
-      // ignore
+      setRequestDialogOpen(false);
+      setRequestSuccess(requestTargetTerritory.id);
+      setRequestTargetTerritory(null);
+      setRequestMessage('');
+      // Refresh requests list
+      const rJson = await fetchWithAuth<{ data: TerritoryRequest[] }>(
+        `/api/congregations/${congregationId}/territory-requests?status=pending`
+      );
+      if (rJson.data) setRequests(rJson.data);
+      setTimeout(() => setRequestSuccess(null), 4000);
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'Failed to send request. Please try again.');
     } finally {
-      setRequestingTerritoryId(null);
+      setRequestLoading(false);
     }
   }
 
@@ -291,13 +411,17 @@ export default function CongregationTerritoriesPage() {
   const completedCount = territories.filter((t) => t.status === 'completed').length;
 
   const activeMembers = members.filter((m) => m.status === 'active');
-  const filteredMembers = memberSearch
+  const filteredMembers = debouncedMemberSearch
     ? activeMembers.filter(
         (m) =>
-          m.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-          m.user?.email?.toLowerCase().includes(memberSearch.toLowerCase())
+          m.user?.name?.toLowerCase().includes(debouncedMemberSearch.toLowerCase()) ||
+          m.user?.email?.toLowerCase().includes(debouncedMemberSearch.toLowerCase())
       )
     : activeMembers;
+
+  const filteredGroups = debouncedGroupSearch
+    ? groups.filter((g) => g.name.toLowerCase().includes(debouncedGroupSearch.toLowerCase()))
+    : groups;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -447,9 +571,12 @@ export default function CongregationTerritoriesPage() {
                               <MapPin size={14} className="text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">
+                              <Link
+                                href={`/territories/${t.id}`}
+                                className="font-medium text-foreground hover:text-primary hover:underline"
+                              >
                                 #{t.number} {t.name}
-                              </p>
+                              </Link>
                               {t.notes && (
                                 <p className="text-xs text-muted-foreground">{t.notes}</p>
                               )}
@@ -462,7 +589,7 @@ export default function CongregationTerritoriesPage() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {t.publisher?.name ?? t.group?.name ?? '—'}
+                          {t.publisherName ?? t.groupName ?? '—'}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -491,20 +618,24 @@ export default function CongregationTerritoriesPage() {
                               </Button>
                             )}
                             {/* Publisher: Request button for available territories */}
-                            {!isOverseer && t.status === 'available' && (
-                              requestSuccess === t.id ? (
-                                <span className="text-xs text-green-600 font-medium">Request sent!</span>
-                              ) : (
+                            {!isOverseer && t.status === 'available' && (() => {
+                              const alreadyRequested = requests.some((r) => r.territoryId === t.id);
+                              if (requestSuccess === t.id) {
+                                return <span className="text-xs text-green-600 font-medium flex items-center gap-1">✓ Request sent!</span>;
+                              }
+                              if (alreadyRequested) {
+                                return <span className="text-xs text-amber-600 font-medium">Pending</span>;
+                              }
+                              return (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  disabled={requestingTerritoryId === t.id}
-                                  onClick={() => handleRequest(t.id)}
+                                  onClick={() => openRequestDialog(t)}
                                 >
-                                  {requestingTerritoryId === t.id ? 'Requesting…' : 'Request'}
+                                  Request
                                 </Button>
-                              )
-                            )}
+                              );
+                            })()}
                           </div>
                         </td>
                       </tr>
@@ -541,26 +672,30 @@ export default function CongregationTerritoriesPage() {
                   {requests.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between p-4 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10"
+                      className="flex items-start justify-between p-4 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10 gap-4"
                     >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {r.publisher?.name ?? 'Unknown'} requested a territory
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {r.publisher?.name ?? 'Unknown Publisher'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">requested a territory</p>
+                        {r.message && (
+                          <p className="text-xs text-foreground mt-1 italic">"{r.message}"</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(r.requestedAt).toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
                           className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          onClick={() => handleRejectRequest(r.id)}
+                          onClick={() => openConfirmDialog(r, 'reject')}
                         >
                           Reject
                         </Button>
-                        <Button size="sm" onClick={() => handleApproveRequest(r.id)}>
+                        <Button size="sm" onClick={() => openConfirmDialog(r, 'approve')}>
                           Approve
                         </Button>
                       </div>
@@ -637,7 +772,7 @@ export default function CongregationTerritoriesPage() {
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>
             <DialogDescription>
-              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher.
+              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher or group.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssign} className="space-y-4 mt-2">
@@ -651,33 +786,115 @@ export default function CongregationTerritoriesPage() {
                 {assignSuccess}
               </p>
             )}
-            <div className="space-y-1.5">
-              <Label>Publisher *</Label>
-              <Input
-                placeholder="Search publishers…"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-              />
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-border divide-y divide-border">
-                {filteredMembers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-3 text-center">No members found</p>
-                ) : (
-                  filteredMembers.map((m) => (
-                    <button
-                      type="button"
-                      key={m.id}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
-                        assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
-                      }`}
-                      onClick={() => setAssignUserId(m.userId)}
-                    >
-                      <span className="font-medium">{m.user?.name}</span>
-                      <span className="text-xs text-muted-foreground">{m.user?.email}</span>
-                    </button>
-                  ))
-                )}
-              </div>
+            {/* Assign type toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setAssignType('publisher'); setAssignGroupId(''); setGroupSearch(''); setGroupComboboxOpen(false); }}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'publisher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Publisher
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAssignType('group'); setAssignUserId(''); setMemberSearch(''); setComboboxOpen(false); }}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Group
+              </button>
             </div>
+            {assignType === 'publisher' ? (
+              <div className="space-y-1.5">
+                <Label>Publisher *</Label>
+                <div ref={comboboxRef} className="relative">
+                  <Input
+                    placeholder="Search publishers…"
+                    value={memberSearch}
+                    onChange={(e) => {
+                      setMemberSearch(e.target.value);
+                      setAssignUserId('');
+                      setComboboxOpen(e.target.value.length > 0);
+                    }}
+                    autoComplete="off"
+                  />
+                  {comboboxOpen && memberSearch.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                        {filteredMembers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-3 text-center">
+                            {debouncedMemberSearch ? 'No publishers match your search' : 'No active publishers'}
+                          </p>
+                        ) : (
+                          filteredMembers.map((m) => (
+                            <button
+                              type="button"
+                              key={m.id}
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
+                                assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setAssignUserId(m.userId);
+                                setMemberSearch(m.user?.name ?? '');
+                                setComboboxOpen(false);
+                              }}
+                            >
+                              <span className="font-medium truncate">{m.user?.name}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">{m.user?.email}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Group *</Label>
+                <div ref={groupComboboxRef} className="relative">
+                  <Input
+                    placeholder="Search groups…"
+                    value={groupSearch}
+                    onChange={(e) => {
+                      setGroupSearch(e.target.value);
+                      setAssignGroupId('');
+                      setGroupComboboxOpen(e.target.value.length > 0);
+                    }}
+                    autoComplete="off"
+                  />
+                  {groupComboboxOpen && groupSearch.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                        {filteredGroups.length === 0 ? (
+                          <p className="text-xs text-muted-foreground p-3 text-center">
+                            {debouncedGroupSearch ? 'No groups match your search' : 'No groups found'}
+                          </p>
+                        ) : (
+                          filteredGroups.map((g) => (
+                            <button
+                              type="button"
+                              key={g.id}
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${
+                                assignGroupId === g.id ? 'bg-primary/10 text-primary' : ''
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setAssignGroupId(g.id);
+                                setGroupSearch(g.name);
+                                setGroupComboboxOpen(false);
+                              }}
+                            >
+                              <span className="font-medium">{g.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="assign-due">Due Date (optional)</Label>
               <Input
@@ -704,7 +921,7 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={assignLoading || !assignUserId}>
+              <Button type="submit" disabled={assignLoading || (assignType === 'publisher' ? !assignUserId : !assignGroupId)}>
                 {assignLoading ? 'Assigning…' : 'Assign Territory'}
               </Button>
             </DialogFooter>
@@ -748,6 +965,128 @@ export default function CongregationTerritoriesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Request Territory Dialog */}
+      <Dialog open={requestDialogOpen} onOpenChange={(o) => { setRequestDialogOpen(o); setRequestError(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Territory</DialogTitle>
+            <DialogDescription>
+              Request{' '}
+              <span className="font-semibold">
+                {requestTargetTerritory?.number} — {requestTargetTerritory?.name}
+              </span>
+              . The service overseer will review your request.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="request-message" className="text-sm font-medium text-foreground">
+                Message to overseer <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                value={requestMessage}
+                onChange={(e) => setRequestMessage(e.target.value)}
+                id="request-message"
+                placeholder="e.g. I'd like to work this territory this week…"
+                rows={3}
+                required
+                disabled={requestLoading}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+              />
+            </div>
+            {requestError && (
+              <p className="text-sm text-destructive">{requestError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requestLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleRequest} disabled={requestLoading}>
+              {requestLoading ? 'Sending…' : 'Send Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve / Reject Confirmation Dialog */}
+      <Dialog
+        open={!!confirmRequest}
+        onOpenChange={(o) => { if (!o) closeConfirmDialog(); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === 'approve' ? 'Approve Request' : 'Reject Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === 'approve'
+                ? 'Approve this territory request and assign the territory to the publisher?'
+                : 'Reject this territory request?'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
+            <p className="text-sm font-semibold">{confirmRequest?.publisher?.name ?? 'Unknown Publisher'}</p>
+            {confirmRequest?.message && (
+              <p className="text-xs text-foreground italic">"{confirmRequest.message}"</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="confirm-response-message" className="text-sm font-medium text-foreground">
+              {confirmAction === 'reject' ? (
+                <>Response message <span className="text-destructive">*</span></>
+              ) : (
+                <>Response message <span className="text-muted-foreground text-xs">(optional)</span></>
+              )}
+            </label>
+            <textarea
+              id="confirm-response-message"
+              rows={3}
+              value={confirmResponseMessage}
+              onChange={(e) => setConfirmResponseMessage(e.target.value)}
+              placeholder={
+                confirmAction === 'reject'
+                  ? 'Reason for rejection…'
+                  : 'Optional note to the publisher…'
+              }
+              disabled={confirmLoading}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+            />
+          </div>
+
+          {confirmError && (
+            <p className="text-sm text-destructive">{confirmError}</p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeConfirmDialog}
+              disabled={confirmLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmAction === 'reject' ? 'destructive' : 'default'}
+              onClick={handleConfirmAction}
+              disabled={confirmLoading}
+            >
+              {confirmLoading
+                ? 'Processing…'
+                : confirmAction === 'approve'
+                  ? 'Approve'
+                  : 'Reject'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </ProtectedPage>
