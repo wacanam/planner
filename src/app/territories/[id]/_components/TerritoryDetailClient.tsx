@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CoverageChart } from '@/components/coverage-chart';
-import { ArrowLeft, Pencil, Save, X } from 'lucide-react';
+import { ArrowLeft, Pencil, Save, X, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/api-client';
 
 type Territory = {
   id: string;
@@ -22,6 +23,18 @@ type Territory = {
   createdAt: string;
 };
 
+type Assignment = {
+  id: string;
+  status: string;
+  assignedAt: string | null;
+  dueAt: string | null;
+  returnedAt: string | null;
+  notes: string | null;
+  assigneeName: string | null;
+  assigneeEmail: string | null;
+  groupName: string | null;
+};
+
 const statusColors: Record<string, string> = {
   available: 'bg-green-100 text-green-800 border-green-200',
   assigned: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -29,11 +42,21 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
+const assignmentStatusColors: Record<string, string> = {
+  active: 'bg-blue-100 text-blue-800 border-blue-200',
+  completed: 'bg-purple-100 text-purple-800 border-purple-200',
+  returned: 'bg-gray-100 text-gray-600 border-gray-200',
+};
+
+function getAssigneeDisplayName(a: Assignment): string {
+  return a.assigneeName ?? a.groupName ?? 'Unknown';
+}
+
 export default function TerritoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const _router = useRouter();
   const [territory, setTerritory] = useState<Territory | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(searchParams.get('edit') === 'true');
@@ -43,21 +66,29 @@ export default function TerritoryDetailPage() {
   async function load() {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/territories/${id}`, {
-        headers: { Authorization: `Bearer ${token ?? ''}` },
-      });
-      const data = (await res.json()) as { success: boolean; data: Territory };
-      if (data.success) {
-        setTerritory(data.data);
+      const [territoryData, assignmentsData] = await Promise.all([
+        fetchWithAuth<{ success: boolean; data: Territory; error?: { message: string } }>(
+          `/api/territories/${id}`
+        ),
+        fetchWithAuth<{ success: boolean; data: Assignment[] }>(
+          `/api/territories/${id}/assignments`
+        ).catch(() => ({ success: false, data: [] as Assignment[] })),
+      ]);
+
+      if (territoryData.success && territoryData.data) {
+        setTerritory(territoryData.data);
         setForm({
-          name: data.data.name,
-          number: data.data.number,
-          notes: data.data.notes ?? '',
-          householdsCount: String(data.data.householdsCount),
+          name: territoryData.data.name,
+          number: territoryData.data.number,
+          notes: territoryData.data.notes ?? '',
+          householdsCount: String(territoryData.data.householdsCount),
         });
       } else {
         setError('Territory not found');
+      }
+
+      if (assignmentsData.success && assignmentsData.data) {
+        setAssignments(assignmentsData.data);
       }
     } catch {
       setError('Failed to load territory');
@@ -69,13 +100,12 @@ export default function TerritoryDetailPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/territories/${id}`, {
+      const data = await fetchWithAuth<{
+        success: boolean;
+        data: Territory;
+        error?: { message: string };
+      }>(`/api/territories/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token ?? ''}`,
-        },
         body: JSON.stringify({
           name: form.name,
           number: form.number,
@@ -83,19 +113,14 @@ export default function TerritoryDetailPage() {
           householdsCount: Number(form.householdsCount),
         }),
       });
-      const data = (await res.json()) as {
-        success: boolean;
-        data: Territory;
-        error?: { message: string };
-      };
       if (data.success) {
         setTerritory(data.data);
         setEditing(false);
       } else {
         setError(data.error?.message ?? 'Failed to save');
       }
-    } catch {
-      setError('Network error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
     } finally {
       setSaving(false);
     }
@@ -116,6 +141,9 @@ export default function TerritoryDetailPage() {
         </Button>
       </div>
     );
+
+  const activeAssignment = assignments.find((a) => a.status === 'active');
+  const historyAssignments = assignments.filter((a) => a.status !== 'active');
 
   return (
     <main className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
@@ -214,6 +242,54 @@ export default function TerritoryDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Current Assignment */}
+      {activeAssignment && (
+        <Card className="border-blue-200 dark:border-blue-900/40">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              {activeAssignment.groupName ? (
+                <Users className="h-4 w-4 text-blue-500" />
+              ) : (
+                <User className="h-4 w-4 text-blue-500" />
+              )}
+              Current Assignment
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt className="text-gray-500">
+                  {activeAssignment.groupName ? 'Assigned Group' : 'Assigned To'}
+                </dt>
+                <dd className="font-medium">{getAssigneeDisplayName(activeAssignment)}</dd>
+              </div>
+              {activeAssignment.assignedAt && (
+                <div>
+                  <dt className="text-gray-500">Assigned At</dt>
+                  <dd className="font-medium">
+                    {new Date(activeAssignment.assignedAt).toLocaleDateString()}
+                  </dd>
+                </div>
+              )}
+              {activeAssignment.dueAt && (
+                <div>
+                  <dt className="text-gray-500">Due Date</dt>
+                  <dd className="font-medium">
+                    {new Date(activeAssignment.dueAt).toLocaleDateString()}
+                  </dd>
+                </div>
+              )}
+              {activeAssignment.notes && (
+                <div className="col-span-2">
+                  <dt className="text-gray-500">Notes</dt>
+                  <dd>{activeAssignment.notes}</dd>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Coverage</CardTitle>
@@ -222,6 +298,45 @@ export default function TerritoryDetailPage() {
           <CoverageChart percent={territory.coveragePercent} label="Overall Coverage" />
         </CardContent>
       </Card>
+
+      {/* Assignment History */}
+      {historyAssignments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="h-4 w-4 text-muted-foreground" />
+              Assignment History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {historyAssignments.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-start justify-between p-3 rounded-xl border border-border text-sm"
+              >
+                <div className="space-y-0.5">
+                  <p className="font-medium">{getAssigneeDisplayName(a)}</p>
+                  {a.assignedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Assigned: {new Date(a.assignedAt).toLocaleDateString()}
+                      {a.returnedAt && (
+                        <> · Returned: {new Date(a.returnedAt).toLocaleDateString()}</>
+                      )}
+                    </p>
+                  )}
+                  {a.notes && <p className="text-xs text-muted-foreground">{a.notes}</p>}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`text-xs capitalize ${assignmentStatusColors[a.status] ?? ''}`}
+                >
+                  {a.status}
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline">
