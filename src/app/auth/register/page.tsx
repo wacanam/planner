@@ -14,21 +14,22 @@ type StrengthInfo = {
   label: string;
   width: string;
   color: string;
+  bg: string;
   score: number;
 };
 
 function getPasswordStrength(password: string): StrengthInfo {
-  if (password.length === 0) return { label: '', width: '0%', color: 'border', score: 0 };
+  if (password.length === 0) return { label: '', width: '0%', color: 'text-border', bg: 'bg-border', score: 0 };
   if (password.length < 6)
-    return { label: 'Too short', width: '20%', color: 'red-400', score: 1 };
-  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'orange-400', score: 2 };
+    return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400', score: 1 };
+  if (password.length < 8) return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400', score: 2 };
   const hasUpper = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
   const extras = [hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-  if (extras === 0) return { label: 'Fair', width: '55%', color: 'yellow-400', score: 3 };
-  if (extras <= 1) return { label: 'Good', width: '75%', color: 'accent', score: 4 };
-  return { label: 'Strong', width: '100%', color: 'green-400', score: 5 };
+  if (extras === 0) return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400', score: 3 };
+  if (extras <= 1) return { label: 'Good', width: '75%', color: 'text-accent', bg: 'bg-accent', score: 4 };
+  return { label: 'Strong', width: '100%', color: 'text-green-400', bg: 'bg-green-400', score: 5 };
 }
 
 export default function RegisterPage() {
@@ -138,7 +139,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-gradient-to-br from-accent/5 via-background to-primary/5">
+    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-linear-to-br from-accent/5 via-background to-primary/5">
       <div className="w-full max-w-md">
         <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
           {/* Logo & heading */}
@@ -242,12 +243,12 @@ export default function RegisterPage() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-muted-foreground">Password strength</span>
                   {strength.label && (
-                    <span className={`text-xs font-medium text-${strength.color}`}>{strength.label}</span>
+                    <span className={`text-xs font-medium ${strength.color}`}>{strength.label}</span>
                   )}
                 </div>
                 <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-300 bg-${strength.color}`}
+                    className={`h-full transition-all duration-300 ${strength.bg}`}
                     style={{ width: strength.width }}
                   />
                 </div>
