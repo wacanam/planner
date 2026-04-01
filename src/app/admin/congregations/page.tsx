@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Building2, Plus, Pencil, Trash2, Eye, Search, Globe } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,10 +59,9 @@ export default function AdminCongregationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Congregation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  async function fetchCongregations() {
+  const fetchCongregations = useCallback(async () => {
     try {
-      const res = await fetch('/api/congregations');
-      const json = await res.json();
+      const json = await fetchWithAuth('/api/congregations');
       if (json.data) {
         setCongregations(json.data);
         setFiltered(json.data);
@@ -71,11 +71,11 @@ export default function AdminCongregationsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchCongregations();
-  }, []);
+  }, [fetchCongregations]);
 
   useEffect(() => {
     if (!search) {
@@ -98,23 +98,17 @@ export default function AdminCongregationsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      const res = await fetch('/api/congregations', {
+      const json = await fetchWithAuth('/api/congregations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: createName, city: createCity, country: createCountry }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setCreateError(json.error ?? 'Failed to create congregation');
-        return;
-      }
       setCreateOpen(false);
       setCreateName('');
       setCreateCity('');
       setCreateCountry('');
       await fetchCongregations();
-    } catch {
-      setCreateError('Network error');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create congregation');
     } finally {
       setCreateLoading(false);
     }
@@ -133,9 +127,8 @@ export default function AdminCongregationsPage() {
     if (!editTarget) return;
     setEditLoading(true);
     try {
-      await fetch(`/api/congregations/${editTarget.id}`, {
+      await fetchWithAuth(`/api/congregations/${editTarget.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName, city: editCity, country: editCountry }),
       });
       setEditOpen(false);
@@ -151,7 +144,7 @@ export default function AdminCongregationsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await fetch(`/api/congregations/${deleteTarget.id}`, { method: 'DELETE' });
+      await fetchWithAuth(`/api/congregations/${deleteTarget.id}`, { method: 'DELETE' });
       setDeleteOpen(false);
       await fetchCongregations();
     } catch {
@@ -180,7 +173,10 @@ export default function AdminCongregationsPage() {
 
         {/* Search */}
         <div className="relative max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             placeholder="Search congregations…"
             value={search}

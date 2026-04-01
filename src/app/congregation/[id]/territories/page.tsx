@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { MapPin, Plus, Search, Clock, CheckCircle, Filter } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,11 +67,10 @@ export default function CongregationTerritoriesPage() {
   const [createError, setCreateError] = useState('');
 
   async function fetchData() {
-    const [tRes, rRes] = await Promise.all([
-      fetch(`/api/congregations/${congregationId}/territories`),
-      fetch(`/api/congregations/${congregationId}/territory-requests?status=pending`),
+    const [tJson, rJson] = await Promise.all([
+      fetchWithAuth(`/api/congregations/${congregationId}/territories`),
+      fetchWithAuth(`/api/congregations/${congregationId}/territory-requests?status=pending`),
     ]);
-    const [tJson, rJson] = await Promise.all([tRes.json(), rRes.json()]);
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
     setLoading(false);
@@ -102,20 +102,14 @@ export default function CongregationTerritoriesPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      const res = await fetch(`/api/congregations/${congregationId}/territories`, {
+      await fetchWithAuth(`/api/congregations/${congregationId}/territories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: createName,
           number: createNumber || createName,
           notes: createNotes || undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setCreateError(json.error ?? 'Failed to create territory');
-        return;
-      }
       setCreateOpen(false);
       setCreateName('');
       setCreateNumber('');
@@ -129,26 +123,18 @@ export default function CongregationTerritoriesPage() {
   }
 
   async function handleApproveRequest(requestId: string) {
-    await fetch(
-      `/api/congregations/${congregationId}/territory-requests/${requestId}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' }),
-      }
-    );
+    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'approved' }),
+    });
     await fetchData();
   }
 
   async function handleRejectRequest(requestId: string) {
-    await fetch(
-      `/api/congregations/${congregationId}/territory-requests/${requestId}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'rejected' }),
-      }
-    );
+    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'rejected' }),
+    });
     await fetchData();
   }
 
@@ -219,7 +205,10 @@ export default function CongregationTerritoriesPage() {
             {/* Filters */}
             <div className="flex flex-wrap gap-3">
               <div className="relative flex-1 min-w-48">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
                   placeholder="Search territories…"
                   value={search}
@@ -289,7 +278,10 @@ export default function CongregationTerritoriesPage() {
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                                  <MapPin size={14} className="text-green-600 dark:text-green-400" />
+                                  <MapPin
+                                    size={14}
+                                    className="text-green-600 dark:text-green-400"
+                                  />
                                 </div>
                                 <div>
                                   <p className="font-medium text-foreground">
@@ -302,10 +294,7 @@ export default function CongregationTerritoriesPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <Badge
-                                variant="outline"
-                                className={statusColors[t.status] ?? ''}
-                              >
+                              <Badge variant="outline" className={statusColors[t.status] ?? ''}>
                                 {t.status}
                               </Badge>
                             </td>
@@ -367,10 +356,7 @@ export default function CongregationTerritoriesPage() {
                         >
                           Reject
                         </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveRequest(r.id)}
-                        >
+                        <Button size="sm" onClick={() => handleApproveRequest(r.id)}>
                           Approve
                         </Button>
                       </div>

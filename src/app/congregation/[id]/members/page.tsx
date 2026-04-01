@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Users, Plus, Trash2, Search, UserCog } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,8 +49,7 @@ export default function CongregationMembersPage() {
 
   async function fetchMembers() {
     try {
-      const res = await fetch(`/api/congregations/${congregationId}/members`);
-      const json = await res.json();
+      const json = await fetchWithAuth(`/api/congregations/${congregationId}/members`);
       if (json.data) {
         setMembers(json.data);
         setFiltered(json.data);
@@ -86,21 +86,15 @@ export default function CongregationMembersPage() {
     setAddLoading(true);
     setAddError('');
     try {
-      const res = await fetch(`/api/congregations/${congregationId}/members`, {
+      await fetchWithAuth(`/api/congregations/${congregationId}/members`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: addUserId }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setAddError(json.error ?? 'Failed to add member');
-        return;
-      }
       setAddOpen(false);
       setAddUserId('');
       await fetchMembers();
-    } catch {
-      setAddError('Network error');
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Failed to add member');
     } finally {
       setAddLoading(false);
     }
@@ -110,7 +104,7 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await fetch(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
+      await fetchWithAuth(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
         method: 'DELETE',
       });
       setRemoveOpen(false);
@@ -139,7 +133,10 @@ export default function CongregationMembersPage() {
         </div>
 
         <div className="relative max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             placeholder="Search members…"
             value={search}

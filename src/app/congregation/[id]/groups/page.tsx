@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { FolderOpen, Plus, Trash2, Search, Users } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,8 +45,7 @@ export default function CongregationGroupsPage() {
 
   async function fetchGroups() {
     try {
-      const res = await fetch(`/api/congregations/${congregationId}/groups`);
-      const json = await res.json();
+      const json = await fetchWithAuth(`/api/congregations/${congregationId}/groups`);
       if (json.data) {
         setGroups(json.data);
         setFiltered(json.data);
@@ -75,21 +75,15 @@ export default function CongregationGroupsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      const res = await fetch(`/api/congregations/${congregationId}/groups`, {
+      await fetchWithAuth(`/api/congregations/${congregationId}/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: createName }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        setCreateError(json.error ?? 'Failed to create group');
-        return;
-      }
       setCreateOpen(false);
       setCreateName('');
       await fetchGroups();
-    } catch {
-      setCreateError('Network error');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create group');
     } finally {
       setCreateLoading(false);
     }
@@ -99,7 +93,7 @@ export default function CongregationGroupsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await fetch(
+      await fetchWithAuth(
         `/api/congregations/${congregationId}/groups/${deleteTarget.id}/members`,
         { method: 'DELETE' }
       );
@@ -130,7 +124,10 @@ export default function CongregationGroupsPage() {
         </div>
 
         <div className="relative max-w-sm">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             placeholder="Search groups…"
             value={search}
@@ -161,10 +158,7 @@ export default function CongregationGroupsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((g) => (
-              <Card
-                key={g.id}
-                className="hover:shadow-md transition-shadow"
-              >
+              <Card key={g.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">

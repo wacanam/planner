@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Users, Globe, TrendingUp, Plus, ArrowRight } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,8 +30,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch('/api/congregations');
-        const json = await res.json();
+        const json = await fetchWithAuth('/api/congregations');
         if (json.data) setCongregations(json.data);
       } catch {
         // ignore
@@ -86,7 +86,9 @@ export default function AdminDashboardPage() {
           />
           <StatCard
             title="Countries"
-            value={loading ? '—' : new Set(congregations.map((c) => c.country).filter(Boolean)).size}
+            value={
+              loading ? '—' : new Set(congregations.map((c) => c.country).filter(Boolean)).size
+            }
             icon={Globe}
             color="purple"
             loading={loading}

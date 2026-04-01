@@ -13,6 +13,7 @@ import {
   CheckCircle,
   Clock,
 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/api-client';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +52,8 @@ interface TerritoryRequest {
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
-  completed: 'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
+  completed:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   archived: 'text-muted-foreground border-border bg-muted/30',
 };
 
@@ -70,20 +72,12 @@ export default function CongregationDashboardPage() {
     if (!congregationId) return;
 
     async function fetchAll() {
-      const [congRes, memberRes, groupRes, territoryRes, requestRes] = await Promise.all([
-        fetch(`/api/congregations/${congregationId}`),
-        fetch(`/api/congregations/${congregationId}/members`),
-        fetch(`/api/congregations/${congregationId}/groups`),
-        fetch(`/api/congregations/${congregationId}/territories`),
-        fetch(`/api/congregations/${congregationId}/territory-requests?status=pending`),
-      ]);
-
       const [congJson, memberJson, groupJson, territoryJson, requestJson] = await Promise.all([
-        congRes.json(),
-        memberRes.json(),
-        groupRes.json(),
-        territoryRes.json(),
-        requestRes.json(),
+        fetchWithAuth(`/api/congregations/${congregationId}`),
+        fetchWithAuth(`/api/congregations/${congregationId}/members`),
+        fetchWithAuth(`/api/congregations/${congregationId}/groups`),
+        fetchWithAuth(`/api/congregations/${congregationId}/territories`),
+        fetchWithAuth(`/api/congregations/${congregationId}/territory-requests?status=pending`),
       ]);
 
       if (congJson.data) setCongregation(congJson.data);
@@ -265,10 +259,7 @@ export default function CongregationDashboardPage() {
                         #{t.number} {t.name}
                       </p>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={statusColors[t.status] ?? ''}
-                    >
+                    <Badge variant="outline" className={statusColors[t.status] ?? ''}>
                       {t.status}
                     </Badge>
                   </div>
@@ -312,7 +303,10 @@ export default function CongregationDashboardPage() {
             ) : (
               <div className="divide-y divide-border">
                 {members.slice(0, 6).map((m) => (
-                  <div key={m.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
                         {m.user?.name?.charAt(0)?.toUpperCase() ?? '?'}
@@ -354,7 +348,9 @@ export default function CongregationDashboardPage() {
                 >
                   <div className="flex items-center gap-3">
                     <Clock size={14} className="text-orange-500" />
-                    <span className="text-sm">{r.publisher?.name ?? 'Unknown'} requested a territory</span>
+                    <span className="text-sm">
+                      {r.publisher?.name ?? 'Unknown'} requested a territory
+                    </span>
                   </div>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/congregation/${congregationId}/territories`}>Review</Link>

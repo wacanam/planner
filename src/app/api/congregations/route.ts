@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const congregations = await congregationRepo.find({
       order: { createdAt: 'DESC' },
     });
+    console.log({ congregations });
     return NextResponse.json({ data: congregations });
   }
 
@@ -51,9 +52,7 @@ export async function POST(req: NextRequest) {
   const { CongregationMember } = await import('@/entities/CongregationMember');
   const memberRepo = AppDataSource.getRepository(CongregationMember);
 
-  const slug =
-    name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now();
-
+  const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
   const congregation = congregationRepo.create({
     name,
     slug,
