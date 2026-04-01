@@ -18,7 +18,7 @@ interface Notification {
 }
 
 interface NotificationsResponse {
-  notifications: Notification[];
+  data: Notification[];
   unreadCount: number;
 }
 
@@ -63,7 +63,7 @@ export function NotificationsClient() {
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await fetchWithAuth<NotificationsResponse>('/api/notifications');
-      setNotifications(data.notifications);
+      setNotifications(data.data ?? []);
     } catch {
       // ignore
     } finally {
