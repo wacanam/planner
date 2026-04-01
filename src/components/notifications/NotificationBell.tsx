@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Bell, UserPlus, CheckCircle, XCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -244,9 +245,30 @@ export function NotificationBell() {
     onClose: () => setOpen(false),
   };
 
+  const mobileSheet = open && typeof document !== 'undefined' && createPortal(
+    <div className="sm:hidden fixed inset-0 z-[200] flex flex-col justify-end">
+      {/* Backdrop */}
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        onClick={() => setOpen(false)}
+        aria-label="Close notifications"
+      />
+      {/* Sheet — anchored to bottom of viewport */}
+      <div className="relative bg-background rounded-t-2xl border-t border-border shadow-xl animate-in slide-in-from-bottom duration-300">
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+        <NotificationList {...listProps} />
+      </div>
+    </div>,
+    document.body
+  );
+
   return (
     <>
-      {/* Bell button */}
+      {/* Bell button + desktop dropdown */}
       <div className="relative" ref={dropdownRef}>
         <Button
           variant="ghost"
@@ -271,26 +293,8 @@ export function NotificationBell() {
         )}
       </div>
 
-      {/* Mobile bottom sheet */}
-      {open && (
-        <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Backdrop */}
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setOpen(false)}
-            aria-label="Close notifications"
-          />
-          {/* Sheet */}
-          <div className="relative bg-background rounded-t-2xl border-t border-border shadow-xl animate-in slide-in-from-bottom duration-300">
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-            </div>
-            <NotificationList {...listProps} />
-          </div>
-        </div>
-      )}
+      {/* Mobile bottom sheet — rendered in document.body via portal */}
+      {mobileSheet}
     </>
   );
 }
