@@ -19,6 +19,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fetchWithAuth } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
@@ -154,7 +155,12 @@ export default function CongregationDashboardPage() {
               {isOverseer ? 'Congregation overview and quick actions' : 'Your ministry overview'}
             </p>
           </div>
-          {isOverseer ? (
+          {loading ? (
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-32 rounded-md" />
+            </div>
+          ) : isOverseer ? (
             <div className="flex gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link href={`/congregation/${congregationId}/members`}>
