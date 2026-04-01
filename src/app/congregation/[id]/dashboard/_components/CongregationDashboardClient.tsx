@@ -419,7 +419,10 @@ export default function CongregationDashboardPage() {
                       <div className="flex items-center gap-3">
                         <Clock size={14} className="text-orange-500" />
                         <span className="text-sm">
-                          {r.publisher?.name ?? 'Unknown'} requested a territory
+                          {r.publisher?.name ?? 'Unknown'} requested{' '}
+                          {r.territoryId
+                            ? getTerritoryLabel(r.territoryId)
+                            : 'any available territory'}
                         </span>
                       </div>
                       <Button asChild size="sm" variant="outline">

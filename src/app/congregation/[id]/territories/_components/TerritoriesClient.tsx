@@ -678,7 +678,14 @@ export default function CongregationTerritoriesPage() {
                         <p className="text-sm font-semibold">
                           {r.publisher?.name ?? 'Unknown Publisher'}
                         </p>
-                        <p className="text-sm text-muted-foreground">requested a territory</p>
+                        <p className="text-sm text-muted-foreground">
+                          {r.territoryId
+                            ? (() => {
+                                const t = territories.find((t) => t.id === r.territoryId);
+                                return t ? `requested #${t.number} ${t.name}` : 'requested a specific territory';
+                              })()
+                            : 'requested any available territory'}
+                        </p>
                         {r.message && (
                           <p className="text-xs text-foreground mt-1 italic">"{r.message}"</p>
                         )}
