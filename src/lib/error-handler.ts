@@ -1,4 +1,4 @@
-import { type NextResponse } from 'next/server';
+import type { NextResponse } from 'next/server';
 
 export interface ApiError {
   code: string;

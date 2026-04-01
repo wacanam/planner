@@ -1,22 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FolderOpen, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { FolderOpen, Plus, Trash2, Search, Users } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useCallback, useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { fetchWithAuth } from '@/lib/api-client';
 
 interface Group {
   id: string;
@@ -43,7 +43,7 @@ export default function CongregationGroupsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  async function fetchGroups() {
+  const fetchGroups = useCallback(async () => {
     try {
       const json = await fetchWithAuth(`/api/congregations/${congregationId}/groups`);
       if (json.data) {
@@ -55,11 +55,11 @@ export default function CongregationGroupsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [congregationId]);
 
   useEffect(() => {
     if (congregationId) fetchGroups();
-  }, [congregationId]);
+  }, [congregationId, fetchGroups]);
 
   useEffect(() => {
     if (!search) {

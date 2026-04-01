@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { UserRole } from '@/entities/User';
+import { UserRole } from '@/db';
 
 export default function DashboardRedirectPage() {
   const { data: session, status } = useSession();

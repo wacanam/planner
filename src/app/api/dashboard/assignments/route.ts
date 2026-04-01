@@ -1,8 +1,14 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { TerritoryAssignment, AssignmentStatus } from '@/entities/TerritoryAssignment';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq, inArray, desc } from 'drizzle-orm';
+import {
+  db,
+  territoryAssignments,
+  territories,
+  users,
+  serviceGroups,
+  UserRole,
+  AssignmentStatus,
+} from '@/db';
 import { RequireRole } from '@/lib/auth-middleware';
 import { paginatedResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
@@ -20,35 +26,35 @@ export const GET = RequireRole(UserRole.SERVICE_OVERSEER)(
       if (!congregationId)
         return ApiErrors.badRequest('congregationId is required', undefined, requestId);
 
-      if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+      const territoryRows = await db
+        .select({ id: territories.id })
+        .from(territories)
+        .where(eq(territories.congregationId, congregationId));
 
-      // Get active assignments for territories in this congregation
-      const assignmentRepo = AppDataSource.getRepository(TerritoryAssignment);
-      const territoryRepo = AppDataSource.getRepository(Territory);
-
-      const territories = await territoryRepo.find({
-        where: { congregationId },
-        select: ['id'],
-      });
-      const territoryIds = territories.map((t) => t.id);
+      const territoryIds = territoryRows.map((t) => t.id);
 
       if (territoryIds.length === 0) {
         return paginatedResponse([], 0, page, limit, requestId);
       }
 
-      const [assignments, total] = await assignmentRepo
-        .createQueryBuilder('a')
-        .leftJoinAndSelect('a.territory', 'territory')
-        .leftJoinAndSelect('a.user', 'user')
-        .leftJoinAndSelect('a.serviceGroup', 'serviceGroup')
-        .where('a.territoryId IN (:...ids)', { ids: territoryIds })
-        .andWhere('a.status = :status', { status: AssignmentStatus.ACTIVE })
-        .orderBy('a.assignedAt', 'DESC')
-        .skip((page - 1) * limit)
-        .take(limit)
-        .getManyAndCount();
+      const all = await db
+        .select({
+          assignment: territoryAssignments,
+          territory: territories,
+          user: { id: users.id, name: users.name, email: users.email },
+        })
+        .from(territoryAssignments)
+        .leftJoin(territories, eq(territoryAssignments.territoryId, territories.id))
+        .leftJoin(users, eq(territoryAssignments.userId, users.id))
+        .where(
+          inArray(territoryAssignments.territoryId, territoryIds)
+        )
+        .orderBy(desc(territoryAssignments.assignedAt));
 
-      return paginatedResponse(assignments, total, page, limit, requestId);
+      const active = all.filter((r) => r.assignment.status === AssignmentStatus.ACTIVE);
+      const total = active.length;
+      const paginated = active.slice((page - 1) * limit, page * limit);
+      return paginatedResponse(paginated, total, page, limit, requestId);
     } catch (err) {
       console.error('[GET /api/dashboard/assignments]', err);
       return ApiErrors.internalError(undefined, requestId);

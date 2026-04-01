@@ -1,4 +1,4 @@
-import { UserRole } from '@/entities/User';
+import { UserRole } from '@/db';
 
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [

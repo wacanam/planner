@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq } from 'drizzle-orm';
+import { db, territories, UserRole } from '@/db';
 import { RequireRole } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
@@ -16,20 +15,21 @@ export const GET = RequireRole(UserRole.SERVICE_OVERSEER)(
       if (!congregationId)
         return ApiErrors.badRequest('congregationId is required', undefined, requestId);
 
-      if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-      const repo = AppDataSource.getRepository(Territory);
-      const territories = await repo.find({ where: { congregationId } });
+      const rows = await db
+        .select()
+        .from(territories)
+        .where(eq(territories.congregationId, congregationId));
 
-      const total = territories.length;
+      const total = rows.length;
       const avgCoverage =
-        total > 0 ? territories.reduce((sum, t) => sum + Number(t.coveragePercent), 0) / total : 0;
+        total > 0 ? rows.reduce((sum, t) => sum + Number(t.coveragePercent), 0) / total : 0;
 
-      const byStatus = territories.reduce<Record<string, number>>((acc, t) => {
+      const byStatus = rows.reduce<Record<string, number>>((acc, t) => {
         acc[t.status] = (acc[t.status] ?? 0) + 1;
         return acc;
       }, {});
 
-      const coverageByTerritory = territories.map((t) => ({
+      const coverageByTerritory = rows.map((t) => ({
         id: t.id,
         number: t.number,
         name: t.name,

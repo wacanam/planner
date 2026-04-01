@@ -1,39 +1,32 @@
+import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
+import { congregationMembers, congregations, db, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
-import { AppDataSource } from '@/lib/data-source';
-import { Congregation } from '@/entities/Congregation';
-import { UserRole } from '@/entities/User';
 
-// GET /api/congregations — super admin gets all, others get their own
+// GET /api/congregations
 export async function GET(req: NextRequest) {
   const auth = withAuth(req);
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-
   if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
-    const congregations = await congregationRepo.find({
-      order: { createdAt: 'DESC' },
-    });
-    console.log({ congregations });
-    return NextResponse.json({ data: congregations });
+    const rows = await db.select().from(congregations).orderBy(desc(congregations.createdAt));
+    return NextResponse.json({ data: rows });
   }
 
-  // Other roles: return their congregation only
   if (user.congregationId) {
-    const congregation = await congregationRepo.findOne({
-      where: { id: user.congregationId },
-    });
+    const [congregation] = await db
+      .select()
+      .from(congregations)
+      .where(eq(congregations.id, user.congregationId))
+      .limit(1);
     return NextResponse.json({ data: congregation ? [congregation] : [] });
   }
 
   return NextResponse.json({ data: [] });
 }
 
-// POST /api/congregations — any authenticated user can create
+// POST /api/congregations
 export async function POST(req: NextRequest) {
   const auth = withAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -46,29 +39,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 });
   }
 
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
+  const slug = `${name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
 
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-  const { CongregationMember } = await import('@/entities/CongregationMember');
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
+  const [congregation] = await db
+    .insert(congregations)
+    .values({ name, slug, city, country, createdById: user.userId })
+    .returning();
 
-  const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
-  const congregation = congregationRepo.create({
-    name,
-    slug,
-    city,
-    country,
-    createdById: user.userId,
-  });
-
-  await congregationRepo.save(congregation);
-
-  // Auto-add creator as member
-  const member = memberRepo.create({
+  await db.insert(congregationMembers).values({
     userId: user.userId,
     congregationId: congregation.id,
   });
-  await memberRepo.save(member);
 
   return NextResponse.json({ data: congregation }, { status: 201 });
 }

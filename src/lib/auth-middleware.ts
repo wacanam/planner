@@ -2,10 +2,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { verifyToken, extractBearerToken } from '@/lib/jwt';
 import { hasPermission } from '@/lib/permissions';
 import type { JwtPayload } from '@/lib/jwt';
-import { UserRole } from '@/entities/User';
-import { CongregationRole } from '@/entities/CongregationMember';
-import { AppDataSource } from '@/lib/data-source';
-import { CongregationMember } from '@/entities/CongregationMember';
+import { eq, and } from 'drizzle-orm';
+import { db, users, congregationMembers, UserRole, CongregationRole } from '@/db';
+import type { CongregationMember } from '@/db';
 
 export type AuthenticatedRequest = NextRequest & { user: JwtPayload };
 
@@ -23,17 +22,21 @@ export function withAuth(
   const token = extractBearerToken(req.headers.get('authorization'));
 
   if (!token) {
+    console.log('[withAuth] No bearer token found in Authorization header');
     return NextResponse.json({ error: 'Unauthorized: missing token' }, { status: 401 });
   }
 
   let payload: JwtPayload;
   try {
     payload = verifyToken(token);
-  } catch {
+    console.log('[withAuth] Token verified successfully for user:', payload.userId);
+  } catch (error) {
+    console.error('[withAuth] Token verification failed:', error);
     return NextResponse.json({ error: 'Unauthorized: invalid token' }, { status: 401 });
   }
 
   if (requiredRole && !hasPermission(payload.role, requiredRole)) {
+    console.log('[withAuth] Insufficient permissions:', payload.role, 'required:', requiredRole);
     return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 });
   }
 
@@ -54,36 +57,50 @@ export async function withCongregationAuth(
   if (authResult instanceof NextResponse) return authResult;
   const { user } = authResult;
 
+  console.log('[withCongregationAuth] Checking congregation membership:', {
+    userId: user.userId,
+    userRole: user.role,
+    congregationId,
+    isGlobalAdmin: (GLOBAL_ROLES as string[]).includes(user.role),
+  });
+
   // Global admins bypass congregation checks
-  if (GLOBAL_ROLES.includes(user.role)) {
+  if ((GLOBAL_ROLES as string[]).includes(user.role)) {
+    console.log('[withCongregationAuth] User is global admin - bypassing congregation checks');
     return { user, member: null };
   }
 
   // Verify congregation membership
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
-  }
-
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-  const member = await memberRepo.findOne({
-    where: { userId: user.userId, congregationId },
-  });
+  const [member] = await db
+    .select()
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, user.userId),
+        eq(congregationMembers.congregationId, congregationId)
+      )
+    )
+    .limit(1);
 
   if (!member) {
+    console.log('[withCongregationAuth] User is not a member of this congregation');
     return NextResponse.json(
       { error: 'Forbidden: not a member of this congregation' },
       { status: 403 }
     );
   }
 
+  console.log('[withCongregationAuth] User is member with congregation role:', member.congregationRole);
+
   // Check congregation role if required
   if (requiredCongregationRole) {
     const roleHierarchy = [CongregationRole.TERRITORY_SERVANT, CongregationRole.SERVICE_OVERSEER];
     const memberRoleIndex = member.congregationRole
-      ? roleHierarchy.indexOf(member.congregationRole)
+      ? roleHierarchy.indexOf(member.congregationRole as CongregationRole)
       : -1;
     const requiredIndex = roleHierarchy.indexOf(requiredCongregationRole);
     if (memberRoleIndex < requiredIndex) {
+      console.log('[withCongregationAuth] Insufficient congregation role:', member.congregationRole);
       return NextResponse.json(
         { error: 'Forbidden: insufficient congregation role' },
         { status: 403 }
@@ -116,14 +133,14 @@ export function WithCongregationAuth(requiredCongregationRole?: CongregationRole
   return (
     handler: (
       req: NextRequest,
-      context: { params: { id: string; [key: string]: string } },
+      context: { params: { id: string;[key: string]: string } },
       user: JwtPayload,
       member: CongregationMember | null
     ) => Promise<NextResponse>
   ) =>
     async (
       req: NextRequest,
-      context: { params: { id: string; [key: string]: string } }
+      context: { params: { id: string;[key: string]: string } }
     ): Promise<NextResponse> => {
       const { id } = context.params;
       const result = await withCongregationAuth(req, id, requiredCongregationRole);

@@ -1,19 +1,9 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { TerritoryRotation, RotationStatus } from '@/entities/TerritoryRotation';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq, desc } from 'drizzle-orm';
+import { db, territoryRotations, territories, users, UserRole, RotationStatus } from '@/db';
 import { RequireRole, withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId, validateRequired } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
-
-async function init() {
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-  return {
-    rotationRepo: AppDataSource.getRepository(TerritoryRotation),
-    territoryRepo: AppDataSource.getRepository(Territory),
-  };
-}
 
 // GET /api/rotations?territoryId=...
 export async function GET(req: NextRequest) {
@@ -26,12 +16,15 @@ export async function GET(req: NextRequest) {
     const territoryId = searchParams.get('territoryId');
     if (!territoryId) return ApiErrors.badRequest('territoryId is required', undefined, requestId);
 
-    const { rotationRepo } = await init();
-    const rotations = await rotationRepo.find({
-      where: { territoryId },
-      relations: ['assignedUser'],
-      order: { startDate: 'DESC' },
-    });
+    const rotations = await db
+      .select({
+        rotation: territoryRotations,
+        assignedUser: { id: users.id, name: users.name, email: users.email },
+      })
+      .from(territoryRotations)
+      .leftJoin(users, eq(territoryRotations.assignedUserId, users.id))
+      .where(eq(territoryRotations.territoryId, territoryId))
+      .orderBy(desc(territoryRotations.startDate));
 
     return successResponse(rotations, undefined, 200, requestId);
   } catch (err) {
@@ -40,7 +33,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/rotations — SO/ADMIN only
+// POST /api/rotations
 export const POST = RequireRole(UserRole.SERVICE_OVERSEER)(
   async (req: NextRequest, _ctx: unknown, _user: JwtPayload) => {
     const requestId = generateRequestId();
@@ -49,21 +42,26 @@ export const POST = RequireRole(UserRole.SERVICE_OVERSEER)(
       const validation = validateRequired(body, ['territoryId'], requestId);
       if (validation) return validation;
 
-      const { rotationRepo, territoryRepo } = await init();
-      const territory = await territoryRepo.findOne({ where: { id: body.territoryId as string } });
+      const [territory] = await db
+        .select({ id: territories.id })
+        .from(territories)
+        .where(eq(territories.id, body.territoryId as string))
+        .limit(1);
       if (!territory) return ApiErrors.notFound('Territory', requestId);
 
-      const rotation = rotationRepo.create({
-        territoryId: body.territoryId as string,
-        assignedUserId: body.assignedUserId as string | undefined,
-        status: RotationStatus.ACTIVE,
-        startDate: new Date(),
-        notes: body.notes as string | undefined,
-        coverageAchieved: 0,
-        visitsMade: 0,
-      });
+      const [rotation] = await db
+        .insert(territoryRotations)
+        .values({
+          territoryId: body.territoryId as string,
+          assignedUserId: (body.assignedUserId as string) ?? null,
+          status: RotationStatus.ACTIVE,
+          startDate: new Date(),
+          notes: (body.notes as string) ?? null,
+          coverageAchieved: '0',
+          visitsMade: 0,
+        })
+        .returning();
 
-      await rotationRepo.save(rotation);
       return successResponse(rotation, 'Rotation created', 201, requestId);
     } catch (err) {
       console.error('[POST /api/rotations]', err);

@@ -1,25 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { ArrowRight, ClipboardList, Clock, FolderOpen, MapPin, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
-import {
-  Users,
-  FolderOpen,
-  MapPin,
-  Plus,
-  ClipboardList,
-  ArrowRight,
-  CheckCircle,
-  Clock,
-} from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UserRole } from '@/entities/User';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { fetchWithAuth } from '@/lib/api-client';
 
 interface Member {
   id: string;

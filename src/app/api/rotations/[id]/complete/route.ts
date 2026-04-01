@@ -1,8 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { TerritoryRotation, RotationStatus } from '@/entities/TerritoryRotation';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq } from 'drizzle-orm';
+import { db, territoryRotations, territories, UserRole, RotationStatus } from '@/db';
 import { RequireRole } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
@@ -21,29 +19,34 @@ export const PUT = RequireRole(UserRole.SERVICE_OVERSEER)(
         notes?: string;
       };
 
-      if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-      const rotationRepo = AppDataSource.getRepository(TerritoryRotation);
-      const territoryRepo = AppDataSource.getRepository(Territory);
-
-      const rotation = await rotationRepo.findOne({ where: { id } });
+      const [rotation] = await db
+        .select()
+        .from(territoryRotations)
+        .where(eq(territoryRotations.id, id))
+        .limit(1);
       if (!rotation) return ApiErrors.notFound('Rotation', requestId);
 
-      rotation.status = RotationStatus.COMPLETED;
-      rotation.completedDate = new Date();
-      rotation.coverageAchieved = body.coverageAchieved ?? rotation.coverageAchieved;
-      rotation.visitsMade = body.visitsMade ?? rotation.visitsMade;
-      rotation.notes = body.notes ?? rotation.notes;
+      const coverageAchieved = String(body.coverageAchieved ?? rotation.coverageAchieved);
 
-      await rotationRepo.save(rotation);
+      const [updated] = await db
+        .update(territoryRotations)
+        .set({
+          status: RotationStatus.COMPLETED,
+          completedDate: new Date(),
+          coverageAchieved,
+          visitsMade: body.visitsMade ?? rotation.visitsMade,
+          notes: body.notes ?? rotation.notes,
+          updatedAt: new Date(),
+        })
+        .where(eq(territoryRotations.id, id))
+        .returning();
 
-      // Update territory coverage
-      const territory = await territoryRepo.findOne({ where: { id: rotation.territoryId } });
-      if (territory) {
-        territory.coveragePercent = rotation.coverageAchieved;
-        await territoryRepo.save(territory);
-      }
+      await db
+        .update(territories)
+        .set({ coveragePercent: coverageAchieved, updatedAt: new Date() })
+        .where(eq(territories.id, rotation.territoryId));
 
-      return successResponse(rotation, 'Rotation completed', 200, requestId);
+      return successResponse(updated, 'Rotation completed', 200, requestId);
     } catch (err) {
       console.error('[PUT /api/rotations/:id/complete]', err);
       return ApiErrors.internalError(undefined, requestId);

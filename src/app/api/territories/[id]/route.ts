@@ -1,19 +1,13 @@
 import type { NextRequest } from 'next/server';
-import { AppDataSource } from '@/lib/data-source';
-import { Territory } from '@/entities/Territory';
-import { UserRole } from '@/entities/User';
+import { eq } from 'drizzle-orm';
+import { db, territories, UserRole } from '@/db';
 import { RequireRole, withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';
 
-async function getRepo() {
-  if (!AppDataSource.isInitialized) await AppDataSource.initialize();
-  return AppDataSource.getRepository(Territory);
-}
-
 type RouteContext = { params: Promise<{ id: string }> };
 
-// GET /api/territories/:id — any authenticated user
+// GET /api/territories/:id
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -21,8 +15,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
   try {
     const { id } = await ctx.params;
-    const repo = await getRepo();
-    const territory = await repo.findOne({ where: { id } });
+    const [territory] = await db
+      .select()
+      .from(territories)
+      .where(eq(territories.id, id))
+      .limit(1);
     if (!territory) return ApiErrors.notFound('Territory', requestId);
     return successResponse(territory, undefined, 200, requestId);
   } catch (err) {
@@ -31,29 +28,37 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   }
 }
 
-// PUT /api/territories/:id — SO/ADMIN only
+// PUT /api/territories/:id
 export const PUT = RequireRole(UserRole.SERVICE_OVERSEER)(
   async (req: NextRequest, ctx: unknown, _user: JwtPayload) => {
     const requestId = generateRequestId();
     try {
       const { id } = await (ctx as RouteContext).params;
-      const body = (await req.json()) as Partial<Territory>;
-      const repo = await getRepo();
-      const territory = await repo.findOne({ where: { id } });
+      const body = (await req.json()) as Record<string, unknown>;
+
+      const [territory] = await db
+        .select()
+        .from(territories)
+        .where(eq(territories.id, id))
+        .limit(1);
       if (!territory) return ApiErrors.notFound('Territory', requestId);
 
-      Object.assign(territory, {
-        name: body.name ?? territory.name,
-        number: body.number ?? territory.number,
-        notes: body.notes ?? territory.notes,
-        householdsCount: body.householdsCount ?? territory.householdsCount,
-        status: body.status ?? territory.status,
-        coveragePercent: body.coveragePercent ?? territory.coveragePercent,
-        boundary: body.boundary ?? territory.boundary,
-      });
+      const [updated] = await db
+        .update(territories)
+        .set({
+          name: (body.name as string) ?? territory.name,
+          number: (body.number as string) ?? territory.number,
+          notes: (body.notes as string) ?? territory.notes,
+          householdsCount: (body.householdsCount as number) ?? territory.householdsCount,
+          status: (body.status as string) ?? territory.status,
+          coveragePercent: (body.coveragePercent as string) ?? territory.coveragePercent,
+          boundary: (body.boundary as string) ?? territory.boundary,
+          updatedAt: new Date(),
+        })
+        .where(eq(territories.id, id))
+        .returning();
 
-      await repo.save(territory);
-      return successResponse(territory, 'Territory updated', 200, requestId);
+      return successResponse(updated, 'Territory updated', 200, requestId);
     } catch (err) {
       console.error('[PUT /api/territories/:id]', err);
       return ApiErrors.internalError(undefined, requestId);
@@ -61,16 +66,19 @@ export const PUT = RequireRole(UserRole.SERVICE_OVERSEER)(
   }
 );
 
-// DELETE /api/territories/:id — ADMIN only
+// DELETE /api/territories/:id
 export const DELETE = RequireRole(UserRole.ADMIN)(
   async (_req: NextRequest, ctx: unknown, _user: JwtPayload) => {
     const requestId = generateRequestId();
     try {
       const { id } = await (ctx as RouteContext).params;
-      const repo = await getRepo();
-      const territory = await repo.findOne({ where: { id } });
+      const [territory] = await db
+        .select({ id: territories.id })
+        .from(territories)
+        .where(eq(territories.id, id))
+        .limit(1);
       if (!territory) return ApiErrors.notFound('Territory', requestId);
-      await repo.remove(territory);
+      await db.delete(territories).where(eq(territories.id, id));
       return successResponse({ id }, 'Territory deleted', 200, requestId);
     } catch (err) {
       console.error('[DELETE /api/territories/:id]', err);

@@ -116,7 +116,6 @@ jobs:
 
       - name: Post Schema Diff Comment to PR
         run: |
-          # Post a simple comment to the PR with migration status
           gh pr comment ${{ github.event.number }} \
             --body $'✅ **Database Schema**\n\nPreview database branch created and migrations ran successfully!\n\n**Branch:** `preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}`\n\nFor detailed schema changes, check the Neon console.'
         env:

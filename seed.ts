@@ -1,148 +1,221 @@
-import 'reflect-metadata';
+import 'dotenv/config';
 import { config } from 'dotenv';
 import bcrypt from 'bcryptjs';
+import { eq, and } from 'drizzle-orm';
 
 config({ path: ['.env.local', '.env'] });
 
-import { AppDataSource } from './src/lib/data-source';
-import { User, UserRole } from './src/entities/User';
-import { Congregation } from './src/entities/Congregation';
-import { CongregationMember, CongregationRole } from './src/entities/CongregationMember';
-import { Group } from './src/entities/Group';
-import { GroupMember, GroupRole } from './src/entities/GroupMember';
-import { Territory } from './src/entities/Territory';
-import { TerritoryStatus } from './src/entities/Territory';
+import { db } from './src/db/index';
+import {
+  users,
+  congregations,
+  congregationMembers,
+  groups,
+  groupMembers,
+  territories,
+  UserRole,
+  CongregationRole,
+  GroupRole,
+  TerritoryStatus,
+} from './src/db/schema';
 
 async function seed() {
-  await AppDataSource.initialize();
-  console.log('✅ Database connected');
+  console.log('🌱 Starting seed...');
 
-  const userRepo = AppDataSource.getRepository(User);
-  const congregationRepo = AppDataSource.getRepository(Congregation);
-  const memberRepo = AppDataSource.getRepository(CongregationMember);
-  const groupRepo = AppDataSource.getRepository(Group);
-  const groupMemberRepo = AppDataSource.getRepository(GroupMember);
-  const territoryRepo = AppDataSource.getRepository(Territory);
+  // Super admin
+  const [existingSuperAdmin] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, 'super@example.com'))
+    .limit(1);
 
-  // Create super_admin
-  let superAdmin = await userRepo.findOne({ where: { email: 'super@example.com' } });
+  let superAdmin = existingSuperAdmin;
   if (!superAdmin) {
-    superAdmin = userRepo.create({
-      email: 'super@example.com',
-      password: await bcrypt.hash('password123', 10),
-      name: 'Super Admin',
-      role: UserRole.SUPER_ADMIN,
-    });
-    await userRepo.save(superAdmin);
+    [superAdmin] = await db
+      .insert(users)
+      .values({
+        email: 'super@example.com',
+        password: await bcrypt.hash('password123', 10),
+        name: 'Super Admin',
+        role: UserRole.SUPER_ADMIN,
+      })
+      .returning();
     console.log('✅ Created super_admin: super@example.com / password123');
   }
 
-  // Create admin user
-  let adminUser = await userRepo.findOne({ where: { email: 'admin@example.com' } });
+  // Admin user
+  const [existingAdmin] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, 'admin@example.com'))
+    .limit(1);
+
+  let adminUser = existingAdmin;
   if (!adminUser) {
-    adminUser = userRepo.create({
-      email: 'admin@example.com',
-      password: await bcrypt.hash('password123', 10),
-      name: 'Admin User',
-      role: UserRole.ADMIN,
-    });
-    await userRepo.save(adminUser);
+    [adminUser] = await db
+      .insert(users)
+      .values({
+        email: 'admin@example.com',
+        password: await bcrypt.hash('password123', 10),
+        name: 'Admin User',
+        role: UserRole.ADMIN,
+      })
+      .returning();
     console.log('✅ Created admin: admin@example.com / password123');
   }
 
-  // Create regular users
+  // Regular users
   const usersData = [
     { email: 'alice@example.com', name: 'Alice Publisher' },
     { email: 'bob@example.com', name: 'Bob Publisher' },
     { email: 'carol@example.com', name: 'Carol Publisher' },
   ];
 
-  const regularUsers: User[] = [];
+  const regularUsers = [];
   for (const ud of usersData) {
-    let u = await userRepo.findOne({ where: { email: ud.email } });
-    if (!u) {
-      u = userRepo.create({
-        email: ud.email,
-        password: await bcrypt.hash('password123', 10),
-        name: ud.name,
-        role: UserRole.USER,
-      });
-      await userRepo.save(u);
+    const [existing] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, ud.email))
+      .limit(1);
+
+    if (existing) {
+      regularUsers.push(existing);
+    } else {
+      const [u] = await db
+        .insert(users)
+        .values({
+          email: ud.email,
+          password: await bcrypt.hash('password123', 10),
+          name: ud.name,
+          role: UserRole.USER,
+        })
+        .returning();
       console.log(`✅ Created user: ${ud.email} / password123`);
+      regularUsers.push(u);
     }
-    regularUsers.push(u);
   }
 
-  // Create test congregation
-  let congregation = await congregationRepo.findOne({ where: { slug: 'test-congregation' } });
+  // Congregation
+  const [existingCong] = await db
+    .select()
+    .from(congregations)
+    .where(eq(congregations.slug, 'test-congregation'))
+    .limit(1);
+
+  let congregation = existingCong;
   if (!congregation) {
-    congregation = congregationRepo.create({
-      name: 'Test Congregation',
-      slug: 'test-congregation',
-      city: 'Test City',
-      country: 'US',
-      createdById: adminUser.id,
-    });
-    await congregationRepo.save(congregation);
+    [congregation] = await db
+      .insert(congregations)
+      .values({
+        name: 'Test Congregation',
+        slug: 'test-congregation',
+        city: 'Test City',
+        country: 'US',
+        createdById: adminUser.id,
+      })
+      .returning();
     console.log('✅ Created congregation: Test Congregation');
   }
 
   // Add admin as service_overseer
-  let adminMember = await memberRepo.findOne({
-    where: { userId: adminUser.id, congregationId: congregation.id },
-  });
-  if (!adminMember) {
-    adminMember = memberRepo.create({
+  const [existingAdminMember] = await db
+    .select()
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, adminUser.id),
+        eq(congregationMembers.congregationId, congregation.id)
+      )
+    )
+    .limit(1);
+
+  if (!existingAdminMember) {
+    await db.insert(congregationMembers).values({
       userId: adminUser.id,
       congregationId: congregation.id,
       congregationRole: CongregationRole.SERVICE_OVERSEER,
     });
-    await memberRepo.save(adminMember);
     console.log('✅ Added admin as service_overseer');
   }
 
-  // Add alice as territory_servant
   const [alice, bob, carol] = regularUsers;
-  let aliceMember = await memberRepo.findOne({
-    where: { userId: alice.id, congregationId: congregation.id },
-  });
-  if (!aliceMember) {
-    aliceMember = memberRepo.create({
+
+  // Alice as territory_servant
+  const [existingAlice] = await db
+    .select()
+    .from(congregationMembers)
+    .where(
+      and(
+        eq(congregationMembers.userId, alice.id),
+        eq(congregationMembers.congregationId, congregation.id)
+      )
+    )
+    .limit(1);
+
+  if (!existingAlice) {
+    await db.insert(congregationMembers).values({
       userId: alice.id,
       congregationId: congregation.id,
       congregationRole: CongregationRole.TERRITORY_SERVANT,
     });
-    await memberRepo.save(aliceMember);
     console.log('✅ Added alice as territory_servant');
   }
 
-  // Add bob and carol as regular members
+  // Bob and carol as regular members
   for (const u of [bob, carol]) {
-    const existing = await memberRepo.findOne({
-      where: { userId: u.id, congregationId: congregation.id },
-    });
+    const [existing] = await db
+      .select()
+      .from(congregationMembers)
+      .where(
+        and(
+          eq(congregationMembers.userId, u.id),
+          eq(congregationMembers.congregationId, congregation.id)
+        )
+      )
+      .limit(1);
+
     if (!existing) {
-      await memberRepo.save(memberRepo.create({ userId: u.id, congregationId: congregation.id }));
+      await db.insert(congregationMembers).values({
+        userId: u.id,
+        congregationId: congregation.id,
+      });
       console.log(`✅ Added ${u.name} as congregation member`);
     }
   }
 
-  // Create groups
-  let group1 = await groupRepo.findOne({ where: { congregationId: congregation.id, name: 'Group A' } });
+  // Groups
+  const [existingGroup1] = await db
+    .select()
+    .from(groups)
+    .where(and(eq(groups.congregationId, congregation.id), eq(groups.name, 'Group A')))
+    .limit(1);
+
+  let group1 = existingGroup1;
   if (!group1) {
-    group1 = groupRepo.create({ congregationId: congregation.id, name: 'Group A' });
-    await groupRepo.save(group1);
+    [group1] = await db
+      .insert(groups)
+      .values({ congregationId: congregation.id, name: 'Group A' })
+      .returning();
     console.log('✅ Created Group A');
   }
 
-  let group2 = await groupRepo.findOne({ where: { congregationId: congregation.id, name: 'Group B' } });
+  const [existingGroup2] = await db
+    .select()
+    .from(groups)
+    .where(and(eq(groups.congregationId, congregation.id), eq(groups.name, 'Group B')))
+    .limit(1);
+
+  let group2 = existingGroup2;
   if (!group2) {
-    group2 = groupRepo.create({ congregationId: congregation.id, name: 'Group B' });
-    await groupRepo.save(group2);
+    [group2] = await db
+      .insert(groups)
+      .values({ congregationId: congregation.id, name: 'Group B' })
+      .returning();
     console.log('✅ Created Group B');
   }
 
-  // Add members to groups
+  // Group members
   const groupMembersData = [
     { userId: alice.id, groupId: group1.id, groupRole: GroupRole.GROUP_OVERSEER },
     { userId: bob.id, groupId: group1.id, groupRole: GroupRole.MEMBER },
@@ -150,40 +223,51 @@ async function seed() {
   ];
 
   for (const gm of groupMembersData) {
-    const existing = await groupMemberRepo.findOne({ where: { userId: gm.userId, groupId: gm.groupId } });
+    const [existing] = await db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.userId, gm.userId), eq(groupMembers.groupId, gm.groupId)))
+      .limit(1);
+
     if (!existing) {
-      await groupMemberRepo.save(groupMemberRepo.create(gm));
+      await db.insert(groupMembers).values(gm);
       console.log(`✅ Added user to group with role ${gm.groupRole}`);
     }
   }
 
-  // Create territories
+  // Territories
   const territoriesData = [
-    { name: 'Territory 1', number: 'T-001', publisherId: alice.id },
-    { name: 'Territory 2', number: 'T-002', groupId: group1.id },
-    { name: 'Territory 3', number: 'T-003' },
+    { name: 'Territory 1', number: 'T-001', publisherId: alice.id, groupId: undefined },
+    { name: 'Territory 2', number: 'T-002', publisherId: undefined, groupId: group1.id },
+    { name: 'Territory 3', number: 'T-003', publisherId: undefined, groupId: undefined },
   ];
 
   for (const td of territoriesData) {
-    const existing = await territoryRepo.findOne({
-      where: { congregationId: congregation.id, number: td.number },
-    });
+    const [existing] = await db
+      .select()
+      .from(territories)
+      .where(
+        and(
+          eq(territories.congregationId, congregation.id),
+          eq(territories.number, td.number)
+        )
+      )
+      .limit(1);
+
     if (!existing) {
-      await territoryRepo.save(
-        territoryRepo.create({
-          congregationId: congregation.id,
-          name: td.name,
-          number: td.number,
-          publisherId: td.publisherId,
-          groupId: td.groupId,
-          status: td.publisherId || td.groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
-        })
-      );
+      await db.insert(territories).values({
+        congregationId: congregation.id,
+        name: td.name,
+        number: td.number,
+        publisherId: td.publisherId ?? null,
+        groupId: td.groupId ?? null,
+        status:
+          td.publisherId || td.groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
+      });
       console.log(`✅ Created ${td.name}`);
     }
   }
 
-  await AppDataSource.destroy();
   console.log('\n🌱 Seed complete!');
   console.log('\nTest credentials:');
   console.log('  super_admin: super@example.com / password123');
@@ -191,6 +275,7 @@ async function seed() {
   console.log('  user:        alice@example.com / password123 (territory_servant)');
   console.log('  user:        bob@example.com   / password123 (member)');
   console.log('  user:        carol@example.com / password123 (member)');
+  process.exit(0);
 }
 
 seed().catch((err) => {

@@ -1,19 +1,18 @@
+import bcrypt from 'bcryptjs';
+import { eq } from 'drizzle-orm';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import bcrypt from 'bcryptjs';
-import { AppDataSource } from '@/lib/data-source';
-import { User } from '@/entities/User';
-import { CongregationMember } from '@/entities/CongregationMember';
+import { congregationMembers, db, users } from '@/db';
 
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // Update every 24h
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
@@ -28,18 +27,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Email and password are required');
         }
 
-        if (!AppDataSource.isInitialized) {
-          try {
-            await AppDataSource.initialize();
-          } catch (err) {
-            console.error('[auth] Failed to initialize AppDataSource:', err);
-            throw new Error('Database connection failed. Please try again.');
-          }
-        }
-
         try {
-          const userRepo = AppDataSource.getRepository(User);
-          const user = await userRepo.findOne({ where: { email: credentials.email } });
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, credentials.email))
+            .limit(1);
 
           if (!user) {
             throw new Error('Invalid email or password. Please check and try again.');
@@ -54,17 +47,26 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Your account has been disabled. Contact support for assistance.');
           }
 
-          await userRepo.update(user.id, { lastLoginAt: new Date() });
+          await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
 
-          // Resolve congregationId: prefer direct field, fall back to CongregationMember lookup
+          // Resolve congregationId: prefer direct field, fall back to congregation_members
           let congregationId: string | null = user.congregationId ?? null;
           if (!congregationId) {
-            const memberRepo = AppDataSource.getRepository(CongregationMember);
-            const membership = await memberRepo.findOne({ where: { userId: user.id } });
+            const [membership] = await db
+              .select()
+              .from(congregationMembers)
+              .where(eq(congregationMembers.userId, user.id))
+              .limit(1);
             congregationId = membership?.congregationId ?? null;
           }
 
-          console.log('[auth] User signed in:', user.id, user.email, 'congregation:', congregationId);
+          console.log(
+            '[auth] User signed in:',
+            user.id,
+            user.email,
+            'congregation:',
+            congregationId
+          );
 
           return {
             id: user.id,
@@ -85,20 +87,23 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role;
-        token.congregationId = (user as { congregationId?: string | null }).congregationId;
+        token.role = user.role;
+        token.congregationId = user.congregationId;
+      }
+      // Allow client-side session.update({ congregationId }) to refresh the token
+      if (trigger === 'update' && session?.congregationId !== undefined) {
+        token.congregationId = session.congregationId;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
-        (session.user as { congregationId?: string | null }).congregationId =
-          token.congregationId as string | null;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.congregationId = token.congregationId;
       }
       return session;
     },

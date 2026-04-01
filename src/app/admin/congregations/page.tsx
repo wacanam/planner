@@ -1,26 +1,25 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { AlertCircle, Building2, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { Building2, Plus, Pencil, Trash2, Eye, Search, Globe } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useCallback, useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
-import { UserRole } from '@/entities/User';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { UserRole } from '@/db';
+import { fetchWithAuth } from '@/lib/api-client';
 
 interface Congregation {
   id: string;
