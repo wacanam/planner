@@ -34,7 +34,7 @@ export default function AdminCongregationsPage() {
   const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [_error, setError] = useState('');
+  const [error, setError] = useState('');
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
