@@ -4,16 +4,19 @@ import { ArrowRight, ClipboardList, Clock, FolderOpen, MapPin, Plus, Users } fro
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchWithAuth } from '@/lib/api-client';
+import { CongregationRole, UserRole } from '@/db';
 
 interface Member {
   id: string;
-  user: { name: string; email: string };
+  userId: string;
+  user: { id: string; name: string; email: string };
   congregationRole?: string | null;
   joinedAt: string;
 }
@@ -30,6 +33,7 @@ interface Territory {
   number: string;
   name: string;
   status: string;
+  publisherId?: string | null;
 }
 
 interface TerritoryRequest {
@@ -50,13 +54,24 @@ const statusColors: Record<string, string> = {
 export default function CongregationDashboardPage() {
   const params = useParams();
   const congregationId = params?.id as string;
+  const { data: session } = useSession();
+
+  const sessionUser = session?.user as
+    | { id?: string; role?: string; congregationId?: string }
+    | undefined;
 
   const [members, setMembers] = useState<Member[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [requests, setRequests] = useState<TerritoryRequest[]>([]);
   const [congregation, setCongregation] = useState<{ name: string } | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const isOverseer =
+    myRole === CongregationRole.SERVICE_OVERSEER ||
+    sessionUser?.role === UserRole.SUPER_ADMIN ||
+    sessionUser?.role === UserRole.ADMIN;
 
   useEffect(() => {
     if (!congregationId) return;
@@ -71,7 +86,15 @@ export default function CongregationDashboardPage() {
       ]);
 
       if (congJson.data) setCongregation(congJson.data);
-      if (memberJson.data) setMembers(memberJson.data);
+      if (memberJson.data) {
+        setMembers(memberJson.data);
+        if (sessionUser?.id) {
+          const me = memberJson.data.find(
+            (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
+          );
+          if (me?.congregationRole) setMyRole(me.congregationRole);
+        }
+      }
       if (groupJson.data) setGroups(groupJson.data);
       if (territoryJson.data) setTerritories(territoryJson.data);
       if (requestJson.data) setRequests(requestJson.data);
@@ -79,7 +102,7 @@ export default function CongregationDashboardPage() {
     }
 
     fetchAll().catch(() => setLoading(false));
-  }, [congregationId]);
+  }, [congregationId, sessionUser?.id]);
 
   const availableTerritories = territories.filter((t) => t.status === 'available').length;
   const pendingRequests = requests.length;
@@ -262,6 +285,66 @@ export default function CongregationDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* My Territories — publisher view */}
+        {!isOverseer && (
+          <Card>
+            <CardHeader className="flex-row items-center justify-between pb-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <MapPin size={16} className="text-green-500" />
+                My Territories
+              </CardTitle>
+              <Button asChild size="sm" variant="ghost">
+                <Link href={`/congregation/${congregationId}/territories`}>
+                  View All
+                  <ArrowRight size={13} />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              ) : (() => {
+                const myTerritories = territories.filter(
+                  (t) =>
+                    t.status === 'assigned' &&
+                    t.publisherId === sessionUser?.id
+                );
+                return myTerritories.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MapPin size={28} className="mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No active territory assignments</p>
+                    <Button asChild size="sm" className="mt-3" variant="outline">
+                      <Link href={`/congregation/${congregationId}/territories`}>
+                        Browse Territories
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  myTerritories.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          #{t.number} {t.name}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={statusColors[t.status] ?? ''}>
+                        {t.status}
+                      </Badge>
+                    </div>
+                  ))
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Members list */}
         <Card>

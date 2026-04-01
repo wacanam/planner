@@ -1,8 +1,9 @@
 'use client';
 
-import { CheckCircle, Clock, MapPin, Plus, Search } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchWithAuth } from '@/lib/api-client';
+import { CongregationRole, UserRole } from '@/db';
 
 interface Territory {
   id: string;
@@ -38,6 +40,14 @@ interface TerritoryRequest {
   requestedAt: string;
 }
 
+interface Member {
+  id: string;
+  userId: string;
+  user: { id: string; name: string; email: string };
+  congregationRole?: string | null;
+  status: string;
+}
+
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
@@ -49,9 +59,21 @@ const statusColors: Record<string, string> = {
 export default function CongregationTerritoriesPage() {
   const params = useParams();
   const congregationId = params?.id as string;
+  const { data: session } = useSession();
+
+  const sessionUser = session?.user as
+    | { id?: string; role?: string; congregationId?: string }
+    | undefined;
+
+  const [myRole, setMyRole] = useState<string | null>(null);
+  const isOverseer =
+    myRole === CongregationRole.SERVICE_OVERSEER ||
+    sessionUser?.role === UserRole.SUPER_ADMIN ||
+    sessionUser?.role === UserRole.ADMIN;
 
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [requests, setRequests] = useState<TerritoryRequest[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [filtered, setFiltered] = useState<Territory[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -66,15 +88,46 @@ export default function CongregationTerritoriesPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
 
+  // Assign dialog
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
+  const [assignUserId, setAssignUserId] = useState('');
+  const [assignDueAt, setAssignDueAt] = useState('');
+  const [assignNotes, setAssignNotes] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState('');
+  const [assignSuccess, setAssignSuccess] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+
+  // Return dialog
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnTerritory, setReturnTerritory] = useState<Territory | null>(null);
+  const [returnNotes, setReturnNotes] = useState('');
+  const [returnLoading, setReturnLoading] = useState(false);
+  const [returnError, setReturnError] = useState('');
+
+  // Request confirmation
+  const [requestingTerritoryId, setRequestingTerritoryId] = useState<string | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
-    const [tJson, rJson] = await Promise.all([
+    const [tJson, rJson, mJson] = await Promise.all([
       fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
       fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
+      fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
     ]);
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
+    if (mJson.data) {
+      setMembers(mJson.data);
+      // Detect own congregation role
+      if (sessionUser?.id) {
+        const me = mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id);
+        if (me?.congregationRole) setMyRole(me.congregationRole);
+      }
+    }
     setLoading(false);
-  }, [congregationId]);
+  }, [congregationId, sessionUser?.id]);
 
   useEffect(() => {
     if (congregationId) fetchData().catch(() => setLoading(false));
@@ -138,9 +191,113 @@ export default function CongregationTerritoriesPage() {
     await fetchData();
   }
 
+  function openAssignDialog(territory: Territory) {
+    setAssignTerritory(territory);
+    setAssignUserId('');
+    setAssignDueAt('');
+    setAssignNotes('');
+    setAssignError('');
+    setAssignSuccess('');
+    setMemberSearch('');
+    setAssignOpen(true);
+  }
+
+  async function handleAssign(e: React.FormEvent) {
+    e.preventDefault();
+    if (!assignTerritory || !assignUserId) {
+      setAssignError('Please select a publisher');
+      return;
+    }
+    setAssignLoading(true);
+    setAssignError('');
+    try {
+      await fetchWithAuth('/api/assignments', {
+        method: 'POST',
+        body: JSON.stringify({
+          territoryId: assignTerritory.id,
+          userId: assignUserId,
+          dueAt: assignDueAt || undefined,
+          notes: assignNotes || undefined,
+        }),
+      });
+      setAssignSuccess(`Territory assigned successfully!`);
+      setTimeout(() => {
+        setAssignOpen(false);
+        setAssignSuccess('');
+      }, 1200);
+      await fetchData();
+    } catch {
+      setAssignError('Failed to assign territory');
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
+  function openReturnDialog(territory: Territory) {
+    setReturnTerritory(territory);
+    setReturnNotes('');
+    setReturnError('');
+    setReturnOpen(true);
+  }
+
+  async function handleReturn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!returnTerritory) return;
+    setReturnLoading(true);
+    setReturnError('');
+    try {
+      // Find the active assignment for this territory
+      const aJson = await fetchWithAuth<{ data: { id: string; status: string }[] }>(
+        `/api/territories/${returnTerritory.id}/assignments`
+      );
+      const activeAssignment = aJson.data?.find((a) => a.status === 'active');
+      if (!activeAssignment) {
+        setReturnError('No active assignment found');
+        setReturnLoading(false);
+        return;
+      }
+      await fetchWithAuth(`/api/assignments/${activeAssignment.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'returned', notes: returnNotes || undefined }),
+      });
+      setReturnOpen(false);
+      await fetchData();
+    } catch {
+      setReturnError('Failed to return territory');
+    } finally {
+      setReturnLoading(false);
+    }
+  }
+
+  async function handleRequest(territoryId: string) {
+    setRequestingTerritoryId(territoryId);
+    setRequestSuccess(null);
+    try {
+      await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests`, {
+        method: 'POST',
+        body: JSON.stringify({ territoryId }),
+      });
+      setRequestSuccess(territoryId);
+      setTimeout(() => setRequestSuccess(null), 3000);
+    } catch {
+      // ignore
+    } finally {
+      setRequestingTerritoryId(null);
+    }
+  }
+
   const availableCount = territories.filter((t) => t.status === 'available').length;
   const assignedCount = territories.filter((t) => t.status === 'assigned').length;
   const completedCount = territories.filter((t) => t.status === 'completed').length;
+
+  const activeMembers = members.filter((m) => m.status === 'active');
+  const filteredMembers = memberSearch
+    ? activeMembers.filter(
+        (m) =>
+          m.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+          m.user?.email?.toLowerCase().includes(memberSearch.toLowerCase())
+      )
+    : activeMembers;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -152,10 +309,12 @@ export default function CongregationTerritoriesPage() {
               Manage territories and assignment requests
             </p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus size={14} />
-            Add Territory
-          </Button>
+          {isOverseer && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus size={14} />
+              Add Territory
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
@@ -185,22 +344,24 @@ export default function CongregationTerritoriesPage() {
           >
             Territories ({territories.length})
           </button>
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-              tab === 'requests'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setTab('requests')}
-          >
-            Requests
-            {requests.length > 0 && (
-              <span className="bg-orange-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                {requests.length}
-              </span>
-            )}
-          </button>
+          {isOverseer && (
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+                tab === 'requests'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+              onClick={() => setTab('requests')}
+            >
+              Requests
+              {requests.length > 0 && (
+                <span className="bg-orange-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
+                  {requests.length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {tab === 'territories' && (
@@ -252,7 +413,7 @@ export default function CongregationTerritoriesPage() {
                       ? 'No territories match your filter'
                       : 'No territories yet'}
                   </p>
-                  {!search && statusFilter === 'all' && (
+                  {!search && statusFilter === 'all' && isOverseer && (
                     <Button className="mt-4" onClick={() => setCreateOpen(true)}>
                       <Plus size={14} />
                       Add Territory
@@ -271,6 +432,9 @@ export default function CongregationTerritoriesPage() {
                       </th>
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Assigned To
+                      </th>
+                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -300,6 +464,49 @@ export default function CongregationTerritoriesPage() {
                         <td className="px-6 py-4 text-muted-foreground text-xs">
                           {t.publisher?.name ?? t.group?.name ?? '—'}
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Overseer: Assign button for available territories */}
+                            {isOverseer && t.status === 'available' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                onClick={() => openAssignDialog(t)}
+                              >
+                                <UserPlus size={12} className="mr-1" />
+                                Assign
+                              </Button>
+                            )}
+                            {/* Overseer: Return button for assigned territories */}
+                            {isOverseer && t.status === 'assigned' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                onClick={() => openReturnDialog(t)}
+                              >
+                                <RotateCcw size={12} className="mr-1" />
+                                Return
+                              </Button>
+                            )}
+                            {/* Publisher: Request button for available territories */}
+                            {!isOverseer && t.status === 'available' && (
+                              requestSuccess === t.id ? (
+                                <span className="text-xs text-green-600 font-medium">Request sent!</span>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={requestingTerritoryId === t.id}
+                                  onClick={() => handleRequest(t.id)}
+                                >
+                                  {requestingTerritoryId === t.id ? 'Requesting…' : 'Request'}
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -309,7 +516,7 @@ export default function CongregationTerritoriesPage() {
           </>
         )}
 
-        {tab === 'requests' && (
+        {tab === 'requests' && isOverseer && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -418,6 +625,126 @@ export default function CongregationTerritoriesPage() {
               </Button>
               <Button type="submit" disabled={createLoading}>
                 {createLoading ? 'Creating…' : 'Add Territory'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Territory dialog */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Territory</DialogTitle>
+            <DialogDescription>
+              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAssign} className="space-y-4 mt-2">
+            {assignError && (
+              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
+                {assignError}
+              </p>
+            )}
+            {assignSuccess && (
+              <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-xl">
+                {assignSuccess}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label>Publisher *</Label>
+              <Input
+                placeholder="Search publishers…"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+              />
+              <div className="max-h-40 overflow-y-auto rounded-xl border border-border divide-y divide-border">
+                {filteredMembers.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-3 text-center">No members found</p>
+                ) : (
+                  filteredMembers.map((m) => (
+                    <button
+                      type="button"
+                      key={m.id}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
+                        assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
+                      }`}
+                      onClick={() => setAssignUserId(m.userId)}
+                    >
+                      <span className="font-medium">{m.user?.name}</span>
+                      <span className="text-xs text-muted-foreground">{m.user?.email}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-due">Due Date (optional)</Label>
+              <Input
+                id="assign-due"
+                type="date"
+                value={assignDueAt}
+                onChange={(e) => setAssignDueAt(e.target.value)}
+                disabled={assignLoading}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-notes">Notes (optional)</Label>
+              <textarea
+                id="assign-notes"
+                rows={3}
+                value={assignNotes}
+                onChange={(e) => setAssignNotes(e.target.value)}
+                placeholder="Optional notes…"
+                disabled={assignLoading}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              />
+            </div>
+            <DialogFooter className="gap-2 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={assignLoading || !assignUserId}>
+                {assignLoading ? 'Assigning…' : 'Assign Territory'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Return Territory dialog */}
+      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return Territory</DialogTitle>
+            <DialogDescription>
+              Mark <strong>#{returnTerritory?.number} {returnTerritory?.name}</strong> as returned?
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleReturn} className="space-y-4 mt-2">
+            {returnError && (
+              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
+                {returnError}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="return-notes">Notes (optional)</Label>
+              <textarea
+                id="return-notes"
+                rows={3}
+                value={returnNotes}
+                onChange={(e) => setReturnNotes(e.target.value)}
+                placeholder="Optional notes on return…"
+                disabled={returnLoading}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              />
+            </div>
+            <DialogFooter className="gap-2 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setReturnOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={returnLoading} variant="outline" className="text-orange-600 border-orange-300">
+                {returnLoading ? 'Processing…' : 'Mark as Returned'}
               </Button>
             </DialogFooter>
           </form>
