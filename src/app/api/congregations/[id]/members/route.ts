@@ -18,6 +18,8 @@ export async function GET(
       userId: congregationMembers.userId,
       congregationId: congregationMembers.congregationId,
       congregationRole: congregationMembers.congregationRole,
+      status: congregationMembers.status,
+      joinMessage: congregationMembers.joinMessage,
       joinedAt: congregationMembers.joinedAt,
       user: {
         id: users.id,

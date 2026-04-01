@@ -1,12 +1,21 @@
 'use client';
 
-import { Plus, Search, Trash2, Users } from 'lucide-react';
+import {
+  Check,
+  Clock,
+  MessageSquare,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -18,23 +27,49 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchWithAuth } from '@/lib/api-client';
+import { CongregationRole } from '@/db';
 
 interface Member {
   id: string;
   userId: string;
-  user: { name: string; email: string };
+  user: { id: string; name: string; email: string };
   congregationRole?: string | null;
+  status: string;
+  joinMessage?: string | null;
   joinedAt: string;
 }
+
+type Tab = 'members' | 'requests';
 
 export default function CongregationMembersPage() {
   const params = useParams();
   const congregationId = params?.id as string;
+  const { data: session } = useSession();
 
+  const sessionUser = session?.user as {
+    id?: string;
+    role?: string;
+    congregationId?: string;
+  } | undefined;
+
+  // Check if current user is a privileged role (via API response member role)
+  const [myRole, setMyRole] = useState<string | null>(null);
+  const isPrivileged =
+    myRole === CongregationRole.SERVICE_OVERSEER ||
+    myRole === CongregationRole.TERRITORY_SERVANT;
+
+  const [tab, setTab] = useState<Tab>('members');
+
+  // Members
   const [members, setMembers] = useState<Member[]>([]);
   const [filtered, setFiltered] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Join requests
+  const [requests, setRequests] = useState<Member[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Add member dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -47,23 +82,55 @@ export default function CongregationMembersPage() {
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
   const [removeLoading, setRemoveLoading] = useState(false);
 
+  // Approve/reject
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<Member | null>(null);
+  const [reviewAction, setReviewAction] = useState<'active' | 'rejected'>('active');
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+
   const fetchMembers = useCallback(async () => {
     try {
       const json = await fetchWithAuth(`/api/congregations/${congregationId}/members`);
       if (json.data) {
-        setMembers(json.data);
-        setFiltered(json.data);
+        const active = json.data.filter((m: Member) => m.status === 'active');
+        setMembers(active);
+        setFiltered(active);
+
+        // Determine current user's role
+        const me = json.data.find((m: Member) => m.userId === sessionUser?.id);
+        setMyRole(me?.congregationRole ?? null);
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
+  }, [congregationId, sessionUser?.id]);
+
+  const fetchRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const json = await fetchWithAuth(
+        `/api/congregations/${congregationId}/join-requests?status=pending`
+      );
+      if (json.data) {
+        setRequests(json.data);
+        setPendingCount(json.data.length);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRequestsLoading(false);
+    }
   }, [congregationId]);
 
   useEffect(() => {
-    if (congregationId) fetchMembers();
-  }, [congregationId, fetchMembers]);
+    if (congregationId) {
+      fetchMembers();
+      fetchRequests();
+    }
+  }, [congregationId, fetchMembers, fetchRequests]);
 
   useEffect(() => {
     if (!search) {
@@ -104,9 +171,10 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
-        method: 'DELETE',
-      });
+      await fetchWithAuth(
+        `/api/congregations/${congregationId}/members/${removeTarget.userId}`,
+        { method: 'DELETE' }
+      );
       setRemoveOpen(false);
       await fetchMembers();
     } catch {
@@ -116,9 +184,51 @@ export default function CongregationMembersPage() {
     }
   }
 
+  function openReview(member: Member, action: 'active' | 'rejected') {
+    setReviewTarget(member);
+    setReviewAction(action);
+    setReviewNote('');
+    setReviewOpen(true);
+  }
+
+  async function handleReview() {
+    if (!reviewTarget) return;
+    setReviewLoading(true);
+    try {
+      await fetchWithAuth(
+        `/api/congregations/${congregationId}/join-requests/${reviewTarget.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: reviewAction, reviewNote }),
+        }
+      );
+      setReviewOpen(false);
+      await Promise.all([fetchMembers(), fetchRequests()]);
+    } catch {
+      // ignore
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  const roleLabel = (role?: string | null) => {
+    if (role === CongregationRole.SERVICE_OVERSEER) return 'Service Overseer';
+    if (role === CongregationRole.TERRITORY_SERVANT) return 'Territory Servant';
+    return 'Publisher';
+  };
+
+  const roleColor = (role?: string | null) => {
+    if (role === CongregationRole.SERVICE_OVERSEER)
+      return 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400';
+    if (role === CongregationRole.TERRITORY_SERVANT)
+      return 'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400';
+    return '';
+  };
+
   return (
     <ProtectedPage congregationId={congregationId}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Members</h1>
@@ -132,35 +242,81 @@ export default function CongregationMembersPage() {
           </Button>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            placeholder="Search members…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* Tabs */}
+        <div className="flex border-b border-border gap-1">
+          <button
+            type="button"
+            onClick={() => setTab('members')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'members'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Users size={14} />
+              Members
+              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                {members.length}
+              </Badge>
+            </span>
+          </button>
+
+          {isPrivileged && (
+            <button
+              type="button"
+              onClick={() => setTab('requests')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === 'requests'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Clock size={14} />
+                Join Requests
+                {pendingCount > 0 && (
+                  <Badge className="text-xs px-1.5 py-0 bg-amber-500 text-white border-0">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </span>
+            </button>
+          )}
         </div>
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
-            {loading ? (
-              <div className="p-6 space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-16">
-                <Users size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">
-                  {search ? 'No members match your search' : 'No members yet'}
-                </p>
-              </div>
-            ) : (
-              <table className="w-full text-sm min-w-[600px]">
+        {/* Members Tab */}
+        {tab === 'members' && (
+          <>
+            <div className="relative max-w-sm">
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                placeholder="Search members…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
+              {loading ? (
+                <div className="p-6 space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-16">
+                  <Users size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {search ? 'No members match your search' : 'No members yet'}
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-sm min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -180,8 +336,8 @@ export default function CongregationMembersPage() {
                       <tr key={m.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                              {m.user?.name?.charAt(0)?.toUpperCase() ?? '?'}
+                            <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                              {m.user?.name?.[0]?.toUpperCase() ?? '?'}
                             </div>
                             <div>
                               <p className="font-medium text-foreground">{m.user?.name}</p>
@@ -190,92 +346,239 @@ export default function CongregationMembersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {m.congregationRole ? (
-                            <Badge variant="outline" className="capitalize text-xs">
-                              {m.congregationRole.replace('_', ' ')}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">member</span>
-                          )}
+                          <Badge variant="outline" className={roleColor(m.congregationRole)}>
+                            {roleLabel(m.congregationRole)}
+                          </Badge>
                         </td>
-                        <td className="px-6 py-4 text-xs text-muted-foreground">
+                        <td className="px-6 py-4 text-muted-foreground text-xs">
                           {new Date(m.joinedAt).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                            onClick={() => {
-                              setRemoveTarget(m);
-                              setRemoveOpen(true);
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => { setRemoveTarget(m); setRemoveOpen(true); }}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Join Requests Tab */}
+        {tab === 'requests' && isPrivileged && (
+          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
+            {requestsLoading ? (
+              <div className="p-6 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
+                ))}
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="text-center py-16">
+                <Clock size={40} className="mx-auto text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No pending join requests</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Requester
+                    </th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Message
+                    </th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Requested
+                    </th>
+                    <th className="px-6 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {requests.map((r) => (
+                    <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-sm font-semibold text-amber-600 shrink-0">
+                            {r.user?.name?.[0]?.toUpperCase() ?? '?'}
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{r.user?.name}</p>
+                            <p className="text-xs text-muted-foreground">{r.user?.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-sm max-w-xs">
+                        {r.joinMessage ? (
+                          <span className="flex items-start gap-1.5">
+                            <MessageSquare size={13} className="mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{r.joinMessage}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50 italic text-xs">No message</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-xs whitespace-nowrap">
+                        {new Date(r.joinedAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900/20 gap-1"
+                            onClick={() => openReview(r, 'active')}
+                          >
+                            <Check size={13} />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/5 gap-1"
+                            onClick={() => openReview(r, 'rejected')}
+                          >
+                            <X size={13} />
+                            Reject
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Add member dialog */}
+      {/* Add Member Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Member</DialogTitle>
-            <DialogDescription>
-              Enter the user ID to add them to this congregation.
-            </DialogDescription>
+            <DialogDescription>Enter the user ID to add directly.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddMember} className="space-y-4 mt-2">
-            {addError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {addError}
-              </p>
-            )}
+          <form onSubmit={handleAddMember} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="add-user-id">User ID *</Label>
+              <Label htmlFor="userId">User ID</Label>
               <Input
-                id="add-user-id"
-                required
+                id="userId"
                 value={addUserId}
                 onChange={(e) => setAddUserId(e.target.value)}
-                placeholder="UUID of the user"
-                disabled={addLoading}
+                placeholder="uuid…"
+                required
               />
+              {addError && <p className="text-xs text-destructive">{addError}</p>}
             </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setAddOpen(false)}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={addLoading}>
-                {addLoading ? 'Adding…' : 'Add Member'}
+                {addLoading ? 'Adding…' : 'Add'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Remove confirm */}
+      {/* Remove Confirm Dialog */}
       <Dialog open={removeOpen} onOpenChange={setRemoveOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remove Member?</DialogTitle>
+            <DialogTitle>Remove Member</DialogTitle>
             <DialogDescription>
-              Remove <strong>{removeTarget?.user?.name}</strong> from this congregation?
+              Remove <span className="font-semibold">{removeTarget?.user?.name}</span> from this
+              congregation?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
-            <Button variant="ghost" onClick={() => setRemoveOpen(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleRemove} disabled={removeLoading}>
               {removeLoading ? 'Removing…' : 'Remove'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Join Request Dialog */}
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {reviewAction === 'active' ? 'Approve Join Request' : 'Reject Join Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {reviewAction === 'active' ? (
+                <>
+                  <span className="font-semibold">{reviewTarget?.user?.name}</span> will be added
+                  as a member of this congregation.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">{reviewTarget?.user?.name}</span>'s request will
+                  be declined. They will be notified.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {reviewTarget?.joinMessage && (
+            <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground flex items-start gap-2">
+              <MessageSquare size={14} className="mt-0.5 shrink-0" />
+              <p>{reviewTarget.joinMessage}</p>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="reviewNote">
+              Note to requester{' '}
+              <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <textarea
+              id="reviewNote"
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              rows={3}
+              placeholder={
+                reviewAction === 'active'
+                  ? 'e.g. Welcome to the congregation!'
+                  : 'e.g. Please speak to the service overseer directly.'
+              }
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewOpen(false)} disabled={reviewLoading}>
+              Cancel
+            </Button>
+            {reviewAction === 'active' ? (
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleReview}
+                disabled={reviewLoading}
+              >
+                {reviewLoading ? 'Approving…' : 'Approve'}
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={handleReview} disabled={reviewLoading}>
+                {reviewLoading ? 'Rejecting…' : 'Reject'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
