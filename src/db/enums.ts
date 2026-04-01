@@ -63,3 +63,21 @@ export const TerritoryRequestStatus = {
 } as const;
 export type TerritoryRequestStatus =
     (typeof TerritoryRequestStatus)[keyof typeof TerritoryRequestStatus];
+
+// ─── Join Request Status Enum ────────────────────────────────────────────────
+
+export const JoinRequestStatus = {
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+} as const;
+export type JoinRequestStatus = (typeof JoinRequestStatus)[keyof typeof JoinRequestStatus];
+
+// ─── Notification Type Enum ──────────────────────────────────────────────────
+
+export const NotificationType = {
+    JOIN_REQUEST: 'join_request',
+    JOIN_APPROVED: 'join_approved',
+    JOIN_REJECTED: 'join_rejected',
+} as const;
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
