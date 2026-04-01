@@ -13,9 +13,9 @@ export const AppDataSource = new DataSource({
   ssl: true, // Enable SSL for Neon
   synchronize: false, // Use migrations in production
   logging: process.env.NODE_ENV === 'development',
-  entities: ['src/**/*.ts'],
-  migrations: ['src/migrations/**/*.js'], // Use .js migrations
-  migrationsRun: true,
+  entities: ['src/entities/*.ts'],
+  migrations: ['src/migrations/*.ts'],
+  migrationsRun: false, // Don't auto-run migrations (handled by Vercel workflow)
   subscribers: [],
   // Note: Do NOT use extra.options with pooled connections (Vercel)
   // PgBouncer doesn't support search_path parameter in startup

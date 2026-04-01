@@ -30,7 +30,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!AppDataSource.isInitialized) {
-          await AppDataSource.initialize();
+          try {
+            await AppDataSource.initialize();
+          } catch (err) {
+            console.error('[auth] Failed to initialize AppDataSource:', err);
+            throw new Error('Database connection failed. Please try again.');
+          }
         }
 
         const userRepo = AppDataSource.getRepository(User);
@@ -46,22 +51,65 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Password must be at least 8 characters');
           }
 
-          // Check if email already exists
-          const existing = await userRepo.findOne({ where: { email: credentials.email } });
-          if (existing) {
-            throw new Error('This email is already registered. Please sign in instead.');
+          try {
+            // Check if email already exists
+            const existing = await userRepo.findOne({ where: { email: credentials.email } });
+            if (existing) {
+              throw new Error('This email is already registered. Please sign in instead.');
+            }
+
+            // Hash password and create user
+            const hashedPassword = await bcrypt.hash(credentials.password, 12);
+            const user = userRepo.create({
+              email: credentials.email,
+              password: hashedPassword,
+              name: credentials.name,
+              role: UserRole.USER,
+            });
+
+            // Save and wait for completion
+            const savedUser = await userRepo.save(user);
+            console.log('[auth] User created successfully:', {
+              id: savedUser.id,
+              email: savedUser.email,
+              name: savedUser.name,
+            });
+
+            return {
+              id: savedUser.id,
+              email: savedUser.email,
+              name: savedUser.name,
+              role: savedUser.role,
+              congregationId: savedUser.congregationId ?? null,
+            };
+          } catch (err) {
+            if (err instanceof Error) {
+              console.error('[auth signup error]', err.message);
+              throw err;
+            }
+            console.error('[auth signup error]', err);
+            throw new Error('Failed to create account. Please try again.');
+          }
+        }
+
+        // SIGNIN MODE (default)
+        try {
+          const user = await userRepo.findOne({ where: { email: credentials.email } });
+
+          if (!user) {
+            throw new Error('Invalid email or password. Please check and try again.');
           }
 
-          // Hash password and create user
-          const hashedPassword = await bcrypt.hash(credentials.password, 12);
-          const user = userRepo.create({
-            email: credentials.email,
-            password: hashedPassword,
-            name: credentials.name,
-            role: UserRole.USER,
-          });
+          const isValid = await bcrypt.compare(credentials.password, user.password);
+          if (!isValid) {
+            throw new Error('Invalid email or password. Please check and try again.');
+          }
 
-          await userRepo.save(user);
+          if (!user.isActive) {
+            throw new Error('Your account has been disabled. Contact support for assistance.');
+          }
+
+          await userRepo.update(user.id, { lastLoginAt: new Date() });
 
           return {
             id: user.id,
@@ -70,33 +118,14 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
             congregationId: user.congregationId ?? null,
           };
+        } catch (err) {
+          if (err instanceof Error) {
+            console.error('[auth signin error]', err.message);
+            throw err;
+          }
+          console.error('[auth signin error]', err);
+          throw new Error('Failed to sign in. Please try again.');
         }
-
-        // SIGNIN MODE (default)
-        const user = await userRepo.findOne({ where: { email: credentials.email } });
-
-        if (!user) {
-          throw new Error('Invalid email or password. Please check and try again.');
-        }
-
-        const isValid = await bcrypt.compare(credentials.password, user.password);
-        if (!isValid) {
-          throw new Error('Invalid email or password. Please check and try again.');
-        }
-
-        if (!user.isActive) {
-          throw new Error('Your account has been disabled. Contact support for assistance.');
-        }
-
-        await userRepo.update(user.id, { lastLoginAt: new Date() });
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          congregationId: user.congregationId ?? null,
-        };
       },
     }),
   ],
