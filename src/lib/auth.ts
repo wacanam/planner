@@ -87,11 +87,15 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.congregationId = user.congregationId;
+      }
+      // Allow client-side session.update({ congregationId }) to refresh the token
+      if (trigger === 'update' && session?.congregationId !== undefined) {
+        token.congregationId = session.congregationId;
       }
       return token;
     },
