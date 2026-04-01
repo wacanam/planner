@@ -101,7 +101,7 @@ export function NotificationsClient() {
 
   if (loading) {
     return (
-      <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div className="h-9 w-56 rounded-lg bg-muted animate-pulse" />
@@ -131,7 +131,7 @@ export function NotificationsClient() {
 
   if (notifications.length === 0) {
     return (
-      <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-foreground mb-6">Notifications</h1>
         <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-3">
           <Bell size={40} className="opacity-30" />
@@ -145,7 +145,7 @@ export function NotificationsClient() {
   const groups = groupByDate(notifications);
 
   return (
-    <div className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
         {hasUnread && (
