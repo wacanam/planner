@@ -1,7 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { db, territoryRequests, CongregationRole, TerritoryRequestStatus } from '@/db';
+import {
+  db,
+  territoryRequests,
+  territories,
+  territoryAssignments,
+  CongregationRole,
+  TerritoryRequestStatus,
+  TerritoryStatus,
+  AssignmentStatus,
+} from '@/db';
 
 // PATCH /api/congregations/:id/territory-requests/:requestId
 export async function PATCH(
@@ -40,6 +49,31 @@ export async function PATCH(
     .set({ status, approvedBy: user.userId, approvedAt: new Date() })
     .where(eq(territoryRequests.id, requestId))
     .returning();
+
+  // When approved and a specific territory was requested, create an assignment
+  if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
+    // Guard against race conditions: only update if the territory is still available
+    const [assignedTerritory] = await db
+      .update(territories)
+      .set({ status: TerritoryStatus.ASSIGNED, updatedAt: new Date() })
+      .where(
+        and(
+          eq(territories.id, request.territoryId),
+          eq(territories.status, TerritoryStatus.AVAILABLE)
+        )
+      )
+      .returning();
+
+    if (assignedTerritory) {
+      await db.insert(territoryAssignments).values({
+        territoryId: assignedTerritory.id,
+        userId: request.publisherId,
+        status: AssignmentStatus.ACTIVE,
+        assignedAt: new Date(),
+        coverageAtAssignment: assignedTerritory.coveragePercent,
+      });
+    }
+  }
 
   return NextResponse.json({ data: updated });
 }

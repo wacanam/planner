@@ -36,7 +36,7 @@ interface TerritoryRequest {
   id: string;
   territoryId?: string | null;
   status: string;
-  publisher?: { name: string };
+  publisher?: { name: string } | null;
   approver?: { name: string };
   requestedAt: string;
 }
@@ -115,6 +115,12 @@ export default function CongregationTerritoriesPage() {
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
 
+  // Approve/Reject confirmation dialog
+  const [confirmRequest, setConfirmRequest] = useState<TerritoryRequest | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+
   const fetchData = useCallback(async () => {
     const [tJson, rJson, mJson] = await Promise.all([
       fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
@@ -180,20 +186,37 @@ export default function CongregationTerritoriesPage() {
     }
   }
 
-  async function handleApproveRequest(requestId: string) {
-    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'approved' }),
-    });
-    await fetchData();
+  function openConfirmDialog(request: TerritoryRequest, action: 'approve' | 'reject') {
+    setConfirmRequest(request);
+    setConfirmAction(action);
+    setConfirmError('');
   }
 
-  async function handleRejectRequest(requestId: string) {
-    await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests/${requestId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'rejected' }),
-    });
-    await fetchData();
+  function closeConfirmDialog() {
+    setConfirmRequest(null);
+    setConfirmAction(null);
+    setConfirmError('');
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmRequest || !confirmAction) return;
+    setConfirmLoading(true);
+    setConfirmError('');
+    try {
+      await fetchWithAuth(
+        `/api/congregations/${congregationId}/territory-requests/${confirmRequest.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: confirmAction === 'approve' ? 'approved' : 'rejected' }),
+        }
+      );
+      closeConfirmDialog();
+      await fetchData();
+    } catch {
+      setConfirmError('Failed to process request. Please try again.');
+    } finally {
+      setConfirmLoading(false);
+    }
   }
 
   function openAssignDialog(territory: Territory) {
@@ -569,26 +592,27 @@ export default function CongregationTerritoriesPage() {
                   {requests.map((r) => (
                     <div
                       key={r.id}
-                      className="flex items-center justify-between p-4 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10"
+                      className="flex items-start justify-between p-4 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10 gap-4"
                     >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {r.publisher?.name ?? 'Unknown'} requested a territory
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {r.publisher?.name ?? 'Unknown Publisher'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">requested a territory</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(r.requestedAt).toLocaleString()}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
                           className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          onClick={() => handleRejectRequest(r.id)}
+                          onClick={() => openConfirmDialog(r, 'reject')}
                         >
                           Reject
                         </Button>
-                        <Button size="sm" onClick={() => handleApproveRequest(r.id)}>
+                        <Button size="sm" onClick={() => openConfirmDialog(r, 'approve')}>
                           Approve
                         </Button>
                       </div>
@@ -819,6 +843,57 @@ export default function CongregationTerritoriesPage() {
             </Button>
             <Button onClick={handleRequest} disabled={requestLoading}>
               {requestLoading ? 'Sending…' : 'Send Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve / Reject Confirmation Dialog */}
+      <Dialog
+        open={!!confirmRequest}
+        onOpenChange={(o) => { if (!o) closeConfirmDialog(); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === 'approve' ? 'Approve Request' : 'Reject Request'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === 'approve'
+                ? 'Approve this territory request and assign the territory to the publisher?'
+                : 'Reject this territory request?'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
+            <p className="text-sm font-semibold">{confirmRequest?.publisher?.name ?? 'Unknown Publisher'}</p>
+            <p className="text-xs text-muted-foreground">
+              Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
+            </p>
+          </div>
+
+          {confirmError && (
+            <p className="text-sm text-destructive">{confirmError}</p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeConfirmDialog}
+              disabled={confirmLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmAction === 'reject' ? 'destructive' : 'default'}
+              onClick={handleConfirmAction}
+              disabled={confirmLoading}
+            >
+              {confirmLoading
+                ? 'Processing…'
+                : confirmAction === 'approve'
+                  ? 'Approve'
+                  : 'Reject'}
             </Button>
           </DialogFooter>
         </DialogContent>

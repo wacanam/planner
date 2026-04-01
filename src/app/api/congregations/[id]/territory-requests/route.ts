@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { db, territoryRequests, CongregationRole, TerritoryRequestStatus } from '@/db';
+import { db, territoryRequests, users, CongregationRole, TerritoryRequestStatus } from '@/db';
 
 // GET /api/congregations/:id/territory-requests
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -26,10 +26,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ...(!isPrivileged ? [eq(territoryRequests.publisherId, user.userId)] : []),
   ];
 
-  const requests = await db
-    .select()
+  const rows = await db
+    .select({
+      id: territoryRequests.id,
+      congregationId: territoryRequests.congregationId,
+      publisherId: territoryRequests.publisherId,
+      territoryId: territoryRequests.territoryId,
+      status: territoryRequests.status,
+      approvedBy: territoryRequests.approvedBy,
+      approvedAt: territoryRequests.approvedAt,
+      requestedAt: territoryRequests.requestedAt,
+      publisherName: users.name,
+    })
     .from(territoryRequests)
+    .leftJoin(users, eq(territoryRequests.publisherId, users.id))
     .where(and(...conditions));
+
+  const requests = rows.map((r) => ({
+    ...r,
+    publisher: r.publisherName ? { name: r.publisherName } : null,
+  }));
 
   return NextResponse.json({ data: requests });
 }
