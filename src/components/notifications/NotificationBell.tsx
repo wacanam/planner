@@ -178,9 +178,13 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // Close dropdown on outside click (desktop only)
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click — desktop only, and only when NOT on mobile sheet
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      const isMobile = window.innerWidth < 640; // sm breakpoint
+      if (isMobile) return; // mobile uses backdrop button instead
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
@@ -246,16 +250,19 @@ export function NotificationBell() {
   };
 
   const mobileSheet = open && typeof document !== 'undefined' && createPortal(
-    <div className="sm:hidden fixed inset-0 z-[200] flex flex-col justify-end">
+    <div className="sm:hidden">
       {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="fixed inset-0 z-[199] bg-black/40 cursor-default"
         onClick={() => setOpen(false)}
         aria-label="Close notifications"
       />
-      {/* Sheet — anchored to bottom of viewport */}
-      <div className="relative bg-background rounded-t-2xl border-t border-border shadow-xl animate-in slide-in-from-bottom duration-300">
+      {/* Sheet — fixed to bottom of viewport */}
+      <div
+        ref={sheetRef}
+        className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl"
+      >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
