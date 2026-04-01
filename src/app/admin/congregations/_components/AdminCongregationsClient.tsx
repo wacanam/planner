@@ -156,7 +156,9 @@ export default function AdminCongregationsPage() {
     <ProtectedPage requiredRole={UserRole.ADMIN}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
         {error && (
-          <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">{error}</div>
+<div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
         )}
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
