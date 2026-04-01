@@ -29,8 +29,8 @@ jobs:
   create_neon_branch:
     name: Create Neon Branch
     outputs:
-      db_url: ${{ steps.create_neon_branch.outputs.db_url }}
-      db_url_with_pooler: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+      database_url_unpooled: ${{ steps.neon_cli.outputs.database_url_unpooled }}
+      database_url_pooled: ${{ steps.neon_cli.outputs.database_url_pooled }}
     needs: setup
     if: |
       github.event_name == 'pull_request' && (
@@ -116,7 +116,8 @@ jobs:
 
       - name: Post Schema Diff Comment to PR
         run: |
-          gh pr comment ${{ github.event.number }} --body $'✅ **Database Schema**\n\nPreview database branch created and migrations ran successfully!\n\n**Branch:** `preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}`\n\nFor detailed schema changes, check the Neon console.'
+          gh pr comment ${{ github.event.number }} \
+            --body $'✅ **Database Schema**\n\nPreview database branch created and migrations ran successfully!\n\n**Branch:** `preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}`\n\nFor detailed schema changes, check the Neon console.'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
