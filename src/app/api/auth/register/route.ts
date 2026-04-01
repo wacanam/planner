@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
 import { User, UserRole } from '@/entities/User';
-import { signToken } from '@/lib/jwt';
 import { AppError, handleApiError, errorResponse, successResponse } from '@/lib/error-handler';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -76,18 +75,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     await userRepo.save(user);
 
-    // Generate token
-    const token = signToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      congregationId: user.congregationId,
-    });
-
     return NextResponse.json(
       successResponse(
         {
-          token,
           user: {
             id: user.id,
             email: user.email,
@@ -96,7 +86,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             congregationId: user.congregationId,
           },
         },
-        'Account created successfully',
+        'Account created successfully. Please sign in.',
       ),
       { status: 201 },
     );
