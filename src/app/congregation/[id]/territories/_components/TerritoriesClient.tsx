@@ -287,8 +287,8 @@ export default function CongregationTerritoriesPage() {
         setAssignSuccess('');
       }, 1200);
       await fetchData();
-    } catch {
-      setAssignError('Failed to assign territory');
+    } catch (err) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
     } finally {
       setAssignLoading(false);
     }
@@ -749,15 +749,14 @@ export default function CongregationTerritoriesPage() {
                 <Input
                   placeholder="Search publishers…"
                   value={memberSearch}
-                  onFocus={() => setComboboxOpen(true)}
                   onChange={(e) => {
                     setMemberSearch(e.target.value);
                     setAssignUserId('');
-                    setComboboxOpen(true);
+                    setComboboxOpen(e.target.value.length > 0);
                   }}
                   autoComplete="off"
                 />
-                {comboboxOpen && (
+                {comboboxOpen && memberSearch.length > 0 && (
                   <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
                     <div className="max-h-48 overflow-y-auto divide-y divide-border">
                       {filteredMembers.length === 0 ? (
