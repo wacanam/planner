@@ -5,9 +5,8 @@ import {
   db,
   congregations,
   congregationMembers,
-  congregationJoinRequests,
   notifications,
-  JoinRequestStatus,
+  MemberStatus,
   CongregationRole,
   NotificationType,
 } from '@/db';
@@ -25,7 +24,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'congregationId is required.' }, { status: 400 });
   }
 
-  // Verify congregation exists
   const [congregation] = await db
     .select()
     .from(congregations)
@@ -36,9 +34,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Congregation not found.' }, { status: 404 });
   }
 
-  // Check already a member
-  const [existingMember] = await db
-    .select({ id: congregationMembers.id })
+  // Already a member (active or pending)
+  const [existing] = await db
+    .select()
     .from(congregationMembers)
     .where(
       and(
@@ -48,51 +46,37 @@ export async function POST(req: NextRequest) {
     )
     .limit(1);
 
-  if (existingMember) {
-    return NextResponse.json(
-      { error: 'You are already a member of this congregation.' },
-      { status: 409 }
-    );
+  if (existing) {
+    const msg =
+      existing.status === MemberStatus.ACTIVE
+        ? 'You are already a member of this congregation.'
+        : 'You already have a pending join request for this congregation.';
+    return NextResponse.json({ error: msg }, { status: 409 });
   }
 
-  // Check for existing pending request
-  const [existingRequest] = await db
-    .select({ id: congregationJoinRequests.id })
-    .from(congregationJoinRequests)
-    .where(
-      and(
-        eq(congregationJoinRequests.userId, user.userId),
-        eq(congregationJoinRequests.congregationId, congregationId),
-        eq(congregationJoinRequests.status, JoinRequestStatus.PENDING)
-      )
-    )
-    .limit(1);
-
-  if (existingRequest) {
-    return NextResponse.json(
-      { error: 'You already have a pending join request for this congregation.' },
-      { status: 409 }
-    );
-  }
-
-  // Create the join request
-  const [joinRequest] = await db
-    .insert(congregationJoinRequests)
+  // Insert as pending member
+  const [member] = await db
+    .insert(congregationMembers)
     .values({
-      congregationId,
       userId: user.userId,
-      message: message?.trim() || null,
-      status: JoinRequestStatus.PENDING,
+      congregationId,
+      status: MemberStatus.PENDING,
+      joinMessage: message?.trim() || null,
     })
     .returning();
 
-  // Notify all service overseers and territory servants in this congregation
-  const privilegedMembers = await db
+  // Notify service overseers and territory servants
+  const privileged = await db
     .select({ userId: congregationMembers.userId, role: congregationMembers.congregationRole })
     .from(congregationMembers)
-    .where(eq(congregationMembers.congregationId, congregationId));
+    .where(
+      and(
+        eq(congregationMembers.congregationId, congregationId),
+        eq(congregationMembers.status, MemberStatus.ACTIVE)
+      )
+    );
 
-  const toNotify = privilegedMembers.filter(
+  const toNotify = privileged.filter(
     (m) =>
       m.role === CongregationRole.SERVICE_OVERSEER ||
       m.role === CongregationRole.TERRITORY_SERVANT
@@ -106,7 +90,7 @@ export async function POST(req: NextRequest) {
         title: 'New Join Request',
         body: `Someone wants to join ${congregation.name}. Review their request.`,
         data: JSON.stringify({
-          joinRequestId: joinRequest.id,
+          memberId: member.id,
           congregationId,
           requestUserId: user.userId,
         }),
@@ -114,10 +98,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ data: joinRequest }, { status: 201 });
+  return NextResponse.json({ data: member }, { status: 201 });
 }
 
-// GET /api/congregations/join-requests — get current user's own join requests
+// GET /api/congregations/join-requests — current user's own join requests
 export async function GET(req: NextRequest) {
   const auth = withAuth(req);
   if (auth instanceof NextResponse) return auth;
@@ -125,13 +109,13 @@ export async function GET(req: NextRequest) {
 
   const requests = await db
     .select({
-      id: congregationJoinRequests.id,
-      congregationId: congregationJoinRequests.congregationId,
-      status: congregationJoinRequests.status,
-      message: congregationJoinRequests.message,
-      reviewNote: congregationJoinRequests.reviewNote,
-      requestedAt: congregationJoinRequests.requestedAt,
-      reviewedAt: congregationJoinRequests.reviewedAt,
+      id: congregationMembers.id,
+      congregationId: congregationMembers.congregationId,
+      status: congregationMembers.status,
+      joinMessage: congregationMembers.joinMessage,
+      reviewNote: congregationMembers.reviewNote,
+      joinedAt: congregationMembers.joinedAt,
+      reviewedAt: congregationMembers.reviewedAt,
       congregation: {
         id: congregations.id,
         name: congregations.name,
@@ -139,10 +123,14 @@ export async function GET(req: NextRequest) {
         country: congregations.country,
       },
     })
-    .from(congregationJoinRequests)
-    .leftJoin(congregations, eq(congregationJoinRequests.congregationId, congregations.id))
-    .where(eq(congregationJoinRequests.userId, user.userId))
-    .orderBy(congregationJoinRequests.requestedAt);
+    .from(congregationMembers)
+    .leftJoin(congregations, eq(congregationMembers.congregationId, congregations.id))
+    .where(
+      and(
+        eq(congregationMembers.userId, user.userId),
+        eq(congregationMembers.status, MemberStatus.PENDING)
+      )
+    );
 
   return NextResponse.json({ data: requests });
 }

@@ -5,93 +5,63 @@ import {
   db,
   congregations,
   congregationMembers,
-  congregationJoinRequests,
-  users,
   notifications,
-  JoinRequestStatus,
+  MemberStatus,
   CongregationRole,
   NotificationType,
 } from '@/db';
 
 // PATCH /api/congregations/:id/join-requests/:requestId — approve or reject
+// Only service_overseer can act
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; requestId: string }> }
 ) {
   const { id, requestId } = await params;
-
-  // Only service_overseer can approve/reject
   const auth = await withCongregationAuth(req, id, CongregationRole.SERVICE_OVERSEER);
   if (auth instanceof NextResponse) return auth;
   const { user } = auth;
 
   const body = await req.json();
-  const { status, reviewNote } = body as {
-    status: JoinRequestStatus;
-    reviewNote?: string;
-  };
+  const { status, reviewNote } = body as { status: MemberStatus; reviewNote?: string };
 
-  if (!([JoinRequestStatus.APPROVED, JoinRequestStatus.REJECTED] as string[]).includes(status)) {
+  if (!([MemberStatus.ACTIVE, MemberStatus.REJECTED] as string[]).includes(status)) {
     return NextResponse.json(
-      { error: 'status must be "approved" or "rejected".' },
+      { error: 'status must be "active" (approve) or "rejected".' },
       { status: 400 }
     );
   }
 
-  const [joinRequest] = await db
+  const [member] = await db
     .select()
-    .from(congregationJoinRequests)
+    .from(congregationMembers)
     .where(
       and(
-        eq(congregationJoinRequests.id, requestId),
-        eq(congregationJoinRequests.congregationId, id)
+        eq(congregationMembers.id, requestId),
+        eq(congregationMembers.congregationId, id),
+        eq(congregationMembers.status, MemberStatus.PENDING)
       )
     )
     .limit(1);
 
-  if (!joinRequest) {
-    return NextResponse.json({ error: 'Join request not found.' }, { status: 404 });
-  }
-
-  if (joinRequest.status !== JoinRequestStatus.PENDING) {
+  if (!member) {
     return NextResponse.json(
-      { error: 'This request has already been reviewed.' },
-      { status: 409 }
+      { error: 'Pending join request not found.' },
+      { status: 404 }
     );
   }
 
-  // Update the request
+  // Update the member record in place
   const [updated] = await db
-    .update(congregationJoinRequests)
+    .update(congregationMembers)
     .set({
       status,
       reviewedBy: user.userId,
       reviewedAt: new Date(),
       reviewNote: reviewNote?.trim() || null,
     })
-    .where(eq(congregationJoinRequests.id, requestId))
+    .where(eq(congregationMembers.id, requestId))
     .returning();
-
-  // If approved — add to congregation_members
-  if (status === JoinRequestStatus.APPROVED) {
-    const [alreadyMember] = await db
-      .select({ id: congregationMembers.id })
-      .from(congregationMembers)
-      .where(
-        and(
-          eq(congregationMembers.userId, joinRequest.userId),
-          eq(congregationMembers.congregationId, id)
-        )
-      )
-      .limit(1);
-
-    if (!alreadyMember) {
-      await db.insert(congregationMembers).values({
-        userId: joinRequest.userId,
-        congregationId: id,
-      });
-    }
-  }
 
   // Notify the requester
   const [congregation] = await db
@@ -100,15 +70,15 @@ export async function PATCH(
     .where(eq(congregations.id, id))
     .limit(1);
 
-  const isApproved = status === JoinRequestStatus.APPROVED;
+  const isApproved = status === MemberStatus.ACTIVE;
   await db.insert(notifications).values({
-    userId: joinRequest.userId,
+    userId: member.userId,
     type: isApproved ? NotificationType.JOIN_APPROVED : NotificationType.JOIN_REJECTED,
     title: isApproved ? 'Join Request Approved 🎉' : 'Join Request Not Approved',
     body: isApproved
-      ? `Your request to join ${congregation?.name ?? 'the congregation'} has been approved. You can now sign in and access the congregation.`
+      ? `Your request to join ${congregation?.name ?? 'the congregation'} has been approved. Sign in to access your congregation.`
       : `Your request to join ${congregation?.name ?? 'the congregation'} was not approved.${reviewNote ? ` Note: ${reviewNote}` : ''}`,
-    data: JSON.stringify({ congregationId: id, joinRequestId: requestId }),
+    data: JSON.stringify({ congregationId: id, memberId: requestId }),
   });
 
   return NextResponse.json({ data: updated });

@@ -1,19 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq, and, desc } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import {
-  db,
-  congregations,
-  congregationMembers,
-  congregationJoinRequests,
-  users,
-  notifications,
-  JoinRequestStatus,
-  CongregationRole,
-  NotificationType,
-} from '@/db';
+import { db, congregationMembers, users, MemberStatus, CongregationRole } from '@/db';
 
-// GET /api/congregations/:id/join-requests — list pending requests (overseer only)
+// GET /api/congregations/:id/join-requests — list pending requests (territory_servant+)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -23,33 +13,32 @@ export async function GET(
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(req.url);
-  const status =
-    (searchParams.get('status') as JoinRequestStatus | null) ?? JoinRequestStatus.PENDING;
+  const status = (searchParams.get('status') as MemberStatus | null) ?? MemberStatus.PENDING;
 
   const requests = await db
     .select({
-      id: congregationJoinRequests.id,
-      congregationId: congregationJoinRequests.congregationId,
-      status: congregationJoinRequests.status,
-      message: congregationJoinRequests.message,
-      reviewNote: congregationJoinRequests.reviewNote,
-      requestedAt: congregationJoinRequests.requestedAt,
-      reviewedAt: congregationJoinRequests.reviewedAt,
+      id: congregationMembers.id,
+      congregationId: congregationMembers.congregationId,
+      status: congregationMembers.status,
+      joinMessage: congregationMembers.joinMessage,
+      reviewNote: congregationMembers.reviewNote,
+      joinedAt: congregationMembers.joinedAt,
+      reviewedAt: congregationMembers.reviewedAt,
       user: {
         id: users.id,
         name: users.name,
         email: users.email,
       },
     })
-    .from(congregationJoinRequests)
-    .leftJoin(users, eq(congregationJoinRequests.userId, users.id))
+    .from(congregationMembers)
+    .leftJoin(users, eq(congregationMembers.userId, users.id))
     .where(
       and(
-        eq(congregationJoinRequests.congregationId, id),
-        eq(congregationJoinRequests.status, status)
+        eq(congregationMembers.congregationId, id),
+        eq(congregationMembers.status, status)
       )
     )
-    .orderBy(desc(congregationJoinRequests.requestedAt));
+    .orderBy(desc(congregationMembers.joinedAt));
 
   return NextResponse.json({ data: requests });
 }

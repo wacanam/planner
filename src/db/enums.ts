@@ -17,6 +17,15 @@ export const CongregationRole = {
 } as const;
 export type CongregationRole = (typeof CongregationRole)[keyof typeof CongregationRole];
 
+// ─── Member Status Enum ──────────────────────────────────────────────────────
+
+export const MemberStatus = {
+    PENDING: 'pending',
+    ACTIVE: 'active',
+    REJECTED: 'rejected',
+} as const;
+export type MemberStatus = (typeof MemberStatus)[keyof typeof MemberStatus];
+
 // ─── Group Role Enum ────────────────────────────────────────────────────────
 
 export const GroupRole = {
@@ -63,15 +72,6 @@ export const TerritoryRequestStatus = {
 } as const;
 export type TerritoryRequestStatus =
     (typeof TerritoryRequestStatus)[keyof typeof TerritoryRequestStatus];
-
-// ─── Join Request Status Enum ────────────────────────────────────────────────
-
-export const JoinRequestStatus = {
-    PENDING: 'pending',
-    APPROVED: 'approved',
-    REJECTED: 'rejected',
-} as const;
-export type JoinRequestStatus = (typeof JoinRequestStatus)[keyof typeof JoinRequestStatus];
 
 // ─── Notification Type Enum ──────────────────────────────────────────────────
 

@@ -2,7 +2,6 @@
 export * from './users';
 export * from './congregations';
 export * from './congregation-members';
-export * from './congregation-join-requests';
 export * from './groups';
 export * from './group-members';
 export * from './territories';

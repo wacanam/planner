@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, unique } from 'drizzle-orm/pg-core';
 
 export const congregationMembers = pgTable(
     'congregation_members',
@@ -7,6 +7,12 @@ export const congregationMembers = pgTable(
         userId: uuid('userId').notNull(),
         congregationId: uuid('congregationId').notNull(),
         congregationRole: varchar('congregationRole', { length: 50 }),
+        // pending = join request awaiting approval, active = full member
+        status: varchar('status', { length: 20 }).notNull().default('active'),
+        joinMessage: text('joinMessage'),   // message from the requester
+        reviewedBy: uuid('reviewedBy'),     // overseer who approved/rejected
+        reviewedAt: timestamp('reviewedAt'),
+        reviewNote: text('reviewNote'),
         joinedAt: timestamp('joinedAt').defaultNow().notNull(),
     },
     (t) => [unique().on(t.userId, t.congregationId)]

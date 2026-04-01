@@ -1,8 +1,8 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import { db, users, congregationMembers } from '@/db';
+import { eq, and } from 'drizzle-orm';
+import { db, users, congregationMembers, MemberStatus } from '@/db';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -58,7 +58,12 @@ export const authOptions: NextAuthOptions = {
             const [membership] = await db
               .select()
               .from(congregationMembers)
-              .where(eq(congregationMembers.userId, user.id))
+              .where(
+                and(
+                  eq(congregationMembers.userId, user.id),
+                  eq(congregationMembers.status, MemberStatus.ACTIVE)
+                )
+              )
               .limit(1);
             congregationId = membership?.congregationId ?? null;
           }

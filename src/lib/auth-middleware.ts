@@ -3,7 +3,7 @@ import { verifyToken, extractBearerToken } from '@/lib/jwt';
 import { hasPermission } from '@/lib/permissions';
 import type { JwtPayload } from '@/lib/jwt';
 import { eq, and } from 'drizzle-orm';
-import { db, users, congregationMembers, UserRole, CongregationRole } from '@/db';
+import { db, users, congregationMembers, UserRole, CongregationRole, MemberStatus } from '@/db';
 import type { CongregationMember } from '@/db';
 
 export type AuthenticatedRequest = NextRequest & { user: JwtPayload };
@@ -65,7 +65,8 @@ export async function withCongregationAuth(
     .where(
       and(
         eq(congregationMembers.userId, user.userId),
-        eq(congregationMembers.congregationId, congregationId)
+        eq(congregationMembers.congregationId, congregationId),
+        eq(congregationMembers.status, MemberStatus.ACTIVE)
       )
     )
     .limit(1);
