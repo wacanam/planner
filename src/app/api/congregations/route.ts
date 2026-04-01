@@ -1,6 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
-import { congregationMembers, congregations, db, UserRole } from '@/db';
+import { congregationMembers, congregations, db, UserRole, CongregationRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 
 // GET /api/congregations
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
   await db.insert(congregationMembers).values({
     userId: user.userId,
     congregationId: congregation.id,
+    congregationRole: CongregationRole.SERVICE_OVERSEER,
   });
 
   return NextResponse.json({ data: congregation }, { status: 201 });
