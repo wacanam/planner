@@ -1,8 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from 'typeorm';
 import { Household } from './Household';
 import { TerritoryAssignment } from './TerritoryAssignment';
-import { User } from './User';
-import { Encounter } from './Encounter';
 
 @Entity('visits')
 @Index('idx_visits_household', ['household'])
@@ -68,7 +66,4 @@ export class Visit {
 
   @Column('timestamp', { default: () => 'CURRENT_TIMESTAMP' })
   updatedAt!: Date;
-
-  @OneToMany(() => Encounter, (encounter) => encounter.visit)
-  encounters?: Encounter[];
 }

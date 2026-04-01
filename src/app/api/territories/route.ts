@@ -37,7 +37,6 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     });
-
     return paginatedResponse(territories, total, page, limit, requestId);
   } catch (err) {
     console.error('[GET /api/territories]', err);

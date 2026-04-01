@@ -1,9 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from 'typeorm';
 import { Congregation } from './Congregation';
 import { Territory } from './Territory';
 import { User } from './User';
-import { Visit } from './Visit';
-import { Encounter } from './Encounter';
 
 @Entity('households')
 @Index('idx_households_territory', ['territory'])
@@ -98,10 +96,4 @@ export class Household {
 
   @Column('uuid', { nullable: true })
   updatedByUserId?: string;
-
-  @OneToMany(() => Visit, (visit) => visit.household)
-  visits?: Visit[];
-
-  @OneToMany(() => Encounter, (encounter) => encounter.household)
-  encounters?: Encounter[];
 }

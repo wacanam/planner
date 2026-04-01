@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { TerritoryCard, type TerritoryCardData } from '@/components/territory-card';
 import Link from 'next/link';
 import { Plus, RefreshCw } from 'lucide-react';
+import { ApiErrorResponse } from '@/lib/api-response';
 
 type PaginatedResponse<T> = {
   success: boolean;
@@ -29,13 +30,13 @@ export default function TerritoriesPage() {
         `/api/territories?congregationId=${congregationId}&page=${p}&limit=20`,
         { headers: { Authorization: `Bearer ${token ?? ''}` } }
       );
-      const json = (await res.json()) as PaginatedResponse<TerritoryCardData>;
+      const json = (await res.json()) as PaginatedResponse<TerritoryCardData> | ApiErrorResponse;
       if (json.success) {
         setTerritories(json.data);
         setTotalPages(json.pagination.totalPages || 1);
         setPage(p);
       } else {
-        setError('Failed to load territories');
+        if ("error" in json) setError(json.error.message || 'Failed to load territories');
       }
     } catch {
       setError('Network error');
@@ -43,7 +44,6 @@ export default function TerritoriesPage() {
       setLoading(false);
     }
   }
-
   async function handleDelete(id: string) {
     if (!confirm('Delete this territory? This cannot be undone.')) return;
     const token = localStorage.getItem('token');
