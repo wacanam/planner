@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { TerritoryCard, type TerritoryCardData } from '@/components/territory-card';
 import Link from 'next/link';
 import { Plus, RefreshCw } from 'lucide-react';
-import { ApiErrorResponse } from '@/lib/api-response';
+import type { ApiErrorResponse } from '@/lib/api-response';
 
 type PaginatedResponse<T> = {
   success: boolean;

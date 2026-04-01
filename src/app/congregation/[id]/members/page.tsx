@@ -1,23 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Plus, Search, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { Users, Plus, Trash2, Search, UserCog } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useCallback, useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { fetchWithAuth } from '@/lib/api-client';
 
 interface Member {
   id: string;
@@ -47,7 +47,7 @@ export default function CongregationMembersPage() {
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
   const [removeLoading, setRemoveLoading] = useState(false);
 
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
     try {
       const json = await fetchWithAuth(`/api/congregations/${congregationId}/members`);
       if (json.data) {
@@ -59,11 +59,11 @@ export default function CongregationMembersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [congregationId]);
 
   useEffect(() => {
     if (congregationId) fetchMembers();
-  }, [congregationId]);
+  }, [congregationId, fetchMembers]);
 
   useEffect(() => {
     if (!search) {

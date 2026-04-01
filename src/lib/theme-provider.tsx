@@ -1,7 +1,7 @@
 'use client';
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 type ThemeAttribute = 'class' | 'data-theme' | 'data-mode';
 

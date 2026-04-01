@@ -1,24 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { CheckCircle, Clock, MapPin, Plus, Search } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { MapPin, Plus, Search, Clock, CheckCircle, Filter } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useCallback, useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { fetchWithAuth } from '@/lib/api-client';
 
 interface Territory {
   id: string;
@@ -66,7 +66,7 @@ export default function CongregationTerritoriesPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     const [tJson, rJson] = await Promise.all([
       fetchWithAuth(`/api/congregations/${congregationId}/territories`),
       fetchWithAuth(`/api/congregations/${congregationId}/territory-requests?status=pending`),
@@ -74,11 +74,11 @@ export default function CongregationTerritoriesPage() {
     if (tJson.data) setTerritories(tJson.data);
     if (rJson.data) setRequests(rJson.data);
     setLoading(false);
-  }
+  }, [congregationId]);
 
   useEffect(() => {
     if (congregationId) fetchData().catch(() => setLoading(false));
-  }, [congregationId]);
+  }, [congregationId, fetchData]);
 
   useEffect(() => {
     let list = territories;
@@ -174,6 +174,7 @@ export default function CongregationTerritoriesPage() {
         {/* Tabs */}
         <div className="flex border-b border-border">
           <button
+            type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === 'territories'
                 ? 'border-primary text-primary'
@@ -184,6 +185,7 @@ export default function CongregationTerritoriesPage() {
             Territories ({territories.length})
           </button>
           <button
+            type="button"
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               tab === 'requests'
                 ? 'border-primary text-primary'
@@ -219,6 +221,7 @@ export default function CongregationTerritoriesPage() {
               <div className="flex gap-1">
                 {['all', 'available', 'assigned', 'completed'].map((s) => (
                   <button
+                    type="button"
                     key={s}
                     onClick={() => setStatusFilter(s)}
                     className={`px-3 py-1.5 text-xs rounded-xl border transition-colors capitalize ${

@@ -1,8 +1,8 @@
-import type { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import { db, users, congregationMembers } from '@/db';
+import type { NextAuthOptions } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { congregationMembers, db, users } from '@/db';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -47,10 +47,7 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Your account has been disabled. Contact support for assistance.');
           }
 
-          await db
-            .update(users)
-            .set({ lastLoginAt: new Date() })
-            .where(eq(users.id, user.id));
+          await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
 
           // Resolve congregationId: prefer direct field, fall back to congregation_members
           let congregationId: string | null = user.congregationId ?? null;
@@ -63,7 +60,13 @@ export const authOptions: NextAuthOptions = {
             congregationId = membership?.congregationId ?? null;
           }
 
-          console.log('[auth] User signed in:', user.id, user.email, 'congregation:', congregationId);
+          console.log(
+            '[auth] User signed in:',
+            user.id,
+            user.email,
+            'congregation:',
+            congregationId
+          );
 
           return {
             id: user.id,
@@ -87,17 +90,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role;
-        token.congregationId = (user as { congregationId?: string | null }).congregationId;
+        token.role = user.role;
+        token.congregationId = user.congregationId;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
-        (session.user as { congregationId?: string | null }).congregationId =
-          token.congregationId as string | null;
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.user.congregationId = token.congregationId;
       }
       return session;
     },

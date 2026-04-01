@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, unique, uuid, varchar } from 'drizzle-orm/pg-core';
 import { GroupRole } from '../enums';
 
 export const groupMembers = pgTable(

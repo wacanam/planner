@@ -1,33 +1,42 @@
 'use client';
 
+import { LogOut, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { MapPin, LogOut, ChevronDown } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { UserRole } from '@/db';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
 function roleLabel(role: UserRole): string {
   switch (role) {
-    case UserRole.SUPER_ADMIN: return 'Super Admin';
-    case UserRole.ADMIN: return 'Admin';
-    case UserRole.SERVICE_OVERSEER: return 'Service Overseer';
-    case UserRole.TERRITORY_SERVANT: return 'Territory Servant';
-    default: return 'Member';
+    case UserRole.SUPER_ADMIN:
+      return 'Super Admin';
+    case UserRole.ADMIN:
+      return 'Admin';
+    case UserRole.SERVICE_OVERSEER:
+      return 'Service Overseer';
+    case UserRole.TERRITORY_SERVANT:
+      return 'Territory Servant';
+    default:
+      return 'Member';
   }
 }
 
 function roleBadgeClass(role: UserRole): string {
   switch (role) {
-    case UserRole.SUPER_ADMIN: return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400';
-    case UserRole.ADMIN: return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400';
-    case UserRole.SERVICE_OVERSEER: return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
-    case UserRole.TERRITORY_SERVANT: return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400';
-    default: return 'bg-muted text-muted-foreground border-border';
+    case UserRole.SUPER_ADMIN:
+      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400';
+    case UserRole.ADMIN:
+      return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400';
+    case UserRole.SERVICE_OVERSEER:
+      return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
+    case UserRole.TERRITORY_SERVANT:
+      return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
   }
 }
 
@@ -55,10 +64,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
       { href: '/admin/dashboard', label: 'Dashboard' },
       { href: '/admin/congregations', label: 'Congregations' },
     ];
-  } else if (
-    user.role === UserRole.SERVICE_OVERSEER ||
-    user.role === UserRole.TERRITORY_SERVANT
-  ) {
+  } else if (user.role === UserRole.SERVICE_OVERSEER || user.role === UserRole.TERRITORY_SERVANT) {
     const id = congregationId ?? user.congregationId ?? '';
     if (id) {
       navLinks = [

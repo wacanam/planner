@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, decimal, timestamp } from 'drizzle-orm/pg-core';
+import { decimal, integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { TerritoryStatus } from '../enums';
 
 export const territories = pgTable('territories', {

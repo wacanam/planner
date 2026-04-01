@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { UserRole } from '../enums';
 
 export const users = pgTable('users', {

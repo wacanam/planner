@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const offlineSyncQueue = pgTable('offline_sync_queue', {
     id: uuid('id').defaultRandom().primaryKey(),

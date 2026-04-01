@@ -1,7 +1,7 @@
+import { desc, eq } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
-import { eq, desc } from 'drizzle-orm';
+import { congregationMembers, congregations, db, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
-import { db, congregations, congregationMembers, UserRole } from '@/db';
 
 // GET /api/congregations
 export async function GET(req: NextRequest) {
@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 });
   }
 
-  const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
+  const slug = `${name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
 
   const [congregation] = await db
     .insert(congregations)

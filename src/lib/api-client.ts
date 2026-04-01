@@ -12,12 +12,17 @@ let tokenExpiryTime: number | null = null;
 async function getToken(): Promise<string> {
     // Return cached token if still valid (with 30s buffer)
     if (cachedToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 30000) {
+        console.log('[getToken] Returning cached token');
         return cachedToken;
     }
 
+    console.log('[getToken] Fetching new token from /api/auth/token');
     const res = await fetch('/api/auth/token');
+
     if (!res.ok) {
-        throw new Error('Failed to get authentication token');
+        const error = await res.json().catch(() => ({}));
+        console.error('[getToken] Token endpoint returned:', res.status, error);
+        throw new Error(`Failed to get authentication token: ${res.status}`);
     }
 
     const { token } = await res.json();
@@ -26,6 +31,7 @@ async function getToken(): Promise<string> {
     // Cache token for 6 minutes (assuming JWT is 7d, but refresh frequently)
     tokenExpiryTime = Date.now() + 6 * 60 * 1000;
 
+    console.log('[getToken] New token generated and cached');
     return token;
 }
 
@@ -39,25 +45,40 @@ export async function fetchWithAuth<T = any>(
     url: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const token = await getToken();
+    try {
+        const token = await getToken();
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-    };
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+            'Authorization': `Bearer ${token}`,
+        };
 
-    const res = await fetch(url, {
-        ...options,
-        headers,
-    });
+        const res = await fetch(url, {
+            ...options,
+            headers,
+        });
 
-    if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(error.error || `HTTP ${res.status}`);
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ error: 'Request failed' }));
+            const errorMsg = error.error || `HTTP ${res.status}`;
+
+            if (res.status === 401) {
+                // Clear token cache and provide helpful message
+                clearTokenCache();
+                throw new Error(`Authentication failed (${errorMsg}) - please try refreshing the page`);
+            }
+
+            throw new Error(errorMsg);
+        }
+
+        return res.json();
+    } catch (error) {
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('Failed to complete API request');
     }
-
-    return res.json();
 }
 
 /**

@@ -1,15 +1,16 @@
 // Export all tables and types
-export * from './users';
-export * from './congregations';
+
 export * from './congregation-members';
-export * from './groups';
-export * from './group-members';
-export * from './territories';
-export * from './service-groups';
-export * from './territory-assignments';
-export * from './territory-rotations';
-export * from './territory-requests';
-export * from './households';
-export * from './visits';
+export * from './congregations';
 export * from './encounters';
+export * from './group-members';
+export * from './groups';
+export * from './households';
 export * from './offline-sync-queue';
+export * from './service-groups';
+export * from './territories';
+export * from './territory-assignments';
+export * from './territory-requests';
+export * from './territory-rotations';
+export * from './users';
+export * from './visits';
