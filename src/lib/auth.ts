@@ -97,6 +97,10 @@ export const authOptions: NextAuthOptions = {
       if (trigger === 'update' && session?.congregationId !== undefined) {
         token.congregationId = session.congregationId;
       }
+      // Allow client-side session.update({ congregationId }) to refresh the token
+      if (trigger === 'update' && session?.congregationId !== undefined) {
+        token.congregationId = session.congregationId;
+      }
       return token;
     },
     async session({ session, token }) {
