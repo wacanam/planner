@@ -7,6 +7,10 @@ import { Menu, X, MapPin } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
+/** Routes that have their own DashboardHeader — hide the public header here */
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
+
+
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
   { href: '/#how-it-works', label: 'How It Works' },
@@ -15,7 +19,11 @@ const publicNavLinks = [
 export function Header() {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith('/auth');
+  const isDashboardPage = DASHBOARD_PREFIXES.some((p) => pathname.startsWith(p));
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Hide entirely on dashboard routes (they have their own header)
+  if (isDashboardPage) return null;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">

@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '@/lib/data-source';
 import { User } from '@/entities/User';
+import { CongregationMember } from '@/entities/CongregationMember';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -55,14 +56,22 @@ export const authOptions: NextAuthOptions = {
 
           await userRepo.update(user.id, { lastLoginAt: new Date() });
 
-          console.log('[auth] User signed in:', user.id, user.email);
+          // Resolve congregationId: prefer direct field, fall back to CongregationMember lookup
+          let congregationId: string | null = user.congregationId ?? null;
+          if (!congregationId) {
+            const memberRepo = AppDataSource.getRepository(CongregationMember);
+            const membership = await memberRepo.findOne({ where: { userId: user.id } });
+            congregationId = membership?.congregationId ?? null;
+          }
+
+          console.log('[auth] User signed in:', user.id, user.email, 'congregation:', congregationId);
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
-            congregationId: user.congregationId ?? null,
+            congregationId,
           };
         } catch (err) {
           if (err instanceof Error) {
