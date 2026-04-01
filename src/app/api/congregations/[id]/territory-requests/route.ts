@@ -33,8 +33,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       publisherId: territoryRequests.publisherId,
       territoryId: territoryRequests.territoryId,
       status: territoryRequests.status,
+      message: territoryRequests.message,
       approvedBy: territoryRequests.approvedBy,
       approvedAt: territoryRequests.approvedAt,
+      responseMessage: territoryRequests.responseMessage,
       requestedAt: territoryRequests.requestedAt,
       publisherName: users.name,
     })
@@ -58,7 +60,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { user } = auth;
 
   const body = await req.json();
-  const { territoryId } = body;
+  const { territoryId, message } = body;
+
+  if (!message?.trim()) {
+    return NextResponse.json({ error: 'message is required' }, { status: 400 });
+  }
 
   const [request] = await db
     .insert(territoryRequests)
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       congregationId: id,
       publisherId: user.userId,
       territoryId: territoryId ?? null,
+      message: message.trim(),
       status: TerritoryRequestStatus.PENDING,
     })
     .returning();

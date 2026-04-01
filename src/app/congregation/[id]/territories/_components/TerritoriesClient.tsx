@@ -36,6 +36,7 @@ interface TerritoryRequest {
   id: string;
   territoryId?: string | null;
   status: string;
+  message?: string | null;
   publisher?: { name: string } | null;
   approver?: { name: string };
   requestedAt: string;
@@ -120,6 +121,7 @@ export default function CongregationTerritoriesPage() {
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState('');
+  const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
 
   const fetchData = useCallback(async () => {
     const [tJson, rJson, mJson] = await Promise.all([
@@ -190,16 +192,22 @@ export default function CongregationTerritoriesPage() {
     setConfirmRequest(request);
     setConfirmAction(action);
     setConfirmError('');
+    setConfirmResponseMessage('');
   }
 
   function closeConfirmDialog() {
     setConfirmRequest(null);
     setConfirmAction(null);
     setConfirmError('');
+    setConfirmResponseMessage('');
   }
 
   async function handleConfirmAction() {
     if (!confirmRequest || !confirmAction) return;
+    if (confirmAction === 'reject' && !confirmResponseMessage.trim()) {
+      setConfirmError('A reason is required when rejecting a request.');
+      return;
+    }
     setConfirmLoading(true);
     setConfirmError('');
     try {
@@ -207,7 +215,10 @@ export default function CongregationTerritoriesPage() {
         `/api/congregations/${congregationId}/territory-requests/${confirmRequest.id}`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ status: confirmAction === 'approve' ? 'approved' : 'rejected' }),
+          body: JSON.stringify({
+            status: confirmAction === 'approve' ? 'approved' : 'rejected',
+            responseMessage: confirmResponseMessage.trim() || null,
+          }),
         }
       );
       closeConfirmDialog();
@@ -306,6 +317,10 @@ export default function CongregationTerritoriesPage() {
 
   async function handleRequest() {
     if (!requestTargetTerritory) return;
+    if (!requestMessage.trim()) {
+      setRequestError('A message to the overseer is required.');
+      return;
+    }
     setRequestLoading(true);
     setRequestError('');
     try {
@@ -313,7 +328,7 @@ export default function CongregationTerritoriesPage() {
         method: 'POST',
         body: JSON.stringify({
           territoryId: requestTargetTerritory.id,
-          message: requestMessage.trim() || undefined,
+          message: requestMessage.trim(),
         }),
       });
       setRequestDialogOpen(false);
@@ -599,6 +614,9 @@ export default function CongregationTerritoriesPage() {
                           {r.publisher?.name ?? 'Unknown Publisher'}
                         </p>
                         <p className="text-sm text-muted-foreground">requested a territory</p>
+                        {r.message && (
+                          <p className="text-xs text-foreground mt-1 italic">"{r.message}"</p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(r.requestedAt).toLocaleString()}
                         </p>
@@ -819,8 +837,7 @@ export default function CongregationTerritoriesPage() {
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="request-message" className="text-sm font-medium text-foreground">
-                Message to overseer{' '}
-                <span className="text-muted-foreground text-xs">(optional)</span>
+                Message to overseer <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={requestMessage}
@@ -828,6 +845,7 @@ export default function CongregationTerritoriesPage() {
                 id="request-message"
                 placeholder="e.g. I'd like to work this territory this week…"
                 rows={3}
+                required
                 disabled={requestLoading}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
               />
@@ -867,9 +885,35 @@ export default function CongregationTerritoriesPage() {
 
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
             <p className="text-sm font-semibold">{confirmRequest?.publisher?.name ?? 'Unknown Publisher'}</p>
+            {confirmRequest?.message && (
+              <p className="text-xs text-foreground italic">"{confirmRequest.message}"</p>
+            )}
             <p className="text-xs text-muted-foreground">
               Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
             </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="confirm-response-message" className="text-sm font-medium text-foreground">
+              {confirmAction === 'reject' ? (
+                <>Response message <span className="text-destructive">*</span></>
+              ) : (
+                <>Response message <span className="text-muted-foreground text-xs">(optional)</span></>
+              )}
+            </label>
+            <textarea
+              id="confirm-response-message"
+              rows={3}
+              value={confirmResponseMessage}
+              onChange={(e) => setConfirmResponseMessage(e.target.value)}
+              placeholder={
+                confirmAction === 'reject'
+                  ? 'Reason for rejection…'
+                  : 'Optional note to the publisher…'
+              }
+              disabled={confirmLoading}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+            />
           </div>
 
           {confirmError && (

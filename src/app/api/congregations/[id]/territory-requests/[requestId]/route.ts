@@ -24,10 +24,14 @@ export async function PATCH(
   const { user } = auth;
 
   const body = await req.json();
-  const { status } = body;
+  const { status, responseMessage } = body;
 
   if (![TerritoryRequestStatus.APPROVED, TerritoryRequestStatus.REJECTED].includes(status)) {
     return NextResponse.json({ error: 'status must be approved or rejected' }, { status: 400 });
+  }
+
+  if (status === TerritoryRequestStatus.REJECTED && !responseMessage?.trim()) {
+    return NextResponse.json({ error: 'responseMessage is required when rejecting' }, { status: 400 });
   }
 
   const [request] = await db
@@ -46,7 +50,12 @@ export async function PATCH(
 
   const [updated] = await db
     .update(territoryRequests)
-    .set({ status, approvedBy: user.userId, approvedAt: new Date() })
+    .set({
+      status,
+      approvedBy: user.userId,
+      approvedAt: new Date(),
+      responseMessage: responseMessage?.trim() || null,
+    })
     .where(eq(territoryRequests.id, requestId))
     .returning();
 
