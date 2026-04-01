@@ -1,7 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
 
 export function Footer() {
+  const pathname = usePathname();
+  if (DASHBOARD_PREFIXES.some((p) => pathname.startsWith(p))) return null;
+
   return (
     <footer className="border-t border-border/60 bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
