@@ -73,11 +73,7 @@ async function seed() {
 
   const regularUsers = [];
   for (const ud of usersData) {
-    const [existing] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, ud.email))
-      .limit(1);
+    const [existing] = await db.select().from(users).where(eq(users.email, ud.email)).limit(1);
 
     if (existing) {
       regularUsers.push(existing);
@@ -247,10 +243,7 @@ async function seed() {
       .select()
       .from(territories)
       .where(
-        and(
-          eq(territories.congregationId, congregation.id),
-          eq(territories.number, td.number)
-        )
+        and(eq(territories.congregationId, congregation.id), eq(territories.number, td.number))
       )
       .limit(1);
 
@@ -261,8 +254,7 @@ async function seed() {
         number: td.number,
         publisherId: td.publisherId ?? null,
         groupId: td.groupId ?? null,
-        status:
-          td.publisherId || td.groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
+        status: td.publisherId || td.groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
       });
       console.log(`✅ Created ${td.name}`);
     }

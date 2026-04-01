@@ -79,10 +79,7 @@
         "congregation_members_userId_congregationId_unique": {
           "name": "congregation_members_userId_congregationId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "userId",
-            "congregationId"
-          ]
+          "columns": ["userId", "congregationId"]
         }
       },
       "policies": {},
@@ -159,9 +156,7 @@
         "congregations_slug_unique": {
           "name": "congregations_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -328,10 +323,7 @@
         "group_members_userId_groupId_unique": {
           "name": "group_members_userId_groupId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "userId",
-            "groupId"
-          ]
+          "columns": ["userId", "groupId"]
         }
       },
       "policies": {},
@@ -1172,9 +1164,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

@@ -5,7 +5,6 @@ import {
   territoryAssignments,
   territories,
   users,
-  serviceGroups,
   UserRole,
   AssignmentStatus,
 } from '@/db';
@@ -46,9 +45,7 @@ export const GET = RequireRole(UserRole.SERVICE_OVERSEER)(
         .from(territoryAssignments)
         .leftJoin(territories, eq(territoryAssignments.territoryId, territories.id))
         .leftJoin(users, eq(territoryAssignments.userId, users.id))
-        .where(
-          inArray(territoryAssignments.territoryId, territoryIds)
-        )
+        .where(inArray(territoryAssignments.territoryId, territoryIds))
         .orderBy(desc(territoryAssignments.assignedAt));
 
       const active = all.filter((r) => r.assignment.status === AssignmentStatus.ACTIVE);

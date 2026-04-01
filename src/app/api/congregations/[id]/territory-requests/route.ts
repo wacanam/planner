@@ -1,13 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
 import { withCongregationAuth } from '@/lib/auth-middleware';
-import { db, territoryRequests, users, CongregationRole, TerritoryRequestStatus } from '@/db';
+import { db, territoryRequests, CongregationRole, TerritoryRequestStatus } from '@/db';
 
 // GET /api/congregations/:id/territory-requests
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;
@@ -38,10 +35,7 @@ export async function GET(
 }
 
 // POST /api/congregations/:id/territory-requests
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const auth = await withCongregationAuth(req, id);
   if (auth instanceof NextResponse) return auth;

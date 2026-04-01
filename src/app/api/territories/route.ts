@@ -118,16 +118,16 @@ export async function GET(req: NextRequest) {
           status: row.assignmentStatus,
           publisher: row.userId
             ? {
-              id: row.userId,
-              name: row.userName,
-              email: row.userEmail,
-            }
+                id: row.userId,
+                name: row.userName,
+                email: row.userEmail,
+              }
             : null,
           group: row.serviceGroupId
             ? {
-              id: row.serviceGroupId,
-              name: row.serviceGroupName,
-            }
+                id: row.serviceGroupId,
+                name: row.serviceGroupName,
+              }
             : null,
         };
       }

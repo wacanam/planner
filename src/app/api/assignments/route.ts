@@ -1,6 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db, territoryAssignments, territories, UserRole, AssignmentStatus, TerritoryStatus } from '@/db';
+import {
+  db,
+  territoryAssignments,
+  territories,
+  UserRole,
+  AssignmentStatus,
+  TerritoryStatus,
+} from '@/db';
 import { RequireRole } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId, validateRequired } from '@/lib/api-helpers';
 import type { JwtPayload } from '@/lib/jwt';

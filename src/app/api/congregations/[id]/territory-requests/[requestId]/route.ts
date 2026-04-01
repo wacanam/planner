@@ -18,18 +18,13 @@ export async function PATCH(
   const { status } = body;
 
   if (![TerritoryRequestStatus.APPROVED, TerritoryRequestStatus.REJECTED].includes(status)) {
-    return NextResponse.json(
-      { error: 'status must be approved or rejected' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'status must be approved or rejected' }, { status: 400 });
   }
 
   const [request] = await db
     .select()
     .from(territoryRequests)
-    .where(
-      and(eq(territoryRequests.id, requestId), eq(territoryRequests.congregationId, id))
-    )
+    .where(and(eq(territoryRequests.id, requestId), eq(territoryRequests.congregationId, id)))
     .limit(1);
 
   if (!request) {

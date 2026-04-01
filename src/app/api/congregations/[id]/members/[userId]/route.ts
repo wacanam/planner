@@ -27,12 +27,7 @@ export async function PATCH(
   const [member] = await db
     .select()
     .from(congregationMembers)
-    .where(
-      and(
-        eq(congregationMembers.userId, userId),
-        eq(congregationMembers.congregationId, id)
-      )
-    )
+    .where(and(eq(congregationMembers.userId, userId), eq(congregationMembers.congregationId, id)))
     .limit(1);
 
   if (!member) {

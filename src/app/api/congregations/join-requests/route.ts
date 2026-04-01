@@ -78,8 +78,7 @@ export async function POST(req: NextRequest) {
 
   const toNotify = privileged.filter(
     (m) =>
-      m.role === CongregationRole.SERVICE_OVERSEER ||
-      m.role === CongregationRole.TERRITORY_SERVANT
+      m.role === CongregationRole.SERVICE_OVERSEER || m.role === CongregationRole.TERRITORY_SERVANT
   );
 
   if (toNotify.length > 0) {

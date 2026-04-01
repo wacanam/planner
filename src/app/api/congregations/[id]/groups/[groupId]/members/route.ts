@@ -47,10 +47,7 @@ export async function POST(
     return NextResponse.json({ error: 'User is already in this group' }, { status: 409 });
   }
 
-  const [member] = await db
-    .insert(groupMembers)
-    .values({ userId, groupId, groupRole })
-    .returning();
+  const [member] = await db.insert(groupMembers).values({ userId, groupId, groupRole }).returning();
 
   return NextResponse.json({ data: member }, { status: 201 });
 }

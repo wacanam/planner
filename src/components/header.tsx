@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 /** Routes that have their own DashboardHeader — hide the public header here */
 const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
 
-
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
   { href: '/#how-it-works', label: 'How It Works' },

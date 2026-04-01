@@ -45,10 +45,7 @@ export async function PATCH(
     .limit(1);
 
   if (!member) {
-    return NextResponse.json(
-      { error: 'Pending join request not found.' },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: 'Pending join request not found.' }, { status: 404 });
   }
 
   // Update the member record in place
