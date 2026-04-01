@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { UserRole } from '@/entities/User';
+import type { CongregationRole } from '@/entities/CongregationMember';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '7d';
@@ -9,6 +10,7 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   congregationId?: string;
+  congregationRole?: CongregationRole | null;
 }
 
 export function signToken(payload: JwtPayload): string {
