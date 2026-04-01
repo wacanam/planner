@@ -7,10 +7,13 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Check,
 } from 'typeorm';
 import type { Congregation } from './Congregation';
 import type { TerritoryAssignment } from './TerritoryAssignment';
 import type { TerritoryRotation } from './TerritoryRotation';
+import type { User } from './User';
+import type { Group } from './Group';
 
 export enum TerritoryStatus {
   AVAILABLE = 'available',
@@ -20,6 +23,7 @@ export enum TerritoryStatus {
 }
 
 @Entity('territories')
+@Check(`"publisherId" IS NULL OR "groupId" IS NULL`)
 export class Territory {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -52,6 +56,20 @@ export class Territory {
   @ManyToOne('Congregation', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'congregationId' })
   congregation!: Congregation;
+
+  @Column({ type: 'uuid', nullable: true })
+  publisherId?: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  groupId?: string;
+
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'publisherId' })
+  publisher?: User;
+
+  @ManyToOne('Group', { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'groupId' })
+  group?: Group;
 
   @OneToMany('TerritoryAssignment', 'territory')
   assignments!: TerritoryAssignment[];
