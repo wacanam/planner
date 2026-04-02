@@ -2,7 +2,8 @@
 
 import { AlertCircle, Building2, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -29,12 +30,15 @@ interface Congregation {
   createdAt: string;
 }
 
+const fetcher = (url: string) => fetchWithAuth(url);
+
 export default function AdminCongregationsPage() {
-  const [congregations, setCongregations] = useState<Congregation[]>([]);
+  const { data: congregationsResponse, isLoading: loading, mutate: mutateCongregations } = useSWR('/api/congregations', fetcher);
+  const congregations = ((congregationsResponse as { data?: Congregation[] } | undefined)?.data ?? []) as Congregation[];
+
   const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error] = useState('');
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -56,24 +60,6 @@ export default function AdminCongregationsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Congregation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const fetchCongregations = useCallback(async () => {
-    try {
-      const json = await fetchWithAuth<{ data: Congregation[] }>('/api/congregations');
-      if (json.data) {
-        setCongregations(json.data);
-        setFiltered(json.data);
-      }
-    } catch {
-      setError('Failed to load congregations');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCongregations();
-  }, [fetchCongregations]);
 
   useEffect(() => {
     if (!search) {
@@ -104,7 +90,7 @@ export default function AdminCongregationsPage() {
       setCreateName('');
       setCreateCity('');
       setCreateCountry('');
-      await fetchCongregations();
+      await mutateCongregations();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create congregation');
     } finally {
@@ -130,7 +116,7 @@ export default function AdminCongregationsPage() {
         body: JSON.stringify({ name: editName, city: editCity, country: editCountry }),
       });
       setEditOpen(false);
-      await fetchCongregations();
+      await mutateCongregations();
     } catch {
       // ignore
     } finally {
@@ -144,7 +130,7 @@ export default function AdminCongregationsPage() {
     try {
       await fetchWithAuth(`/api/congregations/${deleteTarget.id}`, { method: 'DELETE' });
       setDeleteOpen(false);
-      await fetchCongregations();
+      await mutateCongregations();
     } catch {
       // ignore
     } finally {

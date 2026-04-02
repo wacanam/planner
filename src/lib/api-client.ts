@@ -1,7 +1,10 @@
 /**
- * API client utility that automatically includes the Bearer token from the session
- * Simplifies authenticated API requests throughout the app
+ * API client utility that automatically includes the Bearer token from the session.
+ * Built on axios with a request interceptor for auth. External API is unchanged:
+ * fetchWithAuth(url, options?) returns parsed JSON just like before.
  */
+
+import axios, { type AxiosRequestConfig } from 'axios';
 
 let cachedToken: string | null = null;
 let tokenExpiryTime: number | null = null;
@@ -17,65 +20,89 @@ async function getToken(): Promise<string> {
   }
 
   console.log('[getToken] Fetching new token from /api/auth/token');
-  const res = await fetch('/api/auth/token');
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    console.error('[getToken] Token endpoint returned:', res.status, error);
-    throw new Error(`Failed to get authentication token: ${res.status}`);
-  }
-
-  const { token } = await res.json();
+  const res = await axios.get<{ token: string }>('/api/auth/token');
+  const { token } = res.data;
   cachedToken = token;
 
-  // Cache token for 6 minutes (assuming JWT is 7d, but refresh frequently)
+  // Cache token for 6 minutes
   tokenExpiryTime = Date.now() + 6 * 60 * 1000;
 
   console.log('[getToken] New token generated and cached');
   return token;
 }
 
+// Axios instance shared for all API calls
+const apiClient = axios.create({
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Attach auth token before every request
+apiClient.interceptors.request.use(async (config) => {
+  const token = await getToken();
+  config.headers = config.headers ?? {};
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 /**
- * Make an authenticated API request with Bearer token
+ * Map a RequestInit-style options object to AxiosRequestConfig.
+ * This keeps the external call-sites unchanged.
+ */
+function toAxiosConfig(options: RequestInit): AxiosRequestConfig {
+  const config: AxiosRequestConfig = {};
+  if (options.method) config.method = options.method as AxiosRequestConfig['method'];
+  if (options.body) {
+    config.data =
+      typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+  }
+  if (options.headers) {
+    config.headers = options.headers as Record<string, string>;
+  }
+  return config;
+}
+
+/**
+ * Make an authenticated API request with Bearer token.
+ * Keeps the same external signature as the original fetch-based implementation.
+ *
  * @param url - The API endpoint
- * @param options - Fetch options (method, body, headers, etc.)
+ * @param options - Fetch-compatible options (method, body, headers, etc.)
  * @returns Parsed JSON response
  */
-export async function fetchWithAuth<T = Record<string, unknown>>(url: string, options: RequestInit = {}): Promise<T> {
+export async function fetchWithAuth<T = Record<string, unknown>>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> {
   try {
-    const token = await getToken();
+    const config = toAxiosConfig(options);
+    const response = await apiClient.request<T>({ url, ...config });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const body = error.response?.data as
+        | { error?: string | { message?: string } }
+        | undefined;
 
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-    };
-
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Request failed' }));
-      const errorData = error.error;
+      const errorData = body?.error;
       const errorMsg =
-        (typeof errorData === 'string' ? errorData : errorData?.message) || `HTTP ${res.status}`;
+        (typeof errorData === 'string'
+          ? errorData
+          : (errorData as { message?: string } | undefined)?.message) ??
+        `HTTP ${status ?? 'unknown'}`;
 
-      if (res.status === 401) {
-        // Clear token cache and provide helpful message
+      if (status === 401) {
         clearTokenCache();
-        throw new Error(`Authentication failed (${errorMsg}) - please try refreshing the page`);
+        throw new Error(
+          `Authentication failed (${errorMsg}) - please try refreshing the page`
+        );
       }
 
       throw new Error(errorMsg);
     }
-
-    return res.json();
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
+    if (error instanceof Error) throw error;
     throw new Error('Failed to complete API request');
   }
 }

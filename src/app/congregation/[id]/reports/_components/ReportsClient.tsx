@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BarChart2, Users, Activity, UserPlus, RotateCcw, MapPin } from 'lucide-react';
-import { fetchWithAuth } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { useCoverageReport, usePublishersReport, useActivityReport } from '@/hooks';
 
 interface CoverageData {
   totalTerritories: number;
@@ -75,37 +75,17 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
     params.set('tab', newTab);
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [router, searchParams]);
-  const [coverage, setCoverage] = useState<CoverageData | null>(null);
-  const [publishers, setPublishers] = useState<PublishersData | null>(null);
-  const [activity, setActivity] = useState<ActivityData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setError(null);
-    setLoading(true);
+  const { data: coverageRaw, isLoading: coverageLoading, error: coverageError } = useCoverageReport(congregationId);
+  const { data: publishersRaw, isLoading: publishersLoading, error: publishersError } = usePublishersReport(congregationId);
+  const { data: activityRaw, isLoading: activityLoading, error: activityError } = useActivityReport(congregationId);
 
-    const base = `/api/congregations/${congregationId}/reports`;
+  const coverage = coverageRaw as CoverageData | null;
+  const publishers = publishersRaw as PublishersData | null;
+  const activity = activityRaw as ActivityData | null;
 
-    if (tab === 'coverage' && !coverage) {
-      fetchWithAuth<{ data: CoverageData }>(`${base}/coverage`)
-        .then((json) => setCoverage(json.data))
-        .catch(() => setError('Failed to load coverage data'))
-        .finally(() => setLoading(false));
-    } else if (tab === 'publishers' && !publishers) {
-      fetchWithAuth<{ data: PublishersData }>(`${base}/publishers`)
-        .then((json) => setPublishers(json.data))
-        .catch(() => setError('Failed to load publishers data'))
-        .finally(() => setLoading(false));
-    } else if (tab === 'activity' && !activity) {
-      fetchWithAuth<{ data: ActivityData }>(`${base}/activity`)
-        .then((json) => setActivity(json.data))
-        .catch(() => setError('Failed to load activity data'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [tab, congregationId, coverage, publishers, activity]);
+  const loading = tab === 'coverage' ? coverageLoading : tab === 'publishers' ? publishersLoading : activityLoading;
+  const error = tab === 'coverage' ? coverageError : tab === 'publishers' ? publishersError : activityError;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'coverage', label: 'Coverage', icon: <BarChart2 size={15} /> },

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Bell, UserPlus, CheckCircle, XCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchWithAuth } from '@/lib/api-client';
 import { timeAgo } from '@/lib/time-ago';
 import { cn } from '@/lib/utils';
+import { useNotifications, useMarkNotificationsRead } from '@/hooks';
 
 interface Notification {
   id: string;
@@ -17,11 +17,6 @@ interface Notification {
   data: string | null;
   isRead: boolean;
   createdAt: string;
-}
-
-interface NotificationsResponse {
-  data: Notification[];
-  unreadCount: number;
 }
 
 function NotificationIcon({ type }: { type: string }) {
@@ -158,27 +153,13 @@ function NotificationList({
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const data = await fetchWithAuth<NotificationsResponse>('/api/notifications');
-      setNotifications((data.data ?? []).slice(0, 10));
-      setUnreadCount(data.unreadCount);
-    } catch {
-      // silently fail
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
-
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  const { notifications: allNotifications, unreadCount, mutate } = useNotifications();
+  const { markRead } = useMarkNotificationsRead();
+
+  const notifications = allNotifications.slice(0, 10);
 
   // Close dropdown on outside click — desktop only, and only when NOT on mobile sheet
   useEffect(() => {
@@ -207,14 +188,8 @@ export function NotificationBell() {
 
   const markAsRead = async (ids: string[]) => {
     try {
-      await fetchWithAuth('/api/notifications/read', {
-        method: 'POST',
-        body: JSON.stringify({ ids }),
-      });
-      setNotifications((prev) =>
-        prev.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - ids.length));
+      await markRead({ ids });
+      await mutate();
     } catch {
       // silently fail
     }
@@ -222,12 +197,8 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await fetchWithAuth('/api/notifications/read', {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
+      await markRead({});
+      await mutate();
     } catch {
       // silently fail
     }

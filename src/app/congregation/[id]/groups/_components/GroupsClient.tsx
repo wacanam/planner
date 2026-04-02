@@ -2,7 +2,7 @@
 
 import { FolderOpen, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchWithAuth } from '@/lib/api-client';
+import { useCongregationGroups, useCreateGroup } from '@/hooks';
 
 interface Group {
   id: string;
@@ -29,10 +30,12 @@ export default function CongregationGroupsPage() {
   const params = useParams();
   const congregationId = params?.id as string;
 
-  const [groups, setGroups] = useState<Group[]>([]);
+  const { data: groupsData, isLoading: loading, mutate: mutateGroups } = useCongregationGroups(congregationId);
+  const groups = groupsData as Group[];
+  const { create: createGroupMutation } = useCreateGroup(congregationId);
+
   const [filtered, setFiltered] = useState<Group[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -42,24 +45,6 @@ export default function CongregationGroupsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const fetchGroups = useCallback(async () => {
-    try {
-      const json = await fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`);
-      if (json.data) {
-        setGroups(json.data);
-        setFiltered(json.data);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [congregationId]);
-
-  useEffect(() => {
-    if (congregationId) fetchGroups();
-  }, [congregationId, fetchGroups]);
 
   useEffect(() => {
     if (!search) {
@@ -75,13 +60,10 @@ export default function CongregationGroupsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/groups`, {
-        method: 'POST',
-        body: JSON.stringify({ name: createName }),
-      });
+      await createGroupMutation({ name: createName });
       setCreateOpen(false);
       setCreateName('');
-      await fetchGroups();
+      await mutateGroups();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create group');
     } finally {
@@ -99,7 +81,7 @@ export default function CongregationGroupsPage() {
       );
       // Note: No direct group delete endpoint in current API — just close for now
       setDeleteOpen(false);
-      await fetchGroups();
+      await mutateGroups();
     } catch {
       // ignore
     } finally {
