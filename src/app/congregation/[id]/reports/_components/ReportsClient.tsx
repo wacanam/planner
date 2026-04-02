@@ -268,7 +268,6 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
                 )}
               </tbody>
             </table>
-          </div>
         </div>
       )}
 
