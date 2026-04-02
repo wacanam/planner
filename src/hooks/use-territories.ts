@@ -1,8 +1,8 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
-import { apiGet, apiPost, apiPatch } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
-const fetcher = (url: string) => apiGet(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get(url);
 
 export function useCongregationTerritories(congregationId: string) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -10,7 +10,7 @@ export function useCongregationTerritories(congregationId: string) {
     fetcher
   );
   return {
-    data: (data as { data: unknown[] } | undefined)?.data ?? [],
+    data: (data as unknown[] | undefined) ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -21,7 +21,7 @@ export function useCreateTerritory(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/territories`,
     (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiPost(url, arg).then(r => r.data)
+      apiClient.post(url, arg)
   );
   return { create: trigger, isCreating: isMutating };
 }
@@ -33,7 +33,7 @@ export function useCongregationTerritoryRequests(congregationId: string, status?
     fetcher
   );
   return {
-    data: (data as { data: unknown[] } | undefined)?.data ?? [],
+    data: (data as unknown[] | undefined) ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -44,7 +44,7 @@ export function useCreateTerritoryRequest(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/territory-requests`,
     (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiPost(url, arg).then(r => r.data)
+      apiClient.post(url, arg)
   );
   return { request: trigger, isRequesting: isMutating };
 }
@@ -56,14 +56,14 @@ export function useReviewTerritoryRequest(congregationId: string) {
       _url: string,
       { arg }: { arg: { requestId: string; status: string; responseMessage?: string | null; territoryId?: string } }
     ) =>
-      apiPatch(
+      apiClient.patch(
         `/api/congregations/${congregationId}/territory-requests/${arg.requestId}`,
         {
           status: arg.status,
           responseMessage: arg.responseMessage,
           ...(arg.territoryId ? { territoryId: arg.territoryId } : {}),
         }
-      ).then(r => r.data)
+      )
   );
   return { reviewRequest: trigger, isReviewing: isMutating };
 }

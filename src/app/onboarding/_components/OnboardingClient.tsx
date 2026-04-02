@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { apiGet, apiPost } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 type Mode = 'choose' | 'create' | 'join' | 'join-sent';
 
@@ -69,13 +69,13 @@ export default function OnboardingPage() {
     }
     setCreateLoading(true);
     try {
-      const { data } = await apiPost<{ data: { id: string } }, object>('/api/congregations', {
+      const congregation = await apiClient.post<{ id: string }, object>('/api/congregations', {
           name: createForm.name.trim(),
           city: createForm.city.trim() || undefined,
           country: createForm.country.trim() || undefined,
         });
-      await updateSession({ congregationId: data.data.id });
-      router.replace(`/congregation/${data.data.id}/dashboard`);
+      await updateSession({ congregationId: congregation.id });
+      router.replace(`/congregation/${congregation.id}/dashboard`);
       router.refresh();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -94,10 +94,10 @@ export default function OnboardingPage() {
     setSearchResults([]);
     setSelectedCong(null);
     try {
-      const { data } = await apiGet<{ data: SearchResult[] }>(
+      const results = await apiClient.get<SearchResult[]>(
         `/api/congregations/search?q=${encodeURIComponent(searchQuery.trim())}`
       );
-      setSearchResults(data.data ?? []);
+      setSearchResults(results ?? []);
     } catch {
       setSearchResults([]);
     } finally {
@@ -114,7 +114,7 @@ export default function OnboardingPage() {
     setJoinError('');
     setJoinLoading(true);
     try {
-      await apiPost('/api/congregations/join-requests', {
+      await apiClient.post('/api/congregations/join-requests', {
           congregationId: selectedCong.id,
           message: joinMessage.trim() || undefined,
         });

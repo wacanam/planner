@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
-import { apiGet } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import { DashboardHeader } from '@/components/dashboard-header';
 
-const fetcher = (url: string) => apiGet<{ data: { name: string } }>(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get<{ name: string }>(url);
 
 export default function CongregationLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -15,7 +15,7 @@ export default function CongregationLayout({ children }: { children: React.React
     congregationId ? `/api/congregations/${congregationId}` : null,
     fetcher
   );
-  const congregationName = data?.data?.name;
+  const congregationName = data?.name;
 
   return (
     <>

@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiGet } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
 interface Member {
@@ -67,7 +67,7 @@ const statusColors: Record<string, string> = {
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
 
-const fetcher = (url: string) => apiGet(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get(url);
 
 export default function CongregationDashboardPage() {
   const params = useParams();
@@ -101,11 +101,11 @@ export default function CongregationDashboardPage() {
 
   const loading = congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
 
-  const congregation = (congData as { data: { name: string } } | undefined)?.data ?? null;
-  const members = ((membersData as { data: Member[] } | undefined)?.data ?? []) as Member[];
-  const groups = ((groupsData as { data: Group[] } | undefined)?.data ?? []) as Group[];
-  const territories = ((territoriesData as { data: Territory[] } | undefined)?.data ?? []) as Territory[];
-  const requests = ((requestsData as { data: TerritoryRequest[] } | undefined)?.data ?? []) as TerritoryRequest[];
+  const congregation = (congData as { name: string } | undefined) ?? null;
+  const members = ((membersData as Member[] | undefined) ?? []) as Member[];
+  const groups = ((groupsData as Group[] | undefined) ?? []) as Group[];
+  const territories = ((territoriesData as Territory[] | undefined) ?? []) as Territory[];
+  const requests = ((requestsData as TerritoryRequest[] | undefined) ?? []) as TerritoryRequest[];
 
   const me = sessionUser?.id
     ? members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)

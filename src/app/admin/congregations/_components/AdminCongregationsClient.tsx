@@ -19,7 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserRole } from '@/db';
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 interface Congregation {
   id: string;
@@ -30,11 +30,11 @@ interface Congregation {
   createdAt: string;
 }
 
-const fetcher = (url: string) => apiGet(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get(url);
 
 export default function AdminCongregationsPage() {
   const { data: congregationsResponse, isLoading: loading, mutate: mutateCongregations } = useSWR('/api/congregations', fetcher);
-  const congregations = ((congregationsResponse as { data?: Congregation[] } | undefined)?.data ?? []) as Congregation[];
+  const congregations = ((congregationsResponse as Congregation[] | undefined) ?? []) as Congregation[];
 
   const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');
@@ -82,7 +82,7 @@ export default function AdminCongregationsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      await apiPost('/api/congregations', { name: createName, city: createCity, country: createCountry });
+      await apiClient.post('/api/congregations', { name: createName, city: createCity, country: createCountry });
       setCreateOpen(false);
       setCreateName('');
       setCreateCity('');
@@ -108,7 +108,7 @@ export default function AdminCongregationsPage() {
     if (!editTarget) return;
     setEditLoading(true);
     try {
-      await apiPatch(`/api/congregations/${editTarget.id}`, { name: editName, city: editCity, country: editCountry });
+      await apiClient.patch(`/api/congregations/${editTarget.id}`, { name: editName, city: editCity, country: editCountry });
       setEditOpen(false);
       await mutateCongregations();
     } catch {
@@ -122,7 +122,7 @@ export default function AdminCongregationsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await apiDelete(`/api/congregations/${deleteTarget.id}`);
+      await apiClient.delete(`/api/congregations/${deleteTarget.id}`);
       setDeleteOpen(false);
       await mutateCongregations();
     } catch {

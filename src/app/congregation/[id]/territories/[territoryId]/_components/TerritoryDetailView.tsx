@@ -9,7 +9,7 @@ import { CoverageChart } from '@/components/coverage-chart';
 import { ArrowLeft, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { apiGet } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 type Territory = {
   id: string;
@@ -51,7 +51,7 @@ function getAssigneeDisplayName(a: Assignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
-const fetcher = (url: string) => apiGet(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get(url);
 
 export default function TerritoryDetailView() {
   const { id: congregationId, territoryId } = useParams<{
@@ -70,8 +70,8 @@ export default function TerritoryDetailView() {
   );
 
   const loading = territoryLoading || assignmentsLoading;
-  const territory = (territoryResponse as { success: boolean; data: Territory } | undefined)?.data ?? null;
-  const assignments = (assignmentsResponse as { success: boolean; data: Assignment[] } | undefined)?.data ?? [];
+  const territory = (territoryResponse as Territory | undefined) ?? null;
+  const assignments = (assignmentsResponse as Assignment[] | undefined) ?? [];
   const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
 
   const backHref = `/congregation/${congregationId}/territories`;

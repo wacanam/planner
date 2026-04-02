@@ -1,11 +1,16 @@
 /**
  * Axios-based API client with:
  * - Request interceptor that injects Bearer token automatically
- * - Typed response generics (axios<T> style)
- * - Consistent error handling
+ * - Typed response generics — T is the payload, envelope unwrapped automatically
+ * - Consistent error handling via response interceptor
  */
 
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
+
+// ─── Standard API envelope ────────────────────────────────────────────────────
+
+/** All API routes return { data: T } (envelope). Helpers unwrap automatically. */
+export type ApiResponse<T> = { data: T; [key: string]: unknown };
 
 // ─── Token cache ──────────────────────────────────────────────────────────────
 
@@ -18,7 +23,7 @@ async function getToken(): Promise<string> {
   }
   const res = await axios.get<{ token: string }>('/api/auth/token');
   cachedToken = res.data.token;
-  tokenExpiryTime = Date.now() + 6 * 60 * 1000; // cache 6 min
+  tokenExpiryTime = Date.now() + 6 * 60 * 1000;
   return cachedToken;
 }
 
@@ -27,64 +32,62 @@ export function clearTokenCache(): void {
   tokenExpiryTime = null;
 }
 
-// ─── Axios instance ───────────────────────────────────────────────────────────
+// ─── Internal axios instance ──────────────────────────────────────────────────
 
-export const apiClient = axios.create({
+const _axiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Request interceptor — inject Bearer token on every request
-apiClient.interceptors.request.use(async (config) => {
+// Request interceptor — inject Bearer token
+_axiosInstance.interceptors.request.use(async (config) => {
   const token = await getToken();
   config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 // Response interceptor — normalise errors
-apiClient.interceptors.response.use(
+_axiosInstance.interceptors.response.use(
   (res) => res,
   (error) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const body = error.response?.data as { error?: string } | undefined;
       const msg = body?.error ?? `HTTP ${status ?? 'unknown'}`;
-
       if (status === 401) {
         clearTokenCache();
-        throw new Error(`Authentication failed — please refresh the page`);
+        throw new Error('Authentication failed — please refresh the page');
       }
-
       throw new Error(msg);
     }
     throw error;
   }
 );
 
-// ─── Typed helpers ─────────────────────────────────────────────────────────────
+// ─── Typed API client — T is the payload type, envelope unwrapped automatically
+//
+// Usage:
+//   const users = await apiClient.get<User[]>('/api/congregations/123/members');
+//   const territory = await apiClient.post<Territory>('/api/territories', { name, number });
 
-/** GET  /api/... */
-export function apiGet<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  return apiClient.get<T>(url, config);
-}
-
-/** POST /api/... */
-export function apiPost<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  return apiClient.post<T>(url, data, config);
-}
-
-/** PATCH /api/... */
-export function apiPatch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  return apiClient.patch<T>(url, data, config);
-}
-
-/** PUT /api/... */
-export function apiPut<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  return apiClient.put<T>(url, data, config);
-}
-
-/** DELETE /api/... */
-export function apiDelete<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  return apiClient.delete<T>(url, config);
-}
-
-
+export const apiClient = {
+  get: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.get<ApiResponse<T>>(url, config);
+    return res.data.data;
+  },
+  post: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.post<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  patch: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.patch<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  put: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.put<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  delete: async <T = void>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.delete<ApiResponse<T>>(url, config);
+    return res.data.data;
+  },
+};

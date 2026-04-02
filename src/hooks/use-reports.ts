@@ -1,7 +1,7 @@
 import useSWR from 'swr';
-import { apiGet } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
-const fetcher = (url: string) => apiGet(url).then(r => r.data);
+const fetcher = (url: string) => apiClient.get(url);
 
 export function useCoverageReport(congregationId: string) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -9,7 +9,7 @@ export function useCoverageReport(congregationId: string) {
     fetcher
   );
   return {
-    data: (data as { data: unknown } | undefined)?.data ?? null,
+    data: data ?? null,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -22,7 +22,7 @@ export function usePublishersReport(congregationId: string) {
     fetcher
   );
   return {
-    data: (data as { data: unknown } | undefined)?.data ?? null,
+    data: data ?? null,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -35,7 +35,7 @@ export function useActivityReport(congregationId: string) {
     fetcher
   );
   return {
-    data: (data as { data: unknown } | undefined)?.data ?? null,
+    data: data ?? null,
     isLoading,
     error: error?.message ?? null,
     mutate,

@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiGet, apiPost, apiPut } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 import {
   useCongregationTerritories,
@@ -98,15 +98,15 @@ export default function CongregationTerritoriesPage() {
 
   const { data: membersData } = useSWR(
     congregationId ? `/api/congregations/${congregationId}/members` : null,
-    (url: string) => apiGet(url).then(r => r.data)
+    (url: string) => apiClient.get(url)
   );
-  const members = ((membersData as { data?: Member[] } | undefined)?.data ?? []) as Member[];
+  const members = ((membersData as Member[] | undefined) ?? []) as Member[];
 
   const { data: groupsData } = useSWR(
     congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    (url: string) => apiGet(url).then(r => r.data)
+    (url: string) => apiClient.get(url)
   );
-  const groups = ((groupsData as { data?: Group[] } | undefined)?.data ?? []) as Group[];
+  const groups = ((groupsData as Group[] | undefined) ?? []) as Group[];
 
   const loading = territoriesLoading || requestsLoading;
 
@@ -328,7 +328,7 @@ export default function CongregationTerritoriesPage() {
     setAssignLoading(true);
     setAssignError('');
     try {
-      await apiPost('/api/assignments', {
+      await apiClient.post('/api/assignments', {
           territoryId: assignTerritory.id,
           ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
           dueAt: assignDueAt || undefined,
@@ -361,16 +361,16 @@ export default function CongregationTerritoriesPage() {
     setReturnError('');
     try {
       // Find the active assignment for this territory
-      const { data: aJson } = await apiGet<{ data: { id: string; status: string }[] }>(
+      const assignments = await apiClient.get<{ id: string; status: string }[]>(
         `/api/territories/${returnTerritory.id}/assignments`
       );
-      const activeAssignment = aJson.data?.find((a) => a.status === 'active');
+      const activeAssignment = assignments?.find((a) => a.status === 'active');
       if (!activeAssignment) {
         setReturnError('No active assignment found');
         setReturnLoading(false);
         return;
       }
-      await apiPut(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: returnNotes || undefined });
+      await apiClient.put(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: returnNotes || undefined });
       setReturnOpen(false);
       await mutateTerritories();
     } catch {

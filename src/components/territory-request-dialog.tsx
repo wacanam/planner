@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { apiPost } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 interface TerritoryRequestDialogProps {
   congregationId: string;
@@ -42,7 +42,7 @@ export function TerritoryRequestDialog({
     setLoading(true);
     setError(null);
     try {
-      await apiPost(`/api/congregations/${congregationId}/territory-requests`, { territoryId: territoryId ?? null, message: notes });
+      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, { territoryId: territoryId ?? null, message: notes });
       setSuccess(true);
       onSuccess?.();
       setTimeout(() => {

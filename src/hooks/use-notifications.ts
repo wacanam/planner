@@ -1,31 +1,28 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
-import { apiGet, apiPost } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
-const fetcher = (url: string) => apiGet<NotificationsResponse>(url).then(r => r.data);
-
-interface NotificationsResponse {
-  data: {
-    id: string;
-    type: string;
-    title: string;
-    body: string;
-    data: string | null;
-    isRead: boolean;
-    createdAt: string;
-  }[];
-  unreadCount: number;
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  data: string | null;
+  isRead: boolean;
+  createdAt: string;
 }
 
+const fetcher = (url: string) => apiClient.get<Notification[]>(url);
+
 export function useNotifications() {
-  const { data, error, isLoading, mutate } = useSWR<NotificationsResponse>(
+  const { data, error, isLoading, mutate } = useSWR<Notification[]>(
     '/api/notifications',
     fetcher,
     { refreshInterval: 30000 }
   );
   return {
-    notifications: data?.data ?? [],
-    unreadCount: data?.unreadCount ?? 0,
+    notifications: data ?? [],
+    unreadCount: (data ?? []).filter((n) => !n.isRead).length,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -36,7 +33,7 @@ export function useMarkNotificationsRead() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/notifications/read',
     (url: string, { arg }: { arg?: { ids?: string[] } }) =>
-      apiPost(url, arg ?? {}).then(r => r.data)
+      apiClient.post(url, arg ?? {})
   );
   return { markRead: trigger, isMarking: isMutating };
 }
