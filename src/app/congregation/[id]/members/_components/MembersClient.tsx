@@ -2,7 +2,7 @@
 
 import { Check, Clock, MessageSquare, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSession } from 'next-auth/react';
@@ -83,8 +83,6 @@ export default function CongregationMembersPage() {
 
   const [tab, setTab] = useState<Tab>('members');
 
-  // Members
-  const [filtered, setFiltered] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
 
   // Add member dialog
@@ -115,20 +113,15 @@ export default function CongregationMembersPage() {
     defaultValues: { reviewNote: '' },
   });
 
-  useEffect(() => {
-    if (!search) {
-      setFiltered(members);
-    } else {
-      const s = search.toLowerCase();
-      setFiltered(
-        members.filter(
-          (m) =>
-            m.user?.name?.toLowerCase().includes(s) ||
-            m.user?.email?.toLowerCase().includes(s) ||
-            m.congregationRole?.toLowerCase().includes(s)
-        )
-      );
-    }
+  const filtered = useMemo(() => {
+    if (!search) return members;
+    const s = search.toLowerCase();
+    return members.filter(
+      (m) =>
+        m.user?.name?.toLowerCase().includes(s) ||
+        m.user?.email?.toLowerCase().includes(s) ||
+        m.congregationRole?.toLowerCase().includes(s)
+    );
   }, [search, members]);
 
   async function handleAddMember(e: React.FormEvent) {
