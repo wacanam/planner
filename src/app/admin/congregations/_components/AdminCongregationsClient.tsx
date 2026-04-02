@@ -3,6 +3,8 @@
 import { AlertCircle, Building2, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ProtectedPage } from '@/components/protected-page';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +23,12 @@ import { UserRole } from '@/db';
 import { apiClient } from '@/lib/api-client';
 import { useCongregations } from '@/hooks';
 import type { Congregation } from '@/types/api';
+import {
+  createCongregationSchema,
+  type CreateCongregationFormData,
+  updateCongregationSchema,
+  type UpdateCongregationFormData,
+} from '@/schemas';
 
 export default function AdminCongregationsPage() {
   const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations();
@@ -31,19 +39,19 @@ export default function AdminCongregationsPage() {
 
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('');
-  const [createCity, setCreateCity] = useState('');
-  const [createCountry, setCreateCountry] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const createForm = useForm<CreateCongregationFormData>({
+    resolver: zodResolver(createCongregationSchema),
+    defaultValues: { name: '', city: '', country: '' },
+  });
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Congregation | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCity, setEditCity] = useState('');
-  const [editCountry, setEditCountry] = useState('');
-  const [editLoading, setEditLoading] = useState(false);
+  const editForm = useForm<UpdateCongregationFormData>({
+    resolver: zodResolver(updateCongregationSchema),
+    defaultValues: { name: '', city: '', country: '' },
+  });
 
   // Delete dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -66,44 +74,32 @@ export default function AdminCongregationsPage() {
     }
   }, [search, congregations]);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setCreateLoading(true);
+  async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
     try {
-      await apiClient.post('/api/congregations', { name: createName, city: createCity, country: createCountry });
+      await apiClient.post('/api/congregations', { name: data.name, city: data.city, country: data.country });
       setCreateOpen(false);
-      setCreateName('');
-      setCreateCity('');
-      setCreateCountry('');
+      createForm.reset();
       await mutateCongregations();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create congregation');
-    } finally {
-      setCreateLoading(false);
     }
   }
 
   function openEdit(c: Congregation) {
     setEditTarget(c);
-    setEditName(c.name);
-    setEditCity(c.city ?? '');
-    setEditCountry(c.country ?? '');
+    editForm.reset({ name: c.name, city: c.city ?? '', country: c.country ?? '' });
     setEditOpen(true);
   }
 
-  async function handleEdit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleEdit(data: UpdateCongregationFormData) {
     if (!editTarget) return;
-    setEditLoading(true);
     try {
-      await apiClient.patch(`/api/congregations/${editTarget.id}`, { name: editName, city: editCity, country: editCountry });
+      await apiClient.patch(`/api/congregations/${editTarget.id}`, { name: data.name, city: data.city, country: data.country });
       setEditOpen(false);
       await mutateCongregations();
     } catch {
       // ignore
-    } finally {
-      setEditLoading(false);
     }
   }
 
@@ -251,14 +247,13 @@ export default function AdminCongregationsPage() {
         </div>
       </div>
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Congregation</DialogTitle>
             <DialogDescription>Create a new congregation in the system.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4 mt-2">
+          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 mt-2">
             {createError && (
               <Alert variant="destructive">
                 <AlertCircle size={16} className="absolute left-4 top-3.5" />
@@ -269,32 +264,31 @@ export default function AdminCongregationsPage() {
               <Label htmlFor="c-name">Name *</Label>
               <Input
                 id="c-name"
-                required
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
+                {...createForm.register('name')}
                 placeholder="e.g. Central Congregation"
-                disabled={createLoading}
+                disabled={createForm.formState.isSubmitting}
               />
+              {createForm.formState.errors.name && (
+                <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="c-city">City</Label>
                 <Input
                   id="c-city"
-                  value={createCity}
-                  onChange={(e) => setCreateCity(e.target.value)}
+                  {...createForm.register('city')}
                   placeholder="Lagos"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="c-country">Country</Label>
                 <Input
                   id="c-country"
-                  value={createCountry}
-                  onChange={(e) => setCreateCountry(e.target.value)}
+                  {...createForm.register('country')}
                   placeholder="Nigeria"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                 />
               </div>
             </div>
@@ -302,8 +296,8 @@ export default function AdminCongregationsPage() {
               <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLoading}>
-                {createLoading ? 'Creating…' : 'Create Congregation'}
+              <Button type="submit" disabled={createForm.formState.isSubmitting}>
+                {createForm.formState.isSubmitting ? 'Creating…' : 'Create Congregation'}
               </Button>
             </DialogFooter>
           </form>
@@ -311,39 +305,38 @@ export default function AdminCongregationsPage() {
       </Dialog>
 
       {/* Edit dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) editForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Congregation</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEdit} className="space-y-4 mt-2">
+          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label htmlFor="e-name">Name *</Label>
               <Input
                 id="e-name"
-                required
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                disabled={editLoading}
+                {...editForm.register('name')}
+                disabled={editForm.formState.isSubmitting}
               />
+              {editForm.formState.errors.name && (
+                <p className="text-xs text-destructive mt-1">{editForm.formState.errors.name.message}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="e-city">City</Label>
                 <Input
                   id="e-city"
-                  value={editCity}
-                  onChange={(e) => setEditCity(e.target.value)}
-                  disabled={editLoading}
+                  {...editForm.register('city')}
+                  disabled={editForm.formState.isSubmitting}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="e-country">Country</Label>
                 <Input
                   id="e-country"
-                  value={editCountry}
-                  onChange={(e) => setEditCountry(e.target.value)}
-                  disabled={editLoading}
+                  {...editForm.register('country')}
+                  disabled={editForm.formState.isSubmitting}
                 />
               </div>
             </div>
@@ -351,8 +344,8 @@ export default function AdminCongregationsPage() {
               <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={editLoading}>
-                {editLoading ? 'Saving…' : 'Save Changes'}
+              <Button type="submit" disabled={editForm.formState.isSubmitting}>
+                {editForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>

@@ -3,6 +3,8 @@
 import { FolderOpen, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ProtectedPage } from '@/components/protected-page';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
 import type { Group } from '@/types/api';
 import { useCongregationGroups, useCreateGroup } from '@/hooks';
+import { createGroupSchema, type CreateGroupFormData } from '@/schemas';
 
 export default function CongregationGroupsPage() {
   const params = useParams();
@@ -32,9 +35,11 @@ export default function CongregationGroupsPage() {
   const [search, setSearch] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const createForm = useForm<CreateGroupFormData>({
+    resolver: zodResolver(createGroupSchema),
+    defaultValues: { name: '' },
+  });
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
@@ -49,19 +54,15 @@ export default function CongregationGroupsPage() {
     }
   }, [search, groups]);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setCreateLoading(true);
+  async function handleCreate(data: CreateGroupFormData) {
     setCreateError('');
     try {
-      await createGroupMutation({ name: createName });
+      await createGroupMutation({ name: data.name });
       setCreateOpen(false);
-      setCreateName('');
+      createForm.reset();
       await mutateGroups();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create group');
-    } finally {
-      setCreateLoading(false);
     }
   }
 
@@ -189,14 +190,13 @@ export default function CongregationGroupsPage() {
         )}
       </div>
 
-      {/* Create dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Group</DialogTitle>
             <DialogDescription>Create a new service group.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4 mt-2">
+          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 mt-2">
             {createError && (
               <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 {createError}
@@ -206,19 +206,20 @@ export default function CongregationGroupsPage() {
               <Label htmlFor="g-name">Group Name *</Label>
               <Input
                 id="g-name"
-                required
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
+                {...createForm.register('name')}
                 placeholder="e.g. Monday Group"
-                disabled={createLoading}
+                disabled={createForm.formState.isSubmitting}
               />
+              {createForm.formState.errors.name && (
+                <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+              )}
             </div>
             <DialogFooter className="gap-2 mt-4">
               <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLoading}>
-                {createLoading ? 'Creating…' : 'Create Group'}
+              <Button type="submit" disabled={createForm.formState.isSubmitting}>
+                {createForm.formState.isSubmitting ? 'Creating…' : 'Create Group'}
               </Button>
             </DialogFooter>
           </form>

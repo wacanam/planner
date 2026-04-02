@@ -6,10 +6,13 @@ import { signIn } from 'next-auth/react';
 import axios from 'axios';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { registerSchema, type RegisterFormData } from '@/schemas';
 
 type StrengthInfo = {
   label: string;
@@ -39,64 +42,45 @@ function getPasswordStrength(password: string): StrengthInfo {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    agreeTerms: false,
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const strength = getPasswordStrength(form.password);
-  const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
+  const passwordValue = watch('password') ?? '';
+  const confirmPasswordValue = watch('confirmPassword') ?? '';
+  const strength = getPasswordStrength(passwordValue);
+  const passwordsMatch = confirmPasswordValue.length > 0 && passwordValue === confirmPasswordValue;
   const passwordsDontMatch =
-    form.confirmPassword.length > 0 && form.password !== form.confirmPassword;
+    confirmPasswordValue.length > 0 && passwordValue !== confirmPasswordValue;
 
-  function update(field: string, value: string | boolean) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    setError('');
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(data: RegisterFormData) {
     setError('');
     setSuccess('');
 
-    const name = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
-    if (!form.firstName.trim()) {
-      setError('Please enter your first name.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (!form.agreeTerms) {
-      setError('Please agree to the terms to continue.');
-      return;
-    }
+    const name = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
 
-    setLoading(true);
     try {
-      // Step 1: Call /api/auth/register to create user
       const registerData = await axios
         .post<{ user?: unknown; error?: string }>('/api/auth/register', {
-          email: form.email,
-          password: form.password,
+          email: data.email,
+          password: data.password,
           name,
         })
         .then((r) => r.data)
@@ -111,10 +95,9 @@ export default function RegisterPage() {
       console.log('[register] User created:', registerData.user);
       setSuccess('Account created! Signing you in…');
 
-      // Step 2: Sign in the newly created user
       const signInResult = await signIn('credentials', {
-        email: form.email,
-        password: form.password,
+        email: data.email,
+        password: data.password,
         redirect: false,
       });
 
@@ -136,8 +119,6 @@ export default function RegisterPage() {
     } catch (err) {
       console.error('[register] catch error:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -170,7 +151,7 @@ export default function RegisterPage() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Name row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -179,12 +160,13 @@ export default function RegisterPage() {
                   id="firstName"
                   type="text"
                   autoComplete="given-name"
-                  required
-                  value={form.firstName}
-                  onChange={(e) => update('firstName', e.target.value)}
+                  {...register('firstName')}
                   placeholder="Jane"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 />
+                {errors.firstName && (
+                  <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="lastName">Last name</Label>
@@ -192,12 +174,13 @@ export default function RegisterPage() {
                   id="lastName"
                   type="text"
                   autoComplete="family-name"
-                  required
-                  value={form.lastName}
-                  onChange={(e) => update('lastName', e.target.value)}
+                  {...register('lastName')}
                   placeholder="Doe"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 />
+                {errors.lastName && (
+                  <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>
+                )}
               </div>
             </div>
 
@@ -208,12 +191,13 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
-                value={form.email}
-                onChange={(e) => update('email', e.target.value)}
+                {...register('email')}
                 placeholder="you@example.com"
-                disabled={loading}
+                disabled={isSubmitting}
               />
+              {errors.email && (
+                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -224,22 +208,23 @@ export default function RegisterPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
-                  required
-                  value={form.password}
-                  onChange={(e) => update('password', e.target.value)}
+                  {...register('password')}
                   placeholder="••••••••"
-                  disabled={loading}
+                  disabled={isSubmitting}
                   className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
+              )}
 
               {/* Password strength indicator */}
               <div className="mt-2">
@@ -268,23 +253,24 @@ export default function RegisterPage() {
                   id="confirmPassword"
                   type={showConfirm ? 'text' : 'password'}
                   autoComplete="new-password"
-                  required
-                  value={form.confirmPassword}
-                  onChange={(e) => update('confirmPassword', e.target.value)}
+                  {...register('confirmPassword')}
                   placeholder="••••••••"
-                  disabled={loading}
+                  disabled={isSubmitting}
                   className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={loading}
+                  disabled={isSubmitting}
                 >
                   {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {passwordsDontMatch && (
+              {errors.confirmPassword && (
+                <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>
+              )}
+              {!errors.confirmPassword && passwordsDontMatch && (
                 <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
               )}
               {passwordsMatch && <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>}
@@ -295,9 +281,8 @@ export default function RegisterPage() {
               <input
                 id="terms"
                 type="checkbox"
-                checked={form.agreeTerms}
-                onChange={(e) => update('agreeTerms', e.target.checked)}
-                disabled={loading}
+                {...register('agreeTerms')}
+                disabled={isSubmitting}
                 className="w-4 h-4 rounded border-border bg-background cursor-pointer mt-0.5"
               />
               <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
@@ -311,15 +296,18 @@ export default function RegisterPage() {
                 </Link>
               </label>
             </div>
+            {errors.agreeTerms && (
+              <p className="text-xs text-destructive mt-1">{errors.agreeTerms.message}</p>
+            )}
 
             {/* Submit button */}
             <Button
               type="submit"
-              disabled={loading || !form.agreeTerms}
+              disabled={isSubmitting}
               className="w-full mt-6"
               size="lg"
             >
-              {loading ? 'Creating account…' : 'Create account'}
+              {isSubmitting ? 'Creating account…' : 'Create account'}
             </Button>
           </form>
 

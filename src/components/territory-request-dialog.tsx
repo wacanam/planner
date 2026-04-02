@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
+import { requestTerritorySchema, type RequestTerritoryFormData } from '@/schemas';
 
 interface TerritoryRequestDialogProps {
   congregationId: string;
@@ -32,33 +35,32 @@ export function TerritoryRequestDialog({
   trigger,
 }: TerritoryRequestDialogProps) {
   const [open, setOpen] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
+  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<RequestTerritoryFormData>({
+    resolver: zodResolver(requestTerritorySchema),
+    defaultValues: { message: '' },
+  });
+
+  async function handleFormSubmit(data: RequestTerritoryFormData) {
     setError(null);
     try {
-      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, { territoryId: territoryId ?? null, message: notes });
+      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, { territoryId: territoryId ?? null, message: data.message });
       setSuccess(true);
       onSuccess?.();
       setTimeout(() => {
         setOpen(false);
         setSuccess(false);
-        setNotes('');
+        reset();
       }, 1500);
     } catch {
       setError('Failed to submit request. Please try again.');
-    } finally {
-      setLoading(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { reset(); setError(null); } }}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button size="sm">
@@ -87,16 +89,18 @@ export function TerritoryRequestDialog({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
+              <Label htmlFor="message">Notes (optional)</Label>
               <Textarea
-                id="notes"
+                id="message"
                 placeholder="Any notes for the overseer..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                {...register('message')}
                 rows={3}
               />
+              {errors.message && (
+                <p className="text-xs text-destructive mt-1">{errors.message.message}</p>
+              )}
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <DialogFooter>
@@ -104,12 +108,12 @@ export function TerritoryRequestDialog({
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
-                disabled={loading}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 size={14} className="animate-spin" />}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 size={14} className="animate-spin" />}
                 Submit Request
               </Button>
             </DialogFooter>

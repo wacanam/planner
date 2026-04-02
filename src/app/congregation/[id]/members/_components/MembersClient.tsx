@@ -3,6 +3,8 @@
 import { Check, Clock, MessageSquare, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +28,12 @@ import {
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
+import {
+  editMemberRoleSchema,
+  type EditMemberRoleFormData,
+  reviewJoinRequestSchema,
+  type ReviewJoinRequestFormData,
+} from '@/schemas';
 
 type Tab = 'members' | 'requests';
 
@@ -57,8 +65,8 @@ export default function CongregationMembersPage() {
   const requests: JoinRequest[] = requestsData;
   const pendingCount = requests.length;
 
-  const { review: reviewJoinRequest, isReviewing: reviewLoading } = useReviewJoinRequest(congregationId);
-  const { updateRole: updateMemberRole, isUpdating: editRoleLoading } = useUpdateMemberRole(congregationId);
+  const { review: reviewJoinRequest } = useReviewJoinRequest(congregationId);
+  const { updateRole: updateMemberRole } = useUpdateMemberRole(congregationId);
 
   // Determine current user's role from members data
   const myRole = members.find((m) => m.userId === sessionUser?.id)?.congregationRole ?? null;
@@ -93,13 +101,19 @@ export default function CongregationMembersPage() {
   // Edit role
   const [editRoleOpen, setEditRoleOpen] = useState(false);
   const [editRoleTarget, setEditRoleTarget] = useState<Member | null>(null);
-  const [editRoleValue, setEditRoleValue] = useState<string | null>(null);
+  const editRoleForm = useForm<EditMemberRoleFormData>({
+    resolver: zodResolver(editMemberRoleSchema),
+    defaultValues: { congregationRole: null },
+  });
 
   // Approve/reject
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<JoinRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<'active' | 'rejected'>('active');
-  const [reviewNote, setReviewNote] = useState('');
+  const reviewForm = useForm<ReviewJoinRequestFormData>({
+    resolver: zodResolver(reviewJoinRequestSchema),
+    defaultValues: { reviewNote: '' },
+  });
 
   useEffect(() => {
     if (!search) {
@@ -149,15 +163,16 @@ export default function CongregationMembersPage() {
 
   function openEditRole(member: Member) {
     setEditRoleTarget(member);
-    setEditRoleValue(member.congregationRole ?? null);
+    editRoleForm.reset({ congregationRole: (member.congregationRole as EditMemberRoleFormData['congregationRole']) ?? null });
     setEditRoleOpen(true);
   }
 
-  async function handleEditRole() {
+  async function handleEditRole(data: EditMemberRoleFormData) {
     if (!editRoleTarget) return;
     try {
-      await updateMemberRole({ userId: editRoleTarget.userId, congregationRole: editRoleValue });
+      await updateMemberRole({ userId: editRoleTarget.userId, congregationRole: data.congregationRole });
       setEditRoleOpen(false);
+      editRoleForm.reset();
       await mutateMembers();
     } catch {
       // ignore
@@ -167,15 +182,16 @@ export default function CongregationMembersPage() {
   function openReview(member: JoinRequest, action: 'active' | 'rejected') {
     setReviewTarget(member);
     setReviewAction(action);
-    setReviewNote('');
+    reviewForm.reset({ reviewNote: '' });
     setReviewOpen(true);
   }
 
-  async function handleReview() {
+  async function handleReview(data: ReviewJoinRequestFormData) {
     if (!reviewTarget) return;
     try {
-      await reviewJoinRequest({ requestId: reviewTarget.id, status: reviewAction, reviewNote });
+      await reviewJoinRequest({ requestId: reviewTarget.id, status: reviewAction, reviewNote: data.reviewNote });
       setReviewOpen(false);
+      reviewForm.reset();
       await Promise.all([mutateMembers(), mutateRequests()]);
     } catch {
       // ignore
@@ -486,7 +502,7 @@ export default function CongregationMembersPage() {
       </Dialog>
 
       {/* Edit Role Dialog */}
-      <Dialog open={editRoleOpen} onOpenChange={setEditRoleOpen}>
+      <Dialog open={editRoleOpen} onOpenChange={(open) => { setEditRoleOpen(open); if (!open) editRoleForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change Member Role</DialogTitle>
@@ -498,14 +514,14 @@ export default function CongregationMembersPage() {
 
           <div className="space-y-2">
             {[
-              { value: CongregationRole.SERVICE_OVERSEER, label: 'Service Overseer' },
-              { value: CongregationRole.TERRITORY_SERVANT, label: 'Territory Servant' },
-              { value: null, label: 'Publisher (no special role)' },
+              { value: CongregationRole.SERVICE_OVERSEER as EditMemberRoleFormData['congregationRole'], label: 'Service Overseer' },
+              { value: CongregationRole.TERRITORY_SERVANT as EditMemberRoleFormData['congregationRole'], label: 'Territory Servant' },
+              { value: null as EditMemberRoleFormData['congregationRole'], label: 'Publisher (no special role)' },
             ].map((option) => (
               <label
                 key={String(option.value)}
                 className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-colors ${
-                  editRoleValue === option.value
+                  editRoleForm.watch('congregationRole') === option.value
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:bg-muted/50'
                 }`}
@@ -514,8 +530,8 @@ export default function CongregationMembersPage() {
                   type="radio"
                   name="role"
                   value={String(option.value)}
-                  checked={editRoleValue === option.value}
-                  onChange={() => setEditRoleValue(option.value)}
+                  checked={editRoleForm.watch('congregationRole') === option.value}
+                  onChange={() => editRoleForm.setValue('congregationRole', option.value)}
                   className="accent-primary"
                 />
                 <span className="text-sm font-medium text-foreground">{option.label}</span>
@@ -527,12 +543,12 @@ export default function CongregationMembersPage() {
             <Button
               variant="outline"
               onClick={() => setEditRoleOpen(false)}
-              disabled={editRoleLoading}
+              disabled={editRoleForm.formState.isSubmitting}
             >
               Cancel
             </Button>
-            <Button onClick={handleEditRole} disabled={editRoleLoading}>
-              {editRoleLoading ? 'Saving…' : 'Save'}
+            <Button onClick={editRoleForm.handleSubmit(handleEditRole)} disabled={editRoleForm.formState.isSubmitting}>
+              {editRoleForm.formState.isSubmitting ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -560,7 +576,7 @@ export default function CongregationMembersPage() {
       </Dialog>
 
       {/* Review Join Request Dialog */}
-      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+      <Dialog open={reviewOpen} onOpenChange={(open) => { setReviewOpen(open); if (!open) reviewForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -574,7 +590,7 @@ export default function CongregationMembersPage() {
                 </>
               ) : (
                 <>
-                  <span className="font-semibold">{reviewTarget?.user?.name}</span>'s request will
+                  <span className="font-semibold">{reviewTarget?.user?.name}</span>&apos;s request will
                   be declined. They will be notified.
                 </>
               )}
@@ -594,8 +610,7 @@ export default function CongregationMembersPage() {
             </Label>
             <textarea
               id="reviewNote"
-              value={reviewNote}
-              onChange={(e) => setReviewNote(e.target.value)}
+              {...reviewForm.register('reviewNote')}
               rows={3}
               placeholder={
                 reviewAction === 'active'
@@ -604,23 +619,26 @@ export default function CongregationMembersPage() {
               }
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             />
+            {reviewForm.formState.errors.reviewNote && (
+              <p className="text-xs text-destructive mt-1">{reviewForm.formState.errors.reviewNote.message}</p>
+            )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewOpen(false)} disabled={reviewLoading}>
+            <Button variant="outline" onClick={() => setReviewOpen(false)} disabled={reviewForm.formState.isSubmitting}>
               Cancel
             </Button>
             {reviewAction === 'active' ? (
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
-                onClick={handleReview}
-                disabled={reviewLoading}
+                onClick={reviewForm.handleSubmit(handleReview)}
+                disabled={reviewForm.formState.isSubmitting}
               >
-                {reviewLoading ? 'Approving…' : 'Approve'}
+                {reviewForm.formState.isSubmitting ? 'Approving…' : 'Approve'}
               </Button>
             ) : (
-              <Button variant="destructive" onClick={handleReview} disabled={reviewLoading}>
-                {reviewLoading ? 'Rejecting…' : 'Reject'}
+              <Button variant="destructive" onClick={reviewForm.handleSubmit(handleReview)} disabled={reviewForm.formState.isSubmitting}>
+                {reviewForm.formState.isSubmitting ? 'Rejecting…' : 'Reject'}
               </Button>
             )}
           </DialogFooter>

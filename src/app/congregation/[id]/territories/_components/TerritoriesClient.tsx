@@ -3,6 +3,8 @@
 import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
@@ -33,6 +35,18 @@ import {
   useCreateTerritoryRequest,
   useReviewTerritoryRequest,
 } from '@/hooks';
+import {
+  createTerritorySchema,
+  type CreateTerritoryFormData,
+  assignTerritorySchema,
+  type AssignTerritoryFormData,
+  returnTerritorySchema,
+  type ReturnTerritoryFormData,
+  requestTerritorySchema,
+  type RequestTerritoryFormData,
+  reviewTerritoryRequestSchema,
+  type ReviewTerritoryRequestFormData,
+} from '@/schemas';
 
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -95,56 +109,60 @@ export default function CongregationTerritoriesPage() {
 
   // Create territory dialog
   const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState('');
-  const [createNumber, setCreateNumber] = useState('');
-  const [createNotes, setCreateNotes] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
+  const createForm = useForm<CreateTerritoryFormData>({
+    resolver: zodResolver(createTerritorySchema),
+    defaultValues: { name: '', number: '', notes: '' },
+  });
 
   // Assign dialog
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
-  const [assignUserId, setAssignUserId] = useState('');
-  const [assignDueAt, setAssignDueAt] = useState('');
-  const [assignNotes, setAssignNotes] = useState('');
-  const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [debouncedMemberSearch, setDebouncedMemberSearch] = useState('');
   const comboboxRef = useRef<HTMLDivElement>(null);
-  // Group combobox state
   const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
   const [assignGroupId, setAssignGroupId] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
   const [debouncedGroupSearch, setDebouncedGroupSearch] = useState('');
   const [groupComboboxOpen, setGroupComboboxOpen] = useState(false);
   const groupComboboxRef = useRef<HTMLDivElement>(null);
+  const assignForm = useForm<AssignTerritoryFormData>({
+    resolver: zodResolver(assignTerritorySchema),
+    defaultValues: { userId: '', dueAt: '', notes: '' },
+  });
 
   // Return dialog
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnTerritory, setReturnTerritory] = useState<Territory | null>(null);
-  const [returnNotes, setReturnNotes] = useState('');
-  const [returnLoading, setReturnLoading] = useState(false);
   const [returnError, setReturnError] = useState('');
+  const returnForm = useForm<ReturnTerritoryFormData>({
+    resolver: zodResolver(returnTerritorySchema),
+    defaultValues: { notes: '' },
+  });
 
   // Request dialog
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requestTargetTerritory, setRequestTargetTerritory] = useState<Territory | null>(null);
-  const [requestMessage, setRequestMessage] = useState('');
-  const [requestLoading, setRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState('');
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
+  const requestForm = useForm<RequestTerritoryFormData>({
+    resolver: zodResolver(requestTerritorySchema),
+    defaultValues: { message: '' },
+  });
 
   // Approve/Reject confirmation dialog
   const [confirmRequest, setConfirmRequest] = useState<TerritoryRequest | null>(null);
   const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState('');
-  const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
   const [confirmTerritoryId, setConfirmTerritoryId] = useState('');
-
+  const reviewRequestForm = useForm<ReviewTerritoryRequestFormData>({
+    resolver: zodResolver(reviewTerritoryRequestSchema),
+    defaultValues: { responseMessage: '' },
+  });
 
   useEffect(() => {
     let list = territories;
@@ -164,19 +182,16 @@ export default function CongregationTerritoriesPage() {
     setFiltered(list);
   }, [search, statusFilter, territories]);
 
-  // Debounce member search for combobox
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedMemberSearch(memberSearch), 400);
     return () => clearTimeout(timer);
   }, [memberSearch]);
 
-  // Debounce group search for combobox
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedGroupSearch(groupSearch), 400);
     return () => clearTimeout(timer);
   }, [groupSearch]);
 
-  // Close combobox dropdown on outside click
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
       if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
@@ -190,25 +205,19 @@ export default function CongregationTerritoriesPage() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setCreateLoading(true);
+  async function handleCreate(data: CreateTerritoryFormData) {
     setCreateError('');
     try {
       await createTerritory({
-        name: createName,
-        number: createNumber || createName,
-        notes: createNotes || undefined,
+        name: data.name,
+        number: data.number || data.name,
+        notes: data.notes || undefined,
       });
       setCreateOpen(false);
-      setCreateName('');
-      setCreateNumber('');
-      setCreateNotes('');
+      createForm.reset();
       await mutateTerritories();
     } catch {
       setCreateError('Network error');
-    } finally {
-      setCreateLoading(false);
     }
   }
 
@@ -216,36 +225,34 @@ export default function CongregationTerritoriesPage() {
     setConfirmRequest(request);
     setConfirmAction(action);
     setConfirmError('');
-    setConfirmResponseMessage('');
     setConfirmTerritoryId('');
+    reviewRequestForm.reset({ responseMessage: '' });
   }
 
   function closeConfirmDialog() {
     setConfirmRequest(null);
     setConfirmAction(null);
     setConfirmError('');
-    setConfirmResponseMessage('');
     setConfirmTerritoryId('');
+    reviewRequestForm.reset();
   }
 
-  async function handleConfirmAction() {
+  async function handleConfirmAction(data: ReviewTerritoryRequestFormData) {
     if (!confirmRequest || !confirmAction) return;
-    if (confirmAction === 'reject' && !confirmResponseMessage.trim()) {
+    if (confirmAction === 'reject' && !data.responseMessage?.trim()) {
       setConfirmError('A reason is required when rejecting a request.');
       return;
     }
-    // When approving a request that has no specific territory, the overseer must pick one
     if (confirmAction === 'approve' && !confirmRequest.territoryId && !confirmTerritoryId) {
       setConfirmError('Please select a territory to assign to the publisher.');
       return;
     }
-    setConfirmLoading(true);
     setConfirmError('');
     try {
       await reviewRequest({
         requestId: confirmRequest.id,
         status: confirmAction === 'approve' ? 'approved' : 'rejected',
-        responseMessage: confirmResponseMessage.trim() || null,
+        responseMessage: data.responseMessage?.trim() || null,
         ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
           ? { territoryId: confirmTerritoryId }
           : {}),
@@ -254,18 +261,13 @@ export default function CongregationTerritoriesPage() {
       await Promise.all([mutateTerritories(), mutateRequests()]);
     } catch {
       setConfirmError('Failed to process request. Please try again.');
-    } finally {
-      setConfirmLoading(false);
     }
   }
 
   function openAssignDialog(territory: Territory) {
     setAssignTerritory(territory);
     setAssignType('publisher');
-    setAssignUserId('');
     setAssignGroupId('');
-    setAssignDueAt('');
-    setAssignNotes('');
     setAssignError('');
     setAssignSuccess('');
     setMemberSearch('');
@@ -274,13 +276,13 @@ export default function CongregationTerritoriesPage() {
     setDebouncedGroupSearch('');
     setComboboxOpen(false);
     setGroupComboboxOpen(false);
+    assignForm.reset({ userId: '', dueAt: '', notes: '' });
     setAssignOpen(true);
   }
 
-  async function handleAssign(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleAssign(data: AssignTerritoryFormData) {
     if (!assignTerritory) return;
-    if (assignType === 'publisher' && !assignUserId) {
+    if (assignType === 'publisher' && !data.userId) {
       setAssignError('Please select a publisher');
       return;
     }
@@ -288,91 +290,81 @@ export default function CongregationTerritoriesPage() {
       setAssignError('Please select a group');
       return;
     }
-    setAssignLoading(true);
     setAssignError('');
     try {
       await apiClient.post('/api/assignments', {
-          territoryId: assignTerritory.id,
-          ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
-          dueAt: assignDueAt || undefined,
-          notes: assignNotes || undefined,
-        });
-      setAssignSuccess(`Territory assigned successfully!`);
+        territoryId: assignTerritory.id,
+        ...(assignType === 'publisher' ? { userId: data.userId } : { serviceGroupId: assignGroupId }),
+        dueAt: data.dueAt || undefined,
+        notes: data.notes || undefined,
+      });
+      setAssignSuccess('Territory assigned successfully!');
       setTimeout(() => {
         setAssignOpen(false);
         setAssignSuccess('');
+        assignForm.reset();
       }, 1200);
       await mutateTerritories();
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
-    } finally {
-      setAssignLoading(false);
     }
   }
 
   function openReturnDialog(territory: Territory) {
     setReturnTerritory(territory);
-    setReturnNotes('');
     setReturnError('');
+    returnForm.reset({ notes: '' });
     setReturnOpen(true);
   }
 
-  async function handleReturn(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleReturn(data: ReturnTerritoryFormData) {
     if (!returnTerritory) return;
-    setReturnLoading(true);
     setReturnError('');
     try {
-      // Find the active assignment for this territory
       const assignments = await apiClient.get<{ id: string; status: string }[]>(
         `/api/territories/${returnTerritory.id}/assignments`
       );
       const activeAssignment = assignments?.find((a) => a.status === 'active');
       if (!activeAssignment) {
         setReturnError('No active assignment found');
-        setReturnLoading(false);
         return;
       }
-      await apiClient.put(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: returnNotes || undefined });
+      await apiClient.put(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: data.notes || undefined });
       setReturnOpen(false);
+      returnForm.reset();
       await mutateTerritories();
     } catch {
       setReturnError('Failed to return territory');
-    } finally {
-      setReturnLoading(false);
     }
   }
 
   function openRequestDialog(territory: Territory) {
     setRequestTargetTerritory(territory);
-    setRequestMessage('');
     setRequestError('');
+    requestForm.reset({ message: '' });
     setRequestDialogOpen(true);
   }
 
-  async function handleRequest() {
+  async function handleRequest(data: RequestTerritoryFormData) {
     if (!requestTargetTerritory) return;
-    if (!requestMessage.trim()) {
+    if (!data.message?.trim()) {
       setRequestError('A message to the overseer is required.');
       return;
     }
-    setRequestLoading(true);
     setRequestError('');
     try {
       await createTerritoryRequest({
         territoryId: requestTargetTerritory.id,
-        message: requestMessage.trim(),
+        message: data.message.trim(),
       });
       setRequestDialogOpen(false);
       setRequestSuccess(requestTargetTerritory.id);
       setRequestTargetTerritory(null);
-      setRequestMessage('');
+      requestForm.reset();
       await mutateRequests();
       setTimeout(() => setRequestSuccess(null), 4000);
     } catch (err) {
       setRequestError(err instanceof Error ? err.message : 'Failed to send request. Please try again.');
-    } finally {
-      setRequestLoading(false);
     }
   }
 
@@ -567,7 +559,6 @@ export default function CongregationTerritoriesPage() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {/* Overseer: Assign button for available territories */}
                             {isOverseer && t.status === 'available' && (
                               <Button
                                 size="sm"
@@ -579,7 +570,6 @@ export default function CongregationTerritoriesPage() {
                                 Assign
                               </Button>
                             )}
-                            {/* Overseer: Return button for assigned territories */}
                             {isOverseer && t.status === 'assigned' && (
                               <Button
                                 size="sm"
@@ -591,7 +581,6 @@ export default function CongregationTerritoriesPage() {
                                 Return
                               </Button>
                             )}
-                            {/* Publisher: Request button for available territories */}
                             {!isOverseer && t.status === 'available' && (() => {
                               const alreadyRequested = requests.some((r) => r.territoryId === t.id);
                               if (requestSuccess === t.id) {
@@ -661,7 +650,7 @@ export default function CongregationTerritoriesPage() {
                             : 'requested any available territory'}
                         </p>
                         {r.message && (
-                          <p className="text-xs text-foreground mt-1 italic">"{r.message}"</p>
+                          <p className="text-xs text-foreground mt-1 italic">&quot;{r.message}&quot;</p>
                         )}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(r.requestedAt).toLocaleString()}
@@ -690,13 +679,13 @@ export default function CongregationTerritoriesPage() {
       </div>
 
       {/* Create territory dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Territory</DialogTitle>
             <DialogDescription>Create a new territory for this congregation.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4 mt-2">
+          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 mt-2">
             {createError && (
               <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 {createError}
@@ -707,40 +696,42 @@ export default function CongregationTerritoriesPage() {
                 <Label htmlFor="t-number">Number</Label>
                 <Input
                   id="t-number"
-                  value={createNumber}
-                  onChange={(e) => setCreateNumber(e.target.value)}
+                  {...createForm.register('number')}
                   placeholder="e.g. T-01"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                 />
+                {createForm.formState.errors.number && (
+                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.number.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="t-name">Name *</Label>
                 <Input
                   id="t-name"
-                  required
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
+                  {...createForm.register('name')}
                   placeholder="e.g. North District"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                 />
+                {createForm.formState.errors.name && (
+                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                )}
               </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="t-notes">Notes</Label>
               <Input
                 id="t-notes"
-                value={createNotes}
-                onChange={(e) => setCreateNotes(e.target.value)}
+                {...createForm.register('notes')}
                 placeholder="Optional notes…"
-                disabled={createLoading}
+                disabled={createForm.formState.isSubmitting}
               />
             </div>
             <DialogFooter className="gap-2 mt-4">
               <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLoading}>
-                {createLoading ? 'Creating…' : 'Add Territory'}
+              <Button type="submit" disabled={createForm.formState.isSubmitting}>
+                {createForm.formState.isSubmitting ? 'Creating…' : 'Add Territory'}
               </Button>
             </DialogFooter>
           </form>
@@ -748,7 +739,7 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Assign Territory dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+      <Dialog open={assignOpen} onOpenChange={(open) => { setAssignOpen(open); if (!open) { assignForm.reset(); setAssignSuccess(''); setAssignError(''); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>
@@ -756,7 +747,7 @@ export default function CongregationTerritoriesPage() {
               Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher or group.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAssign} className="space-y-4 mt-2">
+          <form onSubmit={assignForm.handleSubmit(handleAssign)} className="space-y-4 mt-2">
             {assignError && (
               <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 {assignError}
@@ -771,14 +762,14 @@ export default function CongregationTerritoriesPage() {
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 type="button"
-                onClick={() => { setAssignType('publisher'); setAssignGroupId(''); setGroupSearch(''); setGroupComboboxOpen(false); }}
+                onClick={() => { setAssignType('publisher'); setAssignGroupId(''); setGroupSearch(''); setGroupComboboxOpen(false); assignForm.setValue('userId', ''); }}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'publisher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
               >
                 Publisher
               </button>
               <button
                 type="button"
-                onClick={() => { setAssignType('group'); setAssignUserId(''); setMemberSearch(''); setComboboxOpen(false); }}
+                onClick={() => { setAssignType('group'); setMemberSearch(''); setComboboxOpen(false); assignForm.setValue('userId', ''); }}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
               >
                 Group
@@ -793,7 +784,7 @@ export default function CongregationTerritoriesPage() {
                     value={memberSearch}
                     onChange={(e) => {
                       setMemberSearch(e.target.value);
-                      setAssignUserId('');
+                      assignForm.setValue('userId', '');
                       setComboboxOpen(e.target.value.length > 0);
                     }}
                     autoComplete="off"
@@ -811,11 +802,11 @@ export default function CongregationTerritoriesPage() {
                               type="button"
                               key={m.id}
                               className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
-                                assignUserId === m.userId ? 'bg-primary/10 text-primary' : ''
+                                assignForm.watch('userId') === m.userId ? 'bg-primary/10 text-primary' : ''
                               }`}
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                setAssignUserId(m.userId);
+                                assignForm.setValue('userId', m.userId);
                                 setMemberSearch(m.user?.name ?? '');
                                 setComboboxOpen(false);
                               }}
@@ -829,6 +820,9 @@ export default function CongregationTerritoriesPage() {
                     </div>
                   )}
                 </div>
+                {assignForm.formState.errors.userId && (
+                  <p className="text-xs text-destructive mt-1">{assignForm.formState.errors.userId.message}</p>
+                )}
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -881,9 +875,8 @@ export default function CongregationTerritoriesPage() {
               <Input
                 id="assign-due"
                 type="date"
-                value={assignDueAt}
-                onChange={(e) => setAssignDueAt(e.target.value)}
-                disabled={assignLoading}
+                {...assignForm.register('dueAt')}
+                disabled={assignForm.formState.isSubmitting}
               />
             </div>
             <div className="space-y-1.5">
@@ -891,10 +884,9 @@ export default function CongregationTerritoriesPage() {
               <textarea
                 id="assign-notes"
                 rows={3}
-                value={assignNotes}
-                onChange={(e) => setAssignNotes(e.target.value)}
+                {...assignForm.register('notes')}
                 placeholder="Optional notes…"
-                disabled={assignLoading}
+                disabled={assignForm.formState.isSubmitting}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               />
             </div>
@@ -902,8 +894,8 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={assignLoading || (assignType === 'publisher' ? !assignUserId : !assignGroupId)}>
-                {assignLoading ? 'Assigning…' : 'Assign Territory'}
+              <Button type="submit" disabled={assignForm.formState.isSubmitting || (assignType === 'publisher' ? !assignForm.watch('userId') : !assignGroupId)}>
+                {assignForm.formState.isSubmitting ? 'Assigning…' : 'Assign Territory'}
               </Button>
             </DialogFooter>
           </form>
@@ -911,7 +903,7 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Return Territory dialog */}
-      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+      <Dialog open={returnOpen} onOpenChange={(open) => { setReturnOpen(open); if (!open) { returnForm.reset(); setReturnError(''); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Return Territory</DialogTitle>
@@ -919,7 +911,7 @@ export default function CongregationTerritoriesPage() {
               Mark <strong>#{returnTerritory?.number} {returnTerritory?.name}</strong> as returned?
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleReturn} className="space-y-4 mt-2">
+          <form onSubmit={returnForm.handleSubmit(handleReturn)} className="space-y-4 mt-2">
             {returnError && (
               <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 {returnError}
@@ -930,10 +922,9 @@ export default function CongregationTerritoriesPage() {
               <textarea
                 id="return-notes"
                 rows={3}
-                value={returnNotes}
-                onChange={(e) => setReturnNotes(e.target.value)}
+                {...returnForm.register('notes')}
                 placeholder="Optional notes on return…"
-                disabled={returnLoading}
+                disabled={returnForm.formState.isSubmitting}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               />
             </div>
@@ -941,15 +932,16 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setReturnOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={returnLoading} variant="outline" className="text-orange-600 border-orange-300">
-                {returnLoading ? 'Processing…' : 'Mark as Returned'}
+              <Button type="submit" disabled={returnForm.formState.isSubmitting} variant="outline" className="text-orange-600 border-orange-300">
+                {returnForm.formState.isSubmitting ? 'Processing…' : 'Mark as Returned'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Request Territory Dialog */}
-      <Dialog open={requestDialogOpen} onOpenChange={(o) => { setRequestDialogOpen(o); setRequestError(''); }}>
+      <Dialog open={requestDialogOpen} onOpenChange={(open) => { setRequestDialogOpen(open); if (!open) { requestForm.reset(); setRequestError(''); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Territory</DialogTitle>
@@ -962,35 +954,35 @@ export default function CongregationTerritoriesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <form onSubmit={requestForm.handleSubmit(handleRequest)} className="space-y-4">
             <div className="space-y-1.5">
               <label htmlFor="request-message" className="text-sm font-medium text-foreground">
                 Message to overseer <span className="text-destructive">*</span>
               </label>
               <textarea
-                value={requestMessage}
-                onChange={(e) => setRequestMessage(e.target.value)}
                 id="request-message"
-                placeholder="e.g. I'd like to work this territory this week…"
+                {...requestForm.register('message')}
+                placeholder="e.g. I&apos;d like to work this territory this week…"
                 rows={3}
-                required
-                disabled={requestLoading}
+                disabled={requestForm.formState.isSubmitting}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
               />
+              {requestForm.formState.errors.message && (
+                <p className="text-xs text-destructive mt-1">{requestForm.formState.errors.message.message}</p>
+              )}
             </div>
             {requestError && (
               <p className="text-sm text-destructive">{requestError}</p>
             )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requestLoading}>
-              Cancel
-            </Button>
-            <Button onClick={handleRequest} disabled={requestLoading}>
-              {requestLoading ? 'Sending…' : 'Send Request'}
-            </Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requestForm.formState.isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={requestForm.formState.isSubmitting}>
+                {requestForm.formState.isSubmitting ? 'Sending…' : 'Send Request'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -1016,14 +1008,13 @@ export default function CongregationTerritoriesPage() {
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
             <p className="text-sm font-semibold">{confirmRequest?.publisher?.name ?? 'Unknown Publisher'}</p>
             {confirmRequest?.message && (
-              <p className="text-xs text-foreground italic">"{confirmRequest.message}"</p>
+              <p className="text-xs text-foreground italic">&quot;{confirmRequest.message}&quot;</p>
             )}
             <p className="text-xs text-muted-foreground">
               Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
             </p>
           </div>
 
-          {/* Territory selector — only shown when approving a request with no specific territory */}
           {confirmAction === 'approve' && !confirmRequest?.territoryId && (
             <div className="space-y-1.5">
               <label htmlFor="confirm-territory-select" className="text-sm font-medium text-foreground">
@@ -1033,7 +1024,7 @@ export default function CongregationTerritoriesPage() {
                 id="confirm-territory-select"
                 value={confirmTerritoryId}
                 onChange={(e) => setConfirmTerritoryId(e.target.value)}
-                disabled={confirmLoading}
+                disabled={reviewRequestForm.formState.isSubmitting}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
                 <option value="">Select an available territory…</option>
@@ -1059,16 +1050,18 @@ export default function CongregationTerritoriesPage() {
             <textarea
               id="confirm-response-message"
               rows={3}
-              value={confirmResponseMessage}
-              onChange={(e) => setConfirmResponseMessage(e.target.value)}
+              {...reviewRequestForm.register('responseMessage')}
               placeholder={
                 confirmAction === 'reject'
                   ? 'Reason for rejection…'
                   : 'Optional note to the publisher…'
               }
-              disabled={confirmLoading}
+              disabled={reviewRequestForm.formState.isSubmitting}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
             />
+            {reviewRequestForm.formState.errors.responseMessage && (
+              <p className="text-xs text-destructive mt-1">{reviewRequestForm.formState.errors.responseMessage.message}</p>
+            )}
           </div>
 
           {confirmError && (
@@ -1079,16 +1072,16 @@ export default function CongregationTerritoriesPage() {
             <Button
               variant="outline"
               onClick={closeConfirmDialog}
-              disabled={confirmLoading}
+              disabled={reviewRequestForm.formState.isSubmitting}
             >
               Cancel
             </Button>
             <Button
               variant={confirmAction === 'reject' ? 'destructive' : 'default'}
-              onClick={handleConfirmAction}
-              disabled={confirmLoading}
+              onClick={reviewRequestForm.handleSubmit(handleConfirmAction)}
+              disabled={reviewRequestForm.formState.isSubmitting}
             >
-              {confirmLoading
+              {reviewRequestForm.formState.isSubmitting
                 ? 'Processing…'
                 : confirmAction === 'approve'
                   ? 'Approve'
