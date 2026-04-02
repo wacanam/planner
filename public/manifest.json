@@ -1,18 +1,36 @@
 {
-  "name": "Planner",
+  "name": "Ministry Planner",
   "short_name": "Planner",
-  "description": "A fullstack location-based planner with Next.js and PostGIS",
+  "description": "Territory management for congregations",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
-  "orientation": "portrait-primary",
+  "theme_color": "#6B9ECC",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23000' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='120' fill='%23fff' font-family='system-ui'>📍</text></svg>",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Territories",
+      "url": "/territories",
+      "description": "View your assigned territories"
+    },
+    {
+      "name": "Notifications",
+      "url": "/notifications",
+      "description": "View notifications"
     }
   ]
 }

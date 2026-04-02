@@ -5,6 +5,7 @@ import { Footer } from '@/components/footer';
 import { Header } from '@/components/header';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { Providers } from './providers';
+import { OfflineIndicator } from '@/components/offline-indicator';
 import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
 
 const geistSans = Geist({
@@ -65,6 +66,7 @@ export default function RootLayout({
         >
           <ServiceWorkerRegistrar />
           <Providers>
+            <OfflineIndicator />
             <Header />
             <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
