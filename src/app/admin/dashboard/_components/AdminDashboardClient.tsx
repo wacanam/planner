@@ -2,41 +2,16 @@
 
 import { ArrowRight, Building2, Globe, Plus, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/db';
-import { fetchWithAuth } from '@/lib/api-client';
-
-interface Congregation {
-  id: string;
-  name: string;
-  city?: string;
-  country?: string;
-  status: string;
-  createdAt: string;
-}
+import { useCongregations } from '@/hooks';
 
 export default function AdminDashboardPage() {
-  const [congregations, setCongregations] = useState<Congregation[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const json = await fetchWithAuth<{ data: Congregation[] }>('/api/congregations');
-        if (json.data) setCongregations(json.data);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+  const { congregations, isLoading: loading } = useCongregations();
 
   const totalActive = congregations.filter((c) => c.status === 'active').length;
 

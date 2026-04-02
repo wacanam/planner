@@ -1,89 +1,93 @@
 /**
- * API client utility that automatically includes the Bearer token from the session
- * Simplifies authenticated API requests throughout the app
+ * Axios-based API client with:
+ * - Request interceptor that injects Bearer token automatically
+ * - Typed response generics — T is the payload, envelope unwrapped automatically
+ * - Consistent error handling via response interceptor
  */
+
+import axios, { type AxiosRequestConfig } from 'axios';
+
+// ─── Standard API envelope ────────────────────────────────────────────────────
+
+/** All API routes return { data: T } (envelope). Helpers unwrap automatically. */
+export type ApiResponse<T> = { data: T; [key: string]: unknown };
+
+// ─── Token cache ──────────────────────────────────────────────────────────────
 
 let cachedToken: string | null = null;
 let tokenExpiryTime: number | null = null;
 
-/**
- * Get a fresh token from the session
- */
 async function getToken(): Promise<string> {
-  // Return cached token if still valid (with 30s buffer)
-  if (cachedToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 30000) {
-    console.log('[getToken] Returning cached token');
+  if (cachedToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 30_000) {
     return cachedToken;
   }
-
-  console.log('[getToken] Fetching new token from /api/auth/token');
-  const res = await fetch('/api/auth/token');
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    console.error('[getToken] Token endpoint returned:', res.status, error);
-    throw new Error(`Failed to get authentication token: ${res.status}`);
-  }
-
-  const { token } = await res.json();
-  cachedToken = token;
-
-  // Cache token for 6 minutes (assuming JWT is 7d, but refresh frequently)
+  const res = await axios.get<{ token: string }>('/api/auth/token');
+  cachedToken = res.data.token;
   tokenExpiryTime = Date.now() + 6 * 60 * 1000;
-
-  console.log('[getToken] New token generated and cached');
-  return token;
+  return cachedToken;
 }
 
-/**
- * Make an authenticated API request with Bearer token
- * @param url - The API endpoint
- * @param options - Fetch options (method, body, headers, etc.)
- * @returns Parsed JSON response
- */
-export async function fetchWithAuth<T = Record<string, unknown>>(url: string, options: RequestInit = {}): Promise<T> {
-  try {
-    const token = await getToken();
-
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-      Authorization: `Bearer ${token}`,
-    };
-
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Request failed' }));
-      const errorData = error.error;
-      const errorMsg =
-        (typeof errorData === 'string' ? errorData : errorData?.message) || `HTTP ${res.status}`;
-
-      if (res.status === 401) {
-        // Clear token cache and provide helpful message
-        clearTokenCache();
-        throw new Error(`Authentication failed (${errorMsg}) - please try refreshing the page`);
-      }
-
-      throw new Error(errorMsg);
-    }
-
-    return res.json();
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Failed to complete API request');
-  }
-}
-
-/**
- * Clear the cached token (call on logout)
- */
 export function clearTokenCache(): void {
   cachedToken = null;
   tokenExpiryTime = null;
 }
+
+// ─── Internal axios instance ──────────────────────────────────────────────────
+
+const _axiosInstance = axios.create({
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Request interceptor — inject Bearer token
+_axiosInstance.interceptors.request.use(async (config) => {
+  const token = await getToken();
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Response interceptor — normalise errors
+_axiosInstance.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const body = error.response?.data as { error?: string } | undefined;
+      const msg = body?.error ?? `HTTP ${status ?? 'unknown'}`;
+      if (status === 401) {
+        clearTokenCache();
+        throw new Error('Authentication failed — please refresh the page');
+      }
+      throw new Error(msg);
+    }
+    throw error;
+  }
+);
+
+// ─── Typed API client — T is the payload type, envelope unwrapped automatically
+//
+// Usage:
+//   const users = await apiClient.get<User[]>('/api/congregations/123/members');
+//   const territory = await apiClient.post<Territory>('/api/territories', { name, number });
+
+export const apiClient = {
+  get: async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.get<ApiResponse<T>>(url, config);
+    return res.data.data;
+  },
+  post: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.post<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  patch: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.patch<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  put: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.put<ApiResponse<T>>(url, data, config);
+    return res.data.data;
+  },
+  delete: async <T = void>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    const res = await _axiosInstance.delete<ApiResponse<T>>(url, config);
+    return res.data.data;
+  },
+};

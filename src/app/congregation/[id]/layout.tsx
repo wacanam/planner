@@ -1,23 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useCongregation } from '@/hooks';
 import { DashboardHeader } from '@/components/dashboard-header';
 
 export default function CongregationLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const congregationId = params?.id as string;
-  const [congregationName, setCongregationName] = useState<string | undefined>();
 
-  useEffect(() => {
-    if (!congregationId) return;
-    fetch(`/api/congregations/${congregationId}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.data?.name) setCongregationName(json.data.name);
-      })
-      .catch(() => {});
-  }, [congregationId]);
+  const { congregation: data } = useCongregation(congregationId ?? null);
+  const congregationName = data?.name;
 
   return (
     <>

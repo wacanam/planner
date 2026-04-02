@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { Bell, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchWithAuth } from '@/lib/api-client';
 import { timeAgo } from '@/lib/time-ago';
 import { cn } from '@/lib/utils';
+import { useNotifications, useMarkNotificationsRead } from '@/hooks';
 
 interface Notification {
   id: string;
@@ -15,11 +14,6 @@ interface Notification {
   data: string | null;
   isRead: boolean;
   createdAt: string;
-}
-
-interface NotificationsResponse {
-  data: Notification[];
-  unreadCount: number;
 }
 
 function NotificationIcon({ type }: { type: string }) {
@@ -57,31 +51,13 @@ function groupByDate(notifications: Notification[]): Record<string, Notification
 }
 
 export function NotificationsClient() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const data = await fetchWithAuth<NotificationsResponse>('/api/notifications');
-      setNotifications(data.data ?? []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  const { notifications, isLoading, mutate } = useNotifications();
+  const { markRead } = useMarkNotificationsRead();
 
   const markAsRead = async (id: string) => {
     try {
-      await fetchWithAuth('/api/notifications/read', {
-        method: 'POST',
-        body: JSON.stringify({ ids: [id] }),
-      });
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+      await markRead({ ids: [id] });
+      await mutate();
     } catch {
       // ignore
     }
@@ -89,17 +65,14 @@ export function NotificationsClient() {
 
   const markAllAsRead = async () => {
     try {
-      await fetchWithAuth('/api/notifications/read', {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      await markRead({});
+      await mutate();
     } catch {
       // ignore
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}

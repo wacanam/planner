@@ -2,7 +2,7 @@
 
 import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
@@ -21,41 +21,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
-
-interface Territory {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  notes?: string;
-  publisherName?: string | null;
-  groupName?: string | null;
-}
-
-interface TerritoryRequest {
-  id: string;
-  territoryId?: string | null;
-  status: string;
-  message?: string | null;
-  publisher?: { name: string } | null;
-  approver?: { name: string };
-  requestedAt: string;
-}
-
-interface Member {
-  id: string;
-  userId: string;
-  user: { id: string; name: string; email: string };
-  congregationRole?: string | null;
-  status: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-}
+import type { Territory, TerritoryRequest } from '@/types/api';
+import {
+  useCongregationTerritories,
+  useCongregationTerritoryRequests,
+  useCongregationMembers,
+  useCongregationGroups,
+  useCreateTerritory,
+  useCreateTerritoryRequest,
+  useReviewTerritoryRequest,
+} from '@/hooks';
 
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -74,21 +51,47 @@ export default function CongregationTerritoriesPage() {
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
 
-  const [myRole, setMyRole] = useState<string | null>(null);
+  const {
+    data: territoriesData,
+    isLoading: territoriesLoading,
+    mutate: mutateTerritories,
+  } = useCongregationTerritories(congregationId);
+  const territories = territoriesData;
+
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    mutate: mutateRequests,
+  } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const requests = requestsData;
+
+  const { data: membersRaw } = useCongregationMembers(congregationId);
+  const members = membersRaw;
+
+  const { groups: groupsRaw } = useCongregationGroups(congregationId);
+  const groups = groupsRaw;
+
+  const loading = territoriesLoading || requestsLoading;
+
+  const [filtered, setFiltered] = useState<Territory[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [tab, setTab] = useState<'territories' | 'requests'>('territories');
+
+  const { create: createTerritory } = useCreateTerritory(congregationId);
+  const { request: createTerritoryRequest } = useCreateTerritoryRequest(congregationId);
+  const { reviewRequest } = useReviewTerritoryRequest(congregationId);
+
+  const myRole = (() => {
+    if (!sessionUser?.id) return '';
+    const me = members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id);
+    return me?.congregationRole ?? '';
+  })();
+
   const isOverseer =
     myRole === CongregationRole.SERVICE_OVERSEER ||
     sessionUser?.role === UserRole.SUPER_ADMIN ||
     sessionUser?.role === UserRole.ADMIN;
-
-  const [territories, setTerritories] = useState<Territory[]>([]);
-  const [requests, setRequests] = useState<TerritoryRequest[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [filtered, setFiltered] = useState<Territory[]>([]);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'territories' | 'requests'>('territories');
 
   // Create territory dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -142,31 +145,6 @@ export default function CongregationTerritoriesPage() {
   const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
   const [confirmTerritoryId, setConfirmTerritoryId] = useState('');
 
-  const fetchData = useCallback(async () => {
-    const [tJson, rJson, mJson, gJson] = await Promise.all([
-      fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
-      fetchWithAuth<{ data: TerritoryRequest[] }>(`/api/congregations/${congregationId}/territory-requests?status=pending`),
-      fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
-      fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`),
-    ]);
-    if (tJson.data) setTerritories(tJson.data);
-    if (rJson.data) setRequests(rJson.data);
-    if (mJson.data) {
-      setMembers(mJson.data);
-      // Always resolve the role (to '' when not found) so myRole is never left
-      // as null after loading, preventing a flash of the wrong button set.
-      const me = sessionUser?.id
-        ? mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
-        : undefined;
-      setMyRole(me?.congregationRole ?? '');
-    }
-    if (gJson.data) setGroups(gJson.data);
-    setLoading(false);
-  }, [congregationId, sessionUser?.id]);
-
-  useEffect(() => {
-    if (congregationId) fetchData().catch(() => setLoading(false));
-  }, [congregationId, fetchData]);
 
   useEffect(() => {
     let list = territories;
@@ -217,19 +195,16 @@ export default function CongregationTerritoriesPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/territories`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: createName,
-          number: createNumber || createName,
-          notes: createNotes || undefined,
-        }),
+      await createTerritory({
+        name: createName,
+        number: createNumber || createName,
+        notes: createNotes || undefined,
       });
       setCreateOpen(false);
       setCreateName('');
       setCreateNumber('');
       setCreateNotes('');
-      await fetchData();
+      await mutateTerritories();
     } catch {
       setCreateError('Network error');
     } finally {
@@ -267,21 +242,16 @@ export default function CongregationTerritoriesPage() {
     setConfirmLoading(true);
     setConfirmError('');
     try {
-      await fetchWithAuth(
-        `/api/congregations/${congregationId}/territory-requests/${confirmRequest.id}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            status: confirmAction === 'approve' ? 'approved' : 'rejected',
-            responseMessage: confirmResponseMessage.trim() || null,
-            ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
-              ? { territoryId: confirmTerritoryId }
-              : {}),
-          }),
-        }
-      );
+      await reviewRequest({
+        requestId: confirmRequest.id,
+        status: confirmAction === 'approve' ? 'approved' : 'rejected',
+        responseMessage: confirmResponseMessage.trim() || null,
+        ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
+          ? { territoryId: confirmTerritoryId }
+          : {}),
+      });
       closeConfirmDialog();
-      await fetchData();
+      await Promise.all([mutateTerritories(), mutateRequests()]);
     } catch {
       setConfirmError('Failed to process request. Please try again.');
     } finally {
@@ -321,21 +291,18 @@ export default function CongregationTerritoriesPage() {
     setAssignLoading(true);
     setAssignError('');
     try {
-      await fetchWithAuth('/api/assignments', {
-        method: 'POST',
-        body: JSON.stringify({
+      await apiClient.post('/api/assignments', {
           territoryId: assignTerritory.id,
           ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
           dueAt: assignDueAt || undefined,
           notes: assignNotes || undefined,
-        }),
-      });
+        });
       setAssignSuccess(`Territory assigned successfully!`);
       setTimeout(() => {
         setAssignOpen(false);
         setAssignSuccess('');
       }, 1200);
-      await fetchData();
+      await mutateTerritories();
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
     } finally {
@@ -357,21 +324,18 @@ export default function CongregationTerritoriesPage() {
     setReturnError('');
     try {
       // Find the active assignment for this territory
-      const aJson = await fetchWithAuth<{ data: { id: string; status: string }[] }>(
+      const assignments = await apiClient.get<{ id: string; status: string }[]>(
         `/api/territories/${returnTerritory.id}/assignments`
       );
-      const activeAssignment = aJson.data?.find((a) => a.status === 'active');
+      const activeAssignment = assignments?.find((a) => a.status === 'active');
       if (!activeAssignment) {
         setReturnError('No active assignment found');
         setReturnLoading(false);
         return;
       }
-      await fetchWithAuth(`/api/assignments/${activeAssignment.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'returned', notes: returnNotes || undefined }),
-      });
+      await apiClient.put(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: returnNotes || undefined });
       setReturnOpen(false);
-      await fetchData();
+      await mutateTerritories();
     } catch {
       setReturnError('Failed to return territory');
     } finally {
@@ -395,22 +359,15 @@ export default function CongregationTerritoriesPage() {
     setRequestLoading(true);
     setRequestError('');
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/territory-requests`, {
-        method: 'POST',
-        body: JSON.stringify({
-          territoryId: requestTargetTerritory.id,
-          message: requestMessage.trim(),
-        }),
+      await createTerritoryRequest({
+        territoryId: requestTargetTerritory.id,
+        message: requestMessage.trim(),
       });
       setRequestDialogOpen(false);
       setRequestSuccess(requestTargetTerritory.id);
       setRequestTargetTerritory(null);
       setRequestMessage('');
-      // Refresh requests list
-      const rJson = await fetchWithAuth<{ data: TerritoryRequest[] }>(
-        `/api/congregations/${congregationId}/territory-requests?status=pending`
-      );
-      if (rJson.data) setRequests(rJson.data);
+      await mutateRequests();
       setTimeout(() => setRequestSuccess(null), 4000);
     } catch (err) {
       setRequestError(err instanceof Error ? err.message : 'Failed to send request. Please try again.');
@@ -446,7 +403,7 @@ export default function CongregationTerritoriesPage() {
               Manage territories and assignment requests
             </p>
           </div>
-          {loading || myRole === null ? (
+          {loading ? (
             <Skeleton className="h-9 w-32 rounded-md" />
           ) : isOverseer ? (
             <Button onClick={() => setCreateOpen(true)}>
@@ -483,7 +440,7 @@ export default function CongregationTerritoriesPage() {
           >
             Territories ({territories.length})
           </button>
-          {loading || myRole === null
+          {loading
             ? <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
             : isOverseer ? (
             <button

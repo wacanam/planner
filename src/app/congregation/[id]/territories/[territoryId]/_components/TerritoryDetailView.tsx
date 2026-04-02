@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,20 +8,9 @@ import { CoverageChart } from '@/components/coverage-chart';
 import { ArrowLeft, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { fetchWithAuth } from '@/lib/api-client';
+import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
 
-type Territory = {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  householdsCount: number;
-  coveragePercent: number;
-  notes?: string;
-  createdAt: string;
-};
-
-type Assignment = {
+type LocalAssignment = {
   id: string;
   status: string;
   assignedAt: string | null;
@@ -47,7 +35,7 @@ const assignmentStatusColors: Record<string, string> = {
   returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
-function getAssigneeDisplayName(a: Assignment): string {
+function getAssigneeDisplayName(a: LocalAssignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
@@ -56,33 +44,15 @@ export default function TerritoryDetailView() {
     id: string;
     territoryId: string;
   }>();
-  const [territory, setTerritory] = useState<Territory | null>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!territoryId) return;
-    setLoading(true);
-    Promise.all([
-      fetchWithAuth<{ success: boolean; data: Territory }>(`/api/territories/${territoryId}`),
-      fetchWithAuth<{ success: boolean; data: Assignment[] }>(
-        `/api/territories/${territoryId}/assignments`
-      ).catch(() => ({ success: false, data: [] as Assignment[] })),
-    ])
-      .then(([territoryData, assignmentsData]) => {
-        if (territoryData.success && territoryData.data) {
-          setTerritory(territoryData.data);
-        } else {
-          setError('Territory not found');
-        }
-        if (assignmentsData.success && assignmentsData.data) {
-          setAssignments(assignmentsData.data);
-        }
-      })
-      .catch(() => setError('Failed to load territory'))
-      .finally(() => setLoading(false));
-  }, [territoryId]);
+  const { territory: territoryResponse, isLoading: territoryLoading, error: territoryError } = useTerritoryDetail(territoryId ?? null);
+
+  const { assignments: assignmentsResponse, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId ?? '');
+
+  const loading = territoryLoading || assignmentsLoading;
+  const territory = territoryResponse;
+  const assignments = assignmentsResponse;
+  const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
 
   const backHref = `/congregation/${congregationId}/territories`;
 
@@ -199,7 +169,7 @@ export default function TerritoryDetailView() {
               <CardTitle className="text-base">Coverage</CardTitle>
             </CardHeader>
             <CardContent>
-              <CoverageChart percent={territory.coveragePercent} label="Overall Coverage" />
+              <CoverageChart percent={Number(territory.coveragePercent)} label="Overall Coverage" />
             </CardContent>
           </Card>
 

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { apiClient } from '@/lib/api-client';
 
 type Mode = 'choose' | 'create' | 'join' | 'join-sent';
 
@@ -29,19 +30,9 @@ type SearchResult = {
   country?: string | null;
 };
 
-function useAuthToken() {
-  return async () => {
-    const res = await fetch('/api/auth/token');
-    if (!res.ok) throw new Error('Failed to get auth token');
-    const { token } = await res.json();
-    return token as string;
-  };
-}
-
 export default function OnboardingPage() {
   const { data: session, update: updateSession } = useSession();
   const router = useRouter();
-  const getToken = useAuthToken();
 
   const [mode, setMode] = useState<Mode>('choose');
 
@@ -78,26 +69,16 @@ export default function OnboardingPage() {
     }
     setCreateLoading(true);
     try {
-      const token = await getToken();
-      const res = await fetch('/api/congregations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      const congregation = await apiClient.post<{ id: string }, object>('/api/congregations', {
           name: createForm.name.trim(),
           city: createForm.city.trim() || undefined,
           country: createForm.country.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setCreateError(data.error || 'Failed to create congregation. Please try again.');
-        return;
-      }
-      await updateSession({ congregationId: data.data.id });
-      router.replace(`/congregation/${data.data.id}/dashboard`);
+        });
+      await updateSession({ congregationId: congregation.id });
+      router.replace(`/congregation/${congregation.id}/dashboard`);
       router.refresh();
-    } catch {
-      setCreateError('Something went wrong. Please try again.');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setCreateLoading(false);
     }
@@ -113,13 +94,10 @@ export default function OnboardingPage() {
     setSearchResults([]);
     setSelectedCong(null);
     try {
-      const token = await getToken();
-      const res = await fetch(
-        `/api/congregations/search?q=${encodeURIComponent(searchQuery.trim())}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const results = await apiClient.get<SearchResult[]>(
+        `/api/congregations/search?q=${encodeURIComponent(searchQuery.trim())}`
       );
-      const data = await res.json();
-      setSearchResults(data.data ?? []);
+      setSearchResults(results ?? []);
     } catch {
       setSearchResults([]);
     } finally {
@@ -136,23 +114,13 @@ export default function OnboardingPage() {
     setJoinError('');
     setJoinLoading(true);
     try {
-      const token = await getToken();
-      const res = await fetch('/api/congregations/join-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      await apiClient.post('/api/congregations/join-requests', {
           congregationId: selectedCong.id,
           message: joinMessage.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setJoinError(data.error || 'Failed to send request. Please try again.');
-        return;
-      }
+        });
       setMode('join-sent');
-    } catch {
-      setJoinError('Something went wrong. Please try again.');
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setJoinLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import { Check, Clock, MessageSquare, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
@@ -17,18 +17,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
-
-interface Member {
-  id: string;
-  userId: string;
-  user: { id: string; name: string; email: string };
-  congregationRole?: string | null;
-  status: string;
-  joinMessage?: string | null;
-  joinedAt: string;
-}
+import type { Member, JoinRequest } from '@/types/api';
+import {
+  useCongregationMembers,
+  useCongregationJoinRequests,
+  useReviewJoinRequest,
+  useUpdateMemberRole,
+} from '@/hooks';
 
 type Tab = 'members' | 'requests';
 
@@ -45,8 +42,27 @@ export default function CongregationMembersPage() {
       }
     | undefined;
 
-  // Check if current user is a privileged role (via API response member role)
-  const [myRole, setMyRole] = useState<string | null>(null);
+  const {
+    data: membersData,
+    isLoading: loading,
+    mutate: mutateMembers,
+  } = useCongregationMembers(congregationId);
+  const members = membersData.filter((m) => m.status === 'active');
+
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    mutate: mutateRequests,
+  } = useCongregationJoinRequests(congregationId, 'pending');
+  const requests: JoinRequest[] = requestsData;
+  const pendingCount = requests.length;
+
+  const { review: reviewJoinRequest, isReviewing: reviewLoading } = useReviewJoinRequest(congregationId);
+  const { updateRole: updateMemberRole, isUpdating: editRoleLoading } = useUpdateMemberRole(congregationId);
+
+  // Determine current user's role from members data
+  const myRole = members.find((m) => m.userId === sessionUser?.id)?.congregationRole ?? null;
+
   const isPrivileged =
     myRole === CongregationRole.SERVICE_OVERSEER || myRole === CongregationRole.TERRITORY_SERVANT;
 
@@ -60,15 +76,8 @@ export default function CongregationMembersPage() {
   const [tab, setTab] = useState<Tab>('members');
 
   // Members
-  const [members, setMembers] = useState<Member[]>([]);
   const [filtered, setFiltered] = useState<Member[]>([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  // Join requests
-  const [requests, setRequests] = useState<Member[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
 
   // Add member dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -85,57 +94,12 @@ export default function CongregationMembersPage() {
   const [editRoleOpen, setEditRoleOpen] = useState(false);
   const [editRoleTarget, setEditRoleTarget] = useState<Member | null>(null);
   const [editRoleValue, setEditRoleValue] = useState<string | null>(null);
-  const [editRoleLoading, setEditRoleLoading] = useState(false);
 
   // Approve/reject
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState<Member | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<JoinRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<'active' | 'rejected'>('active');
   const [reviewNote, setReviewNote] = useState('');
-  const [reviewLoading, setReviewLoading] = useState(false);
-
-  const fetchMembers = useCallback(async () => {
-    try {
-      const json = await fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`);
-      if (json.data) {
-        const active = json.data.filter((m: Member) => m.status === 'active');
-        setMembers(active);
-        setFiltered(active);
-
-        // Determine current user's role
-        const me = json.data.find((m: Member) => m.userId === sessionUser?.id);
-        setMyRole(me?.congregationRole ?? null);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [congregationId, sessionUser?.id]);
-
-  const fetchRequests = useCallback(async () => {
-    setRequestsLoading(true);
-    try {
-      const json = await fetchWithAuth<{ data: Member[] }>(
-        `/api/congregations/${congregationId}/join-requests?status=pending`
-      );
-      if (json.data) {
-        setRequests(json.data);
-        setPendingCount(json.data.length);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setRequestsLoading(false);
-    }
-  }, [congregationId]);
-
-  useEffect(() => {
-    if (congregationId) {
-      fetchMembers();
-      fetchRequests();
-    }
-  }, [congregationId, fetchMembers, fetchRequests]);
 
   useEffect(() => {
     if (!search) {
@@ -158,13 +122,10 @@ export default function CongregationMembersPage() {
     setAddLoading(true);
     setAddError('');
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members`, {
-        method: 'POST',
-        body: JSON.stringify({ userId: addUserId }),
-      });
+      await apiClient.post(`/api/congregations/${congregationId}/members`, { userId: addUserId });
       setAddOpen(false);
       setAddUserId('');
-      await fetchMembers();
+      await mutateMembers();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to add member');
     } finally {
@@ -176,11 +137,9 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
-        method: 'DELETE',
-      });
+      await apiClient.delete(`/api/congregations/${congregationId}/members/${removeTarget.userId}`);
       setRemoveOpen(false);
-      await fetchMembers();
+      await mutateMembers();
     } catch {
       // ignore
     } finally {
@@ -196,22 +155,16 @@ export default function CongregationMembersPage() {
 
   async function handleEditRole() {
     if (!editRoleTarget) return;
-    setEditRoleLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members/${editRoleTarget.userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ congregationRole: editRoleValue }),
-      });
+      await updateMemberRole({ userId: editRoleTarget.userId, congregationRole: editRoleValue });
       setEditRoleOpen(false);
-      await fetchMembers();
+      await mutateMembers();
     } catch {
       // ignore
-    } finally {
-      setEditRoleLoading(false);
     }
   }
 
-  function openReview(member: Member, action: 'active' | 'rejected') {
+  function openReview(member: JoinRequest, action: 'active' | 'rejected') {
     setReviewTarget(member);
     setReviewAction(action);
     setReviewNote('');
@@ -220,18 +173,12 @@ export default function CongregationMembersPage() {
 
   async function handleReview() {
     if (!reviewTarget) return;
-    setReviewLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/join-requests/${reviewTarget.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: reviewAction, reviewNote }),
-      });
+      await reviewJoinRequest({ requestId: reviewTarget.id, status: reviewAction, reviewNote });
       setReviewOpen(false);
-      await Promise.all([fetchMembers(), fetchRequests()]);
+      await Promise.all([mutateMembers(), mutateRequests()]);
     } catch {
       // ignore
-    } finally {
-      setReviewLoading(false);
     }
   }
 

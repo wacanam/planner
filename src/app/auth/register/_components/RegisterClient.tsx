@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import axios from 'axios';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -92,22 +93,20 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       // Step 1: Call /api/auth/register to create user
-      const registerRes = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const registerData = await axios
+        .post<{ user?: unknown; error?: string }>('/api/auth/register', {
           email: form.email,
           password: form.password,
           name,
-        }),
-      });
-
-      const registerData = await registerRes.json();
-
-      if (!registerRes.ok) {
-        setError(registerData.error || 'Registration failed. Please try again.');
-        return;
-      }
+        })
+        .then((r) => r.data)
+        .catch((err) => {
+          const msg =
+            axios.isAxiosError(err)
+              ? (err.response?.data as { error?: string })?.error ?? 'Registration failed.'
+              : 'Registration failed.';
+          throw new Error(msg);
+        });
 
       console.log('[register] User created:', registerData.user);
       setSuccess('Account created! Signing you in…');
@@ -136,7 +135,7 @@ export default function RegisterPage() {
       }
     } catch (err) {
       console.error('[register] catch error:', err);
-      setError('Something went wrong. Please try again.');
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
