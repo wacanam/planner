@@ -217,12 +217,11 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
 
       {/* Publishers Tab */}
       {!loading && !error && tab === 'publishers' && publishers && (
-        <>
-          <div className="px-1 pb-1">
+        <div className="rounded-xl border border-border bg-card w-full max-w-full overflow-x-auto">
+          <div className="px-4 py-3 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Publisher Assignments</h2>
           </div>
-          <div className="rounded-xl border border-border bg-card w-full max-w-full overflow-x-auto">
-            <table className="w-full text-sm min-w-[600px]">
+          <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
@@ -270,7 +269,7 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
 
       {/* Activity Tab */}
