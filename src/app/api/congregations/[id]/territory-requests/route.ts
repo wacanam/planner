@@ -62,17 +62,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const { territoryId, message } = body;
 
-  if (!message?.trim()) {
-    return NextResponse.json({ error: 'message is required' }, { status: 400 });
-  }
-
   const [request] = await db
     .insert(territoryRequests)
     .values({
       congregationId: id,
       publisherId: user.userId,
       territoryId: territoryId ?? null,
-      message: message.trim(),
+      message: message?.trim() || null,
       status: TerritoryRequestStatus.PENDING,
     })
     .returning();

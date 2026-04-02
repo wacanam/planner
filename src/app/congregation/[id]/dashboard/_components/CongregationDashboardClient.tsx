@@ -19,6 +19,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fetchWithAuth } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
@@ -102,12 +103,14 @@ export default function CongregationDashboardPage() {
     if (congJson.data) setCongregation(congJson.data);
     if (memberJson.data) {
       setMembers(memberJson.data);
-      if (sessionUser?.id) {
-        const me = memberJson.data.find(
-          (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
-        );
-        if (me?.congregationRole) setMyRole(me.congregationRole);
-      }
+      // Always resolve the role (to '' when not found) so myRole is never left
+      // as null after loading, preventing a flash of the wrong button set.
+      const me = sessionUser?.id
+        ? memberJson.data.find(
+            (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
+          )
+        : undefined;
+      setMyRole(me?.congregationRole ?? '');
     }
     if (groupJson.data) setGroups(groupJson.data);
     if (territoryJson.data) setTerritories(territoryJson.data);
@@ -151,10 +154,19 @@ export default function CongregationDashboardPage() {
               {congregation?.name ?? 'Congregation'} Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {isOverseer ? 'Congregation overview and quick actions' : 'Your ministry overview'}
+              {loading || myRole === null
+                ? <Skeleton className="h-4 w-48 rounded-md mt-1" />
+                : isOverseer
+                  ? 'Congregation overview and quick actions'
+                  : 'Your ministry overview'}
             </p>
           </div>
-          {isOverseer ? (
+          {loading || myRole === null ? (
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-32 rounded-md" />
+            </div>
+          ) : isOverseer ? (
             <div className="flex gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link href={`/congregation/${congregationId}/members`}>
@@ -419,7 +431,10 @@ export default function CongregationDashboardPage() {
                       <div className="flex items-center gap-3">
                         <Clock size={14} className="text-orange-500" />
                         <span className="text-sm">
-                          {r.publisher?.name ?? 'Unknown'} requested a territory
+                          {r.publisher?.name ?? 'Unknown'} requested{' '}
+                          {r.territoryId
+                            ? getTerritoryLabel(r.territoryId)
+                            : 'any available territory'}
                         </span>
                       </div>
                       <Button asChild size="sm" variant="outline">
@@ -499,7 +514,7 @@ export default function CongregationDashboardPage() {
                         </p>
                       </div>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/territories/${t.id}`}>
+                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                           View
                           <ArrowRight size={12} />
                         </Link>

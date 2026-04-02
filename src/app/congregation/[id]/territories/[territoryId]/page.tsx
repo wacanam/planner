@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
-import TerritoryDetailClient from './_components/TerritoryDetailClient';
+import TerritoryDetailView from './_components/TerritoryDetailView';
 
 export const metadata: Metadata = {
   title: 'Territory | Ministry Planner',
 };
 
 export default function Page() {
-  return <TerritoryDetailClient />;
+  return <TerritoryDetailView />;
 }

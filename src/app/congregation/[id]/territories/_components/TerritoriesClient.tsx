@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fetchWithAuth } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
@@ -139,6 +140,7 @@ export default function CongregationTerritoriesPage() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
+  const [confirmTerritoryId, setConfirmTerritoryId] = useState('');
 
   const fetchData = useCallback(async () => {
     const [tJson, rJson, mJson, gJson] = await Promise.all([
@@ -151,11 +153,12 @@ export default function CongregationTerritoriesPage() {
     if (rJson.data) setRequests(rJson.data);
     if (mJson.data) {
       setMembers(mJson.data);
-      // Detect own congregation role
-      if (sessionUser?.id) {
-        const me = mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id);
-        if (me?.congregationRole) setMyRole(me.congregationRole);
-      }
+      // Always resolve the role (to '' when not found) so myRole is never left
+      // as null after loading, preventing a flash of the wrong button set.
+      const me = sessionUser?.id
+        ? mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
+        : undefined;
+      setMyRole(me?.congregationRole ?? '');
     }
     if (gJson.data) setGroups(gJson.data);
     setLoading(false);
@@ -239,6 +242,7 @@ export default function CongregationTerritoriesPage() {
     setConfirmAction(action);
     setConfirmError('');
     setConfirmResponseMessage('');
+    setConfirmTerritoryId('');
   }
 
   function closeConfirmDialog() {
@@ -246,12 +250,18 @@ export default function CongregationTerritoriesPage() {
     setConfirmAction(null);
     setConfirmError('');
     setConfirmResponseMessage('');
+    setConfirmTerritoryId('');
   }
 
   async function handleConfirmAction() {
     if (!confirmRequest || !confirmAction) return;
     if (confirmAction === 'reject' && !confirmResponseMessage.trim()) {
       setConfirmError('A reason is required when rejecting a request.');
+      return;
+    }
+    // When approving a request that has no specific territory, the overseer must pick one
+    if (confirmAction === 'approve' && !confirmRequest.territoryId && !confirmTerritoryId) {
+      setConfirmError('Please select a territory to assign to the publisher.');
       return;
     }
     setConfirmLoading(true);
@@ -264,6 +274,9 @@ export default function CongregationTerritoriesPage() {
           body: JSON.stringify({
             status: confirmAction === 'approve' ? 'approved' : 'rejected',
             responseMessage: confirmResponseMessage.trim() || null,
+            ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
+              ? { territoryId: confirmTerritoryId }
+              : {}),
           }),
         }
       );
@@ -433,12 +446,14 @@ export default function CongregationTerritoriesPage() {
               Manage territories and assignment requests
             </p>
           </div>
-          {isOverseer && (
+          {loading || myRole === null ? (
+            <Skeleton className="h-9 w-32 rounded-md" />
+          ) : isOverseer ? (
             <Button onClick={() => setCreateOpen(true)}>
               <Plus size={14} />
               Add Territory
             </Button>
-          )}
+          ) : null}
         </div>
 
         {/* Stats */}
@@ -468,7 +483,9 @@ export default function CongregationTerritoriesPage() {
           >
             Territories ({territories.length})
           </button>
-          {isOverseer && (
+          {loading || myRole === null
+            ? <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
+            : isOverseer ? (
             <button
               type="button"
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -485,7 +502,7 @@ export default function CongregationTerritoriesPage() {
                 </span>
               )}
             </button>
-          )}
+          ) : null}
         </div>
 
         {tab === 'territories' && (
@@ -572,7 +589,7 @@ export default function CongregationTerritoriesPage() {
                             </div>
                             <div>
                               <Link
-                                href={`/territories/${t.id}`}
+                                href={`/congregation/${congregationId}/territories/${t.id}`}
                                 className="font-medium text-foreground hover:text-primary hover:underline"
                               >
                                 #{t.number} {t.name}
@@ -678,7 +695,14 @@ export default function CongregationTerritoriesPage() {
                         <p className="text-sm font-semibold">
                           {r.publisher?.name ?? 'Unknown Publisher'}
                         </p>
-                        <p className="text-sm text-muted-foreground">requested a territory</p>
+                        <p className="text-sm text-muted-foreground">
+                          {r.territoryId
+                            ? (() => {
+                                const t = territories.find((t) => t.id === r.territoryId);
+                                return t ? `requested #${t.number} ${t.name}` : 'requested a specific territory';
+                              })()
+                            : 'requested any available territory'}
+                        </p>
                         {r.message && (
                           <p className="text-xs text-foreground mt-1 italic">"{r.message}"</p>
                         )}
@@ -1025,7 +1049,9 @@ export default function CongregationTerritoriesPage() {
             </DialogTitle>
             <DialogDescription>
               {confirmAction === 'approve'
-                ? 'Approve this territory request and assign the territory to the publisher?'
+                ? confirmRequest?.territoryId
+                  ? 'Approve this territory request and assign the territory to the publisher?'
+                  : 'Select a territory to assign to the publisher and approve the request.'
                 : 'Reject this territory request?'}
             </DialogDescription>
           </DialogHeader>
@@ -1039,6 +1065,31 @@ export default function CongregationTerritoriesPage() {
               Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
             </p>
           </div>
+
+          {/* Territory selector — only shown when approving a request with no specific territory */}
+          {confirmAction === 'approve' && !confirmRequest?.territoryId && (
+            <div className="space-y-1.5">
+              <label htmlFor="confirm-territory-select" className="text-sm font-medium text-foreground">
+                Assign territory <span className="text-destructive">*</span>
+              </label>
+              <select
+                id="confirm-territory-select"
+                value={confirmTerritoryId}
+                onChange={(e) => setConfirmTerritoryId(e.target.value)}
+                disabled={confirmLoading}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              >
+                <option value="">Select an available territory…</option>
+                {territories
+                  .filter((t) => t.status === 'available')
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      #{t.number} {t.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label htmlFor="confirm-response-message" className="text-sm font-medium text-foreground">

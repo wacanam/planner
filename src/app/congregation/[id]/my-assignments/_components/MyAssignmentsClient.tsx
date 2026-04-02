@@ -77,6 +77,12 @@ export default function MyAssignmentsClient() {
       t.publisherId === sessionUser?.id
   );
 
+  function getRequestLabel(territoryId?: string | null): string {
+    if (!territoryId) return 'Any available territory';
+    const t = territories.find((t) => t.id === territoryId);
+    return t ? `#${t.number} ${t.name}` : 'Specific territory requested';
+  }
+
   return (
     <ProtectedPage congregationId={congregationId}>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -158,7 +164,7 @@ export default function MyAssignmentsClient() {
                       assigned
                     </Badge>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/territories/${t.id}`}>
+                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                         View
                         <ArrowRight size={12} />
                       </Link>
@@ -189,9 +195,7 @@ export default function MyAssignmentsClient() {
                   className="flex items-center justify-between p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10"
                 >
                   <div>
-                    <p className="text-sm font-medium">
-                      {r.territoryId ? 'Specific territory requested' : 'Any available territory'}
-                    </p>
+                    <p className="text-sm font-medium">{getRequestLabel(r.territoryId)}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(r.requestedAt).toLocaleDateString()}
                     </p>
@@ -242,7 +246,7 @@ export default function MyAssignmentsClient() {
                         {t.status}
                       </Badge>
                       <Button asChild size="sm" variant="ghost">
-                        <Link href={`/territories/${t.id}`}>
+                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                           View
                         </Link>
                       </Button>
