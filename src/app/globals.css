@@ -21,6 +21,8 @@
   --border: #E0DDD9;
   --input: #E0DDD9;
   --ring: #6B9ECC;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
   --radius: 0.75rem;
 }
 
@@ -43,7 +45,8 @@
   --border: #333333;
   --input: #333333;
   --ring: #4A7BA7;
-}
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;}
 
 @theme inline {
   --color-background: var(--background);
@@ -61,6 +64,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --font-sans: 'Inter', var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --radius: var(--radius);
