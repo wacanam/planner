@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  BarChart2,
   ClipboardList,
   Clock,
   FolderOpen,
@@ -172,6 +173,12 @@ export default function CongregationDashboardPage() {
                 <Link href={`/congregation/${congregationId}/members`}>
                   <Plus size={14} />
                   Add Member
+                </Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/congregation/${congregationId}/reports`}>
+                  <BarChart2 size={14} />
+                  Reports
                 </Link>
               </Button>
               <Button asChild size="sm">

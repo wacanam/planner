@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { BarChart2, Users, Activity, UserPlus, RotateCcw, MapPin } from 'lucide-react';
 import { fetchWithAuth } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
@@ -65,7 +66,15 @@ function formatDate(iso: string) {
 }
 
 export default function ReportsClient({ congregationId }: { congregationId: string }) {
-  const [tab, setTab] = useState<Tab>('coverage');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get('tab') as Tab) ?? 'coverage';
+
+  const setTab = useCallback((newTab: Tab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', newTab);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
   const [publishers, setPublishers] = useState<PublishersData | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
@@ -105,7 +114,7 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -208,27 +217,26 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
 
       {/* Publishers Tab */}
       {!loading && !error && tab === 'publishers' && publishers && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card w-full max-w-full overflow-x-auto">
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Publisher Assignments</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
                     Name
                   </th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
                     Email
                   </th>
-                  <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
                     Active
                   </th>
-                  <th className="text-center px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
                     Completed
                   </th>
-                  <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
                     Current Territories
                   </th>
                 </tr>
@@ -260,7 +268,6 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
                 )}
               </tbody>
             </table>
-          </div>
         </div>
       )}
 

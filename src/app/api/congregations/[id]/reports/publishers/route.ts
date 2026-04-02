@@ -7,6 +7,7 @@ import {
   congregationMembers,
   territoryAssignments,
   UserRole,
+  CongregationRole,
   AssignmentStatus,
   MemberStatus,
 } from '@/db';
@@ -18,13 +19,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const auth = await withCongregationAuth(req, congregationId);
   if (auth instanceof NextResponse) return auth;
 
-  const { user } = auth;
-  if (
-    user.role !== UserRole.SUPER_ADMIN &&
-    user.role !== UserRole.ADMIN &&
-    user.role !== UserRole.SERVICE_OVERSEER &&
-    user.role !== UserRole.TERRITORY_SERVANT
-  ) {
+  const { user, member } = auth;
+
+  const isAllowed =
+    user.role === UserRole.SUPER_ADMIN ||
+    user.role === UserRole.ADMIN ||
+    member?.congregationRole === CongregationRole.SERVICE_OVERSEER ||
+    member?.congregationRole === CongregationRole.TERRITORY_SERVANT;
+
+  if (!isAllowed) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
