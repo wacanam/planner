@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, ClipboardList, Clock, FolderOpen, MapPin, Plus, Users } from 'lucide-react';
+import { ArrowRight, BarChart2, ClipboardList, Clock, FolderOpen, MapPin, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -127,6 +127,14 @@ export default function CongregationDashboardPage() {
                 Add Member
               </Link>
             </Button>
+            {isOverseer && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/congregation/${congregationId}/reports`}>
+                  <BarChart2 size={14} />
+                  Reports
+                </Link>
+              </Button>
+            )}
             <Button asChild size="sm">
               <Link href={`/congregation/${congregationId}/territories`}>
                 <MapPin size={14} />
@@ -175,6 +183,29 @@ export default function CongregationDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Reports shortcut for overseers */}
+          {isOverseer && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="flex-row items-center justify-between pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart2 size={16} className="text-primary" />
+                  Reports & Analytics
+                </CardTitle>
+                <Button asChild size="sm" variant="default">
+                  <Link href={`/congregation/${congregationId}/reports`}>
+                    View Reports
+                    <ArrowRight size={13} />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Territory coverage progress, publisher assignment stats, and recent activity
+                  timeline.
+                </p>
+              </CardContent>
+            </Card>
+          )}
           {/* Groups */}
           <Card>
             <CardHeader className="flex-row items-center justify-between pb-4">
