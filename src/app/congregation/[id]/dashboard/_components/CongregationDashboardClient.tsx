@@ -1,6 +1,15 @@
 'use client';
 
-import { ArrowRight, BarChart2, ClipboardList, Clock, FolderOpen, MapPin, Plus, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  BarChart2,
+  ClipboardList,
+  Clock,
+  FolderOpen,
+  MapPin,
+  Plus,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -153,104 +162,23 @@ export default function CongregationDashboardPage() {
                   : 'Your ministry overview'}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/congregation/${congregationId}/members`}>
-                <Plus size={14} />
-                Add Member
-              </Link>
-            </Button>
-            {isOverseer && (
+          {loading || myRole === null ? (
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-32 rounded-md" />
+            </div>
+          ) : isOverseer ? (
+            <div className="flex gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/congregation/${congregationId}/members`}>
+                  <Plus size={14} />
+                  Add Member
+                </Link>
+              </Button>
               <Button asChild size="sm" variant="outline">
                 <Link href={`/congregation/${congregationId}/reports`}>
                   <BarChart2 size={14} />
                   Reports
-                </Link>
-              </Button>
-            )}
-            <Button asChild size="sm">
-              <Link href={`/congregation/${congregationId}/territories`}>
-                <MapPin size={14} />
-                Territories
-                {pendingRequests > 0 && (
-                  <span className="ml-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                    {pendingRequests}
-                  </span>
-                )}
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard
-            title="Members"
-            value={loading ? '—' : members.length}
-            icon={Users}
-            color="blue"
-            loading={loading}
-          />
-          <StatCard
-            title="Groups"
-            value={loading ? '—' : groups.length}
-            icon={FolderOpen}
-            color="purple"
-            loading={loading}
-          />
-          <StatCard
-            title="Territories"
-            value={loading ? '—' : territories.length}
-            subtitle={`${availableTerritories} available`}
-            icon={MapPin}
-            color="green"
-            loading={loading}
-          />
-          <StatCard
-            title="Pending Requests"
-            value={loading ? '—' : pendingRequests}
-            icon={ClipboardList}
-            color={pendingRequests > 0 ? 'orange' : 'default'}
-            loading={loading}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Reports shortcut for overseers */}
-          {isOverseer && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader className="flex-row items-center justify-between pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart2 size={16} className="text-primary" />
-                  Reports & Analytics
-                </CardTitle>
-                <Button asChild size="sm" variant="default">
-                  <Link href={`/congregation/${congregationId}/reports`}>
-                    View Reports
-                    <ArrowRight size={13} />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Territory coverage progress, publisher assignment stats, and recent activity
-                  timeline.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-          {/* Groups */}
-          <Card>
-            <CardHeader className="flex-row items-center justify-between pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <FolderOpen size={16} className="text-purple-500" />
-                Groups
-              </CardTitle>
-              <Button asChild size="sm" variant="ghost">
-                <Link href={`/congregation/${congregationId}/groups`}>
-                  View All
-                  <ArrowRight size={13} />
-
                 </Link>
               </Button>
               <Button asChild size="sm">
