@@ -1,8 +1,8 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet, apiPost } from '@/lib/api-client';
 
-const fetcher = (url: string) => fetchWithAuth<NotificationsResponse>(url);
+const fetcher = (url: string) => apiGet<NotificationsResponse>(url).then(r => r.data);
 
 interface NotificationsResponse {
   data: {
@@ -36,7 +36,7 @@ export function useMarkNotificationsRead() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/notifications/read',
     (url: string, { arg }: { arg?: { ids?: string[] } }) =>
-      fetchWithAuth(url, { method: 'POST', body: JSON.stringify(arg ?? {}) })
+      apiPost(url, arg ?? {}).then(r => r.data)
   );
   return { markRead: trigger, isMarking: isMutating };
 }

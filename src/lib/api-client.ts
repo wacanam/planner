@@ -87,23 +87,4 @@ export function apiDelete<T>(url: string, config?: AxiosRequestConfig): Promise<
   return apiClient.delete<T>(url, config);
 }
 
-// ─── fetchWithAuth shim (backward compat for SWR fetcher + existing callers) ──
 
-/**
- * Convenience wrapper that returns parsed response data directly.
- * Used as the SWR global fetcher and in legacy call sites.
- *
- * For new code, prefer the typed helpers above (apiGet, apiPost, etc.)
- */
-export async function fetchWithAuth<T = Record<string, unknown>>(
-  url: string,
-  options: { method?: string; body?: string; headers?: Record<string, string> } = {}
-): Promise<T> {
-  const response = await apiClient.request<T>({
-    url,
-    method: (options.method ?? 'GET') as AxiosRequestConfig['method'],
-    data: options.body ? JSON.parse(options.body) : undefined,
-    headers: options.headers,
-  });
-  return response.data;
-}

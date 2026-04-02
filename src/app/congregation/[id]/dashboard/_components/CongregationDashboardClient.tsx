@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
 interface Member {
@@ -67,7 +67,7 @@ const statusColors: Record<string, string> = {
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
 
-const fetcher = (url: string) => fetchWithAuth(url);
+const fetcher = (url: string) => apiGet(url).then(r => r.data);
 
 export default function CongregationDashboardPage() {
   const params = useParams();

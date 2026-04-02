@@ -1,12 +1,12 @@
 'use client';
 import { SWRConfig } from 'swr';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
   return (
     <SWRConfig
       value={{
-        fetcher: (url: string) => fetchWithAuth(url),
+        fetcher: (url: string) => apiGet(url).then(r => r.data),
         revalidateOnFocus: false,
         errorRetryCount: 2,
       }}

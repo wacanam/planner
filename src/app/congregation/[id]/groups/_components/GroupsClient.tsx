@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiDelete } from '@/lib/api-client';
 import { useCongregationGroups, useCreateGroup } from '@/hooks';
 
 interface Group {
@@ -75,9 +75,8 @@ export default function CongregationGroupsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await fetchWithAuth(
-        `/api/congregations/${congregationId}/groups/${deleteTarget.id}/members`,
-        { method: 'DELETE' }
+      await apiDelete(
+        `/api/congregations/${congregationId}/groups/${deleteTarget.id}/members`
       );
       // Note: No direct group delete endpoint in current API — just close for now
       setDeleteOpen(false);

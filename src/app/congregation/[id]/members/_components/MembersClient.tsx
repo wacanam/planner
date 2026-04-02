@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiPost, apiDelete } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 import {
   useCongregationMembers,
@@ -131,10 +131,7 @@ export default function CongregationMembersPage() {
     setAddLoading(true);
     setAddError('');
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members`, {
-        method: 'POST',
-        body: JSON.stringify({ userId: addUserId }),
-      });
+      await apiPost(`/api/congregations/${congregationId}/members`, { userId: addUserId });
       setAddOpen(false);
       setAddUserId('');
       await mutateMembers();
@@ -149,9 +146,7 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${congregationId}/members/${removeTarget.userId}`, {
-        method: 'DELETE',
-      });
+      await apiDelete(`/api/congregations/${congregationId}/members/${removeTarget.userId}`);
       setRemoveOpen(false);
       await mutateMembers();
     } catch {

@@ -1,7 +1,7 @@
 import useSWR from 'swr';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 
-const fetcher = (url: string) => fetchWithAuth(url);
+const fetcher = (url: string) => apiGet(url).then(r => r.data);
 
 export function useCoverageReport(congregationId: string) {
   const { data, error, isLoading, mutate } = useSWR(

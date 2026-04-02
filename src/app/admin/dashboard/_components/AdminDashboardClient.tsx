@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/db';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 
 interface Congregation {
   id: string;
@@ -20,7 +20,7 @@ interface Congregation {
   createdAt: string;
 }
 
-const fetcher = (url: string) => fetchWithAuth<{ data: Congregation[] }>(url);
+const fetcher = (url: string) => apiGet<{ data: Congregation[] }>(url).then(r => r.data);
 
 export default function AdminDashboardPage() {
   const { data, isLoading: loading } = useSWR('/api/congregations', fetcher);

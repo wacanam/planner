@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiPost } from '@/lib/api-client';
 
 type Props = {
   territoryId: string;
@@ -32,17 +32,14 @@ export function AssignmentForm({ territoryId, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      const data = await fetchWithAuth<{ success: boolean; error?: { message: string } }>(
+      const { data } = await apiPost<{ success: boolean; error?: { message: string } }, object>(
         '/api/assignments',
         {
-          method: 'POST',
-          body: JSON.stringify({
             territoryId,
             userId: userId.trim(),
             dueAt: dueAt || undefined,
             notes: notes || undefined,
-          }),
-        }
+          }
       );
       if (!data.success) {
         setError(data.error?.message ?? 'Failed to assign territory');

@@ -1,8 +1,8 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet, apiPost, apiPut } from '@/lib/api-client';
 
-const fetcher = (url: string) => fetchWithAuth(url);
+const fetcher = (url: string) => apiGet(url).then(r => r.data);
 
 export function useTerritoryAssignments(territoryId: string) {
   const { data, error, isLoading, mutate } = useSWR(
@@ -21,7 +21,7 @@ export function useCreateAssignment() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/assignments',
     (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      fetchWithAuth(url, { method: 'POST', body: JSON.stringify(arg) })
+      apiPost(url, arg).then(r => r.data)
   );
   return { create: trigger, isCreating: isMutating };
 }
@@ -34,10 +34,7 @@ export function useUpdateAssignment() {
       { arg }: { arg: { id: string } & Record<string, unknown> }
     ) => {
       const { id, ...body } = arg;
-      return fetchWithAuth(`/api/assignments/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      });
+      return apiPut(`/api/assignments/${id}`, body).then(r => r.data);
     }
   );
   return { update: trigger, isUpdating: isMutating };

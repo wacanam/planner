@@ -21,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet, apiPost, apiPut } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 import {
   useCongregationTerritories,
@@ -98,13 +98,13 @@ export default function CongregationTerritoriesPage() {
 
   const { data: membersData } = useSWR(
     congregationId ? `/api/congregations/${congregationId}/members` : null,
-    (url: string) => fetchWithAuth(url)
+    (url: string) => apiGet(url).then(r => r.data)
   );
   const members = ((membersData as { data?: Member[] } | undefined)?.data ?? []) as Member[];
 
   const { data: groupsData } = useSWR(
     congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    (url: string) => fetchWithAuth(url)
+    (url: string) => apiGet(url).then(r => r.data)
   );
   const groups = ((groupsData as { data?: Group[] } | undefined)?.data ?? []) as Group[];
 
@@ -328,15 +328,12 @@ export default function CongregationTerritoriesPage() {
     setAssignLoading(true);
     setAssignError('');
     try {
-      await fetchWithAuth('/api/assignments', {
-        method: 'POST',
-        body: JSON.stringify({
+      await apiPost('/api/assignments', {
           territoryId: assignTerritory.id,
           ...(assignType === 'publisher' ? { userId: assignUserId } : { serviceGroupId: assignGroupId }),
           dueAt: assignDueAt || undefined,
           notes: assignNotes || undefined,
-        }),
-      });
+        });
       setAssignSuccess(`Territory assigned successfully!`);
       setTimeout(() => {
         setAssignOpen(false);
@@ -364,7 +361,7 @@ export default function CongregationTerritoriesPage() {
     setReturnError('');
     try {
       // Find the active assignment for this territory
-      const aJson = await fetchWithAuth<{ data: { id: string; status: string }[] }>(
+      const { data: aJson } = await apiGet<{ data: { id: string; status: string }[] }>(
         `/api/territories/${returnTerritory.id}/assignments`
       );
       const activeAssignment = aJson.data?.find((a) => a.status === 'active');
@@ -373,10 +370,7 @@ export default function CongregationTerritoriesPage() {
         setReturnLoading(false);
         return;
       }
-      await fetchWithAuth(`/api/assignments/${activeAssignment.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'returned', notes: returnNotes || undefined }),
-      });
+      await apiPut(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: returnNotes || undefined });
       setReturnOpen(false);
       await mutateTerritories();
     } catch {

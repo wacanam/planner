@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet, apiPost } from '@/lib/api-client';
 
 type Mode = 'choose' | 'create' | 'join' | 'join-sent';
 
@@ -69,14 +69,11 @@ export default function OnboardingPage() {
     }
     setCreateLoading(true);
     try {
-      const data = await fetchWithAuth<{ data: { id: string } }>('/api/congregations', {
-        method: 'POST',
-        body: JSON.stringify({
+      const { data } = await apiPost<{ data: { id: string } }, object>('/api/congregations', {
           name: createForm.name.trim(),
           city: createForm.city.trim() || undefined,
           country: createForm.country.trim() || undefined,
-        }),
-      });
+        });
       await updateSession({ congregationId: data.data.id });
       router.replace(`/congregation/${data.data.id}/dashboard`);
       router.refresh();
@@ -97,7 +94,7 @@ export default function OnboardingPage() {
     setSearchResults([]);
     setSelectedCong(null);
     try {
-      const data = await fetchWithAuth<{ data: SearchResult[] }>(
+      const { data } = await apiGet<{ data: SearchResult[] }>(
         `/api/congregations/search?q=${encodeURIComponent(searchQuery.trim())}`
       );
       setSearchResults(data.data ?? []);
@@ -117,13 +114,10 @@ export default function OnboardingPage() {
     setJoinError('');
     setJoinLoading(true);
     try {
-      await fetchWithAuth('/api/congregations/join-requests', {
-        method: 'POST',
-        body: JSON.stringify({
+      await apiPost('/api/congregations/join-requests', {
           congregationId: selectedCong.id,
           message: joinMessage.trim() || undefined,
-        }),
-      });
+        });
       setMode('join-sent');
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');

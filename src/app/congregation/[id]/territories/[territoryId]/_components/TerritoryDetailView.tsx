@@ -9,7 +9,7 @@ import { CoverageChart } from '@/components/coverage-chart';
 import { ArrowLeft, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 
 type Territory = {
   id: string;
@@ -51,7 +51,7 @@ function getAssigneeDisplayName(a: Assignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
-const fetcher = (url: string) => fetchWithAuth(url);
+const fetcher = (url: string) => apiGet(url).then(r => r.data);
 
 export default function TerritoryDetailView() {
   const { id: congregationId, territoryId } = useParams<{

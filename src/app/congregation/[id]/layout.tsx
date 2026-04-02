@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import useSWR from 'swr';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet } from '@/lib/api-client';
 import { DashboardHeader } from '@/components/dashboard-header';
 
-const fetcher = (url: string) => fetchWithAuth<{ data: { name: string } }>(url);
+const fetcher = (url: string) => apiGet<{ data: { name: string } }>(url).then(r => r.data);
 
 export default function CongregationLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();

@@ -19,7 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserRole } from '@/db';
-import { fetchWithAuth } from '@/lib/api-client';
+import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api-client';
 
 interface Congregation {
   id: string;
@@ -30,7 +30,7 @@ interface Congregation {
   createdAt: string;
 }
 
-const fetcher = (url: string) => fetchWithAuth(url);
+const fetcher = (url: string) => apiGet(url).then(r => r.data);
 
 export default function AdminCongregationsPage() {
   const { data: congregationsResponse, isLoading: loading, mutate: mutateCongregations } = useSWR('/api/congregations', fetcher);
@@ -82,10 +82,7 @@ export default function AdminCongregationsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      await fetchWithAuth('/api/congregations', {
-        method: 'POST',
-        body: JSON.stringify({ name: createName, city: createCity, country: createCountry }),
-      });
+      await apiPost('/api/congregations', { name: createName, city: createCity, country: createCountry });
       setCreateOpen(false);
       setCreateName('');
       setCreateCity('');
@@ -111,10 +108,7 @@ export default function AdminCongregationsPage() {
     if (!editTarget) return;
     setEditLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${editTarget.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: editName, city: editCity, country: editCountry }),
-      });
+      await apiPatch(`/api/congregations/${editTarget.id}`, { name: editName, city: editCity, country: editCountry });
       setEditOpen(false);
       await mutateCongregations();
     } catch {
@@ -128,7 +122,7 @@ export default function AdminCongregationsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await fetchWithAuth(`/api/congregations/${deleteTarget.id}`, { method: 'DELETE' });
+      await apiDelete(`/api/congregations/${deleteTarget.id}`);
       setDeleteOpen(false);
       await mutateCongregations();
     } catch {
