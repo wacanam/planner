@@ -1,116 +1,109 @@
 /**
- * API client utility that automatically includes the Bearer token from the session.
- * Built on axios with a request interceptor for auth. External API is unchanged:
- * fetchWithAuth(url, options?) returns parsed JSON just like before.
+ * Axios-based API client with:
+ * - Request interceptor that injects Bearer token automatically
+ * - Typed response generics (axios<T> style)
+ * - Consistent error handling
  */
 
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
+
+// ─── Token cache ──────────────────────────────────────────────────────────────
 
 let cachedToken: string | null = null;
 let tokenExpiryTime: number | null = null;
 
-/**
- * Get a fresh token from the session
- */
 async function getToken(): Promise<string> {
-  // Return cached token if still valid (with 30s buffer)
-  if (cachedToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 30000) {
-    console.log('[getToken] Returning cached token');
+  if (cachedToken && tokenExpiryTime && Date.now() < tokenExpiryTime - 30_000) {
     return cachedToken;
   }
-
-  console.log('[getToken] Fetching new token from /api/auth/token');
   const res = await axios.get<{ token: string }>('/api/auth/token');
-  const { token } = res.data;
-  cachedToken = token;
-
-  // Cache token for 6 minutes
-  tokenExpiryTime = Date.now() + 6 * 60 * 1000;
-
-  console.log('[getToken] New token generated and cached');
-  return token;
+  cachedToken = res.data.token;
+  tokenExpiryTime = Date.now() + 6 * 60 * 1000; // cache 6 min
+  return cachedToken;
 }
 
-// Axios instance shared for all API calls
-const apiClient = axios.create({
-  headers: {
-    'Content-Type': 'application/json',
-  },
+export function clearTokenCache(): void {
+  cachedToken = null;
+  tokenExpiryTime = null;
+}
+
+// ─── Axios instance ───────────────────────────────────────────────────────────
+
+export const apiClient = axios.create({
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach auth token before every request
+// Request interceptor — inject Bearer token on every request
 apiClient.interceptors.request.use(async (config) => {
   const token = await getToken();
-  config.headers = config.headers ?? {};
   config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-/**
- * Map a RequestInit-style options object to AxiosRequestConfig.
- * This keeps the external call-sites unchanged.
- */
-function toAxiosConfig(options: RequestInit): AxiosRequestConfig {
-  const config: AxiosRequestConfig = {};
-  if (options.method) config.method = options.method as AxiosRequestConfig['method'];
-  if (options.body) {
-    config.data =
-      typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
-  }
-  if (options.headers) {
-    config.headers = options.headers as Record<string, string>;
-  }
-  return config;
-}
-
-/**
- * Make an authenticated API request with Bearer token.
- * Keeps the same external signature as the original fetch-based implementation.
- *
- * @param url - The API endpoint
- * @param options - Fetch-compatible options (method, body, headers, etc.)
- * @returns Parsed JSON response
- */
-export async function fetchWithAuth<T = Record<string, unknown>>(
-  url: string,
-  options: RequestInit = {}
-): Promise<T> {
-  try {
-    const config = toAxiosConfig(options);
-    const response = await apiClient.request<T>({ url, ...config });
-    return response.data;
-  } catch (error) {
+// Response interceptor — normalise errors
+apiClient.interceptors.response.use(
+  (res) => res,
+  (error) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const body = error.response?.data as
-        | { error?: string | { message?: string } }
-        | undefined;
-
-      const errorData = body?.error;
-      const errorMsg =
-        (typeof errorData === 'string'
-          ? errorData
-          : (errorData as { message?: string } | undefined)?.message) ??
-        `HTTP ${status ?? 'unknown'}`;
+      const body = error.response?.data as { error?: string } | undefined;
+      const msg = body?.error ?? `HTTP ${status ?? 'unknown'}`;
 
       if (status === 401) {
         clearTokenCache();
-        throw new Error(
-          `Authentication failed (${errorMsg}) - please try refreshing the page`
-        );
+        throw new Error(`Authentication failed — please refresh the page`);
       }
 
-      throw new Error(errorMsg);
+      throw new Error(msg);
     }
-    if (error instanceof Error) throw error;
-    throw new Error('Failed to complete API request');
+    throw error;
   }
+);
+
+// ─── Typed helpers ─────────────────────────────────────────────────────────────
+
+/** GET  /api/... */
+export function apiGet<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return apiClient.get<T>(url, config);
 }
 
+/** POST /api/... */
+export function apiPost<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return apiClient.post<T>(url, data, config);
+}
+
+/** PATCH /api/... */
+export function apiPatch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return apiClient.patch<T>(url, data, config);
+}
+
+/** PUT /api/... */
+export function apiPut<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return apiClient.put<T>(url, data, config);
+}
+
+/** DELETE /api/... */
+export function apiDelete<T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return apiClient.delete<T>(url, config);
+}
+
+// ─── fetchWithAuth shim (backward compat for SWR fetcher + existing callers) ──
+
 /**
- * Clear the cached token (call on logout)
+ * Convenience wrapper that returns parsed response data directly.
+ * Used as the SWR global fetcher and in legacy call sites.
+ *
+ * For new code, prefer the typed helpers above (apiGet, apiPost, etc.)
  */
-export function clearTokenCache(): void {
-  cachedToken = null;
-  tokenExpiryTime = null;
+export async function fetchWithAuth<T = Record<string, unknown>>(
+  url: string,
+  options: { method?: string; body?: string; headers?: Record<string, string> } = {}
+): Promise<T> {
+  const response = await apiClient.request<T>({
+    url,
+    method: (options.method ?? 'GET') as AxiosRequestConfig['method'],
+    data: options.body ? JSON.parse(options.body) : undefined,
+    headers: options.headers,
+  });
+  return response.data;
 }
