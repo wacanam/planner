@@ -103,12 +103,14 @@ export default function CongregationDashboardPage() {
     if (congJson.data) setCongregation(congJson.data);
     if (memberJson.data) {
       setMembers(memberJson.data);
-      if (sessionUser?.id) {
-        const me = memberJson.data.find(
-          (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
-        );
-        if (me?.congregationRole) setMyRole(me.congregationRole);
-      }
+      // Always resolve the role (to '' when not found) so myRole is never left
+      // as null after loading, preventing a flash of the wrong button set.
+      const me = sessionUser?.id
+        ? memberJson.data.find(
+            (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
+          )
+        : undefined;
+      setMyRole(me?.congregationRole ?? '');
     }
     if (groupJson.data) setGroups(groupJson.data);
     if (territoryJson.data) setTerritories(territoryJson.data);
@@ -152,10 +154,14 @@ export default function CongregationDashboardPage() {
               {congregation?.name ?? 'Congregation'} Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {isOverseer ? 'Congregation overview and quick actions' : 'Your ministry overview'}
+              {loading || myRole === null
+                ? <Skeleton className="h-4 w-48 rounded-md mt-1" />
+                : isOverseer
+                  ? 'Congregation overview and quick actions'
+                  : 'Your ministry overview'}
             </p>
           </div>
-          {loading ? (
+          {loading || myRole === null ? (
             <div className="flex gap-2">
               <Skeleton className="h-8 w-28 rounded-md" />
               <Skeleton className="h-8 w-32 rounded-md" />

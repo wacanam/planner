@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { fetchWithAuth } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
 
@@ -152,11 +153,12 @@ export default function CongregationTerritoriesPage() {
     if (rJson.data) setRequests(rJson.data);
     if (mJson.data) {
       setMembers(mJson.data);
-      // Detect own congregation role
-      if (sessionUser?.id) {
-        const me = mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id);
-        if (me?.congregationRole) setMyRole(me.congregationRole);
-      }
+      // Always resolve the role (to '' when not found) so myRole is never left
+      // as null after loading, preventing a flash of the wrong button set.
+      const me = sessionUser?.id
+        ? mJson.data.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
+        : undefined;
+      setMyRole(me?.congregationRole ?? '');
     }
     if (gJson.data) setGroups(gJson.data);
     setLoading(false);
@@ -444,12 +446,14 @@ export default function CongregationTerritoriesPage() {
               Manage territories and assignment requests
             </p>
           </div>
-          {isOverseer && (
+          {loading || myRole === null ? (
+            <Skeleton className="h-9 w-32 rounded-md" />
+          ) : isOverseer ? (
             <Button onClick={() => setCreateOpen(true)}>
               <Plus size={14} />
               Add Territory
             </Button>
-          )}
+          ) : null}
         </div>
 
         {/* Stats */}
@@ -479,7 +483,9 @@ export default function CongregationTerritoriesPage() {
           >
             Territories ({territories.length})
           </button>
-          {isOverseer && (
+          {loading || myRole === null
+            ? <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
+            : isOverseer ? (
             <button
               type="button"
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -496,7 +502,7 @@ export default function CongregationTerritoriesPage() {
                 </span>
               )}
             </button>
-          )}
+          ) : null}
         </div>
 
         {tab === 'territories' && (
