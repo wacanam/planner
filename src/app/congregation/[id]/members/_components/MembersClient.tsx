@@ -333,7 +333,7 @@ export default function CongregationMembersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <Badge variant="outline" className={roleColor(m.congregationRole)}>
+                          <Badge variant="outline" className={`${roleColor(m.congregationRole)} whitespace-nowrap`}>
                             {roleLabel(m.congregationRole)}
                           </Badge>
                         </td>
@@ -502,7 +502,7 @@ export default function CongregationMembersPage() {
       </Dialog>
 
       {/* Edit Role Dialog */}
-      <Dialog open={editRoleOpen} onOpenChange={(open) => { setEditRoleOpen(open); if (!open) editRoleForm.reset(); }}>
+      <Dialog open={editRoleOpen} onOpenChange={setEditRoleOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change Member Role</DialogTitle>
@@ -579,7 +579,7 @@ export default function CongregationMembersPage() {
       </Dialog>
 
       {/* Review Join Request Dialog */}
-      <Dialog open={reviewOpen} onOpenChange={(open) => { setReviewOpen(open); if (!open) reviewForm.reset(); }}>
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
