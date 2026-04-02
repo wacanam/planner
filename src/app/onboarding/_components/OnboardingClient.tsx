@@ -18,7 +18,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { apiClient } from '@/lib/api-client';
+import {
+  createCongregationSchema,
+  type CreateCongregationFormData,
+  joinRequestSchema,
+  type JoinRequestFormData,
+} from '@/schemas';
 
 type Mode = 'choose' | 'create' | 'join' | 'join-sent';
 
@@ -37,9 +45,17 @@ export default function OnboardingPage() {
   const [mode, setMode] = useState<Mode>('choose');
 
   // Create form
-  const [createForm, setCreateForm] = useState({ name: '', city: '', country: '' });
   const [createError, setCreateError] = useState('');
-  const [createLoading, setCreateLoading] = useState(false);
+  const createForm = useForm<CreateCongregationFormData>({
+    resolver: zodResolver(createCongregationSchema),
+    defaultValues: { name: '', city: '', country: '' },
+  });
+
+  // Join form
+  const joinForm = useForm<JoinRequestFormData>({
+    resolver: zodResolver(joinRequestSchema),
+    defaultValues: { message: '' },
+  });
 
   // Join flow
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,9 +63,7 @@ export default function OnboardingPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchDone, setSearchDone] = useState(false);
   const [selectedCong, setSelectedCong] = useState<SearchResult | null>(null);
-  const [joinMessage, setJoinMessage] = useState('');
   const [joinError, setJoinError] = useState('');
-  const [joinLoading, setJoinLoading] = useState(false);
 
   const user = session?.user as { name?: string; congregationId?: string } | undefined;
 
@@ -60,27 +74,19 @@ export default function OnboardingPage() {
 
   // ── Create congregation ───────────────────────────────────────────────────
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
-    if (!createForm.name.trim()) {
-      setCreateError('Congregation name is required.');
-      return;
-    }
-    setCreateLoading(true);
     try {
       const congregation = await apiClient.post<{ id: string }, object>('/api/congregations', {
-          name: createForm.name.trim(),
-          city: createForm.city.trim() || undefined,
-          country: createForm.country.trim() || undefined,
+          name: data.name.trim(),
+          city: data.city?.trim() || undefined,
+          country: data.country?.trim() || undefined,
         });
       await updateSession({ congregationId: congregation.id });
       router.replace(`/congregation/${congregation.id}/dashboard`);
       router.refresh();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setCreateLoading(false);
     }
   }
 
@@ -108,21 +114,17 @@ export default function OnboardingPage() {
 
   // ── Submit join request ───────────────────────────────────────────────────
 
-  async function handleJoin(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleJoin(data: JoinRequestFormData) {
     if (!selectedCong) return;
     setJoinError('');
-    setJoinLoading(true);
     try {
       await apiClient.post('/api/congregations/join-requests', {
           congregationId: selectedCong.id,
-          message: joinMessage.trim() || undefined,
+          message: data.message?.trim() || undefined,
         });
       setMode('join-sent');
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setJoinLoading(false);
     }
   }
 
@@ -219,20 +221,23 @@ export default function OnboardingPage() {
               </Alert>
             )}
 
-            <form onSubmit={handleCreate} className="space-y-5">
+            <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-5">
               <div className="space-y-1.5">
                 <Label htmlFor="cong-name">
                   Congregation name <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="cong-name"
-                  required
                   autoFocus
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                  {...createForm.register('name')}
                   placeholder="e.g. Southside Congregation"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
+                  aria-invalid={!!createForm.formState.errors.name}
+                  className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
+                {createForm.formState.errors.name && (
+                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cong-city">
@@ -240,10 +245,9 @@ export default function OnboardingPage() {
                 </Label>
                 <Input
                   id="cong-city"
-                  value={createForm.city}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, city: e.target.value }))}
+                  {...createForm.register('city')}
                   placeholder="e.g. Manila"
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                 />
               </div>
               <div className="space-y-1.5">
@@ -257,10 +261,9 @@ export default function OnboardingPage() {
                   />
                   <Input
                     id="cong-country"
-                    value={createForm.country}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, country: e.target.value }))}
+                    {...createForm.register('country')}
                     placeholder="e.g. Philippines"
-                    disabled={createLoading}
+                    disabled={createForm.formState.isSubmitting}
                     className="pl-9"
                   />
                 </div>
@@ -271,17 +274,17 @@ export default function OnboardingPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setMode('choose')}
-                  disabled={createLoading}
+                  disabled={createForm.formState.isSubmitting}
                   className="flex-1"
                 >
                   Back
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createLoading || !createForm.name.trim()}
+                  disabled={createForm.formState.isSubmitting}
                   className="flex-[2]"
                 >
-                  {createLoading ? (
+                  {createForm.formState.isSubmitting ? (
                     <span className="flex items-center gap-2">
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <circle
@@ -407,7 +410,7 @@ export default function OnboardingPage() {
 
             {/* Join request form */}
             {selectedCong && (
-              <form onSubmit={handleJoin} className="space-y-5">
+              <form onSubmit={joinForm.handleSubmit(handleJoin)} className="space-y-5">
                 {/* Selected congregation */}
                 <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between">
                   <div>
@@ -435,13 +438,16 @@ export default function OnboardingPage() {
                   </Label>
                   <textarea
                     id="join-message"
-                    value={joinMessage}
-                    onChange={(e) => setJoinMessage(e.target.value)}
+                    {...joinForm.register('message')}
                     placeholder="e.g. Hi, I'm a publisher in this congregation…"
                     rows={3}
-                    disabled={joinLoading}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+                    disabled={joinForm.formState.isSubmitting}
+                    aria-invalid={!!joinForm.formState.errors.message}
+                    className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${joinForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
                   />
+                  {joinForm.formState.errors.message && (
+                    <p className="text-xs text-destructive mt-1">{joinForm.formState.errors.message.message}</p>
+                  )}
                 </div>
 
                 {joinError && (
@@ -456,13 +462,13 @@ export default function OnboardingPage() {
                     type="button"
                     variant="outline"
                     onClick={() => setSelectedCong(null)}
-                    disabled={joinLoading}
+                    disabled={joinForm.formState.isSubmitting}
                     className="flex-1"
                   >
                     Back
                   </Button>
-                  <Button type="submit" disabled={joinLoading} className="flex-[2]">
-                    {joinLoading ? (
+                  <Button type="submit" disabled={joinForm.formState.isSubmitting} className="flex-[2]">
+                    {joinForm.formState.isSubmitting ? (
                       <span className="flex items-center gap-2">
                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <circle

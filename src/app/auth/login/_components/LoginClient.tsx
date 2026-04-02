@@ -5,34 +5,38 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { loginSchema, type LoginFormData } from '@/schemas';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
+  async function onSubmit(data: LoginFormData) {
     setError('');
-    setLoading(true);
-
     try {
       const result = await signIn('credentials', {
-        email,
-        password,
+        email: data.email,
+        password: data.password,
         redirect: false,
       });
 
       if (!result?.ok) {
-        // NextAuth swallows the real error message as "CredentialsSignin"
-        // so we call the register endpoint to distinguish bad credentials vs other errors
         setError('Invalid email or password. Please try again.');
       } else {
         router.push('/dashboard');
@@ -41,8 +45,6 @@ export default function LoginPage() {
     } catch (err) {
       console.error('[login error]', err);
       setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -70,7 +72,7 @@ export default function LoginPage() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Email */}
             <div className="space-y-1.5">
               <Label htmlFor="email">Email address</Label>
@@ -78,12 +80,15 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register('email')}
                 placeholder="you@example.com"
-                disabled={loading}
+                disabled={isSubmitting}
+                aria-invalid={!!errors.email}
+                className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
+              {errors.email && (
+                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -102,12 +107,11 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register('password')}
                   placeholder="••••••••"
-                  disabled={loading}
-                  className="pr-10"
+                  disabled={isSubmitting}
+                  aria-invalid={!!errors.password}
+                  className={`pr-10${errors.password ? ' border-destructive focus-visible:ring-destructive' : ''}`}
                 />
                 <button
                   type="button"
@@ -118,11 +122,14 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
+              )}
             </div>
 
             {/* Submit */}
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+              {isSubmitting ? (
                 <span className="flex items-center gap-2">
                   <svg
                     className="animate-spin h-4 w-4"
