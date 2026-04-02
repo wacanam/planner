@@ -24,7 +24,7 @@ export async function PATCH(
   const { user } = auth;
 
   const body = await req.json();
-  const { status, responseMessage } = body;
+  const { status, responseMessage, territoryId: bodyTerritoryId } = body;
 
   if (![TerritoryRequestStatus.APPROVED, TerritoryRequestStatus.REJECTED].includes(status)) {
     return NextResponse.json({ error: 'status must be approved or rejected' }, { status: 400 });
@@ -50,7 +50,37 @@ export async function PATCH(
 
   let updatedRequest: typeof territoryRequests.$inferSelect;
 
-  if (status === TerritoryRequestStatus.APPROVED && request.territoryId) {
+  // Use the territory from the original request, or fall back to an overseer-selected one
+  const resolvedTerritoryId = request.territoryId ?? (bodyTerritoryId as string | undefined) ?? null;
+
+  // When no specific territory was on the original request and the overseer supplies one,
+  // validate it belongs to this congregation and is still available before proceeding.
+  if (
+    status === TerritoryRequestStatus.APPROVED &&
+    !request.territoryId &&
+    bodyTerritoryId
+  ) {
+    const [targetTerritory] = await db
+      .select({ id: territories.id })
+      .from(territories)
+      .where(
+        and(
+          eq(territories.id, bodyTerritoryId as string),
+          eq(territories.congregationId, id),
+          eq(territories.status, TerritoryStatus.AVAILABLE)
+        )
+      )
+      .limit(1);
+
+    if (!targetTerritory) {
+      return NextResponse.json(
+        { error: 'Territory not found, not available, or does not belong to this congregation' },
+        { status: 400 }
+      );
+    }
+  }
+
+  if (status === TerritoryRequestStatus.APPROVED && resolvedTerritoryId) {
     // db.batch uses neon's HTTP batch API which executes both statements atomically,
     // so the request status and territory status are updated together.
     const [updatedRequestRows, assignedTerritoryRows] = await db.batch([
@@ -74,7 +104,7 @@ export async function PATCH(
         })
         .where(
           and(
-            eq(territories.id, request.territoryId),
+            eq(territories.id, resolvedTerritoryId),
             eq(territories.status, TerritoryStatus.AVAILABLE)
           )
         )

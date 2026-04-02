@@ -139,6 +139,7 @@ export default function CongregationTerritoriesPage() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [confirmResponseMessage, setConfirmResponseMessage] = useState('');
+  const [confirmTerritoryId, setConfirmTerritoryId] = useState('');
 
   const fetchData = useCallback(async () => {
     const [tJson, rJson, mJson, gJson] = await Promise.all([
@@ -239,6 +240,7 @@ export default function CongregationTerritoriesPage() {
     setConfirmAction(action);
     setConfirmError('');
     setConfirmResponseMessage('');
+    setConfirmTerritoryId('');
   }
 
   function closeConfirmDialog() {
@@ -246,12 +248,18 @@ export default function CongregationTerritoriesPage() {
     setConfirmAction(null);
     setConfirmError('');
     setConfirmResponseMessage('');
+    setConfirmTerritoryId('');
   }
 
   async function handleConfirmAction() {
     if (!confirmRequest || !confirmAction) return;
     if (confirmAction === 'reject' && !confirmResponseMessage.trim()) {
       setConfirmError('A reason is required when rejecting a request.');
+      return;
+    }
+    // When approving a request that has no specific territory, the overseer must pick one
+    if (confirmAction === 'approve' && !confirmRequest.territoryId && !confirmTerritoryId) {
+      setConfirmError('Please select a territory to assign to the publisher.');
       return;
     }
     setConfirmLoading(true);
@@ -264,6 +272,9 @@ export default function CongregationTerritoriesPage() {
           body: JSON.stringify({
             status: confirmAction === 'approve' ? 'approved' : 'rejected',
             responseMessage: confirmResponseMessage.trim() || null,
+            ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
+              ? { territoryId: confirmTerritoryId }
+              : {}),
           }),
         }
       );
@@ -1032,7 +1043,9 @@ export default function CongregationTerritoriesPage() {
             </DialogTitle>
             <DialogDescription>
               {confirmAction === 'approve'
-                ? 'Approve this territory request and assign the territory to the publisher?'
+                ? confirmRequest?.territoryId
+                  ? 'Approve this territory request and assign the territory to the publisher?'
+                  : 'Select a territory to assign to the publisher and approve the request.'
                 : 'Reject this territory request?'}
             </DialogDescription>
           </DialogHeader>
@@ -1046,6 +1059,31 @@ export default function CongregationTerritoriesPage() {
               Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
             </p>
           </div>
+
+          {/* Territory selector — only shown when approving a request with no specific territory */}
+          {confirmAction === 'approve' && !confirmRequest?.territoryId && (
+            <div className="space-y-1.5">
+              <label htmlFor="confirm-territory-select" className="text-sm font-medium text-foreground">
+                Assign territory <span className="text-destructive">*</span>
+              </label>
+              <select
+                id="confirm-territory-select"
+                value={confirmTerritoryId}
+                onChange={(e) => setConfirmTerritoryId(e.target.value)}
+                disabled={confirmLoading}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              >
+                <option value="">Select an available territory…</option>
+                {territories
+                  .filter((t) => t.status === 'available')
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      #{t.number} {t.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label htmlFor="confirm-response-message" className="text-sm font-medium text-foreground">
