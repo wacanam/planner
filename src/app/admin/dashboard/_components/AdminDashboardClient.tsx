@@ -2,7 +2,7 @@
 
 import { ArrowRight, Building2, Globe, Plus, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -20,23 +20,11 @@ interface Congregation {
   createdAt: string;
 }
 
-export default function AdminDashboardPage() {
-  const [congregations, setCongregations] = useState<Congregation[]>([]);
-  const [loading, setLoading] = useState(true);
+const fetcher = (url: string) => fetchWithAuth<{ data: Congregation[] }>(url);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const json = await fetchWithAuth<{ data: Congregation[] }>('/api/congregations');
-        if (json.data) setCongregations(json.data);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+export default function AdminDashboardPage() {
+  const { data, isLoading: loading } = useSWR('/api/congregations', fetcher);
+  const congregations = data?.data ?? [];
 
   const totalActive = congregations.filter((c) => c.status === 'active').length;
 

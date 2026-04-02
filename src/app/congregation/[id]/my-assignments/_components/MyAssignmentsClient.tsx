@@ -3,14 +3,17 @@
 import { ArrowRight, ChevronDown, ChevronUp, ClipboardList, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { fetchWithAuth } from '@/lib/api-client';
+import {
+  useCongregationTerritories,
+  useCongregationTerritoryRequests,
+} from '@/hooks';
 
 interface Territory {
   id: string;
@@ -45,28 +48,21 @@ export default function MyAssignmentsClient() {
   const congregationId = params?.id as string;
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string } | undefined;
-
-  const [territories, setTerritories] = useState<Territory[]>([]);
-  const [requests, setRequests] = useState<TerritoryRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showPast, setShowPast] = useState(false);
 
-  const loadData = useCallback(async () => {
-    const [tJson, rJson] = await Promise.all([
-      fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
-      fetchWithAuth<{ data: TerritoryRequest[] }>(
-        `/api/congregations/${congregationId}/territory-requests?status=pending`
-      ),
-    ]);
-    if (tJson.data) setTerritories(tJson.data);
-    if (rJson.data) setRequests(rJson.data);
-    setLoading(false);
-  }, [congregationId]);
+  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } =
+    useCongregationTerritories(congregationId);
+  const territories = territoriesData as Territory[];
 
-  useEffect(() => {
-    if (!congregationId) return;
-    loadData().catch(() => setLoading(false));
-  }, [congregationId, loadData]);
+  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } =
+    useCongregationTerritoryRequests(congregationId, 'pending');
+  const requests = requestsData as TerritoryRequest[];
+
+  const loading = territoriesLoading || requestsLoading;
+
+  const reload = async () => {
+    await Promise.all([mutateTerritories(), mutateRequests()]);
+  };
 
   const myActive = territories.filter(
     (t) => t.status === 'assigned' && t.publisherId === sessionUser?.id
@@ -96,7 +92,7 @@ export default function MyAssignmentsClient() {
           </div>
           <TerritoryRequestDialog
             congregationId={congregationId}
-            onSuccess={loadData}
+            onSuccess={reload}
             trigger={
               <Button size="sm">
                 <ClipboardList size={14} />
@@ -134,7 +130,7 @@ export default function MyAssignmentsClient() {
                 </p>
                 <TerritoryRequestDialog
                   congregationId={congregationId}
-                  onSuccess={loadData}
+                  onSuccess={reload}
                   trigger={
                     <Button size="sm" variant="outline" className="mt-3">
                       Request a Territory

@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { StatCard } from '@/components/stat-card';
@@ -67,6 +67,8 @@ const statusColors: Record<string, string> = {
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
 
+const fetcher = (url: string) => fetchWithAuth(url);
+
 export default function CongregationDashboardPage() {
   const params = useParams();
   const congregationId = params?.id as string;
@@ -76,13 +78,39 @@ export default function CongregationDashboardPage() {
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
 
-  const [members, setMembers] = useState<Member[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [territories, setTerritories] = useState<Territory[]>([]);
-  const [requests, setRequests] = useState<TerritoryRequest[]>([]);
-  const [congregation, setCongregation] = useState<{ name: string } | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: congData, isLoading: congLoading } = useSWR(
+    congregationId ? `/api/congregations/${congregationId}` : null,
+    fetcher
+  );
+  const { data: membersData, isLoading: membersLoading, mutate: mutateMembers } = useSWR(
+    congregationId ? `/api/congregations/${congregationId}/members` : null,
+    fetcher
+  );
+  const { data: groupsData, isLoading: groupsLoading } = useSWR(
+    congregationId ? `/api/congregations/${congregationId}/groups` : null,
+    fetcher
+  );
+  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } = useSWR(
+    congregationId ? `/api/congregations/${congregationId}/territories` : null,
+    fetcher
+  );
+  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } = useSWR(
+    congregationId ? `/api/congregations/${congregationId}/territory-requests?status=pending` : null,
+    fetcher
+  );
+
+  const loading = congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
+
+  const congregation = (congData as { data: { name: string } } | undefined)?.data ?? null;
+  const members = ((membersData as { data: Member[] } | undefined)?.data ?? []) as Member[];
+  const groups = ((groupsData as { data: Group[] } | undefined)?.data ?? []) as Group[];
+  const territories = ((territoriesData as { data: Territory[] } | undefined)?.data ?? []) as Territory[];
+  const requests = ((requestsData as { data: TerritoryRequest[] } | undefined)?.data ?? []) as TerritoryRequest[];
+
+  const me = sessionUser?.id
+    ? members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
+    : undefined;
+  const myRole = membersLoading ? null : (me?.congregationRole ?? '');
 
   const isOverseer =
     myRole === CongregationRole.SERVICE_OVERSEER ||
@@ -90,39 +118,9 @@ export default function CongregationDashboardPage() {
     sessionUser?.role === UserRole.SUPER_ADMIN ||
     sessionUser?.role === UserRole.ADMIN;
 
-  const loadAll = useCallback(async () => {
-    const [congJson, memberJson, groupJson, territoryJson, requestJson] = await Promise.all([
-      fetchWithAuth<{ data: { name: string } }>(`/api/congregations/${congregationId}`),
-      fetchWithAuth<{ data: Member[] }>(`/api/congregations/${congregationId}/members`),
-      fetchWithAuth<{ data: Group[] }>(`/api/congregations/${congregationId}/groups`),
-      fetchWithAuth<{ data: Territory[] }>(`/api/congregations/${congregationId}/territories`),
-      fetchWithAuth<{ data: TerritoryRequest[] }>(
-        `/api/congregations/${congregationId}/territory-requests?status=pending`
-      ),
-    ]);
-
-    if (congJson.data) setCongregation(congJson.data);
-    if (memberJson.data) {
-      setMembers(memberJson.data);
-      // Always resolve the role (to '' when not found) so myRole is never left
-      // as null after loading, preventing a flash of the wrong button set.
-      const me = sessionUser?.id
-        ? memberJson.data.find(
-            (m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id
-          )
-        : undefined;
-      setMyRole(me?.congregationRole ?? '');
-    }
-    if (groupJson.data) setGroups(groupJson.data);
-    if (territoryJson.data) setTerritories(territoryJson.data);
-    if (requestJson.data) setRequests(requestJson.data);
-    setLoading(false);
-  }, [congregationId, sessionUser?.id]);
-
-  useEffect(() => {
-    if (!congregationId) return;
-    loadAll().catch(() => setLoading(false));
-  }, [congregationId, loadAll]);
+  const loadAll = async () => {
+    await Promise.all([mutateMembers(), mutateTerritories(), mutateRequests()]);
+  };
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
   const pendingRequests = requests.length;

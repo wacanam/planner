@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,38 +51,28 @@ function getAssigneeDisplayName(a: Assignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
+const fetcher = (url: string) => fetchWithAuth(url);
+
 export default function TerritoryDetailView() {
   const { id: congregationId, territoryId } = useParams<{
     id: string;
     territoryId: string;
   }>();
-  const [territory, setTerritory] = useState<Territory | null>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!territoryId) return;
-    setLoading(true);
-    Promise.all([
-      fetchWithAuth<{ success: boolean; data: Territory }>(`/api/territories/${territoryId}`),
-      fetchWithAuth<{ success: boolean; data: Assignment[] }>(
-        `/api/territories/${territoryId}/assignments`
-      ).catch(() => ({ success: false, data: [] as Assignment[] })),
-    ])
-      .then(([territoryData, assignmentsData]) => {
-        if (territoryData.success && territoryData.data) {
-          setTerritory(territoryData.data);
-        } else {
-          setError('Territory not found');
-        }
-        if (assignmentsData.success && assignmentsData.data) {
-          setAssignments(assignmentsData.data);
-        }
-      })
-      .catch(() => setError('Failed to load territory'))
-      .finally(() => setLoading(false));
-  }, [territoryId]);
+  const { data: territoryResponse, isLoading: territoryLoading, error: territoryError } = useSWR(
+    territoryId ? `/api/territories/${territoryId}` : null,
+    fetcher
+  );
+
+  const { data: assignmentsResponse, isLoading: assignmentsLoading } = useSWR(
+    territoryId ? `/api/territories/${territoryId}/assignments` : null,
+    fetcher
+  );
+
+  const loading = territoryLoading || assignmentsLoading;
+  const territory = (territoryResponse as { success: boolean; data: Territory } | undefined)?.data ?? null;
+  const assignments = (assignmentsResponse as { success: boolean; data: Assignment[] } | undefined)?.data ?? [];
+  const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
 
   const backHref = `/congregation/${congregationId}/territories`;
 
