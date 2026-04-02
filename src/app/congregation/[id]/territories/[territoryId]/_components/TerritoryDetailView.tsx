@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +8,7 @@ import { CoverageChart } from '@/components/coverage-chart';
 import { ArrowLeft, User, Users, History } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { apiClient } from '@/lib/api-client';
+import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
 
 type Territory = {
   id: string;
@@ -51,23 +50,15 @@ function getAssigneeDisplayName(a: Assignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
-const fetcher = (url: string) => apiClient.get(url);
-
 export default function TerritoryDetailView() {
   const { id: congregationId, territoryId } = useParams<{
     id: string;
     territoryId: string;
   }>();
 
-  const { data: territoryResponse, isLoading: territoryLoading, error: territoryError } = useSWR(
-    territoryId ? `/api/territories/${territoryId}` : null,
-    fetcher
-  );
+  const { territory: territoryResponse, isLoading: territoryLoading, error: territoryError } = useTerritoryDetail(territoryId ?? null);
 
-  const { data: assignmentsResponse, isLoading: assignmentsLoading } = useSWR(
-    territoryId ? `/api/territories/${territoryId}/assignments` : null,
-    fetcher
-  );
+  const { assignments: assignmentsResponse, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId ?? '');
 
   const loading = territoryLoading || assignmentsLoading;
   const territory = (territoryResponse as Territory | undefined) ?? null;

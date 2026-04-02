@@ -67,3 +67,16 @@ export function useReviewTerritoryRequest(congregationId: string) {
   );
   return { reviewRequest: trigger, isReviewing: isMutating };
 }
+
+export function useTerritoryDetail(territoryId: string | null) {
+  const { data, error, isLoading, mutate } = useSWR(
+    territoryId ? `/api/territories/${territoryId}` : null,
+    fetcher
+  );
+  return {
+    territory: (data as Record<string, unknown> | undefined) ?? null,
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+  };
+}

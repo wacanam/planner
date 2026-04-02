@@ -2,14 +2,13 @@
 
 import { ArrowRight, Building2, Globe, Plus, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/db';
-import { apiClient } from '@/lib/api-client';
+import { useCongregations } from '@/hooks';
 
 interface Congregation {
   id: string;
@@ -20,11 +19,8 @@ interface Congregation {
   createdAt: string;
 }
 
-const fetcher = (url: string) => apiClient.get<Congregation[]>(url);
-
 export default function AdminDashboardPage() {
-  const { data, isLoading: loading } = useSWR('/api/congregations', fetcher);
-  const congregations = data ?? [];
+  const { congregations, isLoading: loading } = useCongregations<Congregation>();
 
   const totalActive = congregations.filter((c) => c.status === 'active').length;
 

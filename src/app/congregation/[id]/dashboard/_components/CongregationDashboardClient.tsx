@@ -13,7 +13,6 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { StatCard } from '@/components/stat-card';
@@ -21,8 +20,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
+import {
+  useCongregation,
+  useCongregationMembers,
+  useCongregationGroups,
+  useCongregationTerritories,
+  useCongregationTerritoryRequests,
+} from '@/hooks';
 
 interface Member {
   id: string;
@@ -67,8 +72,6 @@ const statusColors: Record<string, string> = {
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
 
-const fetcher = (url: string) => apiClient.get(url);
-
 export default function CongregationDashboardPage() {
   const params = useParams();
   const congregationId = params?.id as string;
@@ -78,26 +81,11 @@ export default function CongregationDashboardPage() {
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
 
-  const { data: congData, isLoading: congLoading } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}` : null,
-    fetcher
-  );
-  const { data: membersData, isLoading: membersLoading, mutate: mutateMembers } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/members` : null,
-    fetcher
-  );
-  const { data: groupsData, isLoading: groupsLoading } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    fetcher
-  );
-  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/territories` : null,
-    fetcher
-  );
-  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/territory-requests?status=pending` : null,
-    fetcher
-  );
+  const { congregation: congData, isLoading: congLoading } = useCongregation(congregationId ?? null);
+  const { data: membersData, isLoading: membersLoading, mutate: mutateMembers } = useCongregationMembers(congregationId);
+  const { groups: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
+  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } = useCongregationTerritories(congregationId);
+  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } = useCongregationTerritoryRequests(congregationId, 'pending');
 
   const loading = congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
 

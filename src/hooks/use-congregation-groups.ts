@@ -10,6 +10,7 @@ export function useCongregationGroups(congregationId: string) {
     fetcher
   );
   return {
+    groups: (data as unknown[] | undefined) ?? [],
     data: (data as unknown[] | undefined) ?? [],
     isLoading,
     error: error?.message ?? null,

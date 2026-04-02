@@ -26,11 +26,12 @@ import { CongregationRole, UserRole } from '@/db';
 import {
   useCongregationTerritories,
   useCongregationTerritoryRequests,
+  useCongregationMembers,
+  useCongregationGroups,
   useCreateTerritory,
   useCreateTerritoryRequest,
   useReviewTerritoryRequest,
 } from '@/hooks';
-import useSWR from 'swr';
 
 interface Territory {
   id: string;
@@ -96,17 +97,11 @@ export default function CongregationTerritoriesPage() {
   } = useCongregationTerritoryRequests(congregationId, 'pending');
   const requests = requestsData as TerritoryRequest[];
 
-  const { data: membersData } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/members` : null,
-    (url: string) => apiClient.get(url)
-  );
-  const members = ((membersData as Member[] | undefined) ?? []) as Member[];
+  const { data: membersRaw } = useCongregationMembers(congregationId);
+  const members = membersRaw as Member[];
 
-  const { data: groupsData } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    (url: string) => apiClient.get(url)
-  );
-  const groups = ((groupsData as Group[] | undefined) ?? []) as Group[];
+  const { groups: groupsRaw } = useCongregationGroups(congregationId);
+  const groups = groupsRaw as Group[];
 
   const loading = territoriesLoading || requestsLoading;
 

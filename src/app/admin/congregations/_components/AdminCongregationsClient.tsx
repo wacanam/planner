@@ -3,7 +3,6 @@
 import { AlertCircle, Building2, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import { ProtectedPage } from '@/components/protected-page';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserRole } from '@/db';
 import { apiClient } from '@/lib/api-client';
+import { useCongregations } from '@/hooks';
 
 interface Congregation {
   id: string;
@@ -30,11 +30,8 @@ interface Congregation {
   createdAt: string;
 }
 
-const fetcher = (url: string) => apiClient.get(url);
-
 export default function AdminCongregationsPage() {
-  const { data: congregationsResponse, isLoading: loading, mutate: mutateCongregations } = useSWR('/api/congregations', fetcher);
-  const congregations = ((congregationsResponse as Congregation[] | undefined) ?? []) as Congregation[];
+  const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations<Congregation>();
 
   const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');
