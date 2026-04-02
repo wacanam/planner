@@ -97,6 +97,8 @@ export function TerritoryRequestDialog({
                 placeholder="Any notes for the overseer..."
                 {...register('message')}
                 rows={3}
+                aria-invalid={!!errors.message}
+                className={errors.message ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {errors.message && (
                 <p className="text-xs text-destructive mt-1">{errors.message.message}</p>

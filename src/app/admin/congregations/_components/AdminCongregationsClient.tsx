@@ -267,6 +267,8 @@ export default function AdminCongregationsPage() {
                 {...createForm.register('name')}
                 placeholder="e.g. Central Congregation"
                 disabled={createForm.formState.isSubmitting}
+                aria-invalid={!!createForm.formState.errors.name}
+                className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {createForm.formState.errors.name && (
                 <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
@@ -317,6 +319,8 @@ export default function AdminCongregationsPage() {
                 id="e-name"
                 {...editForm.register('name')}
                 disabled={editForm.formState.isSubmitting}
+                aria-invalid={!!editForm.formState.errors.name}
+                className={editForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {editForm.formState.errors.name && (
                 <p className="text-xs text-destructive mt-1">{editForm.formState.errors.name.message}</p>

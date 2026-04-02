@@ -163,6 +163,8 @@ export default function RegisterPage() {
                   {...register('firstName')}
                   placeholder="Jane"
                   disabled={isSubmitting}
+                  aria-invalid={!!errors.firstName}
+                  className={errors.firstName ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
                 {errors.firstName && (
                   <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>
@@ -177,6 +179,8 @@ export default function RegisterPage() {
                   {...register('lastName')}
                   placeholder="Doe"
                   disabled={isSubmitting}
+                  aria-invalid={!!errors.lastName}
+                  className={errors.lastName ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
                 {errors.lastName && (
                   <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>
@@ -194,6 +198,8 @@ export default function RegisterPage() {
                 {...register('email')}
                 placeholder="you@example.com"
                 disabled={isSubmitting}
+                aria-invalid={!!errors.email}
+                className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {errors.email && (
                 <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -211,7 +217,8 @@ export default function RegisterPage() {
                   {...register('password')}
                   placeholder="••••••••"
                   disabled={isSubmitting}
-                  className="pr-10"
+                  aria-invalid={!!errors.password}
+                  className={`pr-10${errors.password ? ' border-destructive focus-visible:ring-destructive' : ''}`}
                 />
                 <button
                   type="button"
@@ -256,7 +263,8 @@ export default function RegisterPage() {
                   {...register('confirmPassword')}
                   placeholder="••••••••"
                   disabled={isSubmitting}
-                  className="pr-10"
+                  aria-invalid={!!errors.confirmPassword}
+                  className={`pr-10${errors.confirmPassword ? ' border-destructive focus-visible:ring-destructive' : ''}`}
                 />
                 <button
                   type="button"

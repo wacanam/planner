@@ -209,6 +209,8 @@ export default function CongregationGroupsPage() {
                 {...createForm.register('name')}
                 placeholder="e.g. Monday Group"
                 disabled={createForm.formState.isSubmitting}
+                aria-invalid={!!createForm.formState.errors.name}
+                className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {createForm.formState.errors.name && (
                 <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>

@@ -232,6 +232,8 @@ export default function OnboardingPage() {
                   {...createForm.register('name')}
                   placeholder="e.g. Southside Congregation"
                   disabled={createForm.formState.isSubmitting}
+                  aria-invalid={!!createForm.formState.errors.name}
+                  className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
                 {createForm.formState.errors.name && (
                   <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
@@ -440,7 +442,8 @@ export default function OnboardingPage() {
                     placeholder="e.g. Hi, I'm a publisher in this congregation…"
                     rows={3}
                     disabled={joinForm.formState.isSubmitting}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+                    aria-invalid={!!joinForm.formState.errors.message}
+                    className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${joinForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
                   />
                   {joinForm.formState.errors.message && (
                     <p className="text-xs text-destructive mt-1">{joinForm.formState.errors.message.message}</p>

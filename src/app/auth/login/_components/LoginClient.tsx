@@ -83,6 +83,8 @@ export default function LoginPage() {
                 {...register('email')}
                 placeholder="you@example.com"
                 disabled={isSubmitting}
+                aria-invalid={!!errors.email}
+                className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {errors.email && (
                 <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
@@ -108,7 +110,8 @@ export default function LoginPage() {
                   {...register('password')}
                   placeholder="••••••••"
                   disabled={isSubmitting}
-                  className="pr-10"
+                  aria-invalid={!!errors.password}
+                  className={`pr-10${errors.password ? ' border-destructive focus-visible:ring-destructive' : ''}`}
                 />
                 <button
                   type="button"

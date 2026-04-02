@@ -699,6 +699,8 @@ export default function CongregationTerritoriesPage() {
                   {...createForm.register('number')}
                   placeholder="e.g. T-01"
                   disabled={createForm.formState.isSubmitting}
+                  aria-invalid={!!createForm.formState.errors.number}
+                  className={createForm.formState.errors.number ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
                 {createForm.formState.errors.number && (
                   <p className="text-xs text-destructive mt-1">{createForm.formState.errors.number.message}</p>
@@ -711,6 +713,8 @@ export default function CongregationTerritoriesPage() {
                   {...createForm.register('name')}
                   placeholder="e.g. North District"
                   disabled={createForm.formState.isSubmitting}
+                  aria-invalid={!!createForm.formState.errors.name}
+                  className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
                 {createForm.formState.errors.name && (
                   <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
@@ -925,7 +929,8 @@ export default function CongregationTerritoriesPage() {
                 {...returnForm.register('notes')}
                 placeholder="Optional notes on return…"
                 disabled={returnForm.formState.isSubmitting}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                aria-invalid={!!returnForm.formState.errors.notes}
+                className={`w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none${returnForm.formState.errors.notes ? ' border-destructive focus-visible:ring-destructive' : ' border-input focus-visible:ring-ring'}`}
               />
             </div>
             <DialogFooter className="gap-2 mt-4">
@@ -965,7 +970,8 @@ export default function CongregationTerritoriesPage() {
                 placeholder="e.g. I&apos;d like to work this territory this week…"
                 rows={3}
                 disabled={requestForm.formState.isSubmitting}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+                aria-invalid={!!requestForm.formState.errors.message}
+                className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${requestForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
               />
               {requestForm.formState.errors.message && (
                 <p className="text-xs text-destructive mt-1">{requestForm.formState.errors.message.message}</p>
@@ -1051,13 +1057,14 @@ export default function CongregationTerritoriesPage() {
               id="confirm-response-message"
               rows={3}
               {...reviewRequestForm.register('responseMessage')}
+              aria-invalid={!!reviewRequestForm.formState.errors.responseMessage}
               placeholder={
                 confirmAction === 'reject'
                   ? 'Reason for rejection…'
                   : 'Optional note to the publisher…'
               }
               disabled={reviewRequestForm.formState.isSubmitting}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none disabled:opacity-50"
+              className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${reviewRequestForm.formState.errors.responseMessage ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
             />
             {reviewRequestForm.formState.errors.responseMessage && (
               <p className="text-xs text-destructive mt-1">{reviewRequestForm.formState.errors.responseMessage.message}</p>

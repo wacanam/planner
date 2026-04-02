@@ -539,6 +539,9 @@ export default function CongregationMembersPage() {
             ))}
           </div>
 
+          {editRoleForm.formState.errors.congregationRole && (
+            <p className="text-xs text-destructive">{editRoleForm.formState.errors.congregationRole.message}</p>
+          )}
           <DialogFooter>
             <Button
               variant="outline"
@@ -612,12 +615,13 @@ export default function CongregationMembersPage() {
               id="reviewNote"
               {...reviewForm.register('reviewNote')}
               rows={3}
+              aria-invalid={!!reviewForm.formState.errors.reviewNote}
               placeholder={
                 reviewAction === 'active'
                   ? 'e.g. Welcome to the congregation!'
                   : 'e.g. Please speak to the service overseer directly.'
               }
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none${reviewForm.formState.errors.reviewNote ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
             />
             {reviewForm.formState.errors.reviewNote && (
               <p className="text-xs text-destructive mt-1">{reviewForm.formState.errors.reviewNote.message}</p>
