@@ -2,7 +2,7 @@
 
 import { AlertCircle, Building2, Eye, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProtectedPage } from '@/components/protected-page';
@@ -32,9 +32,17 @@ import {
 
 export default function AdminCongregationsPage() {
   const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations();
-
-  const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search) return congregations;
+    const s = search.toLowerCase();
+    return congregations.filter((c) =>
+            c.name.toLowerCase().includes(s) ||
+            c.city?.toLowerCase().includes(s) ||
+            c.country?.toLowerCase().includes(s) ||
+            c.status.toLowerCase().includes(s));
+  }, [search, congregations]);
   const [error] = useState('');
 
   // Create dialog
@@ -57,22 +65,6 @@ export default function AdminCongregationsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Congregation | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  useEffect(() => {
-    if (!search) {
-      setFiltered(congregations);
-    } else {
-      const s = search.toLowerCase();
-      setFiltered(
-        congregations.filter(
-          (c) =>
-            c.name.toLowerCase().includes(s) ||
-            c.city?.toLowerCase().includes(s) ||
-            c.country?.toLowerCase().includes(s)
-        )
-      );
-    }
-  }, [search, congregations]);
 
   async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');

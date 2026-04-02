@@ -2,7 +2,7 @@
 
 import { FolderOpen, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ProtectedPage } from '@/components/protected-page';
@@ -30,9 +30,13 @@ export default function CongregationGroupsPage() {
   const { data: groupsData, isLoading: loading, mutate: mutateGroups } = useCongregationGroups(congregationId);
   const groups = groupsData;
   const { create: createGroupMutation } = useCreateGroup(congregationId);
-
-  const [filtered, setFiltered] = useState<Group[]>([]);
   const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!search) return groups;
+    const s = search.toLowerCase();
+    return groups.filter((g) => g.name.toLowerCase().includes(s));
+  }, [search, groups]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -44,15 +48,6 @@ export default function CongregationGroupsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  useEffect(() => {
-    if (!search) {
-      setFiltered(groups);
-    } else {
-      const s = search.toLowerCase();
-      setFiltered(groups.filter((g) => g.name.toLowerCase().includes(s)));
-    }
-  }, [search, groups]);
 
   async function handleCreate(data: CreateGroupFormData) {
     setCreateError('');

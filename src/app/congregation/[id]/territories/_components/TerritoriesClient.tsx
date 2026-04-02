@@ -2,7 +2,7 @@
 
 import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSession } from 'next-auth/react';
@@ -87,7 +87,6 @@ export default function CongregationTerritoriesPage() {
 
   const loading = territoriesLoading || requestsLoading;
 
-  const [filtered, setFiltered] = useState<Territory[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tab, setTab] = useState<'territories' | 'requests'>('territories');
@@ -164,7 +163,7 @@ export default function CongregationTerritoriesPage() {
     defaultValues: { responseMessage: '' },
   });
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let list = territories;
     if (statusFilter !== 'all') {
       list = list.filter((t) => t.status === statusFilter);
@@ -179,7 +178,7 @@ export default function CongregationTerritoriesPage() {
           t.groupName?.toLowerCase().includes(s)
       );
     }
-    setFiltered(list);
+    return list;
   }, [search, statusFilter, territories]);
 
   useEffect(() => {
