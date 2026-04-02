@@ -1,35 +1,51 @@
-import useSWR from 'swr';
+import useSWR, { type SWRConfiguration } from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { apiClient } from '@/lib/api-client';
+import type { Member, JoinRequest } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get(url);
+// ─── Members ──────────────────────────────────────────────────────────────────
 
-export function useCongregationMembers(congregationId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
+export function useCongregationMembers(
+  congregationId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<Member[]>(
     congregationId ? `/api/congregations/${congregationId}/members` : null,
-    fetcher
+    (url) => apiClient.get<Member[]>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
-    data: (data as unknown[] | undefined) ?? [],
+    data: data ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,
   };
 }
 
-export function useCongregationJoinRequests(congregationId: string, status?: string) {
+// ─── Join requests ────────────────────────────────────────────────────────────
+
+export function useCongregationJoinRequests(
+  congregationId: string | null | undefined,
+  status?: string,
+  options?: SWRConfiguration
+) {
   const query = status ? `?status=${status}` : '';
-  const { data, error, isLoading, mutate } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/join-requests${query}` : null,
-    fetcher
+  const { data, error, isLoading, mutate } = useSWR<JoinRequest[]>(
+    congregationId
+      ? `/api/congregations/${congregationId}/join-requests${query}`
+      : null,
+    (url) => apiClient.get<JoinRequest[]>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
-    data: (data as unknown[] | undefined) ?? [],
+    data: data ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,
   };
 }
+
+// ─── Review join request ──────────────────────────────────────────────────────
 
 export function useReviewJoinRequest(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
@@ -46,6 +62,8 @@ export function useReviewJoinRequest(congregationId: string) {
   return { review: trigger, isReviewing: isMutating };
 }
 
+// ─── Update member role ───────────────────────────────────────────────────────
+
 export function useUpdateMemberRole(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/members`,
@@ -60,6 +78,8 @@ export function useUpdateMemberRole(congregationId: string) {
   );
   return { updateRole: trigger, isUpdating: isMutating };
 }
+
+// ─── Add member ───────────────────────────────────────────────────────────────
 
 export function useAddMember(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(

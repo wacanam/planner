@@ -1,17 +1,20 @@
-import useSWR from 'swr';
+import useSWR, { type SWRConfiguration } from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { apiClient } from '@/lib/api-client';
+import type { Assignment } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get(url);
-
-export function useTerritoryAssignments(territoryId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
+export function useTerritoryAssignments(
+  territoryId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<Assignment[]>(
     territoryId ? `/api/territories/${territoryId}/assignments` : null,
-    fetcher
+    (url) => apiClient.get<Assignment[]>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
-    assignments: (data as unknown[] | undefined) ?? [],
-    data: (data as unknown[] | undefined) ?? [],
+    assignments: data ?? [],
+    data: data ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,

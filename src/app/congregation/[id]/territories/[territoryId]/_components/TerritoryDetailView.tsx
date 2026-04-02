@@ -10,18 +10,7 @@ import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
 
-type Territory = {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  householdsCount: number;
-  coveragePercent: number;
-  notes?: string;
-  createdAt: string;
-};
-
-type Assignment = {
+type LocalAssignment = {
   id: string;
   status: string;
   assignedAt: string | null;
@@ -46,7 +35,7 @@ const assignmentStatusColors: Record<string, string> = {
   returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
-function getAssigneeDisplayName(a: Assignment): string {
+function getAssigneeDisplayName(a: LocalAssignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
@@ -61,8 +50,8 @@ export default function TerritoryDetailView() {
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId ?? '');
 
   const loading = territoryLoading || assignmentsLoading;
-  const territory = (territoryResponse as Territory | undefined) ?? null;
-  const assignments = (assignmentsResponse as Assignment[] | undefined) ?? [];
+  const territory = territoryResponse;
+  const assignments = assignmentsResponse;
   const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
 
   const backHref = `/congregation/${congregationId}/territories`;
@@ -180,7 +169,7 @@ export default function TerritoryDetailView() {
               <CardTitle className="text-base">Coverage</CardTitle>
             </CardHeader>
             <CardContent>
-              <CoverageChart percent={territory.coveragePercent} label="Overall Coverage" />
+              <CoverageChart percent={Number(territory.coveragePercent)} label="Overall Coverage" />
             </CardContent>
           </Card>
 

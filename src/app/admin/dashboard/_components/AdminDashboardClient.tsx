@@ -10,17 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserRole } from '@/db';
 import { useCongregations } from '@/hooks';
 
-interface Congregation {
-  id: string;
-  name: string;
-  city?: string;
-  country?: string;
-  status: string;
-  createdAt: string;
-}
-
 export default function AdminDashboardPage() {
-  const { congregations, isLoading: loading } = useCongregations<Congregation>();
+  const { congregations, isLoading: loading } = useCongregations();
 
   const totalActive = congregations.filter((c) => c.status === 'active').length;
 

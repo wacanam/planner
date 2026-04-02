@@ -15,23 +15,6 @@ import {
   useCongregationTerritoryRequests,
 } from '@/hooks';
 
-interface Territory {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  publisherId?: string | null;
-  notes?: string | null;
-  householdsCount?: number;
-}
-
-interface TerritoryRequest {
-  id: string;
-  status: string;
-  territoryId?: string | null;
-  requestedAt: string;
-}
-
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
@@ -52,11 +35,11 @@ export default function MyAssignmentsClient() {
 
   const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } =
     useCongregationTerritories(congregationId);
-  const territories = territoriesData as Territory[];
+  const territories = territoriesData;
 
   const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } =
     useCongregationTerritoryRequests(congregationId, 'pending');
-  const requests = requestsData as TerritoryRequest[];
+  const requests = requestsData;
 
   const loading = territoriesLoading || requestsLoading;
 

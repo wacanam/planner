@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
+import type { Territory, TerritoryRequest } from '@/types/api';
 import {
   useCongregationTerritories,
   useCongregationTerritoryRequests,
@@ -32,39 +33,6 @@ import {
   useCreateTerritoryRequest,
   useReviewTerritoryRequest,
 } from '@/hooks';
-
-interface Territory {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  notes?: string;
-  publisherName?: string | null;
-  groupName?: string | null;
-}
-
-interface TerritoryRequest {
-  id: string;
-  territoryId?: string | null;
-  status: string;
-  message?: string | null;
-  publisher?: { name: string } | null;
-  approver?: { name: string };
-  requestedAt: string;
-}
-
-interface Member {
-  id: string;
-  userId: string;
-  user: { id: string; name: string; email: string };
-  congregationRole?: string | null;
-  status: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-}
 
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -88,20 +56,20 @@ export default function CongregationTerritoriesPage() {
     isLoading: territoriesLoading,
     mutate: mutateTerritories,
   } = useCongregationTerritories(congregationId);
-  const territories = territoriesData as Territory[];
+  const territories = territoriesData;
 
   const {
     data: requestsData,
     isLoading: requestsLoading,
     mutate: mutateRequests,
   } = useCongregationTerritoryRequests(congregationId, 'pending');
-  const requests = requestsData as TerritoryRequest[];
+  const requests = requestsData;
 
   const { data: membersRaw } = useCongregationMembers(congregationId);
-  const members = membersRaw as Member[];
+  const members = membersRaw;
 
   const { groups: groupsRaw } = useCongregationGroups(congregationId);
-  const groups = groupsRaw as Group[];
+  const groups = groupsRaw;
 
   const loading = territoriesLoading || requestsLoading;
 

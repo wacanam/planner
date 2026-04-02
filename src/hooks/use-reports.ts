@@ -1,12 +1,17 @@
-import useSWR from 'swr';
+import useSWR, { type SWRConfiguration } from 'swr';
 import { apiClient } from '@/lib/api-client';
+import type { CoverageReport, PublishersReport, ActivityReport } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get(url);
-
-export function useCoverageReport(congregationId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/reports/coverage` : null,
-    fetcher
+export function useCoverageReport(
+  congregationId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<CoverageReport>(
+    congregationId
+      ? `/api/congregations/${congregationId}/reports/coverage`
+      : null,
+    (url) => apiClient.get<CoverageReport>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
     data: data ?? null,
@@ -16,10 +21,16 @@ export function useCoverageReport(congregationId: string) {
   };
 }
 
-export function usePublishersReport(congregationId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/reports/publishers` : null,
-    fetcher
+export function usePublishersReport(
+  congregationId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<PublishersReport>(
+    congregationId
+      ? `/api/congregations/${congregationId}/reports/publishers`
+      : null,
+    (url) => apiClient.get<PublishersReport>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
     data: data ?? null,
@@ -29,10 +40,16 @@ export function usePublishersReport(congregationId: string) {
   };
 }
 
-export function useActivityReport(congregationId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
-    congregationId ? `/api/congregations/${congregationId}/reports/activity` : null,
-    fetcher
+export function useActivityReport(
+  congregationId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<ActivityReport>(
+    congregationId
+      ? `/api/congregations/${congregationId}/reports/activity`
+      : null,
+    (url) => apiClient.get<ActivityReport>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
     data: data ?? null,

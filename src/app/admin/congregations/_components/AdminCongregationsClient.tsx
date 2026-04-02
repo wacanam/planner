@@ -20,18 +20,10 @@ import { Label } from '@/components/ui/label';
 import { UserRole } from '@/db';
 import { apiClient } from '@/lib/api-client';
 import { useCongregations } from '@/hooks';
-
-interface Congregation {
-  id: string;
-  name: string;
-  city?: string;
-  country?: string;
-  status: string;
-  createdAt: string;
-}
+import type { Congregation } from '@/types/api';
 
 export default function AdminCongregationsPage() {
-  const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations<Congregation>();
+  const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations();
 
   const [filtered, setFiltered] = useState<Congregation[]>([]);
   const [search, setSearch] = useState('');

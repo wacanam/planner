@@ -1,14 +1,17 @@
-import useSWR from 'swr';
+import useSWR, { type SWRConfiguration } from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { apiClient } from '@/lib/api-client';
+import type { Congregation } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get(url);
-
-/** List all congregations (admin/super_admin) */
-export function useCongregations<T = Record<string, unknown>>() {
-  const { data, error, isLoading, mutate } = useSWR('/api/congregations', fetcher);
+/** List all congregations (admin / super_admin) */
+export function useCongregations(options?: SWRConfiguration) {
+  const { data, error, isLoading, mutate } = useSWR<Congregation[]>(
+    '/api/congregations',
+    (url) => apiClient.get<Congregation[]>(url),
+    { revalidateOnFocus: false, ...options }
+  );
   return {
-    congregations: (data as T[] | undefined) ?? ([] as T[]),
+    congregations: data ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -16,13 +19,17 @@ export function useCongregations<T = Record<string, unknown>>() {
 }
 
 /** Single congregation by id */
-export function useCongregation<T = Record<string, unknown>>(id: string | null) {
-  const { data, error, isLoading, mutate } = useSWR(
+export function useCongregation(
+  id: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<Congregation>(
     id ? `/api/congregations/${id}` : null,
-    fetcher
+    (url) => apiClient.get<Congregation>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
-    congregation: (data as T | undefined) ?? null,
+    congregation: data ?? null,
     isLoading,
     error: error?.message ?? null,
     mutate,

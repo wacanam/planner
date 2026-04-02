@@ -19,22 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
 import { CongregationRole, UserRole } from '@/db';
+import type { Member, JoinRequest } from '@/types/api';
 import {
   useCongregationMembers,
   useCongregationJoinRequests,
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
-
-interface Member {
-  id: string;
-  userId: string;
-  user: { id: string; name: string; email: string };
-  congregationRole?: string | null;
-  status: string;
-  joinMessage?: string | null;
-  joinedAt: string;
-}
 
 type Tab = 'members' | 'requests';
 
@@ -56,14 +47,14 @@ export default function CongregationMembersPage() {
     isLoading: loading,
     mutate: mutateMembers,
   } = useCongregationMembers(congregationId);
-  const members = (membersData as Member[]).filter((m) => m.status === 'active');
+  const members = membersData.filter((m) => m.status === 'active');
 
   const {
     data: requestsData,
     isLoading: requestsLoading,
     mutate: mutateRequests,
   } = useCongregationJoinRequests(congregationId, 'pending');
-  const requests = requestsData as Member[];
+  const requests: JoinRequest[] = requestsData;
   const pendingCount = requests.length;
 
   const { review: reviewJoinRequest, isReviewing: reviewLoading } = useReviewJoinRequest(congregationId);
@@ -106,7 +97,7 @@ export default function CongregationMembersPage() {
 
   // Approve/reject
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewTarget, setReviewTarget] = useState<Member | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<JoinRequest | null>(null);
   const [reviewAction, setReviewAction] = useState<'active' | 'rejected'>('active');
   const [reviewNote, setReviewNote] = useState('');
 
@@ -173,7 +164,7 @@ export default function CongregationMembersPage() {
     }
   }
 
-  function openReview(member: Member, action: 'active' | 'rejected') {
+  function openReview(member: JoinRequest, action: 'active' | 'rejected') {
     setReviewTarget(member);
     setReviewAction(action);
     setReviewNote('');

@@ -1,17 +1,20 @@
-import useSWR from 'swr';
+import useSWR, { type SWRConfiguration } from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { apiClient } from '@/lib/api-client';
+import type { Group } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get(url);
-
-export function useCongregationGroups(congregationId: string) {
-  const { data, error, isLoading, mutate } = useSWR(
+export function useCongregationGroups(
+  congregationId: string | null | undefined,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<Group[]>(
     congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    fetcher
+    (url) => apiClient.get<Group[]>(url),
+    { revalidateOnFocus: false, ...options }
   );
   return {
-    groups: (data as unknown[] | undefined) ?? [],
-    data: (data as unknown[] | undefined) ?? [],
+    groups: data ?? [],
+    data: data ?? [],
     isLoading,
     error: error?.message ?? null,
     mutate,

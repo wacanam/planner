@@ -17,21 +17,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
+import type { Group } from '@/types/api';
 import { useCongregationGroups, useCreateGroup } from '@/hooks';
-
-interface Group {
-  id: string;
-  name: string;
-  members: { id: string; user?: { name: string } }[];
-  createdAt: string;
-}
 
 export default function CongregationGroupsPage() {
   const params = useParams();
   const congregationId = params?.id as string;
 
   const { data: groupsData, isLoading: loading, mutate: mutateGroups } = useCongregationGroups(congregationId);
-  const groups = groupsData as Group[];
+  const groups = groupsData;
   const { create: createGroupMutation } = useCreateGroup(congregationId);
 
   const [filtered, setFiltered] = useState<Group[]>([]);

@@ -8,7 +8,7 @@ export default function CongregationLayout({ children }: { children: React.React
   const params = useParams();
   const congregationId = params?.id as string;
 
-  const { congregation: data } = useCongregation<{ name: string }>(congregationId ?? null);
+  const { congregation: data } = useCongregation(congregationId ?? null);
   const congregationName = data?.name;
 
   return (

@@ -29,38 +29,6 @@ import {
   useCongregationTerritoryRequests,
 } from '@/hooks';
 
-interface Member {
-  id: string;
-  userId: string;
-  user: { id: string; name: string; email: string };
-  congregationRole?: string | null;
-  joinedAt: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  members: { id: string }[];
-  createdAt: string;
-}
-
-interface Territory {
-  id: string;
-  number: string;
-  name: string;
-  status: string;
-  publisherId?: string | null;
-  householdsCount?: number;
-}
-
-interface TerritoryRequest {
-  id: string;
-  status: string;
-  territoryId?: string | null;
-  publisher?: { name: string };
-  requestedAt: string;
-}
-
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
@@ -89,11 +57,11 @@ export default function CongregationDashboardPage() {
 
   const loading = congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
 
-  const congregation = (congData as { name: string } | undefined) ?? null;
-  const members = ((membersData as Member[] | undefined) ?? []) as Member[];
-  const groups = ((groupsData as Group[] | undefined) ?? []) as Group[];
-  const territories = ((territoriesData as Territory[] | undefined) ?? []) as Territory[];
-  const requests = ((requestsData as TerritoryRequest[] | undefined) ?? []) as TerritoryRequest[];
+  const congregation = congData ?? null;
+  const members = membersData;
+  const groups = groupsData;
+  const territories = territoriesData;
+  const requests = requestsData;
 
   const me = sessionUser?.id
     ? members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
