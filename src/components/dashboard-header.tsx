@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, MapPin } from 'lucide-react';
+import { LogOut, MapPin, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -44,6 +44,7 @@ function roleBadgeClass(role: UserRole): string {
 interface DashboardNavLink {
   href: string;
   label: string;
+  icon?: React.ReactNode;
 }
 
 interface DashboardHeaderProps {
@@ -73,6 +74,11 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
         { href: `/congregation/${id}/members`, label: 'Members' },
         { href: `/congregation/${id}/groups`, label: 'Groups' },
         { href: `/congregation/${id}/territories`, label: 'Territories' },
+        {
+          href: `/congregation/${id}/reports`,
+          label: 'Reports',
+          icon: <BarChart2 size={14} />,
+        },
       ];
     }
   } else {
@@ -118,12 +124,13 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'px-3 py-1.5 text-sm rounded-lg transition-all',
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all',
                   pathname === link.href || pathname.startsWith(`${link.href}/`)
                     ? 'text-primary bg-primary/10 font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
                 )}
               >
+                {link.icon}
                 {link.label}
               </Link>
             ))}
@@ -177,12 +184,13 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-all',
+                  'flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-all',
                   pathname === link.href || pathname.startsWith(`${link.href}/`)
                     ? 'text-primary bg-primary/10 font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
                 )}
               >
+                {link.icon}
                 {link.label}
               </Link>
             ))}
