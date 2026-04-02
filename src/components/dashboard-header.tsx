@@ -81,6 +81,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
     if (id) {
       navLinks = [
         { href: `/congregation/${id}/dashboard`, label: 'Home' },
+        { href: `/congregation/${id}/my-assignments`, label: 'My Assignments' },
         { href: `/congregation/${id}/territories`, label: 'Territories' },
       ];
     }
