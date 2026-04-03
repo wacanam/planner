@@ -4,11 +4,21 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Menu, X, MapPin } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
-/** Routes that have their own DashboardHeader — hide the public header here */
-const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
+/** Routes that have their own DashboardHeader — hide the public header entirely */
+const DASHBOARD_PREFIXES = [
+  '/admin',
+  '/congregation',
+  '/dashboard',
+  '/profile',
+  '/notifications',
+  '/onboarding',
+  '/territories',
+  '/no-congregation',
+];
 
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
@@ -17,11 +27,13 @@ const publicNavLinks = [
 
 export function Header() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === 'authenticated' || !!session;
   const isAuthPage = pathname.startsWith('/auth');
   const isDashboardPage = DASHBOARD_PREFIXES.some((p) => pathname.startsWith(p));
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hide entirely on dashboard routes (they have their own header)
+  // Hide entirely on dashboard/authenticated app routes
   if (isDashboardPage) return null;
 
   return (
@@ -36,8 +48,8 @@ export function Header() {
             <span className="font-bold text-foreground tracking-tight">Ministry Planner</span>
           </Link>
 
-          {/* Desktop nav */}
-          {!isAuthPage && (
+          {/* Desktop nav — only on landing for unauthenticated */}
+          {!isAuthPage && !isAuthenticated && (
             <nav className="hidden md:flex items-center gap-1">
               {publicNavLinks.map((link) => (
                 <Link
@@ -54,7 +66,9 @@ export function Header() {
           {/* Right actions */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            {!isAuthPage && (
+
+            {/* Unauthenticated — show Sign In / Get Started */}
+            {!isAuthPage && !isAuthenticated && (
               <>
                 <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                   <Link href="/auth/login">Sign In</Link>
@@ -65,8 +79,15 @@ export function Header() {
               </>
             )}
 
-            {/* Mobile menu toggle */}
-            {!isAuthPage && (
+            {/* Authenticated on landing page — show Go to App */}
+            {isAuthenticated && !isAuthPage && (
+              <Button size="sm" asChild>
+                <Link href="/dashboard">Go to App</Link>
+              </Button>
+            )}
+
+            {/* Mobile menu toggle — only for unauthenticated landing */}
+            {!isAuthPage && !isAuthenticated && (
               <button
                 type="button"
                 className="md:hidden ml-1 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-all"
@@ -79,8 +100,8 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mobile menu */}
-        {!isAuthPage && mobileOpen && (
+        {/* Mobile menu — unauthenticated only */}
+        {!isAuthPage && !isAuthenticated && mobileOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-border/60 pt-3">
             {publicNavLinks.map((link) => (
               <Link

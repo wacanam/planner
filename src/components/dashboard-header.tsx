@@ -93,13 +93,20 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
     }
   }
 
+  // Determine the home href based on role
+  const homeHref = (() => {
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) return '/admin/dashboard';
+    const id = congregationId ?? user.congregationId ?? '';
+    return id ? `/congregation/${id}/dashboard` : '/dashboard';
+  })();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
-            href={navLinks[0]?.href ?? '/dashboard'}
+            href={homeHref}
             className="flex items-center gap-2.5 group"
           >
             <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">

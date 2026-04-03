@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Footer } from '@/components/footer';
 import { Header } from '@/components/header';
+import { StandaloneAuthHeader } from '@/components/standalone-auth-header';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { Providers } from './providers';
 import { OfflineIndicator } from '@/components/offline-indicator';
@@ -68,6 +69,7 @@ export default function RootLayout({
           <Providers>
             <OfflineIndicator />
             <Header />
+            <StandaloneAuthHeader />
             <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
           </Providers>
