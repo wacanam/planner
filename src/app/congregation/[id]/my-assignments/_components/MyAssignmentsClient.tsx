@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, ChevronDown, ChevronUp, ClipboardList, MapPin } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, ClipboardList, MapPin, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -9,239 +9,177 @@ import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
-
-const statusColors: Record<string, string> = {
-  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
-  completed:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
-  archived: 'text-muted-foreground border-border bg-muted/30',
-  pending:
-    'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
-  approved: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
-};
 
 export default function MyAssignmentsClient() {
   const params = useParams();
   const congregationId = params?.id as string;
   const { data: session } = useSession();
-  const sessionUser = session?.user as { id?: string } | undefined;
+  const sessionUser = session?.user as { id?: string; name?: string } | undefined;
   const [showPast, setShowPast] = useState(false);
 
-  const {
-    data: territoriesData,
-    isLoading: territoriesLoading,
-    mutate: mutateTerritories,
-  } = useCongregationTerritories(congregationId);
+  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } =
+    useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const {
-    data: requestsData,
-    isLoading: requestsLoading,
-    mutate: mutateRequests,
-  } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } =
+    useCongregationTerritoryRequests(congregationId, 'pending');
   const requests = requestsData;
 
   const loading = territoriesLoading || requestsLoading;
+  const reload = async () => { await Promise.all([mutateTerritories(), mutateRequests()]); };
 
-  const reload = async () => {
-    await Promise.all([mutateTerritories(), mutateRequests()]);
-  };
-
-  const myActive = territories.filter(
-    (t) => t.status === 'assigned' && t.publisherId === sessionUser?.id
-  );
+  const myActive = territories.filter(t => t.status === 'assigned' && t.publisherId === sessionUser?.id);
   const myPast = territories.filter(
-    (t) =>
-      (t.status === 'completed' || t.status === 'archived') && t.publisherId === sessionUser?.id
+    t => (t.status === 'completed' || t.status === 'archived') && t.publisherId === sessionUser?.id
   );
 
-  function getRequestLabel(territoryId?: string | null): string {
+  function getRequestLabel(territoryId?: string | null) {
     if (!territoryId) return 'Any available territory';
-    const t = territories.find((t) => t.id === territoryId);
-    return t ? `#${t.number} ${t.name}` : 'Specific territory requested';
+    const t = territories.find(t => t.id === territoryId);
+    return t ? `#${t.number} ${t.name}` : 'Specific territory';
   }
+
+  const firstName = sessionUser?.name?.split(' ')[0] ?? 'Publisher';
 
   return (
     <ProtectedPage congregationId={congregationId}>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5 min-w-0 w-full">
+
+        {/* Greeting */}
+        <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">My Assignments</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Your active and past territory assignments
-            </p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">My Work</p>
+            <h1 className="text-2xl font-bold text-foreground leading-tight">Hi, {firstName} 👋</h1>
           </div>
           <TerritoryRequestDialog
             congregationId={congregationId}
             onSuccess={reload}
             trigger={
-              <Button size="sm">
-                <ClipboardList size={14} />
-                Request a Territory
+              <Button size="sm" variant="outline" className="gap-1">
+                <Plus size={14} />
+                Request
               </Button>
             }
           />
         </div>
 
-        {/* Active Assignments */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-4">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MapPin size={16} className="text-blue-500" />
-              Active Assignments
-              {!loading && (
-                <Badge variant="outline" className="ml-1 text-xs">
-                  {myActive.length}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="flex gap-3 px-4 pb-4 overflow-x-auto">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-28 w-64 bg-muted animate-pulse rounded-xl shrink-0" />
-                ))}
-              </div>
-            ) : myActive.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <MapPin size={28} className="mx-auto text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No territories currently assigned to you
-                </p>
-                <TerritoryRequestDialog
-                  congregationId={congregationId}
-                  onSuccess={reload}
-                  trigger={
-                    <Button size="sm" variant="outline" className="mt-3">
-                      Request a Territory
-                    </Button>
-                  }
-                />
-              </div>
-            ) : (
-              <div className="flex gap-3 px-4 pb-4 overflow-x-auto snap-x snap-mandatory">
-                {myActive.map((t) => (
-                <div
-                  key={t.id}
-                  className="rounded-xl border border-border bg-background p-4 space-y-3 min-w-[260px] snap-start"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={statusColors.assigned}>
-                        assigned
-                      </Badge>
-                    </div>
-                    <p className="text-sm font-semibold mt-1.5">
+        {/* Active territory — hero card */}
+        {loading ? (
+          <div className="h-36 bg-muted animate-pulse rounded-2xl" />
+        ) : myActive.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-6 text-center space-y-3">
+            <MapPin size={28} className="mx-auto text-muted-foreground/40" />
+            <div>
+              <p className="text-sm font-medium text-foreground">No active territory</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Request one to get started</p>
+            </div>
+            <TerritoryRequestDialog
+              congregationId={congregationId}
+              onSuccess={reload}
+              trigger={
+                <Button size="sm" className="gap-1">
+                  <Plus size={14} />
+                  Request a Territory
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myActive.map(t => (
+              <div key={t.id} className="rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-4">
+                {/* Territory identity */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs text-primary font-medium uppercase tracking-wide">Active Territory</p>
+                    <p className="text-lg font-bold text-foreground mt-0.5 leading-tight">
                       #{t.number} {t.name}
                     </p>
-                    {t.notes && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.notes}</p>
-                    )}
+                    {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{t.notes}</p>}
                   </div>
-                  <div className="flex gap-2">
-                    <Button asChild size="sm" variant="outline" className="flex-1">
-                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                        View
-                        <ArrowRight size={12} />
-                      </Link>
-                    </Button>
-                    <Button asChild size="sm" variant="default" className="flex-1">
-                      <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
-                        <ClipboardList size={12} />
-                        My Visits
-                      </Link>
-                    </Button>
+                  <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                    <MapPin size={18} className="text-primary" />
                   </div>
                 </div>
-              ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Pending Requests */}
-        {!loading && requests.length > 0 && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ClipboardList size={16} className="text-orange-500" />
-                Pending Requests
-                <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 ml-1">
-                  {requests.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {requests.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{getRequestLabel(r.territoryId)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(r.requestedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className={statusColors.pending}>
-                    pending
-                  </Badge>
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button asChild size="sm" variant="outline" className="flex-1 bg-background/80">
+                    <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
+                      View Map
+                      <ArrowRight size={12} />
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className="flex-1">
+                    <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
+                      <ClipboardList size={12} />
+                      Log Visits
+                    </Link>
+                  </Button>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* Past Assignments */}
+        {/* Pending requests — compact */}
+        {!loading && requests.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium px-1">
+              Pending Requests
+            </p>
+            {requests.map(r => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{getRequestLabel(r.territoryId)}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(r.requestedAt).toLocaleDateString()}</p>
+                </div>
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400 shrink-0 ml-3">
+                  Pending
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Past assignments — collapsed */}
         {!loading && myPast.length > 0 && (
-          <Card>
-            <CardHeader className="flex-row items-center justify-between pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MapPin size={16} className="text-muted-foreground" />
-                Past Assignments
-                <Badge variant="outline" className="ml-1 text-xs">
-                  {myPast.length}
-                </Badge>
-              </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setShowPast((p) => !p)}>
-                {showPast ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                {showPast ? 'Hide' : 'Show'}
-              </Button>
-            </CardHeader>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowPast(p => !p)}
+              className="flex items-center justify-between w-full px-1 py-1 text-xs text-muted-foreground uppercase tracking-wide font-medium"
+            >
+              Past Assignments ({myPast.length})
+              {showPast ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
             {showPast && (
-              <CardContent className="space-y-2">
-                {myPast.map((t) => (
+              <div className="space-y-2">
+                {myPast.map(t => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
+                    className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card"
                   >
-                    <div>
-                      <p className="text-sm font-medium">
-                        #{t.number} {t.name}
-                      </p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">#{t.number} {t.name}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={statusColors[t.status] ?? ''}>
-                        {t.status}
-                      </Badge>
-                      <Button asChild size="sm" variant="ghost">
-                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                          View
-                        </Link>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Badge variant="outline" className="text-xs capitalize">{t.status}</Badge>
+                      <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>View</Link>
                       </Button>
                     </div>
                   </div>
                 ))}
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </div>
         )}
+
       </div>
     </ProtectedPage>
   );
