@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 
-interface TerritoryMapProps {
-  /** Territory boundary as GeoJSON string or WKT — null until PostGIS is added */
+export interface TerritoryMapProps {
+  /** Active territory boundary — highlighted in primary color */
   boundary?: string | null;
+  /** All other congregation territory boundaries — shown as muted context layers */
+  allBoundaries?: Array<{ id: string; name: string; boundary: string }>;
   /** Households with coordinates */
   households?: Array<{
     id: string;
@@ -13,7 +15,7 @@ interface TerritoryMapProps {
     address: string;
     status: string;
   }>;
-  /** Default center — falls back to [0,0] if no data */
+  /** Default center */
   center?: [number, number];
   className?: string;
 }
@@ -30,6 +32,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function TerritoryMap({
   boundary,
+  allBoundaries = [],
   households = [],
   center,
   className = '',
@@ -79,19 +82,40 @@ export default function TerritoryMap({
 
       map.setView(mapCenter, zoom);
 
-      // Draw boundary polygon if available (GeoJSON)
+      // Collect all bounds for fitting the map view
+      const allLayers: ReturnType<typeof L.geoJSON>[] = [];
+
+      // Draw other territory boundaries as muted context layers
+      for (const tb of allBoundaries) {
+        try {
+          const geoJson = tb.boundary.startsWith('{') ? JSON.parse(tb.boundary) : null;
+          if (geoJson) {
+            const layer = L.geoJSON(geoJson, {
+              style: { color: '#94a3b8', weight: 1.5, fillOpacity: 0.04, fillColor: '#94a3b8', dashArray: '4 4' },
+            }).addTo(map);
+            layer.bindTooltip(tb.name, { permanent: false, direction: 'center', className: 'text-xs' });
+            allLayers.push(layer);
+          }
+        } catch { /* skip */ }
+      }
+
+      // Draw active territory boundary — highlighted
       if (boundary) {
         try {
           const geoJson = boundary.startsWith('{') ? JSON.parse(boundary) : null;
           if (geoJson) {
             const layer = L.geoJSON(geoJson, {
-              style: { color: '#6B9ECC', weight: 2, fillOpacity: 0.1, fillColor: '#6B9ECC' },
+              style: { color: '#6B9ECC', weight: 2.5, fillOpacity: 0.15, fillColor: '#6B9ECC' },
             }).addTo(map);
-            map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+            allLayers.push(layer);
           }
-        } catch {
-          // Invalid boundary — skip
-        }
+        } catch { /* skip */ }
+      }
+
+      // Fit map to ALL polygons so user sees the full context
+      if (allLayers.length > 0) {
+        const group = L.featureGroup(allLayers);
+        map.fitBounds(group.getBounds(), { padding: [24, 24] });
       }
 
       // Plot household markers

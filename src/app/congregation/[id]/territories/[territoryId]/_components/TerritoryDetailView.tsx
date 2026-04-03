@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -7,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
+import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
 
 // Dynamic import — Leaflet requires browser APIs
-const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false });
+import type { TerritoryMapProps } from '@/components/territory-map';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
 
 type LocalAssignment = {
   id: string;
@@ -55,6 +58,9 @@ export default function TerritoryDetailView() {
 
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
     useTerritoryAssignments(territoryId ?? '');
+
+  // All congregation territories — for showing all polygons as layers on the map
+  const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
 
   const loading = territoryLoading || assignmentsLoading;
   const territory = territoryResponse;
@@ -133,9 +139,15 @@ export default function TerritoryDetailView() {
               </div>
             </div>
 
-            {/* Map — territory boundary + household markers */}
+            {/* Map — active territory highlighted, all congregation polygons as context layers */}
             <div className="rounded-2xl border border-border overflow-hidden h-56">
-              <TerritoryMap boundary={territory.boundary} className="h-full" />
+              <TerritoryMap
+                boundary={territory.boundary}
+                allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
+                  .filter(t => t.boundary && t.id !== territory.id)
+                  .map(t => ({ id: t.id, name: t.name, boundary: t.boundary! }))}
+                className="h-full"
+              />
             </div>
 
             {/* Current assignment */}
