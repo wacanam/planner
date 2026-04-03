@@ -90,24 +90,44 @@ const DEFAULT_SVG = TYPE_SVG.house;
  * Shape = type, fill color = status.
  * Pin is a 28×34px teardrop with the icon inside.
  */
-function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string) {
+function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string, address: string) {
   const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
   const icon  = TYPE_SVG[type] ?? DEFAULT_SVG;
 
-  // Teardrop pin shape as SVG
-  const svg = `
-  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34">
-    <!-- Pin body -->
-    <path d="M14 1 C7.4 1 2 6.4 2 13 C2 21 14 33 14 33 C14 33 26 21 26 13 C26 6.4 20.6 1 14 1 Z"
-      fill="${color}" stroke="white" stroke-width="1.5"/>
-    <!-- Type icon (clipped to pin head) -->
-    <g transform="translate(2, 1)">
-      <svg width="24" height="24" viewBox="0 0 24 24">${icon}</svg>
-    </g>
-  </svg>`;
+  // Truncate label to keep it compact
+  const label = address.length > 22 ? `${address.slice(0, 22)}…` : address;
+
+  // Pin (28×34) + label pill to its right, vertically centered on pin midpoint (~17px)
+  const html = `
+  <div style="position:relative;display:flex;align-items:flex-start;pointer-events:auto">
+    <!-- Teardrop pin -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34" style="flex-shrink:0">
+      <path d="M14 1 C7.4 1 2 6.4 2 13 C2 21 14 33 14 33 C14 33 26 21 26 13 C26 6.4 20.6 1 14 1 Z"
+        fill="${color}" stroke="white" stroke-width="1.5"/>
+      <g transform="translate(2, 1)">
+        <svg width="24" height="24" viewBox="0 0 24 24">${icon}</svg>
+      </g>
+    </svg>
+    <!-- Label pill — aligned to vertical center of pin head (~13px from top) -->
+    <div style="
+      margin-top:4px;
+      margin-left:4px;
+      background:white;
+      color:#1e293b;
+      font-size:10px;
+      font-weight:600;
+      line-height:1.2;
+      padding:2px 6px;
+      border-radius:9999px;
+      box-shadow:0 1px 4px rgba(0,0,0,0.18);
+      white-space:nowrap;
+      border:1.5px solid ${color};
+      pointer-events:none;
+    ">${label}</div>
+  </div>`;
 
   return L.divIcon({
-    html: svg,
+    html,
     className: '',
     iconSize:   [28, 34],
     iconAnchor: [14, 34],
@@ -307,7 +327,7 @@ export default function TerritoryMap({
             const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
 
             const marker = L.marker([lat, lng], {
-              icon: makeHouseholdIcon(L, status, hType),
+              icon: makeHouseholdIcon(L, status, hType, address),
               // Canvas not applicable to DivIcon — SVG icons stay lightweight at <500 pts
             });
 
