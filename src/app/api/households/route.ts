@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { asc } from 'drizzle-orm';
+import { asc, and, gte, lte } from 'drizzle-orm';
 import { db, households } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
@@ -12,7 +12,23 @@ export async function GET(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const results = await db.select().from(households).orderBy(asc(households.address));
+    const { searchParams } = new URL(req.url);
+    const minLat = searchParams.get('minLat');
+    const maxLat = searchParams.get('maxLat');
+    const minLng = searchParams.get('minLng');
+    const maxLng = searchParams.get('maxLng');
+
+    const conditions = [];
+    if (minLat) conditions.push(gte(households.latitude, minLat));
+    if (maxLat) conditions.push(lte(households.latitude, maxLat));
+    if (minLng) conditions.push(gte(households.longitude, minLng));
+    if (maxLng) conditions.push(lte(households.longitude, maxLng));
+
+    const results = await db
+      .select()
+      .from(households)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(asc(households.address));
 
     return successResponse(results, undefined, 200, requestId);
   } catch (err) {

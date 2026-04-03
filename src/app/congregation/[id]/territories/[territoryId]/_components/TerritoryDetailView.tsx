@@ -9,6 +9,8 @@ import { ArrowLeft, User, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
+import useSWR from 'swr';
+import { apiClient } from '@/lib/api-client';
 
 // Dynamic import — Leaflet requires browser APIs
 import type { TerritoryMapProps } from '@/components/territory-map';
@@ -59,13 +61,37 @@ export default function TerritoryDetailView() {
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
     useTerritoryAssignments(territoryId ?? '');
 
-  // All congregation territories — for showing all polygons as layers on the map
-  const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
-
   const loading = territoryLoading || assignmentsLoading;
   const territory = territoryResponse;
   const assignments = assignmentsResponse;
   const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
+
+  // All congregation territories — for showing all polygons as layers on the map
+  const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
+
+  // Derive bbox from territory boundary to fetch households within it
+  const boundaryStr = territory?.boundary ?? null;
+  const householdsBboxKey = React.useMemo(() => {
+    if (!boundaryStr) return null;
+    try {
+      const geo = JSON.parse(boundaryStr);
+      const coords: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
+      if (!coords.length) return null;
+      const lngs = coords.map(([lng]) => lng);
+      const lats = coords.map(([, lat]) => lat);
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      return `/api/households?minLat=${minLat}&maxLat=${maxLat}&minLng=${minLng}&maxLng=${maxLng}`;
+    } catch { return null; }
+  }, [boundaryStr]);
+
+  type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null };
+  const { data: householdsResp } = useSWR<HouseholdItem[]>(
+    householdsBboxKey,
+    (url: string) => apiClient.get<HouseholdItem[]>(url),
+    { revalidateOnFocus: false }
+  );
+  const householdsInTerritory = householdsResp ?? [];
 
   const backHref = `/congregation/${congregationId}/territories`;
 
@@ -143,6 +169,7 @@ export default function TerritoryDetailView() {
             <div className="rounded-2xl border border-border overflow-hidden h-56">
               <TerritoryMap
                 boundary={territory.boundary}
+                households={householdsInTerritory}
                 allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                   .filter(t => t.boundary && t.id !== territory.id)
                   .map(t => ({ id: t.id, name: t.name, boundary: t.boundary! }))}
