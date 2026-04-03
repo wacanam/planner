@@ -1,30 +1,23 @@
 import type { NextRequest } from 'next/server';
-import { asc, eq } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import { db, households } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
-// GET /api/households?congregationId=
-// Returns all households for a congregation.
-// Territory membership is determined spatially by coordinates — not by FK.
+// GET /api/households
+// Returns households. No FK filters — territory/congregation membership
+// is resolved spatially by coordinates when PostGIS is added.
+// For now returns all households (scoped spatially in future).
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
   try {
-    const congregationId = req.nextUrl.searchParams.get('congregationId') ?? user.congregationId;
-
-    if (!congregationId) {
-      return ApiErrors.badRequest('congregationId is required', undefined, requestId);
-    }
-
     const results = await db
       .select()
       .from(households)
-      .where(eq(households.congregationId, congregationId))
       .orderBy(asc(households.address));
 
     return successResponse(results, undefined, 200, requestId);
@@ -35,13 +28,12 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/households
-// Add a household to the congregation's map.
-// location stores coordinates (lat,lng) — territory membership resolved spatially later.
+// Add a household by address + coordinates.
+// No FK to congregation or territory — spatial query determines membership.
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
-  const { user } = authResult;
 
   try {
     const body = (await req.json()) as {
@@ -49,28 +41,26 @@ export async function POST(req: NextRequest) {
       streetName: string;
       city: string;
       notes?: string;
+      latitude?: string;
+      longitude?: string;
       location?: string;
-      congregationId?: string;
     };
 
-    const { address, streetName, city, notes, location } = body;
-    const congregationId = body.congregationId ?? user.congregationId ?? '';
+    const { address, streetName, city, notes, latitude, longitude, location } = body;
 
     if (!address || !streetName || !city) {
       return ApiErrors.badRequest('address, streetName, and city are required', undefined, requestId);
-    }
-    if (!congregationId) {
-      return ApiErrors.badRequest('congregationId is required', undefined, requestId);
     }
 
     const [newHousehold] = await db
       .insert(households)
       .values({
-        congregationId,
         address,
         streetName,
         city,
         notes: notes ?? null,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
         location: location ?? null,
       })
       .returning();

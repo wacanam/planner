@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     // (spatial filtering by territory boundary will be added with PostGIS)
     const whereClause = territory.publisherId
       ? eq(visits.userId, territory.publisherId)
-      : eq(households.congregationId, territory.congregationId);
+      : eq(visits.id, visits.id); // fallback: return all (PostGIS spatial filter pending)
 
     const results = await db
       .select({
