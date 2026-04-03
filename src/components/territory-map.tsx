@@ -104,16 +104,19 @@ export default function TerritoryMap({
       if (boundary) {
         try {
           const geoJson = boundary.startsWith('{') ? JSON.parse(boundary) : null;
-          const innerCoords = geoJson?.geometry?.coordinates;
-          if (innerCoords) {
-            // Invert polygon: large world bounding box as outer ring, territory as hole
+          // innerCoords[0] is the outer ring of the territory polygon
+          const outerRing = geoJson?.geometry?.coordinates?.[0];
+          if (outerRing) {
+            // Spotlight: world as outer ring, territory ring reversed as hole
             const worldRing = [[-90, -180], [-90, 180], [90, 180], [90, -180], [-90, -180]];
+            // Reverse the territory ring to make it a hole (counter-clockwise winding)
+            const holeRing = [...outerRing].reverse();
             const spotlightGeoJson = {
               type: 'Feature',
               geometry: {
                 type: 'Polygon',
-                // Outer = world, inner = territory (creates hole = spotlight)
-                coordinates: [worldRing, ...innerCoords],
+                // Outer = world (CCW), hole = territory (CW reversed to CCW hole)
+                coordinates: [worldRing, holeRing],
               },
             };
             L.geoJSON(spotlightGeoJson as Parameters<typeof L.geoJSON>[0], {
