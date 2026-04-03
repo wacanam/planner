@@ -99,15 +99,38 @@ export default function TerritoryMap({
         } catch { /* skip */ }
       }
 
-      // Draw active territory boundary — highlighted
+      // Draw active territory as SPOTLIGHT — world mask with hole cut out
+      // The territory interior is clear; everything outside is dimmed
       if (boundary) {
         try {
           const geoJson = boundary.startsWith('{') ? JSON.parse(boundary) : null;
-          if (geoJson) {
-            const layer = L.geoJSON(geoJson, {
-              style: { color: '#6B9ECC', weight: 2.5, fillOpacity: 0.15, fillColor: '#6B9ECC' },
+          const innerCoords = geoJson?.geometry?.coordinates;
+          if (innerCoords) {
+            // Invert polygon: large world bounding box as outer ring, territory as hole
+            const worldRing = [[-90, -180], [-90, 180], [90, 180], [90, -180], [-90, -180]];
+            const spotlightGeoJson = {
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                // Outer = world, inner = territory (creates hole = spotlight)
+                coordinates: [worldRing, ...innerCoords],
+              },
+            };
+            L.geoJSON(spotlightGeoJson as Parameters<typeof L.geoJSON>[0], {
+              style: {
+                color: '#6B9ECC',
+                weight: 2,
+                fillColor: '#000000',
+                fillOpacity: 0.25,
+                stroke: true,
+              },
             }).addTo(map);
-            allLayers.push(layer);
+
+            // Also draw the territory border cleanly on top
+            const borderLayer = L.geoJSON(geoJson, {
+              style: { color: '#6B9ECC', weight: 2.5, fillOpacity: 0, stroke: true },
+            }).addTo(map);
+            allLayers.push(borderLayer);
           }
         } catch { /* skip */ }
       }
