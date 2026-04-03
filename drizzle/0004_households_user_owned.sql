@@ -1,20 +1,20 @@
--- Households now belong to a publisher (userId), not a congregation.
--- Drop congregationId (not needed), rename createdByUserId → userId.
--- territoryId becomes optional context.
+-- Correct household model: households are congregation-level physical addresses
+-- They belong to a congregation, territory is optional boundary context.
+-- NOT owned by individual publishers.
 
-ALTER TABLE "households" ADD COLUMN IF NOT EXISTS "userId" uuid;
+-- Restore congregationId (required)
+ALTER TABLE "households" ADD COLUMN IF NOT EXISTS "congregationId" uuid;
 
--- Migrate existing data: set userId from createdByUserId if available
-UPDATE "households" SET "userId" = "createdByUserId" WHERE "createdByUserId" IS NOT NULL;
-
--- Make userId NOT NULL after migration (set to a placeholder for any nulls)
--- In practice the table was empty in dev/staging
-ALTER TABLE "households" ALTER COLUMN "userId" SET NOT NULL;
-
--- Make territoryId nullable
+-- Make territoryId nullable (optional boundary context)
 ALTER TABLE "households" ALTER COLUMN "territoryId" DROP NOT NULL;
 
--- Drop old columns no longer needed
-ALTER TABLE "households" DROP COLUMN IF EXISTS "congregationId";
+-- Drop publisher-ownership columns (wrong model)
+ALTER TABLE "households" DROP COLUMN IF EXISTS "userId";
 ALTER TABLE "households" DROP COLUMN IF EXISTS "createdByUserId";
 ALTER TABLE "households" DROP COLUMN IF EXISTS "updatedByUserId";
+
+-- Add userId to visits (publisher who logged the visit)
+ALTER TABLE "visits" ADD COLUMN IF NOT EXISTS "userId" uuid;
+
+-- Make assignmentId optional on visits (publisher can log without an active assignment)
+ALTER TABLE "visits" ALTER COLUMN "assignmentId" DROP NOT NULL;

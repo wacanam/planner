@@ -2,8 +2,11 @@ import { boolean, integer, pgTable, text, timestamp, uuid, varchar } from 'drizz
 
 export const visits = pgTable('visits', {
   id: uuid('id').defaultRandom().primaryKey(),
+  // Publisher who logged this visit — visits belong to the publisher
+  userId: uuid('userId').notNull(),
   householdId: uuid('householdId').notNull(),
-  assignmentId: uuid('assignmentId').notNull(),
+  // Optional: which assignment was active when this visit was made
+  assignmentId: uuid('assignmentId'),
   householdStatusBefore: varchar('householdStatusBefore', { length: 50 }),
   householdStatusAfter: varchar('householdStatusAfter', { length: 50 }),
   visitDate: timestamp('visitDate').defaultNow().notNull(),

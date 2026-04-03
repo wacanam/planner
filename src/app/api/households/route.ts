@@ -1,13 +1,15 @@
 import type { NextRequest } from 'next/server';
 import { asc, eq, and } from 'drizzle-orm';
-import { db, households } from '@/db';
+import { db, households, UserRole, CongregationRole, congregationMembers, MemberStatus } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
 // GET /api/households
-// Always returns the current publisher's own households.
-// Optional ?territoryId= to filter by territory context.
+// Households are congregation-level physical addresses.
+// Filter: ?congregationId= (required) and optional ?territoryId=
+// Publishers see all households in the congregation (they work the area).
+// Result lets them find known households to log visits against.
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -15,11 +17,16 @@ export async function GET(req: NextRequest) {
   const { user } = authResult;
 
   try {
+    const congregationId = req.nextUrl.searchParams.get('congregationId') ?? user.congregationId;
     const territoryId = req.nextUrl.searchParams.get('territoryId');
 
+    if (!congregationId) {
+      return ApiErrors.badRequest('congregationId is required', undefined, requestId);
+    }
+
     const whereClause = territoryId
-      ? and(eq(households.userId, user.userId), eq(households.territoryId, territoryId))
-      : eq(households.userId, user.userId);
+      ? and(eq(households.congregationId, congregationId), eq(households.territoryId, territoryId))
+      : eq(households.congregationId, congregationId);
 
     const results = await db
       .select()
@@ -35,8 +42,8 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/households
-// Creates a household owned by the current publisher.
-// territoryId is optional context (which territory were they working).
+// Add a household to the congregation's map.
+// Any authenticated member can add a household they discovered.
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -50,18 +57,24 @@ export async function POST(req: NextRequest) {
       city: string;
       notes?: string;
       territoryId?: string;
+      congregationId?: string;
     };
 
     const { address, streetName, city, notes, territoryId } = body;
+    const congregationId = body.congregationId ?? user.congregationId ?? '';
+
     if (!address || !streetName || !city) {
       return ApiErrors.badRequest('address, streetName, and city are required', undefined, requestId);
+    }
+    if (!congregationId) {
+      return ApiErrors.badRequest('congregationId is required', undefined, requestId);
     }
 
     const [newHousehold] = await db
       .insert(households)
       .values({
-        userId: user.userId,           // owned by publisher
-        territoryId: territoryId ?? null, // optional territory context
+        congregationId,
+        territoryId: territoryId ?? null,
         address,
         streetName,
         city,

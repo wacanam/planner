@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
 
   try {
     const body = (await req.json()) as {
@@ -25,15 +26,16 @@ export async function POST(req: NextRequest) {
 
     const { householdId, assignmentId, outcome, notes, duration, returnVisitPlanned, nextVisitDate, householdStatusAfter } = body;
 
-    if (!householdId || !assignmentId || !outcome) {
-      return ApiErrors.badRequest('householdId, assignmentId, and outcome are required', undefined, requestId);
+    if (!householdId || !outcome) {
+      return ApiErrors.badRequest('householdId and outcome are required', undefined, requestId);
     }
 
     const [newVisit] = await db
       .insert(visits)
       .values({
+        userId: user.userId,     // publisher who logged the visit
         householdId,
-        assignmentId,
+        assignmentId: assignmentId ?? null,
         outcome,
         notes: notes ?? null,
         duration: duration ?? null,
