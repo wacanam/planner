@@ -73,6 +73,8 @@ export interface Territory {
   groupId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Territory boundary — GeoJSON string, null until PostGIS multi-polygon is added */
+  boundary?: string | null;
   /** Flat joined field — present on list endpoint, absent on detail endpoint */
   publisherName?: string | null;
   /** Flat joined field — present on list endpoint, absent on detail endpoint */

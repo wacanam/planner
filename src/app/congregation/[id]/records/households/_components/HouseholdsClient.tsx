@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
 import { Home, Plus, Search } from 'lucide-react';
 import { useHouseholds } from '@/hooks';
 import { Button } from '@/components/ui/button';
@@ -32,9 +31,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function HouseholdsClient() {
-  const params = useParams();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { households, isLoading, dataSource } = useHouseholds();
 

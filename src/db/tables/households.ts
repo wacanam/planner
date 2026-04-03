@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 /**
  * Household — a physical address/dwelling on the congregation's map.

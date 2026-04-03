@@ -1,14 +1,16 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CoverageChart } from '@/components/coverage-chart';
-import { ArrowLeft, User, Users, History, MapPin } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
+
+// Dynamic import — Leaflet requires browser APIs
+const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false });
 
 type LocalAssignment = {
   id: string;
@@ -73,15 +75,18 @@ export default function TerritoryDetailView() {
       ) : error || !territory ? (
         <div className="p-6 text-destructive text-sm">
           {error || 'Not found'}{' '}
-          <Link href={backHref} className="underline text-primary ml-1">Back</Link>
+          <Link href={backHref} className="underline text-primary ml-1">
+            Back
+          </Link>
         </div>
       ) : (
         <main className="max-w-2xl mx-auto min-w-0 w-full">
-
           {/* Sticky compact header */}
           <div className="sticky top-16 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-2">
             <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-              <Link href={backHref}><ArrowLeft className="h-4 w-4" /></Link>
+              <Link href={backHref}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
             </Button>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Territory</p>
@@ -89,26 +94,26 @@ export default function TerritoryDetailView() {
                 #{territory.number} {territory.name}
               </p>
             </div>
-            <Badge className={`text-xs border shrink-0 ${statusColors[territory.status] ?? ''}`} variant="outline">
+            <Badge
+              className={`text-xs border shrink-0 ${statusColors[territory.status] ?? ''}`}
+              variant="outline"
+            >
               {territory.status}
             </Badge>
           </div>
 
           <div className="px-4 py-4 space-y-3">
-
-            {/* Hero info row */}
-            <div className="rounded-2xl bg-muted/40 border border-border p-4 grid grid-cols-3 gap-3 text-center">
+            {/* Hero stats — 2 col, no redundant Status */}
+            <div className="rounded-2xl bg-muted/40 border border-border p-4 grid grid-cols-2 gap-3 text-center">
               <div>
                 <p className="text-lg font-bold text-foreground">{territory.householdsCount}</p>
                 <p className="text-xs text-muted-foreground">Households</p>
               </div>
               <div>
-                <p className="text-lg font-bold text-foreground">{Number(territory.coveragePercent).toFixed(0)}%</p>
+                <p className="text-lg font-bold text-foreground">
+                  {Number(territory.coveragePercent).toFixed(0)}%
+                </p>
                 <p className="text-xs text-muted-foreground">Coverage</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-foreground capitalize">{territory.status}</p>
-                <p className="text-xs text-muted-foreground">Status</p>
               </div>
             </div>
 
@@ -116,7 +121,9 @@ export default function TerritoryDetailView() {
             <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Coverage progress</span>
-                <span className="font-medium text-foreground">{Number(territory.coveragePercent).toFixed(1)}%</span>
+                <span className="font-medium text-foreground">
+                  {Number(territory.coveragePercent).toFixed(1)}%
+                </span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                 <div
@@ -126,21 +133,32 @@ export default function TerritoryDetailView() {
               </div>
             </div>
 
+            {/* Map — territory boundary + household markers */}
+            <div className="rounded-2xl border border-border overflow-hidden h-56">
+              <TerritoryMap boundary={territory.boundary} className="h-full" />
+            </div>
+
             {/* Current assignment */}
             {(() => {
-              const active = assignments.find(a => a.status === 'active');
+              const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
               return (
                 <div className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    {active.groupName
-                      ? <Users className="h-4 w-4 text-blue-500 shrink-0" />
-                      : <User className="h-4 w-4 text-blue-500 shrink-0" />}
-                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Currently Assigned</p>
+                    {active.groupName ? (
+                      <Users className="h-4 w-4 text-blue-500 shrink-0" />
+                    ) : (
+                      <User className="h-4 w-4 text-blue-500 shrink-0" />
+                    )}
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+                      Currently Assigned
+                    </p>
                   </div>
                   <div className="flex items-end justify-between gap-2">
                     <div>
-                      <p className="font-semibold text-sm text-foreground">{getAssigneeDisplayName(active)}</p>
+                      <p className="font-semibold text-sm text-foreground">
+                        {getAssigneeDisplayName(active)}
+                      </p>
                       {active.assignedAt && (
                         <p className="text-xs text-muted-foreground">
                           Since {new Date(active.assignedAt).toLocaleDateString()}
@@ -148,7 +166,12 @@ export default function TerritoryDetailView() {
                         </p>
                       )}
                     </div>
-                    <Button asChild size="sm" variant="outline" className="shrink-0 bg-background/80">
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 bg-background/80"
+                    >
                       <Link href={`/congregation/${congregationId}/my-assignments`}>
                         <MapPin className="h-3.5 w-3.5" />
                         Log Visits
@@ -169,13 +192,18 @@ export default function TerritoryDetailView() {
 
             {/* Assignment history — collapsed rows */}
             {(() => {
-              const history = assignments.filter(a => a.status !== 'active');
+              const history = assignments.filter((a) => a.status !== 'active');
               if (history.length === 0) return null;
               return (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium px-1">History</p>
-                  {history.map(a => (
-                    <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium px-1">
+                    History
+                  </p>
+                  {history.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card"
+                    >
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{getAssigneeDisplayName(a)}</p>
                         {a.assignedAt && (
@@ -185,7 +213,10 @@ export default function TerritoryDetailView() {
                           </p>
                         )}
                       </div>
-                      <Badge variant="outline" className={`text-xs capitalize shrink-0 ml-3 ${assignmentStatusColors[a.status] ?? ''}`}>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs capitalize shrink-0 ml-3 ${assignmentStatusColors[a.status] ?? ''}`}
+                      >
                         {a.status}
                       </Badge>
                     </div>
@@ -193,7 +224,6 @@ export default function TerritoryDetailView() {
                 </div>
               );
             })()}
-
           </div>
         </main>
       )}

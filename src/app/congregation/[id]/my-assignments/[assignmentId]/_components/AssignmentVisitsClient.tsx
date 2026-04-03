@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Plus,
   MapPin,
-  Clock,
   ClipboardList,
   ChevronDown,
   ChevronUp,
@@ -1045,12 +1044,13 @@ export default function VisitsClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <main className="max-w-2xl mx-auto min-w-0 w-full">
-
         {/* Sticky header — compact, app-like */}
         <div className="sticky top-16 z-30 bg-background/95 backdrop-blur border-b border-border">
           <div className="flex items-center gap-2 px-4 py-3">
             <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-              <Link href={backHref}><ArrowLeft className="h-4 w-4" /></Link>
+              <Link href={backHref}>
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
             </Button>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">
@@ -1062,17 +1062,20 @@ export default function VisitsClient() {
             </div>
             {/* Data source dot */}
             {!loading && (
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
-                  ? 'bg-green-500'
-                  : (activeTab === 'households' ? householdsSource : visitsSource) === 'cache'
-                  ? 'bg-amber-400'
-                  : 'bg-muted'
-              }`} title={
-                (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
-                  ? 'Live data'
-                  : 'Cached — offline'
-              } />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
+                    ? 'bg-green-500'
+                    : (activeTab === 'households' ? householdsSource : visitsSource) === 'cache'
+                      ? 'bg-amber-400'
+                      : 'bg-muted'
+                }`}
+                title={
+                  (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
+                    ? 'Live data'
+                    : 'Cached — offline'
+                }
+              />
             )}
           </div>
 
@@ -1089,7 +1092,11 @@ export default function VisitsClient() {
                     : 'border-transparent text-muted-foreground'
                 }`}
               >
-                {tab === 'households' ? <MapPin className="h-3.5 w-3.5" /> : <ClipboardList className="h-3.5 w-3.5" />}
+                {tab === 'households' ? (
+                  <MapPin className="h-3.5 w-3.5" />
+                ) : (
+                  <ClipboardList className="h-3.5 w-3.5" />
+                )}
                 {tab === 'households' ? 'Doors' : 'Visits'}
                 {tab === 'households' && pendingHouseholds.length > 0 && (
                   <span className="text-[10px] bg-amber-100 text-amber-800 px-1 rounded-full">
@@ -1110,7 +1117,9 @@ export default function VisitsClient() {
         <div className="px-4 py-4 space-y-3">
           {loading ? (
             <div className="space-y-2 animate-pulse">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl" />)}
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-16 bg-muted rounded-xl" />
+              ))}
             </div>
           ) : activeTab === 'households' ? (
             <>
@@ -1127,15 +1136,14 @@ export default function VisitsClient() {
                   <MapPin className="h-10 w-10 text-muted-foreground/30" />
                   <div>
                     <p className="text-sm font-medium text-foreground">No doors recorded</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Tap "Add Door" to start logging</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Tap "Add Door" to start logging
+                    </p>
                   </div>
                 </div>
               ) : (
                 allHouseholds.map((h) => (
-                  <div
-                    key={h.id}
-                    className="rounded-2xl border border-border bg-card p-4"
-                  >
+                  <div key={h.id} className="rounded-2xl border border-border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         {/* Address — concise */}
@@ -1147,7 +1155,9 @@ export default function VisitsClient() {
 
                         {/* Status row */}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[h.status] ?? 'text-muted-foreground border-border bg-muted/30'}`}>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[h.status] ?? 'text-muted-foreground border-border bg-muted/30'}`}
+                          >
                             {h.status.replace(/_/g, ' ')}
                           </span>
                           {h.lastVisitDate && (
@@ -1155,11 +1165,12 @@ export default function VisitsClient() {
                               {new Date(h.lastVisitDate).toLocaleDateString()}
                             </span>
                           )}
-                          {pendingHouseholdIds.has(h.id) && (
-                            syncedIds.has(h.id)
-                              ? <span className="text-xs text-green-600 font-medium">✓ Synced</span>
-                              : <span className="text-xs text-amber-500">⏳ Pending</span>
-                          )}
+                          {pendingHouseholdIds.has(h.id) &&
+                            (syncedIds.has(h.id) ? (
+                              <span className="text-xs text-green-600 font-medium">✓ Synced</span>
+                            ) : (
+                              <span className="text-xs text-amber-500">⏳ Pending</span>
+                            ))}
                         </div>
                       </div>
 
@@ -1180,17 +1191,19 @@ export default function VisitsClient() {
             </>
           ) : (
             /* Visit History */
-            <>
+            <div>
               {allVisits.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
                   <ClipboardList className="h-10 w-10 text-muted-foreground/30" />
                   <div>
                     <p className="text-sm font-medium text-foreground">No visits yet</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Log a visit from the Doors tab</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Log a visit from the Doors tab
+                    </p>
                   </div>
                 </div>
               ) : (
-                allVisits.map(v => (
+                allVisits.map((v) => (
                   <VisitCard
                     key={v.id}
                     visit={v}
@@ -1200,7 +1213,7 @@ export default function VisitsClient() {
                   />
                 ))
               )}
-            </>
+            </div>
           )}
         </div>
       </main>
