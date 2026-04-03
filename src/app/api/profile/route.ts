@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       role: users.role,
       congregationId: users.congregationId,
       isActive: users.isActive,
+      avatarUrl: users.avatarUrl,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
@@ -55,6 +56,7 @@ export async function PATCH(req: NextRequest) {
       role: users.role,
       congregationId: users.congregationId,
       isActive: users.isActive,
+      avatarUrl: users.avatarUrl,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     });

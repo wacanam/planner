@@ -27,3 +27,19 @@ export function useChangePassword() {
   );
   return { changePassword: trigger, isChanging: isMutating };
 }
+
+export function useUploadAvatar() {
+  const { trigger, isMutating } = useSWRMutation(
+    '/api/profile/avatar',
+    async (_url: string, { arg }: { arg: { file: File } }) => {
+      const formData = new FormData();
+      formData.append('file', arg.file);
+      // Don't set Content-Type — axios sets it with boundary automatically
+      return apiClient.post<{ avatarUrl: string }>('/api/profile/avatar', formData, {
+        headers: { 'Content-Type': undefined },
+      });
+    }
+  );
+  return { upload: trigger, isUploading: isMutating };
+}
+

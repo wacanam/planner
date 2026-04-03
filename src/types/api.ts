@@ -226,6 +226,7 @@ export interface User {
   role: string;
   congregationId?: string | null;
   isActive: boolean;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

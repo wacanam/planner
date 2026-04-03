@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff } from 'lucide-react';
-import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/use-profile';
+import { Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
+import { useProfile, useUpdateProfile, useChangePassword, useUploadAvatar } from '@/hooks/use-profile';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
+import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
 import { updateProfileSchema, changePasswordSchema } from '@/schemas/profile';
 import type { UpdateProfileFormData, ChangePasswordFormData } from '@/schemas/profile';
 
@@ -40,6 +41,209 @@ function roleLabel(role: string): string {
     case 'TERRITORY_SERVANT': return 'Territory Servant';
     default: return 'Member';
   }
+}
+
+// ─── Avatar component ─────────────────────────────────────────────────────────
+
+function Avatar({ avatarUrl, name, size = 'lg' }: { avatarUrl?: string | null; name: string; size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = { sm: 'w-8 h-8 text-sm', md: 'w-12 h-12 text-base', lg: 'w-20 h-20 text-2xl' };
+  if (avatarUrl) {
+    // biome-ignore lint/performance/noImgElement: avatarUrl may be a blob URL (local preview) — next/image can't handle it
+    return <img src={avatarUrl} alt={name} className={`${sizes[size]} rounded-full object-cover`} />;
+  }
+  return (
+    <div className={`${sizes[size]} rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold`}>
+      {name[0]?.toUpperCase()}
+    </div>
+  );
+}
+
+// ─── LocalStorage helpers for offline pending avatar ─────────────────────────
+
+function getPendingAvatarKey(userId: string) {
+  return `pending_avatar_${userId}`;
+}
+
+function storePendingAvatar(userId: string, base64: string) {
+  try {
+    localStorage.setItem(getPendingAvatarKey(userId), base64);
+  } catch {
+    // storage quota exceeded or unavailable
+  }
+}
+
+function getPendingAvatar(userId: string): string | null {
+  try {
+    return localStorage.getItem(getPendingAvatarKey(userId));
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingAvatar(userId: string) {
+  try {
+    localStorage.removeItem(getPendingAvatarKey(userId));
+  } catch {
+    // ignore
+  }
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── AvatarUpload section ────────────────────────────────────────────────────
+
+interface AvatarUploadProps {
+  userId: string;
+  name: string;
+  serverAvatarUrl?: string | null;
+  onUploaded: (url: string) => void;
+}
+
+function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploadProps) {
+  const { upload, isUploading } = useUploadAvatar();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [offlineMsg, setOfflineMsg] = useState('');
+  const [uploadError, setUploadError] = useState('');
+
+  // Crop dialog state
+  const [cropImgSrc, setCropImgSrc] = useState('');
+  const [cropOpen, setCropOpen] = useState(false);
+
+  // On mount: try to sync a pending offline avatar
+  const trySyncPending = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    const pending = getPendingAvatar(userId);
+    if (!pending || !navigator.onLine) return;
+    try {
+      const res = await fetch(pending);
+      const blob = await res.blob();
+      const file = new File([blob], 'avatar', { type: blob.type });
+      const result = await upload({ file });
+      if (result?.avatarUrl) {
+        onUploaded(result.avatarUrl);
+        clearPendingAvatar(userId);
+        setOfflineMsg('');
+        setPreviewUrl(result.avatarUrl);
+      }
+    } catch {
+      // Will retry next time
+    }
+  }, [userId, upload, onUploaded]);
+
+  useEffect(() => {
+    const pending = getPendingAvatar(userId);
+    if (pending) {
+      setPreviewUrl(pending);
+      setOfflineMsg('Saved locally, will sync when online');
+      trySyncPending();
+    }
+  }, [userId, trySyncPending]);
+
+  // Try to sync when coming back online
+  useEffect(() => {
+    const handler = () => trySyncPending();
+    window.addEventListener('online', handler);
+    return () => window.removeEventListener('online', handler);
+  }, [trySyncPending]);
+
+  // Step 1: file selected → open crop dialog
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError('');
+    setOfflineMsg('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropImgSrc(reader.result as string);
+      setCropOpen(true);
+    };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  // Step 2: crop confirmed → preview + upload/queue
+  async function handleCropComplete(file: File) {
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
+    if (navigator.onLine) {
+      try {
+        const result = await upload({ file });
+        if (result?.avatarUrl) {
+          onUploaded(result.avatarUrl);
+          setPreviewUrl(result.avatarUrl);
+          clearPendingAvatar(userId);
+        }
+      } catch (err: unknown) {
+        setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+      }
+    } else {
+      const base64 = await fileToBase64(file);
+      storePendingAvatar(userId, base64);
+      setOfflineMsg('Saved locally, will sync when online');
+    }
+  }
+
+  const displayUrl = previewUrl ?? serverAvatarUrl;
+
+  return (
+    <>
+      <AvatarCropDialog
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        imgSrc={cropImgSrc}
+        onCropComplete={handleCropComplete}
+      />
+
+      <div className="flex items-center gap-5">
+        <div className="relative shrink-0">
+          <Avatar avatarUrl={displayUrl} name={name} size="lg" />
+          {isUploading && (
+            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+              <Loader2 size={20} className="text-white animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="space-y-2">
+          <p className="text-lg font-semibold text-foreground leading-none">{name}</p>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={isUploading}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="gap-1.5 text-xs"
+            >
+              <Camera size={13} />
+              {isUploading ? 'Uploading…' : 'Change photo'}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, or WebP · max 5 MB</p>
+          </div>
+          {offlineMsg && <p className="text-xs text-yellow-500">{offlineMsg}</p>}
+          {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+        </div>
+      </div>
+    </>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,7 +314,6 @@ export default function ProfileClient() {
     );
   }
 
-  const initial = profile.name.charAt(0).toUpperCase();
   const memberSince = new Date(profile.createdAt).toLocaleDateString(undefined, {
     year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -121,27 +324,25 @@ export default function ProfileClient() {
 
         {/* Page header */}
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-            {initial}
-          </div>
+          <Avatar avatarUrl={profile.avatarUrl} name={profile.name} size="md" />
           <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
         </div>
 
         {/* ── Section 1: Profile Info ── */}
         <section className="border border-border rounded-xl p-6 space-y-4">
           <h2 className="text-base font-semibold text-foreground">Profile Info</h2>
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl shrink-0">
-              {initial}
-            </div>
-            <div className="space-y-1">
-              <p className="text-lg font-semibold text-foreground leading-none">{profile.name}</p>
-              <p className="text-sm text-muted-foreground">{profile.email}</p>
-              <span className="inline-block text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-                {roleLabel(profile.role)}
-              </span>
-              <p className="text-xs text-muted-foreground pt-1">Member since {memberSince}</p>
-            </div>
+          <AvatarUpload
+            userId={profile.id}
+            name={profile.name}
+            serverAvatarUrl={profile.avatarUrl}
+            onUploaded={() => mutate()}
+          />
+          <div className="pt-2 space-y-1">
+            <p className="text-sm text-muted-foreground">{profile.email}</p>
+            <span className="inline-block text-xs px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
+              {roleLabel(profile.role)}
+            </span>
+            <p className="text-xs text-muted-foreground pt-1">Member since {memberSince}</p>
           </div>
         </section>
 

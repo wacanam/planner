@@ -7,12 +7,11 @@ import { signOut } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { Button } from '@/components/ui/button';
 import { UserRole } from '@/db';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
-function roleLabel(role: UserRole): string {
+function _roleLabel(role: UserRole): string {
   switch (role) {
     case UserRole.SUPER_ADMIN:
       return 'Super Admin';
@@ -27,7 +26,7 @@ function roleLabel(role: UserRole): string {
   }
 }
 
-function roleBadgeClass(role: UserRole): string {
+function _roleBadgeClass(role: UserRole): string {
   switch (role) {
     case UserRole.SUPER_ADMIN:
       return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400';

@@ -23,6 +23,13 @@
       "when": 1775080000000,
       "tag": "0002_repair_orphaned_territories",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775090000000,
+      "tag": "0003_add_avatar_url",
+      "breakpoints": true
     }
   ]
 }
