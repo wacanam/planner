@@ -13,6 +13,7 @@ import {
   groups,
   groupMembers,
   territories,
+  households,
   UserRole,
   CongregationRole,
   GroupRole,
@@ -231,11 +232,111 @@ async function seed() {
     }
   }
 
-  // Territories
+  // ── Territories with real boundary polygons (Manolo Fortich, Bukidnon) ──────
+  // Approximate boundaries for 4 barangays: Dicklum, Manalo, Fortich, Mock
+  // Center: ~8.37°N, 124.85°E (Manolo Fortich area)
+
   const territoriesData = [
-    { name: 'Territory 1', number: 'T-001', publisherId: alice.id, groupId: undefined },
-    { name: 'Territory 2', number: 'T-002', publisherId: undefined, groupId: group1.id },
-    { name: 'Territory 3', number: 'T-003', publisherId: undefined, groupId: undefined },
+    {
+      number: 'T-001',
+      name: 'Dicklum',
+      publisherId: alice.id,
+      status: TerritoryStatus.ASSIGNED,
+      // Approximate polygon around Dicklum barangay
+      boundary: JSON.stringify({
+        type: 'Feature',
+        properties: { name: 'Dicklum' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [124.8450, 8.3700], [124.8520, 8.3700],
+            [124.8520, 8.3760], [124.8450, 8.3760],
+            [124.8450, 8.3700],
+          ]],
+        },
+      }),
+      // Households scattered within Dicklum boundary
+      householdsData: [
+        { address: '12 Rizal St', streetName: 'Rizal Street', city: 'Dicklum', lat: '8.3720', lng: '124.8468', status: 'active' },
+        { address: '34 Mabini Ave', streetName: 'Mabini Avenue', city: 'Dicklum', lat: '8.3735', lng: '124.8490', status: 'not_home' },
+        { address: '56 Quezon Blvd', streetName: 'Quezon Boulevard', city: 'Dicklum', lat: '8.3748', lng: '124.8505', status: 'return_visit' },
+        { address: '78 Bonifacio St', streetName: 'Bonifacio Street', city: 'Dicklum', lat: '8.3712', lng: '124.8512', status: 'new' },
+        { address: '90 Del Pilar St', streetName: 'Del Pilar Street', city: 'Dicklum', lat: '8.3755', lng: '124.8475', status: 'new' },
+      ],
+    },
+    {
+      number: 'T-002',
+      name: 'Manalo',
+      publisherId: null,
+      status: TerritoryStatus.AVAILABLE,
+      boundary: JSON.stringify({
+        type: 'Feature',
+        properties: { name: 'Manalo' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [124.8530, 8.3700], [124.8600, 8.3700],
+            [124.8600, 8.3760], [124.8530, 8.3760],
+            [124.8530, 8.3700],
+          ]],
+        },
+      }),
+      householdsData: [
+        { address: '15 Luna St', streetName: 'Luna Street', city: 'Manalo', lat: '8.3715', lng: '124.8548', status: 'new' },
+        { address: '27 Aguinaldo Ave', streetName: 'Aguinaldo Avenue', city: 'Manalo', lat: '8.3730', lng: '124.8565', status: 'new' },
+        { address: '43 Lapu-Lapu St', streetName: 'Lapu-Lapu Street', city: 'Manalo', lat: '8.3745', lng: '124.8582', status: 'do_not_visit' },
+        { address: '61 Burgos St', streetName: 'Burgos Street', city: 'Manalo', lat: '8.3758', lng: '124.8540', status: 'new' },
+      ],
+    },
+    {
+      number: 'T-003',
+      name: 'Fortich',
+      publisherId: null,
+      status: TerritoryStatus.AVAILABLE,
+      boundary: JSON.stringify({
+        type: 'Feature',
+        properties: { name: 'Fortich' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [124.8450, 8.3640], [124.8520, 8.3640],
+            [124.8520, 8.3700], [124.8450, 8.3700],
+            [124.8450, 8.3640],
+          ]],
+        },
+      }),
+      householdsData: [
+        { address: '8 Magsaysay St', streetName: 'Magsaysay Street', city: 'Fortich', lat: '8.3655', lng: '124.8462', status: 'new' },
+        { address: '22 Osmena Ave', streetName: 'Osmena Avenue', city: 'Fortich', lat: '8.3670', lng: '124.8480', status: 'moved' },
+        { address: '39 Marcos Blvd', streetName: 'Marcos Boulevard', city: 'Fortich', lat: '8.3685', lng: '124.8498', status: 'new' },
+        { address: '55 Recto St', streetName: 'Recto Street', city: 'Fortich', lat: '8.3648', lng: '124.8510', status: 'active' },
+        { address: '71 Quirino Ave', streetName: 'Quirino Avenue', city: 'Fortich', lat: '8.3692', lng: '124.8455', status: 'new' },
+      ],
+    },
+    {
+      number: 'T-004',
+      name: 'Mock',
+      publisherId: null,
+      status: TerritoryStatus.AVAILABLE,
+      boundary: JSON.stringify({
+        type: 'Feature',
+        properties: { name: 'Mock' },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [124.8530, 8.3640], [124.8600, 8.3640],
+            [124.8600, 8.3700], [124.8530, 8.3700],
+            [124.8530, 8.3640],
+          ]],
+        },
+      }),
+      householdsData: [
+        { address: '5 Tandang Sora St', streetName: 'Tandang Sora Street', city: 'Mock', lat: '8.3650', lng: '124.8542', status: 'new' },
+        { address: '18 Katipunan Ave', streetName: 'Katipunan Avenue', city: 'Mock', lat: '8.3665', lng: '124.8558', status: 'return_visit' },
+        { address: '33 Padre Faura St', streetName: 'Padre Faura Street', city: 'Mock', lat: '8.3680', lng: '124.8575', status: 'new' },
+        { address: '47 España Blvd', streetName: 'España Boulevard', city: 'Mock', lat: '8.3695', lng: '124.8545', status: 'not_home' },
+      ],
+    },
   ];
 
   for (const td of territoriesData) {
@@ -247,16 +348,41 @@ async function seed() {
       )
       .limit(1);
 
-    if (!existing) {
-      await db.insert(territories).values({
+    let territory = existing;
+    if (!territory) {
+      const [t] = await db.insert(territories).values({
         congregationId: congregation.id,
         name: td.name,
         number: td.number,
         publisherId: td.publisherId ?? null,
-        groupId: td.groupId ?? null,
-        status: td.publisherId || td.groupId ? TerritoryStatus.ASSIGNED : TerritoryStatus.AVAILABLE,
-      });
-      console.log(`✅ Created ${td.name}`);
+        boundary: td.boundary,
+        householdsCount: td.householdsData.length,
+        status: td.status,
+      }).returning();
+      territory = t;
+      console.log(`✅ Created territory: ${td.number} — ${td.name}`);
+    }
+
+    // Seed households within this territory
+    for (const h of td.householdsData) {
+      const [existingH] = await db
+        .select({ id: households.id })
+        .from(households)
+        .where(and(eq(households.address, h.address), eq(households.city, h.city)))
+        .limit(1);
+
+      if (!existingH) {
+        await db.insert(households).values({
+          address: h.address,
+          streetName: h.streetName,
+          city: h.city,
+          latitude: h.lat,
+          longitude: h.lng,
+          status: h.status,
+          createdById: alice.id,
+        });
+        console.log(`  🏠 ${h.address}, ${h.city}`);
+      }
     }
   }
 
