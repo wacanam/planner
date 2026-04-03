@@ -64,168 +64,137 @@ export default function TerritoryDetailView() {
   return (
     <ProtectedPage congregationId={congregationId}>
       {loading ? (
-        <div className="p-6 text-gray-500 animate-pulse">Loading...</div>
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-3 animate-pulse">
+          <div className="h-8 w-48 bg-muted rounded-lg" />
+          <div className="h-28 bg-muted rounded-2xl" />
+          <div className="h-20 bg-muted rounded-2xl" />
+          <div className="h-16 bg-muted rounded-2xl" />
+        </div>
       ) : error || !territory ? (
-        <div className="p-6 text-red-600">
-          {error || 'Not found'}
-          <Button asChild variant="link" className="ml-2">
-            <Link href={backHref}>Back to territories</Link>
-          </Button>
+        <div className="p-6 text-destructive text-sm">
+          {error || 'Not found'}{' '}
+          <Link href={backHref} className="underline text-primary ml-1">Back</Link>
         </div>
       ) : (
-        <main className="max-w-2xl mx-auto p-4 sm:p-6 space-y-6">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button asChild variant="ghost" size="sm">
-              <Link href={backHref}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
+        <main className="max-w-2xl mx-auto min-w-0 w-full">
+
+          {/* Sticky compact header */}
+          <div className="sticky top-16 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-2">
+            <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <Link href={backHref}><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
-            <h1 className="text-xl font-bold text-gray-800">
-              #{territory.number} — {territory.name}
-            </h1>
-            <Badge
-              className={`border text-xs ${statusColors[territory.status] ?? ''}`}
-              variant="outline"
-            >
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Territory</p>
+              <p className="text-sm font-bold text-foreground truncate leading-tight">
+                #{territory.number} {territory.name}
+              </p>
+            </div>
+            <Badge className={`text-xs border shrink-0 ${statusColors[territory.status] ?? ''}`} variant="outline">
               {territory.status}
             </Badge>
-            <Button asChild variant="outline" size="sm" className="ml-auto">
-              <Link href={`/congregation/${congregationId}/my-assignments`}>
-                <MapPin className="h-4 w-4 mr-1.5" />
-                My Households &amp; Visits
-              </Link>
-            </Button>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-gray-500">Households</dt>
-                  <dd className="font-medium">{territory.householdsCount}</dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">Created</dt>
-                  <dd className="font-medium">
-                    {new Date(territory.createdAt).toLocaleDateString()}
-                  </dd>
-                </div>
-                {territory.notes && (
-                  <div className="col-span-2">
-                    <dt className="text-gray-500">Notes</dt>
-                    <dd>{territory.notes}</dd>
+          <div className="px-4 py-4 space-y-3">
+
+            {/* Hero info row */}
+            <div className="rounded-2xl bg-muted/40 border border-border p-4 grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-lg font-bold text-foreground">{territory.householdsCount}</p>
+                <p className="text-xs text-muted-foreground">Households</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-foreground">{Number(territory.coveragePercent).toFixed(0)}%</p>
+                <p className="text-xs text-muted-foreground">Coverage</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-foreground capitalize">{territory.status}</p>
+                <p className="text-xs text-muted-foreground">Status</p>
+              </div>
+            </div>
+
+            {/* Coverage bar */}
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Coverage progress</span>
+                <span className="font-medium text-foreground">{Number(territory.coveragePercent).toFixed(1)}%</span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${Math.min(100, Number(territory.coveragePercent))}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Current assignment */}
+            {(() => {
+              const active = assignments.find(a => a.status === 'active');
+              if (!active) return null;
+              return (
+                <div className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    {active.groupName
+                      ? <Users className="h-4 w-4 text-blue-500 shrink-0" />
+                      : <User className="h-4 w-4 text-blue-500 shrink-0" />}
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">Currently Assigned</p>
                   </div>
-                )}
-              </dl>
-            </CardContent>
-          </Card>
-
-          {/* Current Assignment */}
-          {(() => {
-            const activeAssignment = assignments.find((a) => a.status === 'active');
-            if (!activeAssignment) return null;
-            return (
-              <Card className="border-blue-200 dark:border-blue-900/40">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    {activeAssignment.groupName ? (
-                      <Users className="h-4 w-4 text-blue-500" />
-                    ) : (
-                      <User className="h-4 w-4 text-blue-500" />
-                    )}
-                    Current Assignment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-end justify-between gap-2">
                     <div>
-                      <dt className="text-gray-500">
-                        {activeAssignment.groupName ? 'Assigned Group' : 'Assigned To'}
-                      </dt>
-                      <dd className="font-medium">{getAssigneeDisplayName(activeAssignment)}</dd>
+                      <p className="font-semibold text-sm text-foreground">{getAssigneeDisplayName(active)}</p>
+                      {active.assignedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Since {new Date(active.assignedAt).toLocaleDateString()}
+                          {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
+                        </p>
+                      )}
                     </div>
-                    {activeAssignment.assignedAt && (
-                      <div>
-                        <dt className="text-gray-500">Assigned At</dt>
-                        <dd className="font-medium">
-                          {new Date(activeAssignment.assignedAt).toLocaleDateString()}
-                        </dd>
-                      </div>
-                    )}
-                    {activeAssignment.dueAt && (
-                      <div>
-                        <dt className="text-gray-500">Due Date</dt>
-                        <dd className="font-medium">
-                          {new Date(activeAssignment.dueAt).toLocaleDateString()}
-                        </dd>
-                      </div>
-                    )}
-                    {activeAssignment.notes && (
-                      <div className="col-span-2">
-                        <dt className="text-gray-500">Notes</dt>
-                        <dd>{activeAssignment.notes}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </CardContent>
-              </Card>
-            );
-          })()}
+                    <Button asChild size="sm" variant="outline" className="shrink-0 bg-background/80">
+                      <Link href={`/congregation/${congregationId}/my-assignments`}>
+                        <MapPin className="h-3.5 w-3.5" />
+                        Log Visits
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Coverage</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CoverageChart percent={Number(territory.coveragePercent)} label="Overall Coverage" />
-            </CardContent>
-          </Card>
+            {/* Notes */}
+            {territory.notes && (
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground font-medium mb-1">Notes</p>
+                <p className="text-sm text-foreground">{territory.notes}</p>
+              </div>
+            )}
 
-          {/* Assignment History */}
-          {(() => {
-            const historyAssignments = assignments.filter((a) => a.status !== 'active');
-            if (historyAssignments.length === 0) return null;
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <History className="h-4 w-4 text-muted-foreground" />
-                    Assignment History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {historyAssignments.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-start justify-between p-3 rounded-xl border border-border text-sm"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-medium">{getAssigneeDisplayName(a)}</p>
+            {/* Assignment history — collapsed rows */}
+            {(() => {
+              const history = assignments.filter(a => a.status !== 'active');
+              if (history.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium px-1">History</p>
+                  {history.map(a => (
+                    <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{getAssigneeDisplayName(a)}</p>
                         {a.assignedAt && (
                           <p className="text-xs text-muted-foreground">
-                            Assigned: {new Date(a.assignedAt).toLocaleDateString()}
-                            {a.returnedAt && (
-                              <> · Returned: {new Date(a.returnedAt).toLocaleDateString()}</>
-                            )}
+                            {new Date(a.assignedAt).toLocaleDateString()}
+                            {a.returnedAt && ` → ${new Date(a.returnedAt).toLocaleDateString()}`}
                           </p>
                         )}
-                        {a.notes && <p className="text-xs text-muted-foreground">{a.notes}</p>}
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs capitalize ${assignmentStatusColors[a.status] ?? ''}`}
-                      >
+                      <Badge variant="outline" className={`text-xs capitalize shrink-0 ml-3 ${assignmentStatusColors[a.status] ?? ''}`}>
                         {a.status}
                       </Badge>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-            );
-          })()}
+                </div>
+              );
+            })()}
+
+          </div>
         </main>
       )}
     </ProtectedPage>
