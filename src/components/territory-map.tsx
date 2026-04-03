@@ -24,6 +24,7 @@ export interface HouseholdPoint {
   latitude?: string | null;
   longitude?: string | null;
   status?: string | null;
+  type?: string | null;
 }
 
 export interface TerritoryMapProps {
@@ -38,17 +39,81 @@ export interface TerritoryMapProps {
   className?: string;
 }
 
-// Status → dot color
+// Status → fill color
 const STATUS_COLOR: Record<string, string> = {
-  not_visited:   '#94a3b8', // slate
-  not_home:      '#f59e0b', // amber
-  return_visit:  '#a855f7', // purple
-  do_not_visit:  '#ef4444', // red
-  visited:       '#22c55e', // green
-  moved:         '#9ca3af', // gray
-  inactive:      '#6b7280', // gray
+  not_visited:   '#94a3b8',
+  not_home:      '#f59e0b',
+  return_visit:  '#a855f7',
+  do_not_visit:  '#ef4444',
+  visited:       '#22c55e',
+  active:        '#3b82f6',
+  moved:         '#6b7280',
+  inactive:      '#6b7280',
+  new:           '#94a3b8',
 };
 const DEFAULT_COLOR = '#94a3b8';
+
+// Type → SVG path (24×24 viewBox, centered glyph)
+// Each icon is a white-stroked shape on a colored background pin
+const TYPE_SVG: Record<string, string> = {
+  // Simple house outline
+  house: `<path stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"
+    d="M4 10 L12 3 L20 10 V20 H14 V15 H10 V20 H4 Z"/>`,
+  // Apartment / multi-floor building
+  apartment: `<rect x="5" y="4" width="14" height="16" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+    <line x1="9" y1="4" x2="9" y2="20" stroke="white" stroke-width="1"/>
+    <line x1="15" y1="4" x2="15" y2="20" stroke="white" stroke-width="1"/>
+    <line x1="5" y1="10" x2="19" y2="10" stroke="white" stroke-width="1"/>
+    <line x1="5" y1="16" x2="19" y2="16" stroke="white" stroke-width="1"/>`,
+  // Business / office
+  business: `<rect x="4" y="7" width="16" height="13" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+    <path d="M9 7 V5 Q9 4 10 4 H14 Q15 4 15 5 V7" stroke="white" stroke-width="1.5" fill="none"/>
+    <line x1="12" y1="11" x2="12" y2="16" stroke="white" stroke-width="1"/>
+    <line x1="8" y1="13.5" x2="16" y2="13.5" stroke="white" stroke-width="1"/>`,
+  // Condo / high-rise
+  condo: `<rect x="6" y="2" width="12" height="20" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+    <rect x="9" y="5" width="2" height="2" fill="white" opacity="0.8"/>
+    <rect x="13" y="5" width="2" height="2" fill="white" opacity="0.8"/>
+    <rect x="9" y="10" width="2" height="2" fill="white" opacity="0.8"/>
+    <rect x="13" y="10" width="2" height="2" fill="white" opacity="0.8"/>
+    <rect x="9" y="15" width="2" height="2" fill="white" opacity="0.8"/>
+    <rect x="13" y="15" width="2" height="2" fill="white" opacity="0.8"/>`,
+  // Do not visit — X circle
+  do_not_visit: `<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"/>
+    <line x1="8" y1="8" x2="16" y2="16" stroke="white" stroke-width="2"/>
+    <line x1="16" y1="8" x2="8" y2="16" stroke="white" stroke-width="2"/>`,
+};
+const DEFAULT_SVG = TYPE_SVG.house;
+
+/**
+ * Build a Leaflet DivIcon for a household point.
+ * Shape = type, fill color = status.
+ * Pin is a 28×34px teardrop with the icon inside.
+ */
+function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string) {
+  const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+  const icon  = TYPE_SVG[type] ?? DEFAULT_SVG;
+
+  // Teardrop pin shape as SVG
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34">
+    <!-- Pin body -->
+    <path d="M14 1 C7.4 1 2 6.4 2 13 C2 21 14 33 14 33 C14 33 26 21 26 13 C26 6.4 20.6 1 14 1 Z"
+      fill="${color}" stroke="white" stroke-width="1.5"/>
+    <!-- Type icon (clipped to pin head) -->
+    <g transform="translate(2, 1)">
+      <svg width="24" height="24" viewBox="0 0 24 24">${icon}</svg>
+    </g>
+  </svg>`;
+
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize:   [28, 34],
+    iconAnchor: [14, 34],
+    popupAnchor:[0, -36],
+  });
+}
 
 // ─── Cluster appearance ───────────────────────────────────────────────────────
 const CLUSTER_COLORS = [
@@ -175,7 +240,7 @@ export default function TerritoryMap({
       // ── Supercluster setup ────────────────────────────────────────────────
       if (validPts.length === 0) return;
 
-      const index = new Supercluster<{ id: string; address: string; status: string }>({
+      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
         radius: 60,
         maxZoom: 18,
         minPoints: 3,
@@ -185,7 +250,7 @@ export default function TerritoryMap({
         validPts.map((h) => ({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [+h.longitude!, +h.latitude!] },
-          properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited' },
+          properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
         }))
       );
 
@@ -238,33 +303,35 @@ export default function TerritoryMap({
 
             clusterGroup.addLayer(circle);
           } else {
-            // ── Individual dot (canvas) ──────────────────────────────────
-            const { id, address, status } = props as { id: string; address: string; status: string };
-            const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+            // ── Individual icon marker (DivIcon, type-shaped + status-colored) ──
+            const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
 
-            const dot = L.circleMarker([lat, lng], {
-              renderer: canvasRenderer,
-              radius: 6,
-              fillColor: color,
-              fillOpacity: 1,
-              color: '#fff',
-              weight: 1.5,
+            const marker = L.marker([lat, lng], {
+              icon: makeHouseholdIcon(L, status, hType),
+              // Canvas not applicable to DivIcon — SVG icons stay lightweight at <500 pts
             });
 
-            dot.bindPopup(
-              `<div style="min-width:140px">
-                <p style="font-weight:600;margin:0 0 2px">${address}</p>
-                <p style="font-size:11px;color:#64748b;margin:0;text-transform:capitalize">
+            marker.bindPopup(
+              `<div style="min-width:150px">
+                <p style="font-weight:600;margin:0 0 4px">${address}</p>
+                <span style="
+                  display:inline-block;
+                  font-size:10px;
+                  padding:2px 6px;
+                  border-radius:9999px;
+                  background:${STATUS_COLOR[status] ?? DEFAULT_COLOR}22;
+                  color:${STATUS_COLOR[status] ?? DEFAULT_COLOR};
+                  text-transform:capitalize;
+                  font-weight:600;
+                ">
                   ${status.replace(/_/g, ' ')}
-                </p>
+                </span>
               </div>`,
               { maxWidth: 220, closeButton: false }
             );
 
-            // Expose id for future click-through navigation
-            (dot as unknown as { householdId: string }).householdId = id;
-
-            clusterGroup.addLayer(dot);
+            (marker as unknown as { householdId: string }).householdId = id;
+            clusterGroup.addLayer(marker);
           }
         }
       }

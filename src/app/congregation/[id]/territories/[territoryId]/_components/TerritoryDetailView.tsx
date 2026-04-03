@@ -85,7 +85,7 @@ export default function TerritoryDetailView() {
     } catch { return null; }
   }, [boundaryStr]);
 
-  type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null };
+  type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null; type?: string | null };
   const { data: householdsResp } = useSWR<HouseholdItem[]>(
     householdsBboxKey,
     (url: string) => apiClient.get<HouseholdItem[]>(url),
