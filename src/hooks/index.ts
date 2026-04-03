@@ -5,3 +5,4 @@ export * from './use-congregation-groups';
 export * from './use-notifications';
 export * from './use-reports';
 export * from './use-congregations';
+export * from './use-profile';

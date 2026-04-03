@@ -214,3 +214,18 @@ export interface ActivityReport {
   assignments: ActivityAssignment[];
   returns: ActivityReturn[];
 }
+
+
+// ─── User ──────────────────────────────────────────────────────────────────────
+
+/** /api/profile */
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  congregationId?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
