@@ -34,15 +34,15 @@ import {
   type AddHouseholdFormData,
 } from '@/schemas/visit';
 import {
-  storePendingVisit,
-  storePendingHousehold,
+  queueVisit,
+  queueHousehold,
   getPendingVisits,
   getPendingHouseholds,
   clearPendingVisit,
   clearPendingHousehold,
   registerVisitSync,
-  type PendingVisit,
-  type PendingHousehold,
+  type PendingWrite,
+  
 } from '@/lib/visits-store';
 import type { Household, Visit } from '@/types/api';
 
@@ -110,9 +110,9 @@ function LogVisitDialog({ open, household, assignmentId, onClose, onSaved }: Log
       householdStatusAfter: values.householdStatusAfter,
     };
     // Write to IDB only — no API call
-    const pending = await storePendingVisit(payload);
+    const pending = await queueVisit(payload);
     await registerVisitSync();
-    onSaved(pending.id, household.id);
+    onSaved(pending, household.id);
     reset();
     onClose();
   };
@@ -258,9 +258,9 @@ function AddHouseholdDialog({ open, territoryId, onClose, onSaved }: AddHousehol
   const onSubmit = async (values: AddHouseholdFormData) => {
     const payload = { territoryId, ...values };
     // Write to IDB only — no API call
-    const pending = await storePendingHousehold(payload);
+    const pending = await queueHousehold(payload);
     await registerVisitSync();
-    onSaved(pending.id);
+    onSaved(pending);
     reset();
     onClose();
   };
@@ -340,8 +340,8 @@ export default function VisitsClient() {
   const [showAddHousehold, setShowAddHousehold] = useState(false);
 
   // Pending IDB state
-  const [pendingVisits, setPendingVisits] = useState<PendingVisit[]>([]);
-  const [pendingHouseholds, setPendingHouseholds] = useState<PendingHousehold[]>([]);
+  const [pendingVisits, setPendingVisits] = useState<PendingWrite[]>([]);
+  const [pendingHouseholds, setPendingHouseholds] = useState<PendingWrite[]>([]);
 
   // Load pending from IDB on mount
   useEffect(() => {
@@ -383,16 +383,16 @@ export default function VisitsClient() {
         id: ph.id,
         congregationId: '',
         territoryId: territoryId ?? '',
-        address: (ph.data.address as string) ?? '',
+        address: ((ph.data as Record<string,unknown>).address as string) ?? '',
         houseNumber: null,
-        streetName: (ph.data.streetName as string) ?? '',
-        city: (ph.data.city as string) ?? '',
+        streetName: ((ph.data as Record<string,unknown>).streetName as string) ?? '',
+        city: ((ph.data as Record<string,unknown>).city as string) ?? '',
         postalCode: null,
         status: 'NEW',
         lastVisitDate: null,
         lastVisitNotes: null,
         doNotDisturb: false,
-        notes: (ph.data.notes as string) ?? null,
+        notes: ((ph.data as Record<string,unknown>).notes as string) ?? null,
         createdAt: ph.createdAt,
         updatedAt: ph.createdAt,
         pending: true,
@@ -418,16 +418,16 @@ export default function VisitsClient() {
       .filter((pv) => !serverIds.has(pv.id))
       .map<Visit & { pending: boolean }>((pv) => ({
         id: pv.id,
-        householdId: (pv.data.householdId as string) ?? '',
-        assignmentId: (pv.data.assignmentId as string) ?? '',
+        householdId: ((pv.data as Record<string,unknown>).householdId as string) ?? '',
+        assignmentId: ((pv.data as Record<string,unknown>).assignmentId as string) ?? '',
         householdStatusBefore: null,
-        householdStatusAfter: (pv.data.householdStatusAfter as string) ?? null,
+        householdStatusAfter: ((pv.data as Record<string,unknown>).householdStatusAfter as string) ?? null,
         visitDate: pv.createdAt,
-        duration: (pv.data.duration as number) ?? null,
-        outcome: (pv.data.outcome as string) ?? null,
-        returnVisitPlanned: (pv.data.returnVisitPlanned as boolean) ?? false,
-        nextVisitDate: (pv.data.nextVisitDate as string) ?? null,
-        notes: (pv.data.notes as string) ?? null,
+        duration: ((pv.data as Record<string,unknown>).duration as number) ?? null,
+        outcome: ((pv.data as Record<string,unknown>).outcome as string) ?? null,
+        returnVisitPlanned: ((pv.data as Record<string,unknown>).returnVisitPlanned as boolean) ?? false,
+        nextVisitDate: ((pv.data as Record<string,unknown>).nextVisitDate as string) ?? null,
+        notes: ((pv.data as Record<string,unknown>).notes as string) ?? null,
         syncStatus: 'PENDING',
         offlineCreated: true,
         syncedAt: null,
