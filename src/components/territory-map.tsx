@@ -120,8 +120,8 @@ export default function TerritoryMap({
               style: {
                 color: '#6B9ECC',
                 weight: 2,
-                fillColor: '#000000',
-                fillOpacity: 0.25,
+                fillColor: '#64748b',
+                fillOpacity: 0.35,
                 stroke: true,
               },
             }).addTo(map);
