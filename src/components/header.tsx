@@ -8,7 +8,16 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
 /** Routes that have their own DashboardHeader — hide the public header here */
-const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
+const DASHBOARD_PREFIXES = [
+  '/admin',
+  '/congregation',
+  '/dashboard',
+  '/profile',
+  '/notifications',
+  '/onboarding',
+  '/territories',
+  '/no-congregation',
+];
 
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
