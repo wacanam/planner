@@ -1044,177 +1044,165 @@ export default function VisitsClient() {
 
   return (
     <ProtectedPage congregationId={congregationId}>
-      <main className="max-w-2xl mx-auto p-4 sm:p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link href={backHref}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight">
-              {territory
-                ? `Territory ${territory.number}${territory.name ? ` — ${territory.name}` : ''}`
-                : 'My Households & Visits'}
-            </h1>
-            <p className="text-xs text-muted-foreground">Households &amp; Visit Log</p>
+      <main className="max-w-2xl mx-auto min-w-0 w-full">
+
+        {/* Sticky header — compact, app-like */}
+        <div className="sticky top-16 z-30 bg-background/95 backdrop-blur border-b border-border">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+              <Link href={backHref}><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">
+                {territory?.number ? `Territory ${territory.number}` : 'My Work'}
+              </p>
+              <p className="text-sm font-semibold text-foreground truncate leading-tight">
+                {territory?.name ?? 'Households & Visits'}
+              </p>
+            </div>
+            {/* Data source dot */}
+            {!loading && (
+              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
+                  ? 'bg-green-500'
+                  : (activeTab === 'households' ? householdsSource : visitsSource) === 'cache'
+                  ? 'bg-amber-400'
+                  : 'bg-muted'
+              }`} title={
+                (activeTab === 'households' ? householdsSource : visitsSource) === 'server'
+                  ? 'Live data'
+                  : 'Cached — offline'
+              } />
+            )}
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border gap-0">
-          {(['households', 'history'] as const).map((tab) => (
-            <button
-              type="button"
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab === 'households' ? (
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  Households
-                  {pendingHouseholds.length > 0 && (
-                    <span className="ml-1 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
-                      {pendingHouseholds.length}⏳
-                    </span>
-                  )}
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5">
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Visit History
-                  {pendingVisits.length > 0 && (
-                    <span className="ml-1 text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded-full">
-                      {pendingVisits.length}⏳
-                    </span>
-                  )}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Data source indicator */}
-        {!loading && (
-          <div className="flex items-center gap-1.5 text-xs">
-            {(activeTab === 'households' ? householdsSource : visitsSource) === 'cache' ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                Showing cached data · offline
-              </span>
-            ) : (activeTab === 'households' ? householdsSource : visitsSource) === 'server' ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                Live data · synced
-              </span>
-            ) : null}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="space-y-3 animate-pulse">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted rounded-xl" />
+          {/* Tab bar */}
+          <div className="flex px-4">
+            {(['households', 'history'] as const).map((tab) => (
+              <button
+                type="button"
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground'
+                }`}
+              >
+                {tab === 'households' ? <MapPin className="h-3.5 w-3.5" /> : <ClipboardList className="h-3.5 w-3.5" />}
+                {tab === 'households' ? 'Doors' : 'Visits'}
+                {tab === 'households' && pendingHouseholds.length > 0 && (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1 rounded-full">
+                    {pendingHouseholds.length}
+                  </span>
+                )}
+                {tab === 'history' && pendingVisits.length > 0 && (
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1 rounded-full">
+                    {pendingVisits.length}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
-        ) : activeTab === 'households' ? (
-          /* ── Households Tab ── */
-          <div className="space-y-3">
-            <div className="flex justify-end">
-              <Button size="sm" onClick={() => setShowAddHousehold(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Household
-              </Button>
-            </div>
+        </div>
 
-            {allHouseholds.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <MapPin className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p>No households recorded yet</p>
+        {/* Content */}
+        <div className="px-4 py-4 space-y-3">
+          {loading ? (
+            <div className="space-y-2 animate-pulse">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl" />)}
+            </div>
+          ) : activeTab === 'households' ? (
+            <>
+              {/* Add button — floating at top right */}
+              <div className="flex justify-end">
+                <Button size="sm" onClick={() => setShowAddHousehold(true)} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Door
+                </Button>
               </div>
-            ) : (
-              allHouseholds.map((h) => (
-                <Card key={h.id} className="border border-border">
-                  <CardContent className="p-4 flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <p className="font-medium text-sm truncate">
-                        {h.houseNumber ? `${h.houseNumber} ` : ''}
-                        {h.address} {h.streetName}
-                        {h.unitNumber ? ` #${h.unitNumber}` : ''}
-                        {pendingHouseholdIds.has(h.id) &&
-                          (syncedIds.has(h.id) ? (
-                            <span className="ml-1.5 text-xs text-green-600 font-medium">
-                              ✓ Synced
-                            </span>
-                          ) : (
-                            <span className="ml-1.5 text-xs text-amber-600">⏳ Pending sync</span>
-                          ))}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{h.city}</p>
-                      {h.lastVisitDate && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Last visit: {new Date(h.lastVisitDate).toLocaleDateString()}
-                          {h.lastVisitOutcome &&
-                            ` · ${OUTCOME_LABELS[h.lastVisitOutcome] ?? h.lastVisitOutcome}`}
+
+              {allHouseholds.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                  <MapPin className="h-10 w-10 text-muted-foreground/30" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No doors recorded</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tap "Add Door" to start logging</p>
+                  </div>
+                </div>
+              ) : (
+                allHouseholds.map((h) => (
+                  <div
+                    key={h.id}
+                    className="rounded-2xl border border-border bg-card p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        {/* Address — concise */}
+                        <p className="font-semibold text-sm text-foreground leading-tight">
+                          {[h.houseNumber, h.streetName].filter(Boolean).join(' ')}
+                          {h.unitNumber ? ` #${h.unitNumber}` : ''}
                         </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs ${STATUS_COLORS[h.status] ?? ''}`}
-                        >
-                          {h.status.replace(/_/g, ' ')}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs text-muted-foreground">
-                          {h.type ?? 'house'}
-                        </Badge>
+                        <p className="text-xs text-muted-foreground">{h.city}</p>
+
+                        {/* Status row */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_COLORS[h.status] ?? 'text-muted-foreground border-border bg-muted/30'}`}>
+                            {h.status.replace(/_/g, ' ')}
+                          </span>
+                          {h.lastVisitDate && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(h.lastVisitDate).toLocaleDateString()}
+                            </span>
+                          )}
+                          {pendingHouseholdIds.has(h.id) && (
+                            syncedIds.has(h.id)
+                              ? <span className="text-xs text-green-600 font-medium">✓ Synced</span>
+                              : <span className="text-xs text-amber-500">⏳ Pending</span>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Log Visit button */}
                       {!pendingHouseholdIds.has(h.id) && (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="text-xs h-7"
                           onClick={() => setLogVisitHousehold(h)}
+                          className="shrink-0 h-9"
                         >
                           Log Visit
                         </Button>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        ) : (
-          /* ── Visit History Tab ── */
-          <div className="space-y-3">
-            {allVisits.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p>No visits recorded yet</p>
-              </div>
-            ) : (
-              allVisits.map((v) => (
-                <VisitCard
-                  key={v.id}
-                  visit={v}
-                  householdMap={householdMap}
-                  pendingVisitIds={pendingVisitIds}
-                  syncedIds={syncedIds}
-                />
-              ))
-            )}
-          </div>
-        )}
+                  </div>
+                ))
+              )}
+            </>
+          ) : (
+            /* Visit History */
+            <>
+              {allVisits.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                  <ClipboardList className="h-10 w-10 text-muted-foreground/30" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No visits yet</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Log a visit from the Doors tab</p>
+                  </div>
+                </div>
+              ) : (
+                allVisits.map(v => (
+                  <VisitCard
+                    key={v.id}
+                    visit={v}
+                    householdMap={householdMap}
+                    pendingVisitIds={pendingVisitIds}
+                    syncedIds={syncedIds}
+                  />
+                ))
+              )}
+            </>
+          )}
+        </div>
       </main>
 
       <LogVisitDialog
