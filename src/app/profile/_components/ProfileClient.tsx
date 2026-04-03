@@ -41,23 +41,21 @@ function roleLabel(role: string) {
   return map[role] ?? 'Member';
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// ─── Avatar circle ────────────────────────────────────────────────────────────
 
-function AvatarCircle({
-  url, name, size, loading, onClick,
-}: {
+function AvatarCircle({ url, name, size, loading, onClick }: {
   url?: string | null; name: string; size: number; loading?: boolean; onClick?: () => void;
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="relative rounded-full overflow-hidden shrink-0 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 group"
       style={{ width: size, height: size }}
       aria-label="Change profile photo"
-      type="button"
     >
       {url ? (
-        // biome-ignore lint/performance/noImgElement: blob/remote URL
+        // biome-ignore lint/performance/noImgElement: blob/remote URL, next/image can't handle it
         <img src={url} alt={name} className="w-full h-full object-cover" />
       ) : (
         <div
@@ -67,15 +65,14 @@ function AvatarCircle({
           {name[0]?.toUpperCase()}
         </div>
       )}
-      {/* hover overlay */}
       {onClick && !loading && (
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Camera size={size * 0.28} className="text-white" />
+          <Camera size={size * 0.3} className="text-white" />
         </div>
       )}
       {loading && (
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <Loader2 size={size * 0.28} className="text-white animate-spin" />
+          <Loader2 size={size * 0.3} className="text-white animate-spin" />
         </div>
       )}
     </button>
@@ -90,23 +87,32 @@ export default function ProfileClient() {
   const { changePassword } = useChangePassword();
   const { upload, isUploading } = useUploadAvatar();
 
-  // ── Avatar / offline state ────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropImgSrc, setCropImgSrc] = useState('');
   const [cropOpen, setCropOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [hasPending, setHasPending] = useState(() =>
-    typeof window !== 'undefined' ? hasPendingAvatarFlag(profile?.id ?? '') : false
-  );
   const [offlineMsg, setOfflineMsg] = useState('');
   const [uploadError, setUploadError] = useState('');
 
-  // Load IDB blob → object URL when there's a pending avatar
+  // ── IDB pending avatar — checked AFTER profile loads (userId known) ──────
+  // Can't use useState initialiser here since profile is async
+  const [hasPending, setHasPending] = useState(false);
+  useEffect(() => {
+    if (!profile?.id) return;
+    setHasPending(hasPendingAvatarFlag(profile.id));
+  }, [profile?.id]);
+
+  // Load IDB blob → object URL when pending flag is true
   useEffect(() => {
     if (!profile?.id || !hasPending) return;
     let objectUrl = '';
     getPendingAvatarBlob(profile.id).then((blob) => {
-      if (!blob) return;
+      if (!blob) {
+        // Flag was stale — clean it up
+        setPendingAvatarFlag(profile.id, false);
+        setHasPending(false);
+        return;
+      }
       objectUrl = URL.createObjectURL(blob);
       setPreviewUrl(objectUrl);
       setOfflineMsg('Saved locally · will sync when online');
@@ -114,6 +120,7 @@ export default function ProfileClient() {
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [profile?.id, hasPending]);
 
+  // Try to sync pending blob when online
   const trySyncPending = useCallback(async () => {
     if (!profile?.id || !navigator.onLine) return;
     const blob = await getPendingAvatarBlob(profile.id);
@@ -129,14 +136,14 @@ export default function ProfileClient() {
         setPreviewUrl(result.avatarUrl);
         await mutate();
       }
-    } catch { /* retry next time */ }
+    } catch { /* retry later */ }
   }, [profile?.id, upload, mutate]);
 
   useEffect(() => { if (hasPending) trySyncPending(); }, [hasPending, trySyncPending]);
   useEffect(() => {
-    const handler = () => { if (hasPending) trySyncPending(); };
-    window.addEventListener('online', handler);
-    return () => window.removeEventListener('online', handler);
+    const h = () => { if (hasPending) trySyncPending(); };
+    window.addEventListener('online', h);
+    return () => window.removeEventListener('online', h);
   }, [hasPending, trySyncPending]);
 
   // ── File → crop ──────────────────────────────────────────────────────────
@@ -150,7 +157,6 @@ export default function ProfileClient() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  // ── Crop confirmed → upload or queue ────────────────────────────────────
   async function handleCropComplete(file: File) {
     if (!profile?.id) return;
     const objectUrl = URL.createObjectURL(file);
@@ -210,16 +216,12 @@ export default function ProfileClient() {
     } catch (e) { setPwError(e instanceof Error ? e.message : 'Failed.'); }
   }
 
-  // ── Loading / error states ───────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
   if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
-      Loading…
-    </div>
+    <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">Loading…</div>
   );
   if (!profile) return (
-    <div className="flex items-center justify-center min-h-[40vh] text-sm text-destructive">
-      Could not load profile.
-    </div>
+    <div className="flex items-center justify-center min-h-[40vh] text-sm text-destructive">Could not load profile.</div>
   );
 
   const displayUrl = previewUrl ?? profile.avatarUrl;
@@ -228,56 +230,51 @@ export default function ProfileClient() {
   });
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       <AvatarCropDialog open={cropOpen} onOpenChange={setCropOpen} imgSrc={cropImgSrc} onCropComplete={handleCropComplete} />
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
 
-      {/* ── Profile header ── */}
-      <div className="flex items-center gap-4">
-        <AvatarCircle
-          url={displayUrl}
-          name={profile.name}
-          size={64}
-          loading={isUploading}
-          onClick={() => !isUploading && fileInputRef.current?.click()}
-        />
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-foreground leading-tight truncate">{profile.name}</h1>
-          <p className="text-sm text-muted-foreground truncate">{profile.email}</p>
-          <span className="text-xs text-muted-foreground">{roleLabel(profile.role)}</span>
+      {/* ── Profile card ── */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <div className="flex items-center gap-4">
+          <AvatarCircle
+            url={displayUrl}
+            name={profile.name}
+            size={72}
+            loading={isUploading}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+          />
+          <div className="min-w-0">
+            <p className="text-xl font-bold text-foreground leading-tight truncate">{profile.name}</p>
+            <p className="text-sm text-muted-foreground truncate">{profile.email}</p>
+            <span className="text-xs text-muted-foreground">{roleLabel(profile.role)}</span>
+          </div>
         </div>
+        <p className="text-xs text-muted-foreground">Member since {memberSince}</p>
+        {offlineMsg && <p className="text-xs text-amber-500">{offlineMsg}</p>}
+        {uploadError && (
+          uploadError.toLowerCase().includes('not configured') ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-default">
+                    <CloudOff size={13} /> Cloud sync unavailable
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Profile picture sync is not configured yet. Your photo is saved locally.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <p className="text-xs text-destructive">{uploadError}</p>
+          )
+        )}
       </div>
 
-      {/* Avatar status messages */}
-      {offlineMsg && (
-        <p className="text-xs text-amber-500 -mt-4">{offlineMsg}</p>
-      )}
-      {uploadError && (
-        uploadError.toLowerCase().includes('not configured') ? (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-default -mt-4">
-                  <CloudOff size={13} /> Cloud sync unavailable
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Profile picture sync is not configured yet. Your photo is saved locally.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <p className="text-xs text-destructive -mt-4">{uploadError}</p>
-        )
-      )}
-
-      <p className="text-xs text-muted-foreground -mt-6">Member since {memberSince}</p>
-
-      <div className="h-px bg-border" />
-
-      {/* ── Update Name ── */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide text-muted-foreground">Update Name</h2>
+      {/* ── Update Name card ── */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Update Name</h2>
         <form onSubmit={nameForm.handleSubmit(onUpdateName)} className="space-y-3">
           <FormField
             id="name"
@@ -291,15 +288,12 @@ export default function ProfileClient() {
             {nameForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
           </Button>
         </form>
-      </section>
+      </div>
 
-      <div className="h-px bg-border" />
-
-      {/* ── Change Password ── */}
-      <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Change Password</h2>
+      {/* ── Change Password card ── */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground">Change Password</h2>
         <form onSubmit={pwForm.handleSubmit(onChangePassword)} className="space-y-3">
-
           <div className="relative">
             <FormField id="currentPassword" label="Current Password"
               type={showCurrent ? 'text' : 'password'}
@@ -354,7 +348,7 @@ export default function ProfileClient() {
             {pwForm.formState.isSubmitting ? 'Changing…' : 'Change Password'}
           </Button>
         </form>
-      </section>
+      </div>
     </div>
   );
 }
