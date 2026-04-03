@@ -11,6 +11,7 @@ export const territories = pgTable('territories', {
   coveragePercent: decimal('coveragePercent', { precision: 5, scale: 2 }).notNull().default('0'),
   boundary: text('boundary'),
   congregationId: uuid('congregationId').notNull(),
+  createdById: uuid('createdById'),
   publisherId: uuid('publisherId'),
   groupId: uuid('groupId'),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
