@@ -111,8 +111,15 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
   const { upload, isUploading } = useUploadAvatar();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [offlineMsg, setOfflineMsg] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() => {
+    // Initialise from localStorage so the pending avatar shows immediately on refresh
+    if (typeof window === 'undefined') return null;
+    return getPendingAvatar(userId);
+  });
+  const [offlineMsg, setOfflineMsg] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return getPendingAvatar(userId) ? 'Saved locally, will sync when online' : '';
+  });
   const [uploadError, setUploadError] = useState('');
 
   // Crop dialog state
@@ -141,10 +148,9 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
   }, [userId, upload, onUploaded]);
 
   useEffect(() => {
+    // State is already initialised from localStorage — just try to sync if online
     const pending = getPendingAvatar(userId);
     if (pending) {
-      setPreviewUrl(pending);
-      setOfflineMsg('Saved locally, will sync when online');
       trySyncPending();
     }
   }, [userId, trySyncPending]);
