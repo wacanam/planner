@@ -141,7 +141,7 @@ export default function ProfileClient() {
       }
       objectUrl = URL.createObjectURL(blob);
       setPreviewUrl(objectUrl);
-      setOfflineMsg('Saved locally · will sync when online');
+      setOfflineMsg('Photo saved locally · pending cloud sync');
     });
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -206,12 +206,12 @@ export default function ProfileClient() {
     await storePendingAvatarBlob(profile.id, file);
     setPendingAvatarFlag(profile.id, true);
     setHasPending(true);
-    setOfflineMsg('Saved locally · syncing…');
+    setOfflineMsg('Photo saved locally · registering sync…');
     void refreshDebug(profile.id);
 
     // 3. Register Background Sync — SW will upload when online
     await registerAvatarSync();
-    setOfflineMsg('Saved locally · will sync automatically');
+    setOfflineMsg('Photo saved locally · will sync to cloud automatically');
     setUploadError('');
   }
 
@@ -316,7 +316,19 @@ export default function ProfileClient() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Member since {memberSince}</p>
-        {offlineMsg && <p className="text-xs text-amber-500">{offlineMsg}</p>}
+        {offlineMsg && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-amber-500 cursor-default">{offlineMsg}</p>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Your photo is stored on this device. It will automatically upload to the cloud
+                once the cloud storage is configured.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         {/* ── DEBUG PANEL (remove before merge) ── */}
         <div className="rounded-lg bg-muted/60 border border-border p-3 space-y-1">
