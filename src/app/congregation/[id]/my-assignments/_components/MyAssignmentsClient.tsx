@@ -101,15 +101,15 @@ export default function MyAssignmentsClient() {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="p-0">
             {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
+              <div className="flex gap-3 px-4 pb-4 overflow-x-auto">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-28 w-64 bg-muted animate-pulse rounded-xl shrink-0" />
                 ))}
               </div>
             ) : myActive.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8 px-4">
                 <MapPin size={28} className="mx-auto text-muted-foreground/40 mb-2" />
                 <p className="text-sm text-muted-foreground">
                   No territories currently assigned to you
@@ -125,35 +125,33 @@ export default function MyAssignmentsClient() {
                 />
               </div>
             ) : (
-              myActive.map((t) => (
+              <div className="flex gap-3 px-4 pb-4 overflow-x-auto snap-x snap-mandatory">
+                {myActive.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
+                  className="rounded-xl border border-border bg-background p-4 space-y-3 min-w-[260px] snap-start"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={statusColors.assigned}>
+                        assigned
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-semibold mt-1.5">
                       #{t.number} {t.name}
                     </p>
                     {t.notes && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{t.notes}</p>
-                    )}
-                    {t.householdsCount !== undefined && t.householdsCount > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        {t.householdsCount} households
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.notes}</p>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 ml-3 shrink-0">
-                    <Badge variant="outline" className={statusColors.assigned}>
-                      assigned
-                    </Badge>
-                    <Button asChild size="sm" variant="outline">
+                  <div className="flex gap-2">
+                    <Button asChild size="sm" variant="outline" className="flex-1">
                       <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                         View
                         <ArrowRight size={12} />
                       </Link>
                     </Button>
-                    <Button asChild size="sm" variant="default">
+                    <Button asChild size="sm" variant="default" className="flex-1">
                       <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
                         <ClipboardList size={12} />
                         My Visits
@@ -161,7 +159,8 @@ export default function MyAssignmentsClient() {
                     </Button>
                   </div>
                 </div>
-              ))
+              ))}
+              </div>
             )}
           </CardContent>
         </Card>
