@@ -2,14 +2,15 @@ import { boolean, integer, pgTable, text, timestamp, uuid, varchar } from 'drizz
 
 export const households = pgTable('households', {
   id: uuid('id').defaultRandom().primaryKey(),
-  congregationId: uuid('congregationId').notNull(),
-  territoryId: uuid('territoryId').notNull(),
+  // Household belongs to a publisher — not a territory or congregation
+  userId: uuid('userId').notNull(),
+  // Optional context: which territory was being worked when this household was added
+  territoryId: uuid('territoryId'),
   address: varchar('address', { length: 255 }).notNull(),
   houseNumber: varchar('houseNumber', { length: 50 }),
   streetName: varchar('streetName', { length: 255 }).notNull(),
   city: varchar('city', { length: 255 }).notNull(),
   postalCode: varchar('postalCode', { length: 20 }),
-  // location stored as WKT/GeoJSON text (PostGIS geometry not directly mapped in Drizzle)
   location: text('location'),
   occupantsCount: integer('occupantsCount'),
   ageRange: varchar('ageRange', { length: 100 }),
@@ -22,8 +23,6 @@ export const households = pgTable('households', {
   bestTimeToCall: varchar('bestTimeToCall', { length: 100 }),
   notes: text('notes'),
   lwpNotes: text('lwpNotes'),
-  createdByUserId: uuid('createdByUserId'),
-  updatedByUserId: uuid('updatedByUserId'),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
