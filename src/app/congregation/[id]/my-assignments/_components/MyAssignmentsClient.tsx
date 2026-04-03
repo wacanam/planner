@@ -153,6 +153,12 @@ export default function MyAssignmentsClient() {
                         <ArrowRight size={12} />
                       </Link>
                     </Button>
+                    <Button asChild size="sm" variant="default">
+                      <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
+                        <ClipboardList size={12} />
+                        My Visits
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               ))

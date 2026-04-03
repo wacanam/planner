@@ -324,10 +324,12 @@ function AddHouseholdDialog({ open, territoryId, onClose, onSaved }: AddHousehol
 type Tab = 'households' | 'history';
 
 export default function VisitsClient() {
-  const { id: congregationId, territoryId } = useParams<{
+  const { id: congregationId, assignmentId } = useParams<{
     id: string;
-    territoryId: string;
+    assignmentId: string;
   }>();
+  // assignmentId here is actually the territory ID — households/visits scoped by userId in API
+  const territoryId = assignmentId ?? null;
 
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId ?? null);
   const { households: serverHouseholds, isLoading: householdsLoading, mutate: mutateHouseholds, dataSource: householdsSource } =
@@ -460,7 +462,7 @@ export default function VisitsClient() {
   }, []);
 
   const loading = territoryLoading || householdsLoading || visitsLoading;
-  const backHref = `/congregation/${congregationId}/territories/${territoryId}`;
+  const backHref = `/congregation/${congregationId}/my-assignments`;
 
   // Resolve household address for visit history display
   const householdMap = useMemo<Record<string, Household>>(() => {
@@ -483,7 +485,7 @@ export default function VisitsClient() {
             <h1 className="text-lg font-semibold leading-tight">
               {territory
                 ? `Territory ${territory.number}${territory.name ? ` — ${territory.name}` : ''}`
-                : 'Households & Visits'}
+                : 'My Households & Visits'}
             </h1>
             <p className="text-xs text-muted-foreground">Households &amp; Visit Log</p>
           </div>

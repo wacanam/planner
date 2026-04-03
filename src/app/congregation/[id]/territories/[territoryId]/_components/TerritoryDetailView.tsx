@@ -90,9 +90,9 @@ export default function TerritoryDetailView() {
               {territory.status}
             </Badge>
             <Button asChild variant="outline" size="sm" className="ml-auto">
-              <Link href={`/congregation/${congregationId}/territories/${territoryId}/visits`}>
+              <Link href={`/congregation/${congregationId}/my-assignments`}>
                 <MapPin className="h-4 w-4 mr-1.5" />
-                Households &amp; Visits
+                My Households &amp; Visits
               </Link>
             </Button>
           </div>
