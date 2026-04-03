@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Camera, Loader2, CloudOff } from 'lucide-react';
 import { useProfile, useUpdateProfile, useChangePassword, useUploadAvatar } from '@/hooks/use-profile';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { updateProfileSchema, changePasswordSchema } from '@/schemas/profile';
 import type { UpdateProfileFormData, ChangePasswordFormData } from '@/schemas/profile';
 
@@ -239,7 +240,25 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
             <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, or WebP · max 5 MB</p>
           </div>
           {offlineMsg && <p className="text-xs text-yellow-500">{offlineMsg}</p>}
-          {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+          {uploadError && (
+            uploadError.toLowerCase().includes('not configured') ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-default mt-1">
+                      <CloudOff size={14} className="text-muted-foreground" />
+                      Cloud sync unavailable
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    Profile picture sync is not configured yet. Your photo is saved locally.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <p className="text-xs text-destructive">{uploadError}</p>
+            )
+          )}
         </div>
       </div>
     </>
