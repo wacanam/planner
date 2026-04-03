@@ -19,10 +19,7 @@ export function useCongregations(options?: SWRConfiguration) {
 }
 
 /** Single congregation by id */
-export function useCongregation(
-  id: string | null | undefined,
-  options?: SWRConfiguration
-) {
+export function useCongregation(id: string | null | undefined, options?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR<Congregation>(
     id ? `/api/congregations/${id}` : null,
     (url) => apiClient.get<Congregation>(url),
@@ -40,8 +37,7 @@ export function useCongregation(
 export function useCreateCongregation() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/congregations',
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { create: trigger, isCreating: isMutating };
 }
@@ -50,17 +46,15 @@ export function useCreateCongregation() {
 export function useUpdateCongregation(id: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${id}`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.patch(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.patch(url, arg)
   );
   return { update: trigger, isUpdating: isMutating };
 }
 
 /** Delete a congregation */
 export function useDeleteCongregation(id: string) {
-  const { trigger, isMutating } = useSWRMutation(
-    `/api/congregations/${id}`,
-    (url: string) => apiClient.delete(url)
+  const { trigger, isMutating } = useSWRMutation(`/api/congregations/${id}`, (url: string) =>
+    apiClient.delete(url)
   );
   return { remove: trigger, isDeleting: isMutating };
 }

@@ -14,7 +14,6 @@ import type { UpdateProfileFormData, ChangePasswordFormData } from '@/schemas/pr
 import {
   storePendingAvatarBlob,
   getPendingAvatarBlob,
-  clearPendingAvatarBlob,
   hasPendingAvatarFlag,
   setPendingAvatarFlag,
   registerAvatarSync,
@@ -26,26 +25,41 @@ type StrengthInfo = { label: string; width: string; color: string; bg: string };
 
 function getPasswordStrength(p: string): StrengthInfo {
   if (!p) return { label: '', width: '0%', color: '', bg: 'bg-muted' };
-  if (p.length < 6) return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400' };
-  if (p.length < 8) return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400' };
+  if (p.length < 6)
+    return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400' };
+  if (p.length < 8)
+    return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400' };
   const extras = [/[A-Z]/.test(p), /[0-9]/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
-  if (extras === 0) return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400' };
+  if (extras === 0)
+    return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400' };
   if (extras <= 1) return { label: 'Good', width: '75%', color: 'text-primary', bg: 'bg-primary' };
   return { label: 'Strong', width: '100%', color: 'text-green-500', bg: 'bg-green-500' };
 }
 
 function roleLabel(role: string) {
   const map: Record<string, string> = {
-    SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin',
-    SERVICE_OVERSEER: 'Service Overseer', TERRITORY_SERVANT: 'Territory Servant',
+    SUPER_ADMIN: 'Super Admin',
+    ADMIN: 'Admin',
+    SERVICE_OVERSEER: 'Service Overseer',
+    TERRITORY_SERVANT: 'Territory Servant',
   };
   return map[role] ?? 'Member';
 }
 
 // ─── Avatar circle ────────────────────────────────────────────────────────────
 
-function AvatarCircle({ url, name, size, loading, onClick }: {
-  url?: string | null; name: string; size: number; loading?: boolean; onClick?: () => void;
+function AvatarCircle({
+  url,
+  name,
+  size,
+  loading,
+  onClick,
+}: {
+  url?: string | null;
+  name: string;
+  size: number;
+  loading?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
@@ -129,7 +143,9 @@ export default function ProfileClient() {
       setPreviewUrl(objectUrl);
       setOfflineMsg('Saved locally · will sync when online');
     });
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [profile?.id, hasPending, refreshDebug]);
 
   // trySyncPending: re-register sync tag so SW picks it up when online
@@ -138,9 +154,13 @@ export default function ProfileClient() {
     await registerAvatarSync();
   }, []);
 
-  useEffect(() => { if (hasPending) trySyncPending(); }, [hasPending, trySyncPending]);
   useEffect(() => {
-    const h = () => { if (hasPending) trySyncPending(); };
+    if (hasPending) trySyncPending();
+  }, [hasPending, trySyncPending]);
+  useEffect(() => {
+    const h = () => {
+      if (hasPending) trySyncPending();
+    };
     window.addEventListener('online', h);
     return () => window.removeEventListener('online', h);
   }, [hasPending, trySyncPending]);
@@ -167,7 +187,10 @@ export default function ProfileClient() {
     if (!file) return;
     setUploadError('');
     const reader = new FileReader();
-    reader.onload = () => { setCropImgSrc(reader.result as string); setCropOpen(true); };
+    reader.onload = () => {
+      setCropImgSrc(reader.result as string);
+      setCropOpen(true);
+    };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -200,9 +223,15 @@ export default function ProfileClient() {
     values: { name: profile?.name ?? '' },
   });
   async function onUpdateName(data: UpdateProfileFormData) {
-    setNameSuccess(''); setNameError('');
-    try { await update({ name: data.name }); await mutate(); setNameSuccess('Name updated.'); }
-    catch (e) { setNameError(e instanceof Error ? e.message : 'Failed.'); }
+    setNameSuccess('');
+    setNameError('');
+    try {
+      await update({ name: data.name });
+      await mutate();
+      setNameSuccess('Name updated.');
+    } catch (e) {
+      setNameError(e instanceof Error ? e.message : 'Failed.');
+    }
   }
 
   // ── Password form ────────────────────────────────────────────────────────
@@ -218,30 +247,56 @@ export default function ProfileClient() {
   const newPw = pwForm.watch('newPassword');
   const strength = getPasswordStrength(newPw ?? '');
   async function onChangePassword(data: ChangePasswordFormData) {
-    setPwSuccess(''); setPwError('');
+    setPwSuccess('');
+    setPwError('');
     try {
-      await changePassword({ currentPassword: data.currentPassword, newPassword: data.newPassword });
-      setPwSuccess('Password changed.'); pwForm.reset();
-    } catch (e) { setPwError(e instanceof Error ? e.message : 'Failed.'); }
+      await changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+      setPwSuccess('Password changed.');
+      pwForm.reset();
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : 'Failed.');
+    }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
-  if (isLoading) return (
-    <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">Loading…</div>
-  );
-  if (!profile) return (
-    <div className="flex items-center justify-center min-h-[40vh] text-sm text-destructive">Could not load profile.</div>
-  );
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  if (!profile)
+    return (
+      <div className="flex items-center justify-center min-h-[40vh] text-sm text-destructive">
+        Could not load profile.
+      </div>
+    );
 
   const displayUrl = previewUrl ?? profile.avatarUrl;
   const memberSince = new Date(profile.createdAt).toLocaleDateString(undefined, {
-    year: 'numeric', month: 'long', day: 'numeric',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
-      <AvatarCropDialog open={cropOpen} onOpenChange={setCropOpen} imgSrc={cropImgSrc} onCropComplete={handleCropComplete} />
-      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
+      <AvatarCropDialog
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        imgSrc={cropImgSrc}
+        onCropComplete={handleCropComplete}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
       {/* ── Profile card ── */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -253,7 +308,9 @@ export default function ProfileClient() {
             onClick={() => fileInputRef.current?.click()}
           />
           <div className="min-w-0">
-            <p className="text-xl font-bold text-foreground leading-tight truncate">{profile.name}</p>
+            <p className="text-xl font-bold text-foreground leading-tight truncate">
+              {profile.name}
+            </p>
             <p className="text-sm text-muted-foreground truncate">{profile.email}</p>
             <span className="text-xs text-muted-foreground">{roleLabel(profile.role)}</span>
           </div>
@@ -265,7 +322,10 @@ export default function ProfileClient() {
         <div className="rounded-lg bg-muted/60 border border-border p-3 space-y-1">
           <p className="text-xs font-semibold text-muted-foreground">🔍 IDB Debug</p>
           <p className="text-xs font-mono text-foreground break-all">{debugInfo || 'Loading…'}</p>
-          <p className="text-xs font-mono text-muted-foreground">hasPending: {String(hasPending)} | previewUrl: {previewUrl ? `${previewUrl.slice(0, 40)}…` : 'null'}</p>
+          <p className="text-xs font-mono text-muted-foreground">
+            hasPending: {String(hasPending)} | previewUrl:{' '}
+            {previewUrl ? `${previewUrl.slice(0, 40)}…` : 'null'}
+          </p>
           <button
             type="button"
             onClick={() => profile?.id && refreshDebug(profile.id)}
@@ -274,8 +334,8 @@ export default function ProfileClient() {
             Refresh debug
           </button>
         </div>
-        {uploadError && (
-          uploadError.toLowerCase().includes('not configured') ? (
+        {uploadError &&
+          (uploadError.toLowerCase().includes('not configured') ? (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -290,8 +350,7 @@ export default function ProfileClient() {
             </TooltipProvider>
           ) : (
             <p className="text-xs text-destructive">{uploadError}</p>
-          )
-        )}
+          ))}
       </div>
 
       {/* ── Update Name card ── */}
@@ -317,25 +376,37 @@ export default function ProfileClient() {
         <h2 className="text-sm font-semibold text-foreground">Change Password</h2>
         <form onSubmit={pwForm.handleSubmit(onChangePassword)} className="space-y-3">
           <div className="relative">
-            <FormField id="currentPassword" label="Current Password"
+            <FormField
+              id="currentPassword"
+              label="Current Password"
               type={showCurrent ? 'text' : 'password'}
               error={pwForm.formState.errors.currentPassword?.message}
               {...pwForm.register('currentPassword')}
             />
-            <button type="button" tabIndex={-1} onClick={() => setShowCurrent(v => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowCurrent((v) => !v)}
+              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+            >
               {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
 
           <div className="relative">
-            <FormField id="newPassword" label="New Password"
+            <FormField
+              id="newPassword"
+              label="New Password"
               type={showNew ? 'text' : 'password'}
               error={pwForm.formState.errors.newPassword?.message}
               {...pwForm.register('newPassword')}
             />
-            <button type="button" tabIndex={-1} onClick={() => setShowNew(v => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowNew((v) => !v)}
+              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+            >
               {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>
@@ -347,19 +418,28 @@ export default function ProfileClient() {
                 <span className={strength.color}>{strength.label}</span>
               </div>
               <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                <div className={`h-full transition-all ${strength.bg}`} style={{ width: strength.width }} />
+                <div
+                  className={`h-full transition-all ${strength.bg}`}
+                  style={{ width: strength.width }}
+                />
               </div>
             </div>
           )}
 
           <div className="relative">
-            <FormField id="confirmNewPassword" label="Confirm Password"
+            <FormField
+              id="confirmNewPassword"
+              label="Confirm Password"
               type={showConfirm ? 'text' : 'password'}
               error={pwForm.formState.errors.confirmNewPassword?.message}
               {...pwForm.register('confirmNewPassword')}
             />
-            <button type="button" tabIndex={-1} onClick={() => setShowConfirm(v => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground">
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+            >
               {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
           </div>

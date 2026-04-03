@@ -13,7 +13,9 @@ export const registerSchema = z
     email: z.string().email('Please enter a valid email address'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
-    agreeTerms: z.literal(true).refine((v) => v === true, { message: 'You must agree to the terms' }),
+    agreeTerms: z
+      .literal(true)
+      .refine((v) => v === true, { message: 'You must agree to the terms' }),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: 'Passwords do not match',

@@ -2,7 +2,12 @@ export default function Loading() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="flex flex-col items-center gap-3">
-        <svg className="animate-spin h-8 w-8 text-primary" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg
+          className="animate-spin h-8 w-8 text-primary"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
           <circle
             className="opacity-25"
             cx="12"

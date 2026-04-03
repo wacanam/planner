@@ -1,12 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback } from 'react';
-import ReactCrop, {
-  centerCrop,
-  makeAspectCrop,
-  type Crop,
-  type PixelCrop,
-} from 'react-image-crop';
+import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import {
   Dialog,

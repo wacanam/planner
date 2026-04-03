@@ -31,7 +31,10 @@ export async function PATCH(
   }
 
   if (status === TerritoryRequestStatus.REJECTED && !responseMessage?.trim()) {
-    return NextResponse.json({ error: 'responseMessage is required when rejecting' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'responseMessage is required when rejecting' },
+      { status: 400 }
+    );
   }
 
   const [request] = await db
@@ -51,15 +54,12 @@ export async function PATCH(
   let updatedRequest: typeof territoryRequests.$inferSelect;
 
   // Use the territory from the original request, or fall back to an overseer-selected one
-  const resolvedTerritoryId = request.territoryId ?? (bodyTerritoryId as string | undefined) ?? null;
+  const resolvedTerritoryId =
+    request.territoryId ?? (bodyTerritoryId as string | undefined) ?? null;
 
   // When no specific territory was on the original request and the overseer supplies one,
   // validate it belongs to this congregation and is still available before proceeding.
-  if (
-    status === TerritoryRequestStatus.APPROVED &&
-    !request.territoryId &&
-    bodyTerritoryId
-  ) {
+  if (status === TerritoryRequestStatus.APPROVED && !request.territoryId && bodyTerritoryId) {
     const [targetTerritory] = await db
       .select({ id: territories.id })
       .from(territories)

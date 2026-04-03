@@ -215,7 +215,6 @@ export interface ActivityReport {
   returns: ActivityReturn[];
 }
 
-
 // ─── User ──────────────────────────────────────────────────────────────────────
 
 /** /api/profile */

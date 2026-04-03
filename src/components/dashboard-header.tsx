@@ -192,7 +192,8 @@ function UserAvatarDropdown({ name }: { name: string }) {
   return (
     <div ref={ref} className="relative">
       <button
-        type="button" onClick={() => setOpen((v) => !v)}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
         className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/50"
         aria-label="Account menu"
       >

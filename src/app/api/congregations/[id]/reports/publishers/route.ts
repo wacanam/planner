@@ -74,8 +74,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const userAssignments = assignments.filter((a) => a.userId === m.userId);
       const activeAssignments = userAssignments.filter((a) => a.status === AssignmentStatus.ACTIVE);
       const completedAssignments = userAssignments.filter(
-        (a) =>
-          a.status === AssignmentStatus.COMPLETED || a.status === AssignmentStatus.RETURNED
+        (a) => a.status === AssignmentStatus.COMPLETED || a.status === AssignmentStatus.RETURNED
       );
 
       return {

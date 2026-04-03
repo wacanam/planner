@@ -24,8 +24,7 @@ export function useCongregationGroups(
 export function useCreateGroup(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/groups`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { create: trigger, isCreating: isMutating };
 }

@@ -27,7 +27,11 @@ export default function CongregationGroupsPage() {
   const params = useParams();
   const congregationId = params?.id as string;
 
-  const { data: groupsData, isLoading: loading, mutate: mutateGroups } = useCongregationGroups(congregationId);
+  const {
+    data: groupsData,
+    isLoading: loading,
+    mutate: mutateGroups,
+  } = useCongregationGroups(congregationId);
   const groups = groupsData;
   const { create: createGroupMutation } = useCreateGroup(congregationId);
   const [search, setSearch] = useState('');
@@ -185,7 +189,13 @@ export default function CongregationGroupsPage() {
         )}
       </div>
 
-      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) createForm.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Group</DialogTitle>
@@ -205,10 +215,16 @@ export default function CongregationGroupsPage() {
                 placeholder="e.g. Monday Group"
                 disabled={createForm.formState.isSubmitting}
                 aria-invalid={!!createForm.formState.errors.name}
-                className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  createForm.formState.errors.name
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : ''
+                }
               />
               {createForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                <p className="text-xs text-destructive mt-1">
+                  {createForm.formState.errors.name.message}
+                </p>
               )}
             </div>
             <DialogFooter className="gap-2 mt-4">

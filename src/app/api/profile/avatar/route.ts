@@ -12,13 +12,8 @@ export async function POST(req: NextRequest) {
   const { user } = auth;
 
   // Check R2 is configured
-  const {
-    R2_ACCOUNT_ID,
-    R2_ACCESS_KEY_ID,
-    R2_SECRET_ACCESS_KEY,
-    R2_BUCKET_NAME,
-    R2_PUBLIC_URL,
-  } = process.env;
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL } =
+    process.env;
 
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
     return NextResponse.json(
@@ -63,12 +58,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await s3.send(new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-      Body: Buffer.from(arrayBuffer),
-      ContentType: file.type,
-    }));
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+        Body: Buffer.from(arrayBuffer),
+        ContentType: file.type,
+      })
+    );
 
     const avatarUrl = `${R2_PUBLIC_URL}/${key}`;
 

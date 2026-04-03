@@ -31,9 +31,7 @@ export function useCongregationJoinRequests(
 ) {
   const query = status ? `?status=${status}` : '';
   const { data, error, isLoading, mutate } = useSWR<JoinRequest[]>(
-    congregationId
-      ? `/api/congregations/${congregationId}/join-requests${query}`
-      : null,
+    congregationId ? `/api/congregations/${congregationId}/join-requests${query}` : null,
     (url) => apiClient.get<JoinRequest[]>(url),
     { revalidateOnFocus: false, ...options }
   );
@@ -50,14 +48,11 @@ export function useCongregationJoinRequests(
 export function useReviewJoinRequest(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/join-requests`,
-    (
-      _url: string,
-      { arg }: { arg: { requestId: string; status: string; reviewNote?: string } }
-    ) =>
-      apiClient.patch(
-        `/api/congregations/${congregationId}/join-requests/${arg.requestId}`,
-        { status: arg.status, reviewNote: arg.reviewNote }
-      )
+    (_url: string, { arg }: { arg: { requestId: string; status: string; reviewNote?: string } }) =>
+      apiClient.patch(`/api/congregations/${congregationId}/join-requests/${arg.requestId}`, {
+        status: arg.status,
+        reviewNote: arg.reviewNote,
+      })
   );
   return { review: trigger, isReviewing: isMutating };
 }
@@ -67,14 +62,10 @@ export function useReviewJoinRequest(congregationId: string) {
 export function useUpdateMemberRole(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/members`,
-    (
-      _url: string,
-      { arg }: { arg: { userId: string; congregationRole: string | null } }
-    ) =>
-      apiClient.patch(
-        `/api/congregations/${congregationId}/members/${arg.userId}`,
-        { congregationRole: arg.congregationRole }
-      )
+    (_url: string, { arg }: { arg: { userId: string; congregationRole: string | null } }) =>
+      apiClient.patch(`/api/congregations/${congregationId}/members/${arg.userId}`, {
+        congregationRole: arg.congregationRole,
+      })
   );
   return { updateRole: trigger, isUpdating: isMutating };
 }
@@ -84,8 +75,7 @@ export function useUpdateMemberRole(congregationId: string) {
 export function useAddMember(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/members`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { addMember: trigger, isAdding: isMutating };
 }

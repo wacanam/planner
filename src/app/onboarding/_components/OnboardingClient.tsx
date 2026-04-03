@@ -78,15 +78,17 @@ export default function OnboardingPage() {
     setCreateError('');
     try {
       const congregation = await apiClient.post<{ id: string }, object>('/api/congregations', {
-          name: data.name.trim(),
-          city: data.city?.trim() || undefined,
-          country: data.country?.trim() || undefined,
-        });
+        name: data.name.trim(),
+        city: data.city?.trim() || undefined,
+        country: data.country?.trim() || undefined,
+      });
       await updateSession({ congregationId: congregation.id });
       router.replace(`/congregation/${congregation.id}/dashboard`);
       router.refresh();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setCreateError(
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      );
     }
   }
 
@@ -119,9 +121,9 @@ export default function OnboardingPage() {
     setJoinError('');
     try {
       await apiClient.post('/api/congregations/join-requests', {
-          congregationId: selectedCong.id,
-          message: data.message?.trim() || undefined,
-        });
+        congregationId: selectedCong.id,
+        message: data.message?.trim() || undefined,
+      });
       setMode('join-sent');
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -233,10 +235,16 @@ export default function OnboardingPage() {
                   placeholder="e.g. Southside Congregation"
                   disabled={createForm.formState.isSubmitting}
                   aria-invalid={!!createForm.formState.errors.name}
-                  className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={
+                    createForm.formState.errors.name
+                      ? 'border-destructive focus-visible:ring-destructive'
+                      : ''
+                  }
                 />
                 {createForm.formState.errors.name && (
-                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {createForm.formState.errors.name.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -286,7 +294,12 @@ export default function OnboardingPage() {
                 >
                   {createForm.formState.isSubmitting ? (
                     <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <svg
+                        className="animate-spin h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
                         <circle
                           className="opacity-25"
                           cx="12"
@@ -353,7 +366,12 @@ export default function OnboardingPage() {
                 </div>
                 <Button type="submit" disabled={searchLoading || searchQuery.trim().length < 2}>
                   {searchLoading ? (
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
                       <circle
                         className="opacity-25"
                         cx="12"
@@ -446,7 +464,9 @@ export default function OnboardingPage() {
                     className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${joinForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
                   />
                   {joinForm.formState.errors.message && (
-                    <p className="text-xs text-destructive mt-1">{joinForm.formState.errors.message.message}</p>
+                    <p className="text-xs text-destructive mt-1">
+                      {joinForm.formState.errors.message.message}
+                    </p>
                   )}
                 </div>
 
@@ -467,10 +487,19 @@ export default function OnboardingPage() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" disabled={joinForm.formState.isSubmitting} className="flex-[2]">
+                  <Button
+                    type="submit"
+                    disabled={joinForm.formState.isSubmitting}
+                    className="flex-[2]"
+                  >
                     {joinForm.formState.isSubmitting ? (
                       <span className="flex items-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <svg
+                          className="animate-spin h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
                           <circle
                             className="opacity-25"
                             cx="12"

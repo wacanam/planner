@@ -70,22 +70,43 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
   const searchParams = useSearchParams();
   const tab = (searchParams.get('tab') as Tab) ?? 'coverage';
 
-  const setTab = useCallback((newTab: Tab) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('tab', newTab);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  }, [router, searchParams]);
+  const setTab = useCallback(
+    (newTab: Tab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', newTab);
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
 
-  const { data: coverageRaw, isLoading: coverageLoading, error: coverageError } = useCoverageReport(congregationId);
-  const { data: publishersRaw, isLoading: publishersLoading, error: publishersError } = usePublishersReport(congregationId);
-  const { data: activityRaw, isLoading: activityLoading, error: activityError } = useActivityReport(congregationId);
+  const {
+    data: coverageRaw,
+    isLoading: coverageLoading,
+    error: coverageError,
+  } = useCoverageReport(congregationId);
+  const {
+    data: publishersRaw,
+    isLoading: publishersLoading,
+    error: publishersError,
+  } = usePublishersReport(congregationId);
+  const {
+    data: activityRaw,
+    isLoading: activityLoading,
+    error: activityError,
+  } = useActivityReport(congregationId);
 
   const coverage = coverageRaw as CoverageData | null;
   const publishers = publishersRaw as PublishersData | null;
   const activity = activityRaw as ActivityData | null;
 
-  const loading = tab === 'coverage' ? coverageLoading : tab === 'publishers' ? publishersLoading : activityLoading;
-  const error = tab === 'coverage' ? coverageError : tab === 'publishers' ? publishersError : activityError;
+  const loading =
+    tab === 'coverage'
+      ? coverageLoading
+      : tab === 'publishers'
+        ? publishersLoading
+        : activityLoading;
+  const error =
+    tab === 'coverage' ? coverageError : tab === 'publishers' ? publishersError : activityError;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'coverage', label: 'Coverage', icon: <BarChart2 size={15} /> },
@@ -202,52 +223,52 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
             <h2 className="text-sm font-semibold text-foreground">Publisher Assignments</h2>
           </div>
           <table className="w-full text-sm min-w-[600px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
-                    Name
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
-                    Email
-                  </th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
-                    Active
-                  </th>
-                  <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
-                    Completed
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
-                    Current Territories
-                  </th>
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Name
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Email
+                </th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Active
+                </th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Completed
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">
+                  Current Territories
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {publishers.publishers.map((p) => (
+                <tr
+                  key={p.userId}
+                  className={cn(
+                    'transition-colors hover:bg-muted/30',
+                    p.activeAssignments === 0 && 'opacity-50'
+                  )}
+                >
+                  <td className="px-4 py-2.5 font-medium text-foreground">{p.name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{p.email}</td>
+                  <td className="px-4 py-2.5 text-center">{p.activeAssignments}</td>
+                  <td className="px-4 py-2.5 text-center">{p.totalCompleted}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">
+                    {p.territories.length > 0 ? p.territories.join(', ') : '—'}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {publishers.publishers.map((p) => (
-                  <tr
-                    key={p.userId}
-                    className={cn(
-                      'transition-colors hover:bg-muted/30',
-                      p.activeAssignments === 0 && 'opacity-50'
-                    )}
-                  >
-                    <td className="px-4 py-2.5 font-medium text-foreground">{p.name}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{p.email}</td>
-                    <td className="px-4 py-2.5 text-center">{p.activeAssignments}</td>
-                    <td className="px-4 py-2.5 text-center">{p.totalCompleted}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {p.territories.length > 0 ? p.territories.join(', ') : '—'}
-                    </td>
-                  </tr>
-                ))}
-                {publishers.publishers.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                      No active members found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              ))}
+              {publishers.publishers.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    No active members found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -255,7 +276,9 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
       {!loading && !error && tab === 'activity' && activity && (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Recent Activity (Last 30 Days)</h2>
+            <h2 className="text-sm font-semibold text-foreground">
+              Recent Activity (Last 30 Days)
+            </h2>
           </div>
           {activity.assignments.length === 0 && activity.returns.length === 0 ? (
             <div className="px-4 py-12 text-center">
@@ -294,11 +317,7 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
                           : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                       )}
                     >
-                      {item.type === 'assign' ? (
-                        <UserPlus size={13} />
-                      ) : (
-                        <RotateCcw size={13} />
-                      )}
+                      {item.type === 'assign' ? <UserPlus size={13} /> : <RotateCcw size={13} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-foreground">

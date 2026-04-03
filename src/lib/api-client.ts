@@ -74,15 +74,27 @@ export const apiClient = {
     const res = await _axiosInstance.get<ApiResponse<T>>(url, config);
     return res.data.data;
   },
-  post: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+  post: async <T = void, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
     const res = await _axiosInstance.post<ApiResponse<T>>(url, data, config);
     return res.data.data;
   },
-  patch: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+  patch: async <T = void, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
     const res = await _axiosInstance.patch<ApiResponse<T>>(url, data, config);
     return res.data.data;
   },
-  put: async <T = void, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig): Promise<T> => {
+  put: async <T = void, D = unknown>(
+    url: string,
+    data?: D,
+    config?: AxiosRequestConfig
+  ): Promise<T> => {
     const res = await _axiosInstance.put<ApiResponse<T>>(url, data, config);
     return res.data.data;
   },

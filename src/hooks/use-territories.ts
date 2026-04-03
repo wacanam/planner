@@ -27,8 +27,7 @@ export function useCongregationTerritories(
 export function useCreateTerritory(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/territories`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { create: trigger, isCreating: isMutating };
 }
@@ -42,9 +41,7 @@ export function useCongregationTerritoryRequests(
 ) {
   const query = status ? `?status=${status}` : '';
   const { data, error, isLoading, mutate } = useSWR<TerritoryRequest[]>(
-    congregationId
-      ? `/api/congregations/${congregationId}/territory-requests${query}`
-      : null,
+    congregationId ? `/api/congregations/${congregationId}/territory-requests${query}` : null,
     (url) => apiClient.get<TerritoryRequest[]>(url),
     { revalidateOnFocus: false, ...options }
   );
@@ -61,8 +58,7 @@ export function useCongregationTerritoryRequests(
 export function useCreateTerritoryRequest(congregationId: string) {
   const { trigger, isMutating } = useSWRMutation(
     `/api/congregations/${congregationId}/territory-requests`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { request: trigger, isRequesting: isMutating };
 }
@@ -85,14 +81,11 @@ export function useReviewTerritoryRequest(congregationId: string) {
         };
       }
     ) =>
-      apiClient.patch(
-        `/api/congregations/${congregationId}/territory-requests/${arg.requestId}`,
-        {
-          status: arg.status,
-          responseMessage: arg.responseMessage,
-          ...(arg.territoryId ? { territoryId: arg.territoryId } : {}),
-        }
-      )
+      apiClient.patch(`/api/congregations/${congregationId}/territory-requests/${arg.requestId}`, {
+        status: arg.status,
+        responseMessage: arg.responseMessage,
+        ...(arg.territoryId ? { territoryId: arg.territoryId } : {}),
+      })
   );
   return { reviewRequest: trigger, isReviewing: isMutating };
 }

@@ -156,14 +156,20 @@ export default function CongregationMembersPage() {
 
   function openEditRole(member: Member) {
     setEditRoleTarget(member);
-    editRoleForm.reset({ congregationRole: (member.congregationRole as EditMemberRoleFormData['congregationRole']) ?? null });
+    editRoleForm.reset({
+      congregationRole:
+        (member.congregationRole as EditMemberRoleFormData['congregationRole']) ?? null,
+    });
     setEditRoleOpen(true);
   }
 
   async function handleEditRole(data: EditMemberRoleFormData) {
     if (!editRoleTarget) return;
     try {
-      await updateMemberRole({ userId: editRoleTarget.userId, congregationRole: data.congregationRole });
+      await updateMemberRole({
+        userId: editRoleTarget.userId,
+        congregationRole: data.congregationRole,
+      });
       setEditRoleOpen(false);
       editRoleForm.reset();
       await mutateMembers();
@@ -182,7 +188,11 @@ export default function CongregationMembersPage() {
   async function handleReview(data: ReviewJoinRequestFormData) {
     if (!reviewTarget) return;
     try {
-      await reviewJoinRequest({ requestId: reviewTarget.id, status: reviewAction, reviewNote: data.reviewNote });
+      await reviewJoinRequest({
+        requestId: reviewTarget.id,
+        status: reviewAction,
+        reviewNote: data.reviewNote,
+      });
       setReviewOpen(false);
       reviewForm.reset();
       await Promise.all([mutateMembers(), mutateRequests()]);
@@ -326,7 +336,10 @@ export default function CongregationMembersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <Badge variant="outline" className={`${roleColor(m.congregationRole)} whitespace-nowrap`}>
+                          <Badge
+                            variant="outline"
+                            className={`${roleColor(m.congregationRole)} whitespace-nowrap`}
+                          >
                             {roleLabel(m.congregationRole)}
                           </Badge>
                         </td>
@@ -507,9 +520,20 @@ export default function CongregationMembersPage() {
 
           <div className="space-y-2">
             {[
-              { value: CongregationRole.SERVICE_OVERSEER as EditMemberRoleFormData['congregationRole'], label: 'Service Overseer' },
-              { value: CongregationRole.TERRITORY_SERVANT as EditMemberRoleFormData['congregationRole'], label: 'Territory Servant' },
-              { value: null as EditMemberRoleFormData['congregationRole'], label: 'Publisher (no special role)' },
+              {
+                value:
+                  CongregationRole.SERVICE_OVERSEER as EditMemberRoleFormData['congregationRole'],
+                label: 'Service Overseer',
+              },
+              {
+                value:
+                  CongregationRole.TERRITORY_SERVANT as EditMemberRoleFormData['congregationRole'],
+                label: 'Territory Servant',
+              },
+              {
+                value: null as EditMemberRoleFormData['congregationRole'],
+                label: 'Publisher (no special role)',
+              },
             ].map((option) => (
               <label
                 key={String(option.value)}
@@ -533,7 +557,9 @@ export default function CongregationMembersPage() {
           </div>
 
           {editRoleForm.formState.errors.congregationRole && (
-            <p className="text-xs text-destructive">{editRoleForm.formState.errors.congregationRole.message}</p>
+            <p className="text-xs text-destructive">
+              {editRoleForm.formState.errors.congregationRole.message}
+            </p>
           )}
           <DialogFooter>
             <Button
@@ -543,7 +569,10 @@ export default function CongregationMembersPage() {
             >
               Cancel
             </Button>
-            <Button onClick={editRoleForm.handleSubmit(handleEditRole)} disabled={editRoleForm.formState.isSubmitting}>
+            <Button
+              onClick={editRoleForm.handleSubmit(handleEditRole)}
+              disabled={editRoleForm.formState.isSubmitting}
+            >
               {editRoleForm.formState.isSubmitting ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
@@ -586,8 +615,8 @@ export default function CongregationMembersPage() {
                 </>
               ) : (
                 <>
-                  <span className="font-semibold">{reviewTarget?.user?.name}</span>&apos;s request will
-                  be declined. They will be notified.
+                  <span className="font-semibold">{reviewTarget?.user?.name}</span>&apos;s request
+                  will be declined. They will be notified.
                 </>
               )}
             </DialogDescription>
@@ -617,12 +646,18 @@ export default function CongregationMembersPage() {
               className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none${reviewForm.formState.errors.reviewNote ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
             />
             {reviewForm.formState.errors.reviewNote && (
-              <p className="text-xs text-destructive mt-1">{reviewForm.formState.errors.reviewNote.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {reviewForm.formState.errors.reviewNote.message}
+              </p>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewOpen(false)} disabled={reviewForm.formState.isSubmitting}>
+            <Button
+              variant="outline"
+              onClick={() => setReviewOpen(false)}
+              disabled={reviewForm.formState.isSubmitting}
+            >
               Cancel
             </Button>
             {reviewAction === 'active' ? (
@@ -634,7 +669,11 @@ export default function CongregationMembersPage() {
                 {reviewForm.formState.isSubmitting ? 'Approving…' : 'Approve'}
               </Button>
             ) : (
-              <Button variant="destructive" onClick={reviewForm.handleSubmit(handleReview)} disabled={reviewForm.formState.isSubmitting}>
+              <Button
+                variant="destructive"
+                onClick={reviewForm.handleSubmit(handleReview)}
+                disabled={reviewForm.formState.isSubmitting}
+              >
                 {reviewForm.formState.isSubmitting ? 'Rejecting…' : 'Reject'}
               </Button>
             )}

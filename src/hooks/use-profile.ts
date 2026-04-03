@@ -42,4 +42,3 @@ export function useUploadAvatar() {
   );
   return { upload: trigger, isUploading: isMutating };
 }
-

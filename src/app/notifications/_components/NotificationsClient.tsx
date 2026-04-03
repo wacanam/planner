@@ -85,7 +85,10 @@ export function NotificationsClient() {
         {/* Cards */}
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 w-full">
+            <div
+              key={i}
+              className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 w-full"
+            >
               <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0 mt-0.5" />
               <div className="flex-1 space-y-2 min-w-0">
                 <div className="h-4 w-1/3 rounded bg-muted animate-pulse" />
