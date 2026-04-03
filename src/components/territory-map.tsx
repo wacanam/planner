@@ -107,9 +107,10 @@ export default function TerritoryMap({
           // innerCoords[0] is the outer ring of the territory polygon
           const outerRing = geoJson?.geometry?.coordinates?.[0];
           if (outerRing) {
-            // Spotlight: world as outer ring, territory ring reversed as hole
-            const worldRing = [[-90, -180], [-90, 180], [90, 180], [90, -180], [-90, -180]];
-            // Reverse the territory ring to make it a hole (counter-clockwise winding)
+            // Spotlight: world as outer ring [lng, lat], territory ring as hole
+            // GeoJSON uses [lng, lat] order; outer ring = CCW, holes = CW
+            const worldRing = [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]];
+            // Territory outer ring is already CCW; reverse it to CW to act as a hole
             const holeRing = [...outerRing].reverse();
             const spotlightGeoJson = {
               type: 'Feature',
