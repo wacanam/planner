@@ -1,4 +1,4 @@
-import { boolean, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { UserRole } from '../enums';
 
 export const users = pgTable('users', {
@@ -12,6 +12,7 @@ export const users = pgTable('users', {
   lastLoginAt: timestamp('lastLoginAt'),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+  avatarUrl: text('avatarUrl'),
 });
 
 export type User = typeof users.$inferSelect;

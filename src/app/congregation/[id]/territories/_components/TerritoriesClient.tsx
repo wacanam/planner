@@ -293,7 +293,9 @@ export default function CongregationTerritoriesPage() {
     try {
       await apiClient.post('/api/assignments', {
         territoryId: assignTerritory.id,
-        ...(assignType === 'publisher' ? { userId: data.userId } : { serviceGroupId: assignGroupId }),
+        ...(assignType === 'publisher'
+          ? { userId: data.userId }
+          : { serviceGroupId: assignGroupId }),
         dueAt: data.dueAt || undefined,
         notes: data.notes || undefined,
       });
@@ -328,7 +330,10 @@ export default function CongregationTerritoriesPage() {
         setReturnError('No active assignment found');
         return;
       }
-      await apiClient.put(`/api/assignments/${activeAssignment.id}`, { status: 'returned', notes: data.notes || undefined });
+      await apiClient.put(`/api/assignments/${activeAssignment.id}`, {
+        status: 'returned',
+        notes: data.notes || undefined,
+      });
       setReturnOpen(false);
       returnForm.reset();
       await mutateTerritories();
@@ -363,7 +368,9 @@ export default function CongregationTerritoriesPage() {
       await mutateRequests();
       setTimeout(() => setRequestSuccess(null), 4000);
     } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'Failed to send request. Please try again.');
+      setRequestError(
+        err instanceof Error ? err.message : 'Failed to send request. Please try again.'
+      );
     }
   }
 
@@ -431,9 +438,9 @@ export default function CongregationTerritoriesPage() {
           >
             Territories ({territories.length})
           </button>
-          {loading
-            ? <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
-            : isOverseer ? (
+          {loading ? (
+            <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
+          ) : isOverseer ? (
             <button
               type="button"
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -580,24 +587,36 @@ export default function CongregationTerritoriesPage() {
                                 Return
                               </Button>
                             )}
-                            {!isOverseer && t.status === 'available' && (() => {
-                              const alreadyRequested = requests.some((r) => r.territoryId === t.id);
-                              if (requestSuccess === t.id) {
-                                return <span className="text-xs text-green-600 font-medium flex items-center gap-1">✓ Request sent!</span>;
-                              }
-                              if (alreadyRequested) {
-                                return <span className="text-xs text-amber-600 font-medium">Pending</span>;
-                              }
-                              return (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openRequestDialog(t)}
-                                >
-                                  Request
-                                </Button>
-                              );
-                            })()}
+                            {!isOverseer &&
+                              t.status === 'available' &&
+                              (() => {
+                                const alreadyRequested = requests.some(
+                                  (r) => r.territoryId === t.id
+                                );
+                                if (requestSuccess === t.id) {
+                                  return (
+                                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                      ✓ Request sent!
+                                    </span>
+                                  );
+                                }
+                                if (alreadyRequested) {
+                                  return (
+                                    <span className="text-xs text-amber-600 font-medium">
+                                      Pending
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openRequestDialog(t)}
+                                  >
+                                    Request
+                                  </Button>
+                                );
+                              })()}
                           </div>
                         </td>
                       </tr>
@@ -644,12 +663,16 @@ export default function CongregationTerritoriesPage() {
                           {r.territoryId
                             ? (() => {
                                 const t = territories.find((t) => t.id === r.territoryId);
-                                return t ? `requested #${t.number} ${t.name}` : 'requested a specific territory';
+                                return t
+                                  ? `requested #${t.number} ${t.name}`
+                                  : 'requested a specific territory';
                               })()
                             : 'requested any available territory'}
                         </p>
                         {r.message && (
-                          <p className="text-xs text-foreground mt-1 italic">&quot;{r.message}&quot;</p>
+                          <p className="text-xs text-foreground mt-1 italic">
+                            &quot;{r.message}&quot;
+                          </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(r.requestedAt).toLocaleString()}
@@ -678,7 +701,13 @@ export default function CongregationTerritoriesPage() {
       </div>
 
       {/* Create territory dialog */}
-      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) createForm.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Territory</DialogTitle>
@@ -699,10 +728,16 @@ export default function CongregationTerritoriesPage() {
                   placeholder="e.g. T-01"
                   disabled={createForm.formState.isSubmitting}
                   aria-invalid={!!createForm.formState.errors.number}
-                  className={createForm.formState.errors.number ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={
+                    createForm.formState.errors.number
+                      ? 'border-destructive focus-visible:ring-destructive'
+                      : ''
+                  }
                 />
                 {createForm.formState.errors.number && (
-                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.number.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {createForm.formState.errors.number.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -713,10 +748,16 @@ export default function CongregationTerritoriesPage() {
                   placeholder="e.g. North District"
                   disabled={createForm.formState.isSubmitting}
                   aria-invalid={!!createForm.formState.errors.name}
-                  className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={
+                    createForm.formState.errors.name
+                      ? 'border-destructive focus-visible:ring-destructive'
+                      : ''
+                  }
                 />
                 {createForm.formState.errors.name && (
-                  <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {createForm.formState.errors.name.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -742,12 +783,26 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Assign Territory dialog */}
-      <Dialog open={assignOpen} onOpenChange={(open) => { setAssignOpen(open); if (!open) { assignForm.reset(); setAssignSuccess(''); setAssignError(''); } }}>
+      <Dialog
+        open={assignOpen}
+        onOpenChange={(open) => {
+          setAssignOpen(open);
+          if (!open) {
+            assignForm.reset();
+            setAssignSuccess('');
+            setAssignError('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>
             <DialogDescription>
-              Assign <strong>#{assignTerritory?.number} {assignTerritory?.name}</strong> to a publisher or group.
+              Assign{' '}
+              <strong>
+                #{assignTerritory?.number} {assignTerritory?.name}
+              </strong>{' '}
+              to a publisher or group.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={assignForm.handleSubmit(handleAssign)} className="space-y-4 mt-2">
@@ -765,14 +820,25 @@ export default function CongregationTerritoriesPage() {
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 type="button"
-                onClick={() => { setAssignType('publisher'); setAssignGroupId(''); setGroupSearch(''); setGroupComboboxOpen(false); assignForm.setValue('userId', ''); }}
+                onClick={() => {
+                  setAssignType('publisher');
+                  setAssignGroupId('');
+                  setGroupSearch('');
+                  setGroupComboboxOpen(false);
+                  assignForm.setValue('userId', '');
+                }}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'publisher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
               >
                 Publisher
               </button>
               <button
                 type="button"
-                onClick={() => { setAssignType('group'); setMemberSearch(''); setComboboxOpen(false); assignForm.setValue('userId', ''); }}
+                onClick={() => {
+                  setAssignType('group');
+                  setMemberSearch('');
+                  setComboboxOpen(false);
+                  assignForm.setValue('userId', '');
+                }}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
               >
                 Group
@@ -797,7 +863,9 @@ export default function CongregationTerritoriesPage() {
                       <div className="max-h-48 overflow-y-auto divide-y divide-border">
                         {filteredMembers.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
-                            {debouncedMemberSearch ? 'No publishers match your search' : 'No active publishers'}
+                            {debouncedMemberSearch
+                              ? 'No publishers match your search'
+                              : 'No active publishers'}
                           </p>
                         ) : (
                           filteredMembers.map((m) => (
@@ -805,7 +873,9 @@ export default function CongregationTerritoriesPage() {
                               type="button"
                               key={m.id}
                               className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
-                                assignForm.watch('userId') === m.userId ? 'bg-primary/10 text-primary' : ''
+                                assignForm.watch('userId') === m.userId
+                                  ? 'bg-primary/10 text-primary'
+                                  : ''
                               }`}
                               onMouseDown={(e) => {
                                 e.preventDefault();
@@ -815,7 +885,9 @@ export default function CongregationTerritoriesPage() {
                               }}
                             >
                               <span className="font-medium truncate">{m.user?.name}</span>
-                              <span className="text-xs text-muted-foreground shrink-0">{m.user?.email}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {m.user?.email}
+                              </span>
                             </button>
                           ))
                         )}
@@ -824,7 +896,9 @@ export default function CongregationTerritoriesPage() {
                   )}
                 </div>
                 {assignForm.formState.errors.userId && (
-                  <p className="text-xs text-destructive mt-1">{assignForm.formState.errors.userId.message}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {assignForm.formState.errors.userId.message}
+                  </p>
                 )}
               </div>
             ) : (
@@ -846,7 +920,9 @@ export default function CongregationTerritoriesPage() {
                       <div className="max-h-48 overflow-y-auto divide-y divide-border">
                         {filteredGroups.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
-                            {debouncedGroupSearch ? 'No groups match your search' : 'No groups found'}
+                            {debouncedGroupSearch
+                              ? 'No groups match your search'
+                              : 'No groups found'}
                           </p>
                         ) : (
                           filteredGroups.map((g) => (
@@ -897,7 +973,13 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={assignForm.formState.isSubmitting || (assignType === 'publisher' ? !assignForm.watch('userId') : !assignGroupId)}>
+              <Button
+                type="submit"
+                disabled={
+                  assignForm.formState.isSubmitting ||
+                  (assignType === 'publisher' ? !assignForm.watch('userId') : !assignGroupId)
+                }
+              >
                 {assignForm.formState.isSubmitting ? 'Assigning…' : 'Assign Territory'}
               </Button>
             </DialogFooter>
@@ -906,12 +988,25 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Return Territory dialog */}
-      <Dialog open={returnOpen} onOpenChange={(open) => { setReturnOpen(open); if (!open) { returnForm.reset(); setReturnError(''); } }}>
+      <Dialog
+        open={returnOpen}
+        onOpenChange={(open) => {
+          setReturnOpen(open);
+          if (!open) {
+            returnForm.reset();
+            setReturnError('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Return Territory</DialogTitle>
             <DialogDescription>
-              Mark <strong>#{returnTerritory?.number} {returnTerritory?.name}</strong> as returned?
+              Mark{' '}
+              <strong>
+                #{returnTerritory?.number} {returnTerritory?.name}
+              </strong>{' '}
+              as returned?
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={returnForm.handleSubmit(handleReturn)} className="space-y-4 mt-2">
@@ -936,7 +1031,12 @@ export default function CongregationTerritoriesPage() {
               <Button type="button" variant="ghost" onClick={() => setReturnOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={returnForm.formState.isSubmitting} variant="outline" className="text-orange-600 border-orange-300">
+              <Button
+                type="submit"
+                disabled={returnForm.formState.isSubmitting}
+                variant="outline"
+                className="text-orange-600 border-orange-300"
+              >
                 {returnForm.formState.isSubmitting ? 'Processing…' : 'Mark as Returned'}
               </Button>
             </DialogFooter>
@@ -945,7 +1045,16 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Request Territory Dialog */}
-      <Dialog open={requestDialogOpen} onOpenChange={(open) => { setRequestDialogOpen(open); if (!open) { requestForm.reset(); setRequestError(''); } }}>
+      <Dialog
+        open={requestDialogOpen}
+        onOpenChange={(open) => {
+          setRequestDialogOpen(open);
+          if (!open) {
+            requestForm.reset();
+            setRequestError('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Territory</DialogTitle>
@@ -973,14 +1082,19 @@ export default function CongregationTerritoriesPage() {
                 className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${requestForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
               />
               {requestForm.formState.errors.message && (
-                <p className="text-xs text-destructive mt-1">{requestForm.formState.errors.message.message}</p>
+                <p className="text-xs text-destructive mt-1">
+                  {requestForm.formState.errors.message.message}
+                </p>
               )}
             </div>
-            {requestError && (
-              <p className="text-sm text-destructive">{requestError}</p>
-            )}
+            {requestError && <p className="text-sm text-destructive">{requestError}</p>}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRequestDialogOpen(false)} disabled={requestForm.formState.isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRequestDialogOpen(false)}
+                disabled={requestForm.formState.isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={requestForm.formState.isSubmitting}>
@@ -994,7 +1108,9 @@ export default function CongregationTerritoriesPage() {
       {/* Approve / Reject Confirmation Dialog */}
       <Dialog
         open={!!confirmRequest}
-        onOpenChange={(o) => { if (!o) closeConfirmDialog(); }}
+        onOpenChange={(o) => {
+          if (!o) closeConfirmDialog();
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -1011,18 +1127,24 @@ export default function CongregationTerritoriesPage() {
           </DialogHeader>
 
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
-            <p className="text-sm font-semibold">{confirmRequest?.publisher?.name ?? 'Unknown Publisher'}</p>
+            <p className="text-sm font-semibold">
+              {confirmRequest?.publisher?.name ?? 'Unknown Publisher'}
+            </p>
             {confirmRequest?.message && (
               <p className="text-xs text-foreground italic">&quot;{confirmRequest.message}&quot;</p>
             )}
             <p className="text-xs text-muted-foreground">
-              Requested on {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
+              Requested on{' '}
+              {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
             </p>
           </div>
 
           {confirmAction === 'approve' && !confirmRequest?.territoryId && (
             <div className="space-y-1.5">
-              <label htmlFor="confirm-territory-select" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="confirm-territory-select"
+                className="text-sm font-medium text-foreground"
+              >
                 Assign territory <span className="text-destructive">*</span>
               </label>
               <select
@@ -1045,11 +1167,18 @@ export default function CongregationTerritoriesPage() {
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="confirm-response-message" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="confirm-response-message"
+              className="text-sm font-medium text-foreground"
+            >
               {confirmAction === 'reject' ? (
-                <>Response message <span className="text-destructive">*</span></>
+                <>
+                  Response message <span className="text-destructive">*</span>
+                </>
               ) : (
-                <>Response message <span className="text-muted-foreground text-xs">(optional)</span></>
+                <>
+                  Response message <span className="text-muted-foreground text-xs">(optional)</span>
+                </>
               )}
             </label>
             <textarea
@@ -1066,13 +1195,13 @@ export default function CongregationTerritoriesPage() {
               className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${reviewRequestForm.formState.errors.responseMessage ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
             />
             {reviewRequestForm.formState.errors.responseMessage && (
-              <p className="text-xs text-destructive mt-1">{reviewRequestForm.formState.errors.responseMessage.message}</p>
+              <p className="text-xs text-destructive mt-1">
+                {reviewRequestForm.formState.errors.responseMessage.message}
+              </p>
             )}
           </div>
 
-          {confirmError && (
-            <p className="text-sm text-destructive">{confirmError}</p>
-          )}
+          {confirmError && <p className="text-sm text-destructive">{confirmError}</p>}
 
           <DialogFooter>
             <Button

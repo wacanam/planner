@@ -45,9 +45,14 @@ export default function TerritoryDetailView() {
     territoryId: string;
   }>();
 
-  const { territory: territoryResponse, isLoading: territoryLoading, error: territoryError } = useTerritoryDetail(territoryId ?? null);
+  const {
+    territory: territoryResponse,
+    isLoading: territoryLoading,
+    error: territoryError,
+  } = useTerritoryDetail(territoryId ?? null);
 
-  const { assignments: assignmentsResponse, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId ?? '');
+  const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
+    useTerritoryAssignments(territoryId ?? '');
 
   const loading = territoryLoading || assignmentsLoading;
   const territory = territoryResponse;

@@ -127,9 +127,7 @@ function NotificationList({
                       )}
                     </div>
                   </div>
-                  {!n.isRead && (
-                    <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                  )}
+                  {!n.isRead && <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />}
                 </div>
               </button>
             );
@@ -220,30 +218,33 @@ export function NotificationBell() {
     onClose: () => setOpen(false),
   };
 
-  const mobileSheet = open && typeof document !== 'undefined' && createPortal(
-    <div className="sm:hidden">
-      {/* Backdrop */}
-      <button
-        type="button"
-        className="fixed inset-0 z-[199] bg-black/40 cursor-default"
-        onClick={() => setOpen(false)}
-        aria-label="Close notifications"
-      />
-      {/* Sheet — fixed to bottom of viewport */}
-      <div
-        ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl sheet-slide-up flex flex-col"
-        style={{ maxHeight: '85vh' }}
-      >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+  const mobileSheet =
+    open &&
+    typeof document !== 'undefined' &&
+    createPortal(
+      <div className="sm:hidden">
+        {/* Backdrop */}
+        <button
+          type="button"
+          className="fixed inset-0 z-[199] bg-black/40 cursor-default"
+          onClick={() => setOpen(false)}
+          aria-label="Close notifications"
+        />
+        {/* Sheet — fixed to bottom of viewport */}
+        <div
+          ref={sheetRef}
+          className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl sheet-slide-up flex flex-col"
+          style={{ maxHeight: '85vh' }}
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+          </div>
+          <NotificationList {...listProps} />
         </div>
-        <NotificationList {...listProps} />
-      </div>
-    </div>,
-    document.body
-  );
+      </div>,
+      document.body
+    );
 
   return (
     <>

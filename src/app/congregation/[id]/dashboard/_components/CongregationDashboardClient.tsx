@@ -35,7 +35,8 @@ const statusColors: Record<string, string> = {
   completed:
     'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   archived: 'text-muted-foreground border-border bg-muted/30',
-  pending: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
+  pending:
+    'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
   approved: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
@@ -49,13 +50,28 @@ export default function CongregationDashboardPage() {
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
 
-  const { congregation: congData, isLoading: congLoading } = useCongregation(congregationId ?? null);
-  const { data: membersData, isLoading: membersLoading, mutate: mutateMembers } = useCongregationMembers(congregationId);
+  const { congregation: congData, isLoading: congLoading } = useCongregation(
+    congregationId ?? null
+  );
+  const {
+    data: membersData,
+    isLoading: membersLoading,
+    mutate: mutateMembers,
+  } = useCongregationMembers(congregationId);
   const { groups: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
-  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } = useCongregationTerritories(congregationId);
-  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const {
+    data: territoriesData,
+    isLoading: territoriesLoading,
+    mutate: mutateTerritories,
+  } = useCongregationTerritories(congregationId);
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    mutate: mutateRequests,
+  } = useCongregationTerritoryRequests(congregationId, 'pending');
 
-  const loading = congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
+  const loading =
+    congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
 
   const congregation = congData ?? null;
   const members = membersData;
@@ -109,11 +125,13 @@ export default function CongregationDashboardPage() {
               {congregation?.name ?? 'Congregation'} Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {loading || myRole === null
-                ? <Skeleton className="h-4 w-48 rounded-md mt-1" />
-                : isOverseer
-                  ? 'Congregation overview and quick actions'
-                  : 'Your ministry overview'}
+              {loading || myRole === null ? (
+                <Skeleton className="h-4 w-48 rounded-md mt-1" />
+              ) : isOverseer ? (
+                'Congregation overview and quick actions'
+              ) : (
+                'Your ministry overview'
+              )}
             </p>
           </div>
           {loading || myRole === null ? (
@@ -246,7 +264,10 @@ export default function CongregationDashboardPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <FolderOpen size={12} className="text-purple-600 dark:text-purple-400" />
+                            <FolderOpen
+                              size={12}
+                              className="text-purple-600 dark:text-purple-400"
+                            />
                           </div>
                           <span className="text-sm font-medium">{g.name}</span>
                         </div>
@@ -513,9 +534,7 @@ export default function CongregationDashboardPage() {
                       className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
                     >
                       <div>
-                        <p className="text-sm font-medium">
-                          {getTerritoryLabel(r.territoryId)}
-                        </p>
+                        <p className="text-sm font-medium">{getTerritoryLabel(r.territoryId)}</p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(r.requestedAt).toLocaleDateString()}
                         </p>
@@ -553,7 +572,9 @@ export default function CongregationDashboardPage() {
                 ) : availableTerritories.length === 0 ? (
                   <div className="text-center py-6">
                     <MapPin size={24} className="mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">No territories currently available</p>
+                    <p className="text-sm text-muted-foreground">
+                      No territories currently available
+                    </p>
                   </div>
                 ) : (
                   availableTerritories.slice(0, 6).map((t) => (

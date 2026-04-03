@@ -11,8 +11,8 @@ export default function OfflinePage() {
       </div>
       <h1 className="text-xl font-bold text-foreground mb-2">You&apos;re offline</h1>
       <p className="text-muted-foreground text-sm max-w-sm">
-        No internet connection. Some pages may still be available from cache.
-        Changes you make will sync when you&apos;re back online.
+        No internet connection. Some pages may still be available from cache. Changes you make will
+        sync when you&apos;re back online.
       </p>
     </div>
   );

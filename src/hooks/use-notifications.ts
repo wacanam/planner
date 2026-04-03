@@ -25,8 +25,7 @@ export function useNotifications(options?: SWRConfiguration) {
 export function useMarkNotificationsRead() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/notifications/read',
-    (url: string, { arg }: { arg?: { ids?: string[] } }) =>
-      apiClient.post(url, arg ?? {})
+    (url: string, { arg }: { arg?: { ids?: string[] } }) => apiClient.post(url, arg ?? {})
   );
   return { markRead: trigger, isMarking: isMutating };
 }

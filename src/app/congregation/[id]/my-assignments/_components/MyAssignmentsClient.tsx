@@ -10,10 +10,7 @@ import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  useCongregationTerritories,
-  useCongregationTerritoryRequests,
-} from '@/hooks';
+import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
 
 const statusColors: Record<string, string> = {
   available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -21,7 +18,8 @@ const statusColors: Record<string, string> = {
   completed:
     'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   archived: 'text-muted-foreground border-border bg-muted/30',
-  pending: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
+  pending:
+    'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
   approved: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
   rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
 };
@@ -33,12 +31,18 @@ export default function MyAssignmentsClient() {
   const sessionUser = session?.user as { id?: string } | undefined;
   const [showPast, setShowPast] = useState(false);
 
-  const { data: territoriesData, isLoading: territoriesLoading, mutate: mutateTerritories } =
-    useCongregationTerritories(congregationId);
+  const {
+    data: territoriesData,
+    isLoading: territoriesLoading,
+    mutate: mutateTerritories,
+  } = useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const { data: requestsData, isLoading: requestsLoading, mutate: mutateRequests } =
-    useCongregationTerritoryRequests(congregationId, 'pending');
+  const {
+    data: requestsData,
+    isLoading: requestsLoading,
+    mutate: mutateRequests,
+  } = useCongregationTerritoryRequests(congregationId, 'pending');
   const requests = requestsData;
 
   const loading = territoriesLoading || requestsLoading;
@@ -52,8 +56,7 @@ export default function MyAssignmentsClient() {
   );
   const myPast = territories.filter(
     (t) =>
-      (t.status === 'completed' || t.status === 'archived') &&
-      t.publisherId === sessionUser?.id
+      (t.status === 'completed' || t.status === 'archived') && t.publisherId === sessionUser?.id
   );
 
   function getRequestLabel(territoryId?: string | null): string {
@@ -135,7 +138,9 @@ export default function MyAssignmentsClient() {
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{t.notes}</p>
                     )}
                     {t.householdsCount !== undefined && t.householdsCount > 0 && (
-                      <p className="text-xs text-muted-foreground">{t.householdsCount} households</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t.householdsCount} households
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 ml-3 shrink-0">
@@ -199,11 +204,7 @@ export default function MyAssignmentsClient() {
                   {myPast.length}
                 </Badge>
               </CardTitle>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowPast((p) => !p)}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setShowPast((p) => !p)}>
                 {showPast ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 {showPast ? 'Hide' : 'Show'}
               </Button>

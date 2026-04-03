@@ -32,15 +32,15 @@ export function AssignmentForm({ territoryId, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      const result = await apiClient.post<{ success: boolean; error?: { message: string } }, object>(
-        '/api/assignments',
-        {
-            territoryId,
-            userId: userId.trim(),
-            dueAt: dueAt || undefined,
-            notes: notes || undefined,
-          }
-      );
+      const result = await apiClient.post<
+        { success: boolean; error?: { message: string } },
+        object
+      >('/api/assignments', {
+        territoryId,
+        userId: userId.trim(),
+        dueAt: dueAt || undefined,
+        notes: notes || undefined,
+      });
       if (!result.success) {
         setError(result.error?.message ?? 'Failed to assign territory');
       } else {

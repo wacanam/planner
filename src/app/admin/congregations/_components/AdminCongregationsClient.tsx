@@ -37,11 +37,13 @@ export default function AdminCongregationsPage() {
   const filtered = useMemo(() => {
     if (!search) return congregations;
     const s = search.toLowerCase();
-    return congregations.filter((c) =>
-            c.name.toLowerCase().includes(s) ||
-            c.city?.toLowerCase().includes(s) ||
-            c.country?.toLowerCase().includes(s) ||
-            c.status.toLowerCase().includes(s));
+    return congregations.filter(
+      (c) =>
+        c.name.toLowerCase().includes(s) ||
+        c.city?.toLowerCase().includes(s) ||
+        c.country?.toLowerCase().includes(s) ||
+        c.status.toLowerCase().includes(s)
+    );
   }, [search, congregations]);
   const [error] = useState('');
 
@@ -69,7 +71,11 @@ export default function AdminCongregationsPage() {
   async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
     try {
-      await apiClient.post('/api/congregations', { name: data.name, city: data.city, country: data.country });
+      await apiClient.post('/api/congregations', {
+        name: data.name,
+        city: data.city,
+        country: data.country,
+      });
       setCreateOpen(false);
       createForm.reset();
       await mutateCongregations();
@@ -87,7 +93,11 @@ export default function AdminCongregationsPage() {
   async function handleEdit(data: UpdateCongregationFormData) {
     if (!editTarget) return;
     try {
-      await apiClient.patch(`/api/congregations/${editTarget.id}`, { name: data.name, city: data.city, country: data.country });
+      await apiClient.patch(`/api/congregations/${editTarget.id}`, {
+        name: data.name,
+        city: data.city,
+        country: data.country,
+      });
       setEditOpen(false);
       await mutateCongregations();
     } catch {
@@ -113,7 +123,7 @@ export default function AdminCongregationsPage() {
     <ProtectedPage requiredRole={UserRole.ADMIN}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
         {error && (
-<div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}
@@ -239,7 +249,13 @@ export default function AdminCongregationsPage() {
         </div>
       </div>
 
-      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) createForm.reset(); }}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) createForm.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Congregation</DialogTitle>
@@ -260,10 +276,16 @@ export default function AdminCongregationsPage() {
                 placeholder="e.g. Central Congregation"
                 disabled={createForm.formState.isSubmitting}
                 aria-invalid={!!createForm.formState.errors.name}
-                className={createForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  createForm.formState.errors.name
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : ''
+                }
               />
               {createForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1">{createForm.formState.errors.name.message}</p>
+                <p className="text-xs text-destructive mt-1">
+                  {createForm.formState.errors.name.message}
+                </p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -299,7 +321,13 @@ export default function AdminCongregationsPage() {
       </Dialog>
 
       {/* Edit dialog */}
-      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) editForm.reset(); }}>
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) editForm.reset();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Congregation</DialogTitle>
@@ -312,10 +340,16 @@ export default function AdminCongregationsPage() {
                 {...editForm.register('name')}
                 disabled={editForm.formState.isSubmitting}
                 aria-invalid={!!editForm.formState.errors.name}
-                className={editForm.formState.errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  editForm.formState.errors.name
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : ''
+                }
               />
               {editForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1">{editForm.formState.errors.name.message}</p>
+                <p className="text-xs text-destructive mt-1">
+                  {editForm.formState.errors.name.message}
+                </p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">

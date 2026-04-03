@@ -85,10 +85,9 @@ export default function RegisterPage() {
         })
         .then((r) => r.data)
         .catch((err) => {
-          const msg =
-            axios.isAxiosError(err)
-              ? (err.response?.data as { error?: string })?.error ?? 'Registration failed.'
-              : 'Registration failed.';
+          const msg = axios.isAxiosError(err)
+            ? ((err.response?.data as { error?: string })?.error ?? 'Registration failed.')
+            : 'Registration failed.';
           throw new Error(msg);
         });
 
@@ -164,7 +163,9 @@ export default function RegisterPage() {
                   placeholder="Jane"
                   disabled={isSubmitting}
                   aria-invalid={!!errors.firstName}
-                  className={errors.firstName ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={
+                    errors.firstName ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
                 />
                 {errors.firstName && (
                   <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>
@@ -180,7 +181,9 @@ export default function RegisterPage() {
                   placeholder="Doe"
                   disabled={isSubmitting}
                   aria-invalid={!!errors.lastName}
-                  className={errors.lastName ? 'border-destructive focus-visible:ring-destructive' : ''}
+                  className={
+                    errors.lastName ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
                 />
                 {errors.lastName && (
                   <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>
@@ -309,12 +312,7 @@ export default function RegisterPage() {
             )}
 
             {/* Submit button */}
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-6"
-              size="lg"
-            >
+            <Button type="submit" disabled={isSubmitting} className="w-full mt-6" size="lg">
               {isSubmitting ? 'Creating account…' : 'Create account'}
             </Button>
           </form>

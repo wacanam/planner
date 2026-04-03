@@ -38,7 +38,12 @@ export function TerritoryRequestDialog({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<RequestTerritoryFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { isSubmitting, errors },
+  } = useForm<RequestTerritoryFormData>({
     resolver: zodResolver(requestTerritorySchema),
     defaultValues: { message: '' },
   });
@@ -46,7 +51,10 @@ export function TerritoryRequestDialog({
   async function handleFormSubmit(data: RequestTerritoryFormData) {
     setError(null);
     try {
-      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, { territoryId: territoryId ?? null, message: data.message });
+      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, {
+        territoryId: territoryId ?? null,
+        message: data.message,
+      });
       setSuccess(true);
       onSuccess?.();
       setTimeout(() => {
@@ -60,7 +68,16 @@ export function TerritoryRequestDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { reset(); setError(null); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) {
+          reset();
+          setError(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         {trigger ?? (
           <Button size="sm">
@@ -98,7 +115,9 @@ export function TerritoryRequestDialog({
                 {...register('message')}
                 rows={3}
                 aria-invalid={!!errors.message}
-                className={errors.message ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  errors.message ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
               {errors.message && (
                 <p className="text-xs text-destructive mt-1">{errors.message.message}</p>

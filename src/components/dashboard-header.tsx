@@ -1,17 +1,17 @@
 'use client';
 
-import { LogOut, MapPin, BarChart2 } from 'lucide-react';
+import { LogOut, MapPin, BarChart2, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { useState, useRef, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { Button } from '@/components/ui/button';
 import { UserRole } from '@/db';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
-function roleLabel(role: UserRole): string {
+function _roleLabel(role: UserRole): string {
   switch (role) {
     case UserRole.SUPER_ADMIN:
       return 'Super Admin';
@@ -26,7 +26,7 @@ function roleLabel(role: UserRole): string {
   }
 }
 
-function roleBadgeClass(role: UserRole): string {
+function _roleBadgeClass(role: UserRole): string {
   switch (role) {
     case UserRole.SUPER_ADMIN:
       return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400';
@@ -141,38 +141,8 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
             <NotificationBell />
             <ThemeToggle />
 
-            {/* User info */}
-            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border">
-              <div className="text-right">
-                <p className="text-xs font-medium text-foreground leading-none">{user.name}</p>
-                <span
-                  className={cn(
-                    'inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full border',
-                    roleBadgeClass(user.role)
-                  )}
-                >
-                  {roleLabel(user.role)}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => signOut({ callbackUrl: '/auth/login' })}
-                title="Sign out"
-              >
-                <LogOut size={16} />
-              </Button>
-            </div>
-
-            {/* Mobile: logout */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="sm:hidden"
-              onClick={() => signOut({ callbackUrl: '/auth/login' })}
-            >
-              <LogOut size={16} />
-            </Button>
+            {/* User avatar dropdown */}
+            <UserAvatarDropdown name={user.name ?? ''} />
           </div>
         </div>
 
@@ -198,5 +168,58 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
         )}
       </div>
     </header>
+  );
+}
+
+// ─── UserAvatarDropdown ───────────────────────────────────────────────────────
+
+function UserAvatarDropdown({ name }: { name: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const initial = name.charAt(0).toUpperCase();
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary/50"
+        aria-label="Account menu"
+      >
+        {initial}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-44 rounded-xl border border-border bg-background shadow-lg z-50 py-1 text-sm">
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 px-4 py-2 text-foreground hover:bg-accent/20 transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <UserIcon size={14} />
+            My Profile
+          </Link>
+          <div className="my-1 border-t border-border" />
+          <button
+            type="button"
+            className="w-full flex items-center gap-2 px-4 py-2 text-foreground hover:bg-accent/20 transition-colors"
+            onClick={() => signOut({ callbackUrl: '/auth/login' })}
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

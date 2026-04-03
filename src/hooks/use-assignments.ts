@@ -24,8 +24,7 @@ export function useTerritoryAssignments(
 export function useCreateAssignment() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/assignments',
-    (url: string, { arg }: { arg: Record<string, unknown> }) =>
-      apiClient.post(url, arg)
+    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
   );
   return { create: trigger, isCreating: isMutating };
 }
@@ -33,10 +32,7 @@ export function useCreateAssignment() {
 export function useUpdateAssignment() {
   const { trigger, isMutating } = useSWRMutation(
     '/api/assignments',
-    (
-      _url: string,
-      { arg }: { arg: { id: string } & Record<string, unknown> }
-    ) => {
+    (_url: string, { arg }: { arg: { id: string } & Record<string, unknown> }) => {
       const { id, ...body } = arg;
       return apiClient.put(`/api/assignments/${id}`, body);
     }

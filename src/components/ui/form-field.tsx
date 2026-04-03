@@ -31,16 +31,14 @@ interface FormFieldBaseProps {
   label?: string;
   id?: string;
   error?: string;
-  hint?: string;                    // optional helper text shown when no error
+  hint?: string; // optional helper text shown when no error
   required?: boolean;
-  optional?: boolean;               // shows "(optional)" label
+  optional?: boolean; // shows "(optional)" label
   containerClassName?: string;
   labelClassName?: string;
 }
 
-interface FormFieldInputProps
-  extends FormFieldBaseProps,
-    Omit<InputProps, 'id'> {
+interface FormFieldInputProps extends FormFieldBaseProps, Omit<InputProps, 'id'> {
   multiline?: false;
 }
 
@@ -53,55 +51,66 @@ interface FormFieldTextareaProps
 
 export type FormFieldProps = FormFieldInputProps | FormFieldTextareaProps;
 
-export const FormField = React.forwardRef<
-  HTMLInputElement | HTMLTextAreaElement,
-  FormFieldProps
->(({ label, id, error, hint, required, optional, containerClassName, labelClassName, multiline, ...rest }, ref) => {
-  const hasError = !!error;
+export const FormField = React.forwardRef<HTMLInputElement | HTMLTextAreaElement, FormFieldProps>(
+  (
+    {
+      label,
+      id,
+      error,
+      hint,
+      required,
+      optional,
+      containerClassName,
+      labelClassName,
+      multiline,
+      ...rest
+    },
+    ref
+  ) => {
+    const hasError = !!error;
 
-  return (
-    <div className={cn('space-y-1.5', containerClassName)}>
-      {label && (
-        <Label htmlFor={id} className={labelClassName}>
-          {label}
-          {required && <span className="text-destructive ml-0.5">*</span>}
-          {optional && (
-            <span className="text-muted-foreground text-xs ml-1">(optional)</span>
-          )}
-        </Label>
-      )}
+    return (
+      <div className={cn('space-y-1.5', containerClassName)}>
+        {label && (
+          <Label htmlFor={id} className={labelClassName}>
+            {label}
+            {required && <span className="text-destructive ml-0.5">*</span>}
+            {optional && <span className="text-muted-foreground text-xs ml-1">(optional)</span>}
+          </Label>
+        )}
 
-      {multiline ? (
-        <Textarea
-          id={id}
-          aria-invalid={hasError}
-          aria-describedby={hasError ? `${id}-error` : hint ? `${id}-hint` : undefined}
-          ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
-          {...(rest as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
-        />
-      ) : (
-        <Input
-          id={id}
-          aria-invalid={hasError}
-          aria-describedby={hasError ? `${id}-error` : hint ? `${id}-hint` : undefined}
-          ref={ref as React.ForwardedRef<HTMLInputElement>}
-          {...(rest as InputProps)}
-        />
-      )}
+        {multiline ? (
+          <Textarea
+            id={id}
+            aria-invalid={hasError}
+            aria-describedby={hasError ? `${id}-error` : hint ? `${id}-hint` : undefined}
+            ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
+            {...(rest as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+          />
+        ) : (
+          <Input
+            id={id}
+            aria-invalid={hasError}
+            aria-describedby={hasError ? `${id}-error` : hint ? `${id}-hint` : undefined}
+            ref={ref as React.ForwardedRef<HTMLInputElement>}
+            {...(rest as InputProps)}
+          />
+        )}
 
-      {hasError && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      )}
+        {hasError && (
+          <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
 
-      {!hasError && hint && (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      )}
-    </div>
-  );
-});
+        {!hasError && hint && (
+          <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+            {hint}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
 
 FormField.displayName = 'FormField';

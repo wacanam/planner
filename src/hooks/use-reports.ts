@@ -7,9 +7,7 @@ export function useCoverageReport(
   options?: SWRConfiguration
 ) {
   const { data, error, isLoading, mutate } = useSWR<CoverageReport>(
-    congregationId
-      ? `/api/congregations/${congregationId}/reports/coverage`
-      : null,
+    congregationId ? `/api/congregations/${congregationId}/reports/coverage` : null,
     (url) => apiClient.get<CoverageReport>(url),
     { revalidateOnFocus: false, ...options }
   );
@@ -26,9 +24,7 @@ export function usePublishersReport(
   options?: SWRConfiguration
 ) {
   const { data, error, isLoading, mutate } = useSWR<PublishersReport>(
-    congregationId
-      ? `/api/congregations/${congregationId}/reports/publishers`
-      : null,
+    congregationId ? `/api/congregations/${congregationId}/reports/publishers` : null,
     (url) => apiClient.get<PublishersReport>(url),
     { revalidateOnFocus: false, ...options }
   );
@@ -45,9 +41,7 @@ export function useActivityReport(
   options?: SWRConfiguration
 ) {
   const { data, error, isLoading, mutate } = useSWR<ActivityReport>(
-    congregationId
-      ? `/api/congregations/${congregationId}/reports/activity`
-      : null,
+    congregationId ? `/api/congregations/${congregationId}/reports/activity` : null,
     (url) => apiClient.get<ActivityReport>(url),
     { revalidateOnFocus: false, ...options }
   );

@@ -4,3 +4,4 @@ export * from './territory';
 export * from './member';
 export * from './group';
 export * from './onboarding';
+export * from './profile';
