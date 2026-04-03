@@ -228,7 +228,7 @@ export default function ProfileClient() {
   });
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8 space-y-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <AvatarCropDialog open={cropOpen} onOpenChange={setCropOpen} imgSrc={cropImgSrc} onCropComplete={handleCropComplete} />
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
 
