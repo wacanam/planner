@@ -1,33 +1,56 @@
 import { boolean, integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
+/**
+ * Household — a physical address/dwelling on the congregation's map.
+ *
+ * No FK to congregation or territory — membership is determined spatially
+ * by coordinates. Territory boundaries can grow/shrink freely without
+ * needing to update household records.
+ *
+ * Future: location column migrates to PostGIS geometry(Point, 4326)
+ * for ST_Within() spatial queries against territory boundaries.
+ */
 export const households = pgTable('households', {
   id: uuid('id').defaultRandom().primaryKey(),
-  // Address fields
+
+  // ── Location ─────────────────────────────────────────────────────────────
   address: varchar('address', { length: 255 }).notNull(),
   houseNumber: varchar('houseNumber', { length: 50 }),
+  unitNumber: varchar('unitNumber', { length: 50 }),    // apartment/unit
   streetName: varchar('streetName', { length: 255 }).notNull(),
   city: varchar('city', { length: 255 }).notNull(),
   postalCode: varchar('postalCode', { length: 20 }),
-  // Coordinates — the source of truth for spatial queries.
-  // Which territory/congregation a household belongs to is determined by:
-  //   ST_Within(household.location, territory.boundary)
-  // No FK to territory or congregation — boundaries can grow/shrink freely.
-  // Will migrate to PostGIS geometry(Point, 4326) when map feature is added.
-  location: text('location'), // interim: "lat,lng" string or WKT Point
-  latitude: text('latitude'),
-  longitude: text('longitude'),
-  // Descriptive fields
+  country: varchar('country', { length: 100 }),
+  latitude: varchar('latitude', { length: 30 }),        // decimal degrees
+  longitude: varchar('longitude', { length: 30 }),      // decimal degrees
+  // Interim WKT/GeoJSON — will become geometry(Point,4326) with PostGIS
+  location: text('location'),
+
+  // ── Physical characteristics ──────────────────────────────────────────────
+  // house | apartment | condo | townhouse | mobile_home | business | other
+  type: varchar('type', { length: 50 }).default('house'),
+  floor: integer('floor'),                              // floor number
+
+  // ── Occupant info (observed over time) ───────────────────────────────────
   occupantsCount: integer('occupantsCount'),
-  ageRange: varchar('ageRange', { length: 100 }),
-  specialNeeds: text('specialNeeds'),
-  status: varchar('status', { length: 50 }).notNull().default('NEW'),
-  lastVisitDate: timestamp('lastVisitDate'),
-  lastVisitNotes: text('lastVisitNotes'),
-  languagePreference: varchar('languagePreference', { length: 50 }),
-  doNotDisturb: boolean('doNotDisturb').notNull().default(false),
+  languages: text('languages'),                        // comma-separated or JSON array
   bestTimeToCall: varchar('bestTimeToCall', { length: 100 }),
+
+  // ── Status ────────────────────────────────────────────────────────────────
+  // new | active | not_home | return_visit | do_not_visit | moved | inactive
+  status: varchar('status', { length: 50 }).notNull().default('new'),
+
+  // ── Visit summary (denormalized for quick display) ────────────────────────
+  lastVisitDate: timestamp('lastVisitDate'),
+  lastVisitOutcome: varchar('lastVisitOutcome', { length: 50 }),
+
+  // ── Notes ─────────────────────────────────────────────────────────────────
   notes: text('notes'),
-  lwpNotes: text('lwpNotes'),
+  lwpNotes: text('lwpNotes'),                          // literature work placement notes
+
+  // ── Audit ─────────────────────────────────────────────────────────────────
+  createdById: uuid('createdById'),                    // who added this household
+  updatedById: uuid('updatedById'),                    // who last edited it
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });
