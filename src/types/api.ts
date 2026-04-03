@@ -229,3 +229,50 @@ export interface User {
   createdAt: string;
   updatedAt: string;
 }
+
+// ─── Visits ────────────────────────────────────────────────────────────────────
+
+/** /api/territories/:id/visits  /api/assignments/:id/visits  /api/visits */
+export interface Visit {
+  id: string;
+  householdId: string;
+  assignmentId: string;
+  householdStatusBefore: string | null;
+  householdStatusAfter: string | null;
+  visitDate: string;
+  duration: number | null;
+  outcome: string | null;
+  returnVisitPlanned: boolean;
+  nextVisitDate: string | null;
+  notes: string | null;
+  syncStatus: string;
+  offlineCreated: boolean;
+  syncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Joined field from households table — present on territory visits endpoint */
+  householdAddress?: string | null;
+  householdStreetName?: string | null;
+  householdCity?: string | null;
+}
+
+// ─── Households ────────────────────────────────────────────────────────────────
+
+/** /api/households */
+export interface Household {
+  id: string;
+  congregationId: string;
+  territoryId: string;
+  address: string;
+  houseNumber: string | null;
+  streetName: string;
+  city: string;
+  postalCode: string | null;
+  status: string;
+  lastVisitDate: string | null;
+  lastVisitNotes: string | null;
+  doNotDisturb: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

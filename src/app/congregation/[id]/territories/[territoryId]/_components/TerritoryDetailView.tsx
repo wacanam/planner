@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CoverageChart } from '@/components/coverage-chart';
-import { ArrowLeft, User, Users, History } from 'lucide-react';
+import { ArrowLeft, User, Users, History, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments } from '@/hooks';
@@ -89,6 +89,12 @@ export default function TerritoryDetailView() {
             >
               {territory.status}
             </Badge>
+            <Button asChild variant="outline" size="sm" className="ml-auto">
+              <Link href={`/congregation/${congregationId}/territories/${territoryId}/visits`}>
+                <MapPin className="h-4 w-4 mr-1.5" />
+                Households &amp; Visits
+              </Link>
+            </Button>
           </div>
 
           <Card>

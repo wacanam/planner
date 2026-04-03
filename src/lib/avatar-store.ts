@@ -17,7 +17,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
 const DB_NAME = 'ministry-planner';
-const DB_VERSION = 2; // bumped to add 'auth' store
+const DB_VERSION = 4; // bumped to add visit/household cache stores
 const AVATAR_STORE = 'pending-avatars';
 const AUTH_STORE = 'auth';
 

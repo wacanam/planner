@@ -5,3 +5,4 @@ export * from './member';
 export * from './group';
 export * from './onboarding';
 export * from './profile';
+export * from './visit';
