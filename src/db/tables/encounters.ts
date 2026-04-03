@@ -10,12 +10,12 @@ export const encounters = pgTable('encounters', {
   id: uuid('id').defaultRandom().primaryKey(),
 
   // ── Links ─────────────────────────────────────────────────────────────────
-  visitId: uuid('visitId').notNull(),                  // which visit this happened during
-  householdId: uuid('householdId').notNull(),          // denormalized for easy querying
-  userId: uuid('userId').notNull(),                    // publisher who had this encounter
+  visitId: uuid('visitId').notNull(), // which visit this happened during
+  householdId: uuid('householdId').notNull(), // denormalized for easy querying
+  userId: uuid('userId').notNull(), // publisher who had this encounter
 
   // ── Person identity (what publisher observes/learns) ──────────────────────
-  name: varchar('name', { length: 255 }),              // if they introduce themselves
+  name: varchar('name', { length: 255 }), // if they introduce themselves
   // male | female | unknown
   gender: varchar('gender', { length: 20 }),
   // child | youth | adult | elderly
@@ -28,12 +28,12 @@ export const encounters = pgTable('encounters', {
   response: varchar('response', { length: 50 }).notNull(),
   languageSpoken: varchar('languageSpoken', { length: 100 }),
   topicDiscussed: varchar('topicDiscussed', { length: 255 }),
-  literatureAccepted: text('literatureAccepted'),      // what they took
+  literatureAccepted: text('literatureAccepted'), // what they took
   bibleStudyInterest: boolean('bibleStudyInterest').notNull().default(false),
 
   // ── Follow-up ─────────────────────────────────────────────────────────────
   returnVisitRequested: boolean('returnVisitRequested').notNull().default(false),
-  nextVisitNotes: text('nextVisitNotes'),              // what to remember about this person
+  nextVisitNotes: text('nextVisitNotes'), // what to remember about this person
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   notes: text('notes'),

@@ -7,3 +7,4 @@ export * from './use-reports';
 export * from './use-congregations';
 export * from './use-profile';
 export * from './use-visits';
+export * from './use-encounters';

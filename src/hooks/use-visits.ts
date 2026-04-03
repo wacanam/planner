@@ -15,14 +15,10 @@ export function useTerritoryVisits(territoryId: string | null, options?: SWRConf
       'visits-cache',
       territoryId ?? '',
       (url) => apiClient.get<Visit[]>(url),
-      setDataSource,
+      setDataSource
     ),
-    options,
+    options
   );
-
-  if (!isLoading && data !== undefined && dataSource === 'loading') {
-    // Already resolved but callback not yet fired — infer from cache check is done
-  }
 
   return {
     visits: data ?? [],
@@ -33,18 +29,18 @@ export function useTerritoryVisits(territoryId: string | null, options?: SWRConf
   };
 }
 
-export function useHouseholds(territoryId: string | null, options?: SWRConfiguration) {
+export function useHouseholds(options?: SWRConfiguration) {
   const [dataSource, setDataSource] = useState<DataSource>('loading');
 
   const { data, error, isLoading, mutate } = useSWR<Household[]>(
-    territoryId ? `/api/households?territoryId=${territoryId}` : null,
+    '/api/households',
     withOfflineCache(
       'households-cache',
-      territoryId ?? '',
+      'all',
       (url) => apiClient.get<Household[]>(url),
-      setDataSource,
+      setDataSource
     ),
-    options,
+    options
   );
 
   return {

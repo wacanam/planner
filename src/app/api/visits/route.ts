@@ -15,41 +15,69 @@ export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as {
       householdId: string;
-      assignmentId: string;
+      assignmentId?: string;
       outcome: string;
-      notes?: string;
+      householdStatusAfter?: string;
       duration?: number;
+      literatureLeft?: string;
+      bibleTopicDiscussed?: string;
       returnVisitPlanned?: boolean;
       nextVisitDate?: string;
-      householdStatusAfter?: string;
+      nextVisitNotes?: string;
+      notes?: string;
     };
 
-    const { householdId, assignmentId, outcome, notes, duration, returnVisitPlanned, nextVisitDate, householdStatusAfter } = body;
+    const {
+      householdId,
+      assignmentId,
+      outcome,
+      householdStatusAfter,
+      duration,
+      literatureLeft,
+      bibleTopicDiscussed,
+      returnVisitPlanned,
+      nextVisitDate,
+      nextVisitNotes,
+      notes,
+    } = body;
 
     if (!householdId || !outcome) {
       return ApiErrors.badRequest('householdId and outcome are required', undefined, requestId);
     }
 
+    // Snapshot current household status
+    const [household] = await db
+      .select({ status: households.status })
+      .from(households)
+      .where(eq(households.id, householdId))
+      .limit(1);
+
     const [newVisit] = await db
       .insert(visits)
       .values({
-        userId: user.userId,     // publisher who logged the visit
+        userId: user.userId,
         householdId,
         assignmentId: assignmentId ?? null,
         outcome,
-        notes: notes ?? null,
+        householdStatusBefore: household?.status ?? null,
+        householdStatusAfter: householdStatusAfter ?? null,
         duration: duration ?? null,
+        literatureLeft: literatureLeft ?? null,
+        bibleTopicDiscussed: bibleTopicDiscussed ?? null,
         returnVisitPlanned: returnVisitPlanned ?? false,
         nextVisitDate: nextVisitDate ? new Date(nextVisitDate) : null,
-        householdStatusAfter: householdStatusAfter ?? null,
+        nextVisitNotes: nextVisitNotes ?? null,
+        notes: notes ?? null,
         visitDate: new Date(),
+        syncStatus: 'synced',
+        offlineCreated: false,
       })
       .returning();
 
-    // Update household
+    // Update household last visit info
     const householdUpdate: Record<string, unknown> = {
       lastVisitDate: new Date(),
-      lastVisitNotes: notes ?? null,
+      lastVisitOutcome: outcome,
       updatedAt: new Date(),
     };
     if (householdStatusAfter) {

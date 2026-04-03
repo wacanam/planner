@@ -16,24 +16,24 @@ export const households = pgTable('households', {
   // ── Location ─────────────────────────────────────────────────────────────
   address: varchar('address', { length: 255 }).notNull(),
   houseNumber: varchar('houseNumber', { length: 50 }),
-  unitNumber: varchar('unitNumber', { length: 50 }),    // apartment/unit
+  unitNumber: varchar('unitNumber', { length: 50 }), // apartment/unit
   streetName: varchar('streetName', { length: 255 }).notNull(),
   city: varchar('city', { length: 255 }).notNull(),
   postalCode: varchar('postalCode', { length: 20 }),
   country: varchar('country', { length: 100 }),
-  latitude: varchar('latitude', { length: 30 }),        // decimal degrees
-  longitude: varchar('longitude', { length: 30 }),      // decimal degrees
+  latitude: varchar('latitude', { length: 30 }), // decimal degrees
+  longitude: varchar('longitude', { length: 30 }), // decimal degrees
   // Interim WKT/GeoJSON — will become geometry(Point,4326) with PostGIS
   location: text('location'),
 
   // ── Physical characteristics ──────────────────────────────────────────────
   // house | apartment | condo | townhouse | mobile_home | business | other
   type: varchar('type', { length: 50 }).default('house'),
-  floor: integer('floor'),                              // floor number
+  floor: integer('floor'), // floor number
 
   // ── Occupant info (observed over time) ───────────────────────────────────
   occupantsCount: integer('occupantsCount'),
-  languages: text('languages'),                        // comma-separated or JSON array
+  languages: text('languages'), // comma-separated or JSON array
   bestTimeToCall: varchar('bestTimeToCall', { length: 100 }),
 
   // ── Status ────────────────────────────────────────────────────────────────
@@ -46,11 +46,11 @@ export const households = pgTable('households', {
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   notes: text('notes'),
-  lwpNotes: text('lwpNotes'),                          // literature work placement notes
+  lwpNotes: text('lwpNotes'), // literature work placement notes
 
   // ── Audit ─────────────────────────────────────────────────────────────────
-  createdById: uuid('createdById'),                    // who added this household
-  updatedById: uuid('updatedById'),                    // who last edited it
+  createdById: uuid('createdById'), // who added this household
+  updatedById: uuid('updatedById'), // who last edited it
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
 });

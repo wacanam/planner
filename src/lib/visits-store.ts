@@ -65,12 +65,30 @@ export async function getCachedHouseholds(territoryId: string): Promise<Househol
 
 // ─── SWR fetcher wrappers (online + IDB fallback) ─────────────────────────────
 
-export function visitsOfflineFetcher(territoryId: string, fetcher: (url: string) => Promise<Visit[]>) {
+export function visitsOfflineFetcher(
+  territoryId: string,
+  fetcher: (url: string) => Promise<Visit[]>
+) {
   return withOfflineCache<Visit[]>('visits-cache', territoryId, fetcher);
 }
 
-export function householdsOfflineFetcher(territoryId: string, fetcher: (url: string) => Promise<Household[]>) {
+export function householdsOfflineFetcher(
+  territoryId: string,
+  fetcher: (url: string) => Promise<Household[]>
+) {
   return withOfflineCache<Household[]>('households-cache', territoryId, fetcher);
+}
+
+export async function queueEncounter(data: Record<string, unknown>): Promise<string> {
+  return queueWrite('pending-encounters', data);
+}
+
+export async function getPendingEncounters(): Promise<PendingWrite[]> {
+  return getPendingWrites('pending-encounters');
+}
+
+export async function clearPendingEncounter(id: string): Promise<void> {
+  return clearPendingWrite('pending-encounters', id);
 }
 
 // ─── Sync ─────────────────────────────────────────────────────────────────────

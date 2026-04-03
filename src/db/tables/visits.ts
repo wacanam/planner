@@ -10,19 +10,19 @@ export const visits = pgTable('visits', {
   id: uuid('id').defaultRandom().primaryKey(),
 
   // ── Who & When ────────────────────────────────────────────────────────────
-  userId: uuid('userId').notNull(),                    // publisher who made the visit
-  householdId: uuid('householdId').notNull(),          // which household
+  userId: uuid('userId').notNull(), // publisher who made the visit
+  householdId: uuid('householdId').notNull(), // which household
   visitDate: timestamp('visitDate').defaultNow().notNull(),
 
   // ── Outcome ───────────────────────────────────────────────────────────────
   // answered | not_home | return_visit | do_not_visit | moved | other
   outcome: varchar('outcome', { length: 50 }).notNull(),
   householdStatusBefore: varchar('householdStatusBefore', { length: 50 }), // snapshot
-  householdStatusAfter: varchar('householdStatusAfter', { length: 50 }),   // updated status
+  householdStatusAfter: varchar('householdStatusAfter', { length: 50 }), // updated status
 
   // ── What was done ─────────────────────────────────────────────────────────
-  duration: integer('duration'),                       // minutes spent
-  literatureLeft: text('literatureLeft'),              // what was placed/given
+  duration: integer('duration'), // minutes spent
+  literatureLeft: text('literatureLeft'), // what was placed/given
   bibleTopicDiscussed: varchar('bibleTopicDiscussed', { length: 255 }),
 
   // ── Follow-up ─────────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ export const visits = pgTable('visits', {
   nextVisitNotes: text('nextVisitNotes'),
 
   // ── Context ───────────────────────────────────────────────────────────────
-  assignmentId: uuid('assignmentId'),                  // active assignment at time of visit (optional)
+  assignmentId: uuid('assignmentId'), // active assignment at time of visit (optional)
   notes: text('notes'),
 
   // ── Offline sync ──────────────────────────────────────────────────────────

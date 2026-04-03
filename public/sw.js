@@ -204,7 +204,11 @@ async function syncVisitsAndHouseholds() {
           }
           success = true;
         } else if (res.status === 401) {
-          try { token = await requestFreshToken(); } catch { throw new Error('Token refresh failed'); }
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
           attempt++;
         } else {
           throw new Error(`POST /api/households failed: ${res.status}`);
@@ -242,10 +246,57 @@ async function syncVisitsAndHouseholds() {
           }
           success = true;
         } else if (res.status === 401) {
-          try { token = await requestFreshToken(); } catch { throw new Error('Token refresh failed'); }
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
           attempt++;
         } else {
           throw new Error(`POST /api/visits failed: ${res.status}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Sync pending encounters
+  const pendingEncounters = await db.getAll('pending-encounters');
+  for (const entry of pendingEncounters) {
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const visitId = entry.data.visitId;
+        const res = await fetch(`/api/visits/${visitId}/encounters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(entry.data),
+        });
+        if (res.ok) {
+          await db.delete('pending-encounters', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'ENCOUNTER_SYNCED', pendingId: entry.id });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
+          attempt++;
+        } else {
+          throw new Error(`POST /api/visits/:id/encounters failed: ${res.status}`);
         }
       } catch (err) {
         attempt++;
@@ -277,6 +328,9 @@ function openIDB() {
       }
       if (!db.objectStoreNames.contains('pending-households')) {
         db.createObjectStore('pending-households', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-encounters')) {
+        db.createObjectStore('pending-encounters', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('visits-cache')) {
         db.createObjectStore('visits-cache');

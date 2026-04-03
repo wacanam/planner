@@ -309,8 +309,8 @@ export default function ProfileClient() {
                 <p className="text-xs text-amber-500 cursor-default">{offlineMsg}</p>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                Your photo is stored on this device. It will automatically upload to the cloud
-                once the cloud storage is configured.
+                Your photo is stored on this device. It will automatically upload to the cloud once
+                the cloud storage is configured.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

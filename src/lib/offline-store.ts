@@ -38,7 +38,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 // ─── DB config — add new stores here, bump version ───────────────────────────
 
 const DB_NAME = 'ministry-planner';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 
 const STORES = [
   // Existing
@@ -50,6 +50,7 @@ const STORES = [
   // Write queues
   'pending-households',
   'pending-visits',
+  'pending-encounters',
 ] as const;
 
 export type StoreName = (typeof STORES)[number];
@@ -104,7 +105,7 @@ export function withOfflineCache<T>(
   cacheStore: StoreName,
   cacheKey: string,
   fetcher: (url: string) => Promise<T>,
-  onSource?: (source: 'server' | 'cache') => void,
+  onSource?: (source: 'server' | 'cache') => void
 ): (url: string) => Promise<T> {
   return async (url: string): Promise<T> => {
     try {
@@ -126,7 +127,7 @@ export function withOfflineCache<T>(
 // ─── Write queue ──────────────────────────────────────────────────────────────
 
 export interface PendingWrite<T = unknown> {
-  id: string;        // temp UUID (client-side, replaced by server id after sync)
+  id: string; // temp UUID (client-side, replaced by server id after sync)
   data: T;
   createdAt: string;
 }
@@ -143,7 +144,7 @@ export async function queueWrite<T>(store: StoreName, data: T): Promise<string> 
 /** Get all pending writes for a store */
 export async function getPendingWrites<T>(store: StoreName): Promise<PendingWrite<T>[]> {
   const db = await getDB();
-  return ((await db.getAll(store)) as PendingWrite<T>[]);
+  return (await db.getAll(store)) as PendingWrite<T>[];
 }
 
 /** Remove a pending write after successful server sync */
