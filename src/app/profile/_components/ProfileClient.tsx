@@ -109,31 +109,19 @@ export default function ProfileClient() {
   const [uploadError, setUploadError] = useState('');
 
   // ── Debug state (temporary) ───────────────────────────────────────────────
-  const [debugInfo, setDebugInfo] = useState<string>('');
-
-  const refreshDebug = useCallback(async (userId: string) => {
-    const flag = hasPendingAvatarFlag(userId);
-    const blob = await getPendingAvatarBlob(userId);
-    setDebugInfo(
-      `userId: ${userId} | flag: ${flag} | IDB blob: ${blob ? `${blob.type} ${(blob.size / 1024).toFixed(1)}KB` : 'null'}`
-    );
-  }, []);
-
   // ── IDB pending avatar — checked AFTER profile loads (userId known) ──────
   const [hasPending, setHasPending] = useState(false);
   useEffect(() => {
     if (!profile?.id) return;
     const flag = hasPendingAvatarFlag(profile.id);
     setHasPending(flag);
-    refreshDebug(profile.id);
-  }, [profile?.id, refreshDebug]);
+  }, [profile?.id]);
 
   // Load IDB blob → object URL when pending flag is true
   useEffect(() => {
     if (!profile?.id || !hasPending) return;
     let objectUrl = '';
     getPendingAvatarBlob(profile.id).then((blob) => {
-      void refreshDebug(profile.id);
       if (!blob) {
         setPendingAvatarFlag(profile.id, false);
         setHasPending(false);
@@ -146,7 +134,7 @@ export default function ProfileClient() {
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [profile?.id, hasPending, refreshDebug]);
+  }, [profile?.id, hasPending]);
 
   // trySyncPending: re-register sync tag so SW picks it up when online
   const trySyncPending = useCallback(async () => {
@@ -174,12 +162,11 @@ export default function ProfileClient() {
         setHasPending(false);
         setOfflineMsg('');
         void mutate(); // refresh profile to get new avatarUrl
-        void refreshDebug(profile.id);
       }
     };
     navigator.serviceWorker?.addEventListener('message', handler);
     return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [profile?.id, mutate, refreshDebug]);
+  }, [profile?.id, mutate]);
 
   // ── File → crop ──────────────────────────────────────────────────────────
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -207,7 +194,6 @@ export default function ProfileClient() {
     setPendingAvatarFlag(profile.id, true);
     setHasPending(true);
     setOfflineMsg('Photo saved locally · registering sync…');
-    void refreshDebug(profile.id);
 
     // 3. Register Background Sync — SW will upload when online
     await registerAvatarSync();
@@ -330,22 +316,6 @@ export default function ProfileClient() {
           </TooltipProvider>
         )}
 
-        {/* ── DEBUG PANEL (remove before merge) ── */}
-        <div className="rounded-lg bg-muted/60 border border-border p-3 space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground">🔍 IDB Debug</p>
-          <p className="text-xs font-mono text-foreground break-all">{debugInfo || 'Loading…'}</p>
-          <p className="text-xs font-mono text-muted-foreground">
-            hasPending: {String(hasPending)} | previewUrl:{' '}
-            {previewUrl ? `${previewUrl.slice(0, 40)}…` : 'null'}
-          </p>
-          <button
-            type="button"
-            onClick={() => profile?.id && refreshDebug(profile.id)}
-            className="text-xs text-primary underline"
-          >
-            Refresh debug
-          </button>
-        </div>
         {uploadError &&
           (uploadError.toLowerCase().includes('not configured') ? (
             <TooltipProvider>
