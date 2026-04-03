@@ -59,44 +59,14 @@ function Avatar({ avatarUrl, name, size = 'lg' }: { avatarUrl?: string | null; n
   );
 }
 
-// ─── LocalStorage helpers for offline pending avatar ─────────────────────────
-
-function getPendingAvatarKey(userId: string) {
-  return `pending_avatar_${userId}`;
-}
-
-function storePendingAvatar(userId: string, base64: string) {
-  try {
-    localStorage.setItem(getPendingAvatarKey(userId), base64);
-  } catch {
-    // storage quota exceeded or unavailable
-  }
-}
-
-function getPendingAvatar(userId: string): string | null {
-  try {
-    return localStorage.getItem(getPendingAvatarKey(userId));
-  } catch {
-    return null;
-  }
-}
-
-function clearPendingAvatar(userId: string) {
-  try {
-    localStorage.removeItem(getPendingAvatarKey(userId));
-  } catch {
-    // ignore
-  }
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// ─── IndexedDB-backed offline avatar storage ──────────────────────────────────
+import {
+  storePendingAvatarBlob,
+  getPendingAvatarBlob,
+  clearPendingAvatarBlob,
+  hasPendingAvatarFlag,
+  setPendingAvatarFlag,
+} from '@/lib/avatar-store';
 
 // ─── AvatarUpload section ────────────────────────────────────────────────────
 
@@ -111,34 +81,45 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
   const { upload, isUploading } = useUploadAvatar();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(() => {
-    // Initialise from localStorage so the pending avatar shows immediately on refresh
-    if (typeof window === 'undefined') return null;
-    return getPendingAvatar(userId);
-  });
-  const [offlineMsg, setOfflineMsg] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    return getPendingAvatar(userId) ? 'Saved locally, will sync when online' : '';
-  });
+  // Use a cheap localStorage flag to know if there's a pending IDB entry
+  // without opening IDB on every render.
+  const [hasPending, setHasPending] = useState(() =>
+    typeof window !== 'undefined' ? hasPendingAvatarFlag(userId) : false
+  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [offlineMsg, setOfflineMsg] = useState('');
   const [uploadError, setUploadError] = useState('');
 
   // Crop dialog state
   const [cropImgSrc, setCropImgSrc] = useState('');
   const [cropOpen, setCropOpen] = useState(false);
 
-  // On mount: try to sync a pending offline avatar
+  // Load IDB blob → object URL on mount if pending
+  useEffect(() => {
+    if (!hasPending) return;
+    let objectUrl: string;
+    getPendingAvatarBlob(userId).then((blob) => {
+      if (!blob) return;
+      objectUrl = URL.createObjectURL(blob);
+      setPreviewUrl(objectUrl);
+      setOfflineMsg('Saved locally, will sync when online');
+    });
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [userId, hasPending]);
+
+  // Try to sync pending blob to R2
   const trySyncPending = useCallback(async () => {
-    if (typeof window === 'undefined') return;
-    const pending = getPendingAvatar(userId);
-    if (!pending || !navigator.onLine) return;
+    if (!navigator.onLine) return;
+    const blob = await getPendingAvatarBlob(userId);
+    if (!blob) return;
     try {
-      const res = await fetch(pending);
-      const blob = await res.blob();
-      const file = new File([blob], 'avatar', { type: blob.type });
+      const file = new File([blob], 'avatar.jpg', { type: blob.type });
       const result = await upload({ file });
       if (result?.avatarUrl) {
         onUploaded(result.avatarUrl);
-        clearPendingAvatar(userId);
+        await clearPendingAvatarBlob(userId);
+        setPendingAvatarFlag(userId, false);
+        setHasPending(false);
         setOfflineMsg('');
         setPreviewUrl(result.avatarUrl);
       }
@@ -147,20 +128,16 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
     }
   }, [userId, upload, onUploaded]);
 
+  // Auto-sync on mount and when coming back online
   useEffect(() => {
-    // State is already initialised from localStorage — just try to sync if online
-    const pending = getPendingAvatar(userId);
-    if (pending) {
-      trySyncPending();
-    }
-  }, [userId, trySyncPending]);
+    if (hasPending) trySyncPending();
+  }, [hasPending, trySyncPending]);
 
-  // Try to sync when coming back online
   useEffect(() => {
-    const handler = () => trySyncPending();
+    const handler = () => { if (hasPending) trySyncPending(); };
     window.addEventListener('online', handler);
     return () => window.removeEventListener('online', handler);
-  }, [trySyncPending]);
+  }, [hasPending, trySyncPending]);
 
   // Step 1: file selected → open crop dialog
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -174,7 +151,6 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
       setCropOpen(true);
     };
     reader.readAsDataURL(file);
-    // Reset input so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -189,14 +165,18 @@ function AvatarUpload({ userId, name, serverAvatarUrl, onUploaded }: AvatarUploa
         if (result?.avatarUrl) {
           onUploaded(result.avatarUrl);
           setPreviewUrl(result.avatarUrl);
-          clearPendingAvatar(userId);
+          await clearPendingAvatarBlob(userId);
+          setPendingAvatarFlag(userId, false);
+          setHasPending(false);
         }
       } catch (err: unknown) {
         setUploadError(err instanceof Error ? err.message : 'Upload failed.');
       }
     } else {
-      const base64 = await fileToBase64(file);
-      storePendingAvatar(userId, base64);
+      // Store raw Blob in IDB — no base64 bloat, accessible from Service Worker
+      await storePendingAvatarBlob(userId, file);
+      setPendingAvatarFlag(userId, true);
+      setHasPending(true);
       setOfflineMsg('Saved locally, will sync when online');
     }
   }
