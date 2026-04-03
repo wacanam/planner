@@ -182,18 +182,24 @@ export default function ProfileClient() {
           await clearPendingAvatarBlob(profile.id);
           setPendingAvatarFlag(profile.id, false);
           setHasPending(false);
+          setUploadError('');
           await mutate();
+          void refreshDebug(profile.id);
+          return;
         }
       } catch (err) {
-        setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+        // Upload failed (including R2 not configured) — save to IDB so it persists
+        const msg = err instanceof Error ? err.message : 'Upload failed.';
+        setUploadError(msg);
       }
-    } else {
-      await storePendingAvatarBlob(profile.id, file);
-      setPendingAvatarFlag(profile.id, true);
-      setHasPending(true);
-      setOfflineMsg('Saved locally · will sync when online');
-      refreshDebug(profile.id);
     }
+
+    // Either offline OR upload failed — queue in IDB for later sync
+    await storePendingAvatarBlob(profile.id, file);
+    setPendingAvatarFlag(profile.id, true);
+    setHasPending(true);
+    setOfflineMsg('Saved locally · will sync when online');
+    void refreshDebug(profile.id);
   }
 
   // ── Name form ────────────────────────────────────────────────────────────
