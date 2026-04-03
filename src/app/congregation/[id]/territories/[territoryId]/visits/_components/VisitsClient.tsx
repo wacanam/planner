@@ -330,9 +330,9 @@ export default function VisitsClient() {
   }>();
 
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId ?? null);
-  const { households: serverHouseholds, isLoading: householdsLoading, mutate: mutateHouseholds } =
+  const { households: serverHouseholds, isLoading: householdsLoading, mutate: mutateHouseholds, dataSource: householdsSource } =
     useHouseholds(territoryId ?? null);
-  const { visits: serverVisits, isLoading: visitsLoading, mutate: mutateVisits } =
+  const { visits: serverVisits, isLoading: visitsLoading, mutate: mutateVisits, dataSource: visitsSource } =
     useTerritoryVisits(territoryId ?? null);
 
   const [activeTab, setActiveTab] = useState<Tab>('households');
@@ -526,6 +526,23 @@ export default function VisitsClient() {
             </button>
           ))}
         </div>
+
+        {/* Data source indicator */}
+        {!loading && (
+          <div className="flex items-center gap-1.5 text-xs">
+            {(activeTab === 'households' ? householdsSource : visitsSource) === 'cache' ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                Showing cached data · offline
+              </span>
+            ) : (activeTab === 'households' ? householdsSource : visitsSource) === 'server' ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                Live data · synced
+              </span>
+            ) : null}
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-3 animate-pulse">

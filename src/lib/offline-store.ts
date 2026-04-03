@@ -98,19 +98,26 @@ export async function getCachedData<T>(store: StoreName, key: string): Promise<T
  * @example
  * useSWR(url, withOfflineCache('households-cache', territoryId, (u) => apiClient.get(u)))
  */
+export type DataSource = 'server' | 'cache' | 'loading';
+
 export function withOfflineCache<T>(
   cacheStore: StoreName,
   cacheKey: string,
   fetcher: (url: string) => Promise<T>,
+  onSource?: (source: 'server' | 'cache') => void,
 ): (url: string) => Promise<T> {
   return async (url: string): Promise<T> => {
     try {
       const result = await fetcher(url);
       await cacheData(cacheStore, cacheKey, result);
+      onSource?.('server');
       return result;
     } catch {
       const cached = await getCachedData<T>(cacheStore, cacheKey);
-      if (cached !== null) return cached;
+      if (cached !== null) {
+        onSource?.('cache');
+        return cached;
+      }
       throw new Error('You are offline and no cached data is available.');
     }
   };
