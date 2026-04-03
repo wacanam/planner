@@ -94,21 +94,33 @@ export default function ProfileClient() {
   const [offlineMsg, setOfflineMsg] = useState('');
   const [uploadError, setUploadError] = useState('');
 
+  // ── Debug state (temporary) ───────────────────────────────────────────────
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  const refreshDebug = useCallback(async (userId: string) => {
+    const flag = hasPendingAvatarFlag(userId);
+    const blob = await getPendingAvatarBlob(userId);
+    setDebugInfo(
+      `userId: ${userId} | flag: ${flag} | IDB blob: ${blob ? `${blob.type} ${(blob.size / 1024).toFixed(1)}KB` : 'null'}`
+    );
+  }, []);
+
   // ── IDB pending avatar — checked AFTER profile loads (userId known) ──────
-  // Can't use useState initialiser here since profile is async
   const [hasPending, setHasPending] = useState(false);
   useEffect(() => {
     if (!profile?.id) return;
-    setHasPending(hasPendingAvatarFlag(profile.id));
-  }, [profile?.id]);
+    const flag = hasPendingAvatarFlag(profile.id);
+    setHasPending(flag);
+    refreshDebug(profile.id);
+  }, [profile?.id, refreshDebug]);
 
   // Load IDB blob → object URL when pending flag is true
   useEffect(() => {
     if (!profile?.id || !hasPending) return;
     let objectUrl = '';
     getPendingAvatarBlob(profile.id).then((blob) => {
+      void refreshDebug(profile.id);
       if (!blob) {
-        // Flag was stale — clean it up
         setPendingAvatarFlag(profile.id, false);
         setHasPending(false);
         return;
@@ -118,7 +130,7 @@ export default function ProfileClient() {
       setOfflineMsg('Saved locally · will sync when online');
     });
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [profile?.id, hasPending]);
+  }, [profile?.id, hasPending, refreshDebug]);
 
   // Try to sync pending blob when online
   const trySyncPending = useCallback(async () => {
@@ -180,6 +192,7 @@ export default function ProfileClient() {
       setPendingAvatarFlag(profile.id, true);
       setHasPending(true);
       setOfflineMsg('Saved locally · will sync when online');
+      refreshDebug(profile.id);
     }
   }
 
@@ -252,6 +265,20 @@ export default function ProfileClient() {
         </div>
         <p className="text-xs text-muted-foreground">Member since {memberSince}</p>
         {offlineMsg && <p className="text-xs text-amber-500">{offlineMsg}</p>}
+
+        {/* ── DEBUG PANEL (remove before merge) ── */}
+        <div className="rounded-lg bg-muted/60 border border-border p-3 space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground">🔍 IDB Debug</p>
+          <p className="text-xs font-mono text-foreground break-all">{debugInfo || 'Loading…'}</p>
+          <p className="text-xs font-mono text-muted-foreground">hasPending: {String(hasPending)} | previewUrl: {previewUrl ? `${previewUrl.slice(0, 40)}…` : 'null'}</p>
+          <button
+            type="button"
+            onClick={() => profile?.id && refreshDebug(profile.id)}
+            className="text-xs text-primary underline"
+          >
+            Refresh debug
+          </button>
+        </div>
         {uploadError && (
           uploadError.toLowerCase().includes('not configured') ? (
             <TooltipProvider>
