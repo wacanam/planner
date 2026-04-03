@@ -342,6 +342,8 @@ export default function VisitsClient() {
   // Pending IDB state
   const [pendingVisits, setPendingVisits] = useState<PendingWrite[]>([]);
   const [pendingHouseholds, setPendingHouseholds] = useState<PendingWrite[]>([]);
+  // Briefly track synced ids to show ✅ indicator before item leaves the list
+  const [syncedIds, setSyncedIds] = useState<Set<string>>(new Set());
 
   // Load pending from IDB on mount
   useEffect(() => {
@@ -356,14 +358,23 @@ export default function VisitsClient() {
     const handler = (event: MessageEvent) => {
       const { type, pendingId } = event.data ?? {};
       if (type === 'VISIT_SYNCED' && pendingId) {
-        clearPendingVisit(pendingId).catch(console.error);
-        setPendingVisits((prev) => prev.filter((v) => v.id !== pendingId));
-        void mutateVisits();
+        // Show ✅ for 2s then remove
+        setSyncedIds((prev) => new Set(prev).add(pendingId));
+        setTimeout(() => {
+          clearPendingVisit(pendingId).catch(console.error);
+          setPendingVisits((prev) => prev.filter((v) => v.id !== pendingId));
+          setSyncedIds((prev) => { const s = new Set(prev); s.delete(pendingId); return s; });
+          void mutateVisits();
+        }, 2000);
       }
       if (type === 'HOUSEHOLD_SYNCED' && pendingId) {
-        clearPendingHousehold(pendingId).catch(console.error);
-        setPendingHouseholds((prev) => prev.filter((h) => h.id !== pendingId));
-        void mutateHouseholds();
+        setSyncedIds((prev) => new Set(prev).add(pendingId));
+        setTimeout(() => {
+          clearPendingHousehold(pendingId).catch(console.error);
+          setPendingHouseholds((prev) => prev.filter((h) => h.id !== pendingId));
+          setSyncedIds((prev) => { const s = new Set(prev); s.delete(pendingId); return s; });
+          void mutateHouseholds();
+        }, 2000);
       }
     };
 
@@ -545,7 +556,9 @@ export default function VisitsClient() {
                       <p className="font-medium text-sm truncate">
                         {h.address} {h.streetName}
                         {pendingHouseholdIds.has(h.id) && (
-                          <span className="ml-1.5 text-xs text-yellow-700">⏳ pending</span>
+                          syncedIds.has(h.id)
+                            ? <span className="ml-1.5 text-xs text-green-600 font-medium">✓ Synced</span>
+                            : <span className="ml-1.5 text-xs text-amber-600">⏳ Pending sync</span>
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">{h.city}</p>
@@ -601,7 +614,9 @@ export default function VisitsClient() {
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           {address}
                           {pendingVisitIds.has(v.id) && (
-                            <span className="text-xs text-yellow-700">⏳ pending</span>
+                            syncedIds.has(v.id)
+                              ? <span className="text-xs text-green-600 font-medium">✓ Synced</span>
+                              : <span className="text-xs text-amber-600">⏳ Pending sync</span>
                           )}
                         </p>
                         {v.outcome && (
