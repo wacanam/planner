@@ -2,17 +2,17 @@ import { boolean, integer, pgTable, text, timestamp, uuid, varchar } from 'drizz
 
 export const households = pgTable('households', {
   id: uuid('id').defaultRandom().primaryKey(),
-  // Which congregation's territory map this household belongs to
+  // Which congregation this household belongs to
   congregationId: uuid('congregationId').notNull(),
-  // Which territory boundary this household falls within (optional — can be unassigned)
-  territoryId: uuid('territoryId'),
   address: varchar('address', { length: 255 }).notNull(),
   houseNumber: varchar('houseNumber', { length: 50 }),
   streetName: varchar('streetName', { length: 255 }).notNull(),
   city: varchar('city', { length: 255 }).notNull(),
   postalCode: varchar('postalCode', { length: 20 }),
-  // Coordinates for map display (will support PostGIS multi-polygon later)
-  location: text('location'),
+  // Coordinates — determines which territory boundary the household falls in
+  // Territory membership is resolved spatially, not by FK
+  // Will use PostGIS geometry(Point, 4326) when map feature is added
+  location: text('location'), // interim: WKT or "lat,lng" string
   occupantsCount: integer('occupantsCount'),
   ageRange: varchar('ageRange', { length: 100 }),
   specialNeeds: text('specialNeeds'),

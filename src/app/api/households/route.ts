@@ -1,15 +1,13 @@
 import type { NextRequest } from 'next/server';
-import { asc, eq, and } from 'drizzle-orm';
-import { db, households, UserRole, CongregationRole, congregationMembers, MemberStatus } from '@/db';
+import { asc, eq } from 'drizzle-orm';
+import { db, households } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
-// GET /api/households
-// Households are congregation-level physical addresses.
-// Filter: ?congregationId= (required) and optional ?territoryId=
-// Publishers see all households in the congregation (they work the area).
-// Result lets them find known households to log visits against.
+// GET /api/households?congregationId=
+// Returns all households for a congregation.
+// Territory membership is determined spatially by coordinates — not by FK.
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -18,20 +16,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const congregationId = req.nextUrl.searchParams.get('congregationId') ?? user.congregationId;
-    const territoryId = req.nextUrl.searchParams.get('territoryId');
 
     if (!congregationId) {
       return ApiErrors.badRequest('congregationId is required', undefined, requestId);
     }
 
-    const whereClause = territoryId
-      ? and(eq(households.congregationId, congregationId), eq(households.territoryId, territoryId))
-      : eq(households.congregationId, congregationId);
-
     const results = await db
       .select()
       .from(households)
-      .where(whereClause)
+      .where(eq(households.congregationId, congregationId))
       .orderBy(asc(households.address));
 
     return successResponse(results, undefined, 200, requestId);
@@ -43,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/households
 // Add a household to the congregation's map.
-// Any authenticated member can add a household they discovered.
+// location stores coordinates (lat,lng) — territory membership resolved spatially later.
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -56,11 +49,11 @@ export async function POST(req: NextRequest) {
       streetName: string;
       city: string;
       notes?: string;
-      territoryId?: string;
+      location?: string;
       congregationId?: string;
     };
 
-    const { address, streetName, city, notes, territoryId } = body;
+    const { address, streetName, city, notes, location } = body;
     const congregationId = body.congregationId ?? user.congregationId ?? '';
 
     if (!address || !streetName || !city) {
@@ -74,11 +67,11 @@ export async function POST(req: NextRequest) {
       .insert(households)
       .values({
         congregationId,
-        territoryId: territoryId ?? null,
         address,
         streetName,
         city,
         notes: notes ?? null,
+        location: location ?? null,
       })
       .returning();
 
