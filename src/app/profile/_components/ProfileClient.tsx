@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Camera, Loader2, CloudOff } from 'lucide-react';
-import { useProfile, useUpdateProfile, useChangePassword, useUploadAvatar } from '@/hooks/use-profile';
+import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/use-profile';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
@@ -17,6 +17,7 @@ import {
   clearPendingAvatarBlob,
   hasPendingAvatarFlag,
   setPendingAvatarFlag,
+  registerAvatarSync,
 } from '@/lib/avatar-store';
 
 // ─── Password strength ────────────────────────────────────────────────────────
@@ -85,7 +86,6 @@ export default function ProfileClient() {
   const { profile, isLoading, mutate } = useProfile();
   const { update } = useUpdateProfile();
   const { changePassword } = useChangePassword();
-  const { upload, isUploading } = useUploadAvatar();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropImgSrc, setCropImgSrc] = useState('');
@@ -132,24 +132,11 @@ export default function ProfileClient() {
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [profile?.id, hasPending, refreshDebug]);
 
-  // Try to sync pending blob when online
+  // trySyncPending: re-register sync tag so SW picks it up when online
   const trySyncPending = useCallback(async () => {
-    if (!profile?.id || !navigator.onLine) return;
-    const blob = await getPendingAvatarBlob(profile.id);
-    if (!blob) return;
-    try {
-      const file = new File([blob], 'avatar.jpg', { type: blob.type });
-      const result = await upload({ file });
-      if (result?.avatarUrl) {
-        await clearPendingAvatarBlob(profile.id);
-        setPendingAvatarFlag(profile.id, false);
-        setHasPending(false);
-        setOfflineMsg('');
-        setPreviewUrl(result.avatarUrl);
-        await mutate();
-      }
-    } catch { /* retry later */ }
-  }, [profile?.id, upload, mutate]);
+    if (!navigator.onLine) return;
+    await registerAvatarSync();
+  }, []);
 
   useEffect(() => { if (hasPending) trySyncPending(); }, [hasPending, trySyncPending]);
   useEffect(() => {
@@ -157,6 +144,22 @@ export default function ProfileClient() {
     window.addEventListener('online', h);
     return () => window.removeEventListener('online', h);
   }, [hasPending, trySyncPending]);
+
+  // Listen for SW postMessage when avatar sync completes
+  useEffect(() => {
+    if (!profile?.id) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'AVATAR_SYNCED' && event.data?.userId === profile.id) {
+        setPendingAvatarFlag(profile.id, false);
+        setHasPending(false);
+        setOfflineMsg('');
+        void mutate(); // refresh profile to get new avatarUrl
+        void refreshDebug(profile.id);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [profile?.id, mutate, refreshDebug]);
 
   // ── File → crop ──────────────────────────────────────────────────────────
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -171,35 +174,22 @@ export default function ProfileClient() {
 
   async function handleCropComplete(file: File) {
     if (!profile?.id) return;
+
+    // 1. Show local preview immediately
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
-    if (navigator.onLine) {
-      try {
-        const result = await upload({ file });
-        if (result?.avatarUrl) {
-          setPreviewUrl(result.avatarUrl);
-          await clearPendingAvatarBlob(profile.id);
-          setPendingAvatarFlag(profile.id, false);
-          setHasPending(false);
-          setUploadError('');
-          await mutate();
-          void refreshDebug(profile.id);
-          return;
-        }
-      } catch (err) {
-        // Upload failed (including R2 not configured) — save to IDB so it persists
-        const msg = err instanceof Error ? err.message : 'Upload failed.';
-        setUploadError(msg);
-      }
-    }
-
-    // Either offline OR upload failed — queue in IDB for later sync
+    // 2. Always store to IDB first — offline-first, no network needed
     await storePendingAvatarBlob(profile.id, file);
     setPendingAvatarFlag(profile.id, true);
     setHasPending(true);
-    setOfflineMsg('Saved locally · will sync when online');
+    setOfflineMsg('Saved locally · syncing…');
     void refreshDebug(profile.id);
+
+    // 3. Register Background Sync — SW will upload when online
+    await registerAvatarSync();
+    setOfflineMsg('Saved locally · will sync automatically');
+    setUploadError('');
   }
 
   // ── Name form ────────────────────────────────────────────────────────────
@@ -260,8 +250,7 @@ export default function ProfileClient() {
             url={displayUrl}
             name={profile.name}
             size={72}
-            loading={isUploading}
-            onClick={() => !isUploading && fileInputRef.current?.click()}
+            onClick={() => fileInputRef.current?.click()}
           />
           <div className="min-w-0">
             <p className="text-xl font-bold text-foreground leading-tight truncate">{profile.name}</p>
