@@ -297,11 +297,8 @@ export default function TerritoryMap({
       });
       mapInstance.current = map;
 
-      L.tileLayer(MAP_STYLES[0].url, {
-        attribution: MAP_STYLES[0].attribution,
-        maxZoom: MAP_STYLES[0].maxZoom,
-      }).addTo(map);
-      tileLayerRef.current = null; // managed by style effect below
+      // Tile layer is managed entirely by the style effect below
+      // (don't add one here to avoid orphaned layers)
 
       // ── Determine initial view ────────────────────────────────────────────
       const validPts = households.filter((h) => h.latitude && h.longitude);
