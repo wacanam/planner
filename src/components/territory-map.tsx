@@ -485,9 +485,13 @@ export default function TerritoryMap({
 
     // ── Flashlight cone — attached to user location dot ───────────────────
     import('maplibre-gl').then((mgl) => {
-      let userLng = 0;
-      let userLat = 0;
-      let hasPos = false;
+      let userLng   = 0;
+      let userLat   = 0;
+      // Smoothed display position — interpolated in rAF for smooth movement
+      let dispLng   = 0;
+      let dispLat   = 0;
+      let hasPos    = false;
+      const POS_ALPHA = 0.15; // position lerp factor — lower = smoother drift
 
       // Smoothing state
       // ── Complementary filter ─────────────────────────────────────────────
@@ -561,17 +565,20 @@ export default function TerritoryMap({
           const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0;
           lastTime = timestamp;
 
+          // ── Smooth heading ──────────────────────────────────────────────
           if (!hasAngle) {
             compAngle = magAngle;
             hasAngle = true;
           } else {
-            // Integrate gyro: advance angle by gyro rate × dt
             const gyroAdvance = gyroRateZ * dt;
-            // Short-path diff between magnetometer and current estimate
             const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
-            // Complementary filter: 98% gyro integration + 2% magnetometer pull
             compAngle = (compAngle + gyroAdvance + 0.04 * magDiff + 360) % 360;
           }
+
+          // ── Smooth position lerp — eliminates GPS jump artifacts ────────
+          dispLng += POS_ALPHA * (userLng - dispLng);
+          dispLat += POS_ALPHA * (userLat - dispLat);
+          coneMarker.setLngLat([dispLng, dispLat]);
 
           const mapBearing = mapInstance.current?.getBearing() ?? 0;
           const relativeAngle = (compAngle - mapBearing + 360) % 360;
@@ -585,8 +592,13 @@ export default function TerritoryMap({
       const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
         userLng = e.coords.longitude;
         userLat = e.coords.latitude;
+        if (!hasPos) {
+          // First fix: snap to position immediately, no lerp
+          dispLng = userLng;
+          dispLat = userLat;
+          coneMarker.setLngLat([dispLng, dispLat]).addTo(mapInstance.current!);
+        }
         hasPos = true;
-        coneMarker.setLngLat([userLng, userLat]).addTo(mapInstance.current!);
       };
       geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
 
