@@ -94,8 +94,10 @@ const DEFAULT_SVG = TYPE_SVG.house;
 
 // ─── Pin HTML builder ─────────────────────────────────────────────────────────
 
-function makePinHtml(color: string, iconSvg: string, label: string, badge?: number): string {
+function makePinHtml(color: string, iconSvg: string, label: string, badge?: number, dark = false): string {
   const truncated = label.length > 20 ? label.slice(0, 20) + '\u2026' : label;
+  const labelColor = dark ? '#f1f5f9' : '#1e293b';
+  const strokeColor = dark ? '#0f172a' : 'white';
 
   const badgeHtml = badge !== undefined
     ? ['<div style="position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;',
@@ -120,9 +122,9 @@ function makePinHtml(color: string, iconSvg: string, label: string, badge?: numb
       '<div style="position:absolute;left:-13px;top:-27px;pointer-events:auto;">',
         pinSvg, badgeHtml,
       '</div>',
-      '<div style="position:absolute;left:15px;top:-19px;color:#1e293b;',
+      '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
         'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
-        '-webkit-text-stroke:2px white;paint-order:stroke fill;">',
+        '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
         truncated,
       '</div>',
     '</div>',
@@ -147,6 +149,15 @@ export default function TerritoryMap({
   onClickRef.current  = onHouseholdClick;
 
   const [mapReady, setMapReady] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsDark(document.documentElement.classList.contains('dark'));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
 
   // ── Init map ──────────────────────────────────────────────────────────────
   // biome-ignore lint/correctness/useExhaustiveDependencies: one-time mount
@@ -367,7 +378,7 @@ export default function TerritoryMap({
             const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
             const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
             const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
-            el.innerHTML = makePinHtml(color, icon, label, count);
+            el.innerHTML = makePinHtml(color, icon, label, count, isDark);
             el.addEventListener('click', () => {
               m.flyTo({
                 center: [lng, lat],
@@ -380,7 +391,7 @@ export default function TerritoryMap({
             const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
             const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
             const label = address.split(' ').slice(0, 3).join(' ');
-            el.innerHTML = makePinHtml(color, icon, label);
+            el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
 
             el.addEventListener('click', () => {
               const onHClick = onClickRef.current;
@@ -424,7 +435,7 @@ export default function TerritoryMap({
       map?.off('moveend', renderMarkers);
       map?.on('moveend', renderMarkers);
     });
-  }, [households, mapReady]);
+  }, [households, mapReady, isDark]);
 
   return (
     <div className={`relative ${className}`}>
