@@ -123,24 +123,24 @@ function makePinHtml(
       ].join('')
     : '';
 
-  // Pin SVG: white teardrop + colored circle + white icon
+  // Pin SVG: 26×32. Round head, short body, fully rounded bottom tip (no sharp point).
+  // Circle r=10 centered at (13,13), 3px padding from 26px head.
   const pinSvg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46"',
-    ' style="display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3)) drop-shadow(0 0 2px rgba(0,0,0,0.1))">',
-    // White teardrop — round head, smooth narrow tail
-    '<path d="M18 2',
-    ' C9.2 2 2 9.2 2 18',
-    ' C2 27 10 35 16 42',
-    ' Q17 44.5 18 45',
-    ' Q19 44.5 20 42',
-    ' C26 35 34 27 34 18',
-    ' C34 9.2 26.8 2 18 2 Z"',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="32" viewBox="0 0 26 32"',
+    ' style="display:block;filter:drop-shadow(0 1px 5px rgba(0,0,0,0.28))">',
+    // White teardrop — round head, fully rounded bottom tip via large arc
+    '<path d="M13 2',
+    ' C6.4 2 2 6.8 2 13',
+    ' C2 19.5 7 25.5 11.5 29.5',
+    ' A2.2 2.2 0 0 0 14.5 29.5',
+    ' C19 25.5 24 19.5 24 13',
+    ' C24 6.8 19.6 2 13 2 Z"',
     ' fill="white"/>',
-    // Status color circle (r=13, 5px padding inside 36px head)
-    '<circle cx="18" cy="18" r="13" fill="' + color + '"/>',
-    // White icon (14×14, centered: translate from (18-7, 18-7) = (11,11))
-    '<g transform="translate(11,11)">',
-    '<svg width="14" height="14" viewBox="0 0 24 24">',
+    // Status color circle
+    '<circle cx="13" cy="13" r="10" fill="' + color + '"/>',
+    // White icon (10×10, centered at 13,13 → translate 8,8)
+    '<g transform="translate(8,8)">',
+    '<svg width="10" height="10" viewBox="0 0 24 24">',
     iconSvg,
     '</svg></g>',
     '</svg>',
@@ -150,14 +150,14 @@ function makePinHtml(
     '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">',
 
       // Pin container — tail tip anchored at (0,0)
-      '<div style="position:absolute;left:-18px;top:-45px;pointer-events:auto;">',
+      '<div style="position:absolute;left:-13px;top:-31px;pointer-events:auto;">',
         pinSvg,
         badgeHtml,
       '</div>',
 
       // Label — right of pin, vertically centered on circle head
       '<div style="',
-        'position:absolute;left:20px;top:-25px;',
+        'position:absolute;left:15px;top:-19px;',
         'color:#1e293b;',
         'font-size:10px;font-weight:500;line-height:1.3;',
         'white-space:nowrap;pointer-events:none;',
@@ -178,7 +178,7 @@ function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: st
     className:  '',
     iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[18, -43],
+    popupAnchor:[13, -31],
   });
 }
 
@@ -379,7 +379,7 @@ export default function TerritoryMap({
           const clusterMarker = L!.marker([lat, lng], {
             icon: L!.divIcon({
               html: makePinHtml(repColor, repIcon, repLabel, count),
-              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [18,-43],
+              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-31],
             }),
           });
           clusterMarker.on('click', () => {
