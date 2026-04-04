@@ -114,8 +114,8 @@ function makePinHtml(
         <path d="M11 1 C5.5 1 1 5.5 1 11 C1 17.5 11 25 11 25 C11 25 21 17.5 21 11 C21 5.5 16.5 1 11 1 Z"
           fill="${color}" stroke="white" stroke-width="1.5"/>
         <!-- Icon: centered in 22×22 head with 3px padding -->
-        <g transform="translate(3,2)">
-          <svg width="16" height="16" viewBox="0 0 24 24">${iconSvg}</svg>
+        <g transform="translate(5,4)">
+          <svg width="12" height="12" viewBox="0 0 24 24">${iconSvg}</svg>
         </g>
       </svg>
       ${badge !== undefined ? `
