@@ -141,7 +141,7 @@ function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: st
     className:  '',
     iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[20, -14],
+    popupAnchor:[13, -34],
   });
 }
 
@@ -342,11 +342,11 @@ export default function TerritoryMap({
           const clusterMarker = L!.marker([lat, lng], {
             icon: L!.divIcon({
               html: makePinHtml(repColor, repIcon, repLabel, count),
-              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [20,-14],
+              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-34],
             }),
           });
           clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
-            permanent: false, direction: 'right', offset: [20,-14], className: 'household-label',
+            permanent: false, direction: 'right', offset: [15,-26], className: 'household-label',
           });
           clusterMarker.on('click', () => {
             map!.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
@@ -357,7 +357,7 @@ export default function TerritoryMap({
           const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
           const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
           const marker = L!.marker([lat, lng], { icon: makeHouseholdIcon(L!, status, hType, address) });
-          marker.bindTooltip(address, { permanent: false, direction: 'right', offset: [20,-14], className: 'household-label' });
+          marker.bindTooltip(address, { permanent: false, direction: 'right', offset: [15,-26], className: 'household-label' });
 
           const onHClick = onClickRef.current;
           const logBtn = onHClick
