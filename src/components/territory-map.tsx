@@ -148,7 +148,7 @@ export default function TerritoryMap({
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
   const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
   const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
-  const headingMarkerRef  = useRef<import('maplibre-gl').Marker | null>(null);
+  const headingCleanupRef = useRef<(() => void) | null>(null);
   const headingAngleRef   = useRef<number>(0);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
@@ -461,94 +461,67 @@ export default function TerritoryMap({
     if (!geolocate || !map || !mapReady) return;
 
     if (!locationOn) {
-      // Remove heading cone
-      if (headingMarkerRef.current) {
-        headingMarkerRef.current.remove();
-        headingMarkerRef.current = null;
+      if (headingCleanupRef.current) {
+        headingCleanupRef.current();
+        headingCleanupRef.current = null;
       }
+      mapInstance.current?.setBearing(0);
       return;
     }
 
     // Trigger built-in location dot
     geolocate.trigger();
 
-    // ── Heading cone — high-frequency gyro/compass ──────────────────────
-    import('maplibre-gl').then((mgl) => {
-      // Cone element — NO CSS transition (we drive it via rAF)
-      const coneEl = document.createElement('div');
-      coneEl.style.cssText = [
-        'width:0;height:0;',
-        'pointer-events:none;',
-        'border-left:10px solid transparent;',
-        'border-right:10px solid transparent;',
-        'border-bottom:32px solid rgba(59,130,246,0.55);',
-        'transform-origin:50% 100%;',
-        'position:relative;left:50%;',
-        'will-change:transform;',
-      ].join('');
-
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'width:1px;height:1px;overflow:visible;';
-      wrapper.appendChild(coneEl);
-
-      const headingMarker = new mgl.Marker({ element: wrapper, anchor: 'bottom' });
-      headingMarkerRef.current = headingMarker;
-
-      // Low-pass filter state — smooths noisy gyro without adding lag
+    // ── Heading via map.setBearing() — rotates map to face direction ──────
+    // This is how Google Maps / navigation apps work:
+    // the map rotates so the user always faces "up", dot stays centered.
+    import('maplibre-gl').then(() => {
       let smoothAngle = 0;
       let hasAngle = false;
-      const ALPHA = 0.15; // lower = smoother but laggier; 0.15 is a good balance
+      const ALPHA = 0.12; // low-pass smoothing
       let rafId = 0;
+      let targetAngle = 0;
 
-      function applyRotation() {
-        coneEl.style.transform = `translateX(-50%) rotate(${smoothAngle}deg)`;
-        rafId = requestAnimationFrame(applyRotation);
-      }
-      rafId = requestAnimationFrame(applyRotation);
-
-      // Smooth angle update with short-path interpolation (handles 359°→1° correctly)
       function updateAngle(raw: number) {
-        if (!hasAngle) { smoothAngle = raw; hasAngle = true; return; }
-        // Shortest path: diff in [-180, 180]
-        let diff = ((raw - smoothAngle + 540) % 360) - 180;
+        if (!hasAngle) { smoothAngle = raw; hasAngle = true; }
+        const diff = ((raw - smoothAngle + 540) % 360) - 180;
         smoothAngle = (smoothAngle + ALPHA * diff + 360) % 360;
       }
 
-      // Sync cone position with GPS dot
-      const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
-        headingMarker.setLngLat([e.coords.longitude, e.coords.latitude]).addTo(map);
-        if (e.coords.heading !== null && !Number.isNaN(e.coords.heading)) {
-          updateAngle(e.coords.heading);
+      function applyBearing() {
+        const m = mapInstance.current;
+        if (m && hasAngle) {
+          m.setBearing(smoothAngle);
         }
-      };
-      geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
+        rafId = requestAnimationFrame(applyBearing);
+      }
+      rafId = requestAnimationFrame(applyBearing);
 
-      // DeviceOrientationEvent — ~60Hz compass/gyro, most responsive source
       const onOrientation = (e: DeviceOrientationEvent) => {
-        if (!headingMarkerRef.current) return;
+        if (!locationOn) return;
         const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-        const raw = compass !== undefined
-          ? compass                      // iOS: true north bearing
-          : (360 - (e.alpha ?? 0)) % 360; // Android: convert alpha to bearing
-        updateAngle(raw);
+        targetAngle = compass !== undefined
+          ? compass
+          : (360 - (e.alpha ?? 0)) % 360;
+        updateAngle(targetAngle);
       };
 
-      // Prefer absolute (Android), fall back to relative (iOS uses webkitCompassHeading)
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation', onOrientation as EventListener, true);
 
-      // iOS 13+ requires explicit permission
+      // iOS 13+ permission
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
       const DOE = DeviceOrientationEvent as DOE;
       if (typeof DOE.requestPermission === 'function') {
-        DOE.requestPermission().catch(() => {/* user denied, heading won't show */});
+        DOE.requestPermission().catch(() => {});
       }
 
-      return () => {
+      // Store cleanup
+      headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
-        geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+        mapInstance.current?.setBearing(0);
       };
     });
   }, [locationOn, mapReady]);
