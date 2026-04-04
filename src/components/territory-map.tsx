@@ -37,6 +37,9 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  locationOn?: boolean;
+  onLocationToggle?: () => void;
+  locationError?: string | null;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -141,6 +144,7 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  locationOn = false,
 }: TerritoryMapProps) {
   const mapRef            = useRef<HTMLDivElement>(null);
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
@@ -152,7 +156,6 @@ export default function TerritoryMap({
 
   const [mapReady, setMapReady]       = useState(false);
   const [isDark, setIsDark]           = useState(false);
-  const [locationOn, setLocationOn]   = useState(false);
   const [locError, setLocError]       = useState<string | null>(null);
 
   useEffect(() => {
@@ -461,7 +464,7 @@ export default function TerritoryMap({
 
     if (!('geolocation' in navigator)) {
       setLocError('Geolocation not supported');
-      setLocationOn(false);
+      
       return;
     }
 
@@ -514,7 +517,7 @@ export default function TerritoryMap({
 
       function onError(err: GeolocationPositionError) {
         setLocError(err.code === 1 ? 'Location permission denied' : 'Location unavailable');
-        setLocationOn(false);
+        
       }
 
       watchIdRef.current = navigator.geolocation.watchPosition(updateLocation, onError, {
@@ -555,31 +558,7 @@ export default function TerritoryMap({
 
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Location toggle — bottom-left */}
-      <div className="absolute bottom-3 left-3 z-[1002] flex flex-col items-start gap-1">
-        <button
-          type="button"
-          onClick={() => { setLocationOn((p) => !p); setLocError(null); }}
-          title={locationOn ? 'Hide my location' : 'Show my location'}
-          className={[
-            'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-            locationOn
-              ? 'bg-blue-500 text-white'
-              : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
-          ].join(' ')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" strokeOpacity="0.3"/>
-          </svg>
-        </button>
-        {locError && (
-          <div className="bg-destructive/90 text-white text-[10px] font-medium px-2 py-1 rounded-lg max-w-[160px]">
-            {locError}
-          </div>
-        )}
-      </div>
+      {/* Location toggle — exposed via onLocationToggle prop or rendered by parent */}
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">

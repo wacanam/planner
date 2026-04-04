@@ -83,6 +83,7 @@ export default function TerritoryDetailView() {
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [locationOn, setLocationOn] = useState(false);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -145,6 +146,7 @@ export default function TerritoryDetailView() {
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
                     mapStyle={mapStyle}
+                    locationOn={locationOn}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -210,6 +212,24 @@ export default function TerritoryDetailView() {
               );
             })()}
           </div>{/* end flex-1 map wrapper */}
+
+          {/* Location toggle — fixed bottom-left, opposite to style switcher */}
+          <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            <button
+              type="button"
+              onClick={() => setLocationOn((p) => !p)}
+              title={locationOn ? 'Hide my location' : 'Show my location'}
+              className={[
+                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+                locationOn ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
+              ].join(' ')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              </svg>
+            </button>
+          </div>
 
           {/* Map style switcher — fixed, shifts up when assignment strip expands */}
           <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
