@@ -58,32 +58,24 @@ const DEFAULT_COLOR = '#94a3b8';
 // Type → SVG path (24×24 viewBox, centered glyph)
 // Each icon is a white-stroked shape on a colored background pin
 const TYPE_SVG: Record<string, string> = {
-  // Simple house outline
-  house: `<path stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"
-    d="M4 10 L12 3 L20 10 V20 H14 V15 H10 V20 H4 Z"/>`,
-  // Apartment / multi-floor building
-  apartment: `<rect x="5" y="4" width="14" height="16" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
-    <line x1="9" y1="4" x2="9" y2="20" stroke="white" stroke-width="1"/>
-    <line x1="15" y1="4" x2="15" y2="20" stroke="white" stroke-width="1"/>
-    <line x1="5" y1="10" x2="19" y2="10" stroke="white" stroke-width="1"/>
-    <line x1="5" y1="16" x2="19" y2="16" stroke="white" stroke-width="1"/>`,
-  // Business / office
-  business: `<rect x="4" y="7" width="16" height="13" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
-    <path d="M9 7 V5 Q9 4 10 4 H14 Q15 4 15 5 V7" stroke="white" stroke-width="1.5" fill="none"/>
-    <line x1="12" y1="11" x2="12" y2="16" stroke="white" stroke-width="1"/>
-    <line x1="8" y1="13.5" x2="16" y2="13.5" stroke="white" stroke-width="1"/>`,
-  // Condo / high-rise
-  condo: `<rect x="6" y="2" width="12" height="20" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
-    <rect x="9" y="5" width="2" height="2" fill="white" opacity="0.8"/>
-    <rect x="13" y="5" width="2" height="2" fill="white" opacity="0.8"/>
-    <rect x="9" y="10" width="2" height="2" fill="white" opacity="0.8"/>
-    <rect x="13" y="10" width="2" height="2" fill="white" opacity="0.8"/>
-    <rect x="9" y="15" width="2" height="2" fill="white" opacity="0.8"/>
-    <rect x="13" y="15" width="2" height="2" fill="white" opacity="0.8"/>`,
-  // Do not visit — X circle
-  do_not_visit: `<circle cx="12" cy="12" r="8" stroke="white" stroke-width="1.5" fill="none"/>
-    <line x1="8" y1="8" x2="16" y2="16" stroke="white" stroke-width="2"/>
-    <line x1="16" y1="8" x2="8" y2="16" stroke="white" stroke-width="2"/>`,
+  // House — simple roof + walls, fits 12×12 render area
+  house: `<path stroke="white" stroke-width="2" stroke-linejoin="round" fill="none"
+    d="M12 4 L22 11 V22 H16 V16 H8 V22 H2 V11 Z"/>`,
+  // Apartment — building with floors
+  apartment: `<rect x="4" y="5" width="16" height="17" rx="1" stroke="white" stroke-width="2" fill="none"/>
+    <line x1="4" y1="11" x2="20" y2="11" stroke="white" stroke-width="1.5"/>
+    <line x1="4" y1="17" x2="20" y2="17" stroke="white" stroke-width="1.5"/>
+    <line x1="12" y1="5" x2="12" y2="22" stroke="white" stroke-width="1.5"/>`,
+  // Business — briefcase
+  business: `<rect x="3" y="8" width="18" height="13" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
+    <path d="M8 8 V6 Q8 4 10 4 H14 Q16 4 16 6 V8" stroke="white" stroke-width="2" fill="none"/>
+    <line x1="3" y1="14" x2="21" y2="14" stroke="white" stroke-width="1.5"/>`,
+  // Condo — tall building with windows
+  condo: `<rect x="5" y="2" width="14" height="21" rx="1" stroke="white" stroke-width="2" fill="none"/>
+    <rect x="8" y="6" width="3" height="3" fill="white" opacity="0.9"/>
+    <rect x="13" y="6" width="3" height="3" fill="white" opacity="0.9"/>
+    <rect x="8" y="12" width="3" height="3" fill="white" opacity="0.9"/>
+    <rect x="13" y="12" width="3" height="3" fill="white" opacity="0.9"/>`,
 };
 const DEFAULT_SVG = TYPE_SVG.house;
 
