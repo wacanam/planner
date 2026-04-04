@@ -465,19 +465,20 @@ export default function TerritoryMap({
         headingCleanupRef.current();
         headingCleanupRef.current = null;
       }
-      mapInstance.current?.setBearing(0);
+      // Don't reset bearing — keep map orientation as-is
       return;
     }
 
-    // Trigger built-in location dot + fly to position
+    // Trigger built-in location dot
     geolocate.trigger();
 
-    // Fly to user on first GPS fix
+    // Fly to user on first GPS fix (fires as soon as location is available)
     const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
       mapInstance.current?.flyTo({
         center: [e.coords.longitude, e.coords.latitude],
-        zoom: 17,
-        duration: 800,
+        zoom: Math.max(mapInstance.current.getZoom(), 17),
+        duration: 600,
+        essential: true,
       });
       geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
     };
@@ -572,7 +573,10 @@ export default function TerritoryMap({
           } else {
             const gyroAdvance = gyroRateZ * dt;
             const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
-            compAngle = (compAngle + gyroAdvance + 0.04 * magDiff + 360) % 360;
+            // 0.025 pull: slower magnetometer correction = less oscillation
+            // Only apply mag correction if diff > 1° to filter micro-noise
+            const magCorrection = Math.abs(magDiff) > 1.0 ? 0.025 * magDiff : 0;
+            compAngle = (compAngle + gyroAdvance + magCorrection + 360) % 360;
           }
 
           // ── Smooth position lerp — eliminates GPS jump artifacts ────────
