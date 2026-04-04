@@ -38,8 +38,6 @@ export interface TerritoryMapProps {
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
   locationOn?: boolean;
-  onLocationToggle?: () => void;
-  locationError?: string | null;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -149,14 +147,12 @@ export default function TerritoryMap({
   const mapRef            = useRef<HTMLDivElement>(null);
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
   const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
-  const locationMarkerRef = useRef<import('maplibre-gl').Marker | null>(null);
-  const watchIdRef        = useRef<number | null>(null);
+  const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
 
   const [mapReady, setMapReady]       = useState(false);
   const [isDark, setIsDark]           = useState(false);
-  const [locError, setLocError]       = useState<string | null>(null);
 
   useEffect(() => {
     const update = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -306,6 +302,17 @@ export default function TerritoryMap({
           } catch { /* skip */ }
         }
 
+        // ── GeolocateControl (built-in location + heading) ───────────────
+        const geolocate = new mgl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showAccuracyCircle: true,
+          fitBoundsOptions: { zoom: 16 },
+        });
+        // Add control off-screen — we use our own toggle button
+        map.addControl(geolocate);
+        geolocateRef.current = geolocate;
+
         setMapReady(true);
       });
     });
@@ -444,102 +451,15 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
-  // ── Location + heading effect ─────────────────────────────────────────────
+  // ── Location toggle — delegates to MapLibre GeolocateControl ─────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
   useEffect(() => {
-    const map = mapInstance.current;
-    if (!map || !mapReady) return;
-
-    if (!locationOn) {
-      // Stop watching + remove marker
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      if (locationMarkerRef.current) {
-        locationMarkerRef.current.remove();
-        locationMarkerRef.current = null;
-      }
-      return;
+    const geolocate = geolocateRef.current;
+    if (!geolocate || !mapReady) return;
+    if (locationOn) {
+      geolocate.trigger();
     }
-
-    if (!('geolocation' in navigator)) {
-      setLocError('Geolocation not supported');
-      
-      return;
-    }
-
-    import('maplibre-gl').then((mgl) => {
-      function updateLocation(pos: GeolocationPosition) {
-        const m = mapInstance.current;
-        if (!m) return;
-        setLocError(null);
-        const { longitude, latitude, heading } = pos.coords;
-
-        if (locationMarkerRef.current) {
-          // ── Update existing marker in-place — no DOM rebuild ──────────────
-          locationMarkerRef.current.setLngLat([longitude, latitude]);
-          const cone = locationMarkerRef.current.getElement().querySelector<HTMLElement>('.loc-cone');
-          if (cone) {
-            if (heading !== null) {
-              cone.style.display = 'block';
-              cone.style.transform = `translateX(-50%) rotate(${heading}deg)`;
-            } else {
-              cone.style.display = 'none';
-            }
-          }
-        } else {
-          // ── First fix: build marker DOM ───────────────────────────────────
-          const el = document.createElement('div');
-          el.style.cssText = 'position:relative;width:20px;height:20px;';
-          el.innerHTML = [
-            // Heading cone — CSS transition for smooth rotation
-            '<div class="loc-cone" style="',
-              'position:absolute;display:', heading !== null ? 'block' : 'none', ';',
-              'width:0;height:0;',
-              'border-left:8px solid transparent;',
-              'border-right:8px solid transparent;',
-              'border-bottom:22px solid rgba(59,130,246,0.4);',
-              'top:-22px;left:50%;',
-              'transform:translateX(-50%) rotate(', String(heading ?? 0), 'deg);',
-              'transform-origin:50% 100%;',
-              'transition:transform 0.4s ease-out;',
-            '"></div>',
-            // Outer pulse ring
-            '<div style="position:absolute;inset:-6px;border-radius:50%;',
-              'background:rgba(59,130,246,0.15);border:1.5px solid rgba(59,130,246,0.4);',
-              'animation:location-pulse 2s ease-out infinite;"></div>',
-            // Inner blue dot
-            '<div style="position:absolute;inset:2px;border-radius:50%;',
-              'background:#3b82f6;border:2.5px solid white;',
-              'box-shadow:0 1px 6px rgba(0,0,0,0.3);"></div>',
-          ].join('');
-
-          const marker = new mgl.Marker({ element: el, anchor: 'center' })
-            .setLngLat([longitude, latitude])
-            .addTo(m);
-          locationMarkerRef.current = marker;
-          m.flyTo({ center: [longitude, latitude], zoom: 16, duration: 800 });
-        }
-      }
-
-      function onError(err: GeolocationPositionError) {
-        setLocError(err.code === 1 ? 'Location permission denied' : 'Location unavailable');
-        
-      }
-
-      watchIdRef.current = navigator.geolocation.watchPosition(updateLocation, onError, {
-        enableHighAccuracy: true,
-        maximumAge: 3000,
-        timeout: 10000,
-      });
-    });
-
-    return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-    };
+    // Off state: GeolocateControl handles its own off state on re-trigger
   }, [locationOn, mapReady]);
 
   return (
@@ -556,6 +476,8 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
+        /* Hide built-in geolocate button — we use our own toggle */
+        .maplibregl-ctrl-geolocate { display: none !important; }
         @keyframes location-pulse {
           0%   { transform: scale(1);   opacity: 0.7; }
           70%  { transform: scale(2.2); opacity: 0;   }
@@ -565,7 +487,7 @@ export default function TerritoryMap({
 
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Location toggle — exposed via onLocationToggle prop or rendered by parent */}
+
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
