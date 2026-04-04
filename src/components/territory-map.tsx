@@ -551,8 +551,9 @@ export default function TerritoryMap({
       wrapper.appendChild(cone);
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
-      // Place cone behind the GeolocateControl dot (which has z-index ~100)
-      wrapper.style.zIndex = '-1';
+      // Marker renders in MapLibre's marker container — use class to control stacking
+      wrapper.classList.add('loc-cone-wrapper');
+      wrapper.style.position = 'relative';
 
       // rAF loop — apply smoothed angle to cone rotation
       function render(timestamp: number) {
@@ -616,6 +617,10 @@ export default function TerritoryMap({
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
         /* Hide built-in geolocate button — we use our own toggle */
         .maplibregl-ctrl-geolocate { display: none !important; }
+        /* Cone marker behind the location dot */
+        .loc-cone-wrapper { z-index: 1 !important; }
+        .maplibregl-user-location-dot { z-index: 2 !important; }
+        .maplibregl-user-location-accuracy-circle { z-index: 0 !important; }
         @keyframes location-pulse {
           0%   { transform: scale(1);   opacity: 0.7; }
           70%  { transform: scale(2.2); opacity: 0;   }
