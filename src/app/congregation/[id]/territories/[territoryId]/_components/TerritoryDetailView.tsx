@@ -170,7 +170,7 @@ export default function TerritoryDetailView() {
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative rounded-2xl border border-border overflow-hidden h-96">
+                <div className="relative rounded-2xl border border-border overflow-hidden h-[520px]">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}

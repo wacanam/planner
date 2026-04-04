@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { asc, and, gte, lte } from 'drizzle-orm';
+import { asc, and, sql as drizzleSql } from 'drizzle-orm';
 import { db, households } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
@@ -18,11 +18,12 @@ export async function GET(req: NextRequest) {
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
 
+    // Cast varchar lat/lng to numeric for correct comparison (not lexicographic)
     const conditions = [];
-    if (minLat) conditions.push(gte(households.latitude, minLat));
-    if (maxLat) conditions.push(lte(households.latitude, maxLat));
-    if (minLng) conditions.push(gte(households.longitude, minLng));
-    if (maxLng) conditions.push(lte(households.longitude, maxLng));
+    if (minLat) conditions.push(drizzleSql`${households.latitude}::numeric >= ${Number(minLat)}`);
+    if (maxLat) conditions.push(drizzleSql`${households.latitude}::numeric <= ${Number(maxLat)}`);
+    if (minLng) conditions.push(drizzleSql`${households.longitude}::numeric >= ${Number(minLng)}`);
+    if (maxLng) conditions.push(drizzleSql`${households.longitude}::numeric <= ${Number(maxLng)}`);
 
     const results = await db
       .select()
