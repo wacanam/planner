@@ -138,9 +138,9 @@ function makePinHtml(
     ' fill="white"/>',
     // Status color circle
     '<circle cx="13" cy="13" r="9" fill="' + color + '"/>',
-    // White icon (8×8, centered at 13,13 → translate 9,9)
-    '<g transform="translate(9,9)">',
-    '<svg width="8" height="8" viewBox="0 0 24 24">',
+    // White icon (12×12, centered at 13,13 → translate 7,7)
+    '<g transform="translate(7,7)">',
+    '<svg width="12" height="12" viewBox="0 0 24 24">',
     iconSvg,
     '</svg></g>',
     '</svg>',
