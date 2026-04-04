@@ -243,7 +243,8 @@ export default function TerritoryDetailView() {
               const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
               return (
-                <div className="fixed bottom-0 left-0 right-0 z-[1100] border-t border-blue-200/30 dark:border-blue-900/20 bg-white/25 dark:bg-gray-900/25 backdrop-blur-sm">
+                <div className="fixed bottom-0 left-0 right-0 z-[1100]">
+                  <div className="max-w-2xl mx-auto border-t border-blue-200/30 dark:border-blue-900/20 bg-white/25 dark:bg-gray-900/25 backdrop-blur-sm">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
@@ -280,6 +281,7 @@ export default function TerritoryDetailView() {
                       </Button>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })()}
