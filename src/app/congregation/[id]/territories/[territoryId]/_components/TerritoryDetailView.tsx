@@ -138,7 +138,7 @@ export default function TerritoryDetailView() {
 
                   {/* Back button + title overlay — top-left of map */}
                   <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
-                    <div className="flex items-center gap-2 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
                       <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                         <Link href={backHref}>
                           <ArrowLeft className="h-4 w-4" />
@@ -155,7 +155,7 @@ export default function TerritoryDetailView() {
 
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
-                    <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm space-y-1.5">
+                    <div className="bg-white/25 dark:bg-gray-900/25 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm space-y-1.5">
                       {/* Stats row */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
