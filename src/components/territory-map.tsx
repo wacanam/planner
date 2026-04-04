@@ -492,28 +492,29 @@ export default function TerritoryMap({
       // Smoothing state
       let smoothAngle = 0;
       let hasAngle = false;
-      const ALPHA = 0.3;       // higher = more responsive, less smooth
-      const DEADBAND = 1.5;    // degrees — ignore updates smaller than this
+      const ALPHA = 0.18;      // balanced: responsive but not jittery
+      const DEADBAND = 3.0;    // ignore noise below 3° — reduces oscillation
       let rafId = 0;
       let currentDisplayAngle = 0;
 
-      // Flashlight cone — semi-transparent beam above the dot
+      // Cone: beam pointing UP from origin (0,0). Rotation pivot = base = center of dot.
+      // Wrapper is 0×0 so MapLibre anchor='center' puts it exactly on the GPS coord.
       const cone = document.createElement('div');
       cone.style.cssText = [
-        // Trapezoid beam shape using CSS clip-path
         'position:absolute;',
-        'width:40px;height:50px;',
-        'bottom:0;left:50%;',
-        'margin-left:-20px;',
-        'background:linear-gradient(to top, rgba(59,130,246,0.6) 0%, rgba(59,130,246,0) 100%);',
-        'clip-path:polygon(35% 100%, 65% 100%, 100% 0%, 0% 0%);',
-        'transform-origin:50% 100%;',
+        'width:36px;height:48px;',
+        'bottom:0;',               // base sits at wrapper origin (dot center)
+        'left:-18px;',             // center horizontally
+        'background:linear-gradient(to top, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0) 100%);',
+        'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
+        'transform-origin:50% 100%;', // pivot at base center
         'will-change:transform;',
         'pointer-events:none;',
       ].join('');
 
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:relative;width:16px;height:16px;overflow:visible;';
+      // Zero-size wrapper — MapLibre anchor='center' places (0,0) exactly at lngLat
+      wrapper.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
       wrapper.appendChild(cone);
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
