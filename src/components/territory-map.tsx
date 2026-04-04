@@ -1,73 +1,21 @@
 'use client';
 
 /**
- * TerritoryMap — production-ready Leaflet map
+ * TerritoryMap — MapLibre GL JS renderer
  *
- * Rendering strategy:
- * - Boundary polygons: SVG (low count, needs crisp strokes)
- * - Household markers: Canvas renderer via L.canvas() for perf at scale
- * - Clustering: supercluster (runs in-thread; swap to Worker if >50k points)
- * - Popups: bound lazily on cluster expand / individual marker click
- *
- * Performance notes:
- * - Canvas renderer batches all marker draws into a single <canvas> per tile
- * - supercluster indexes points in a flat typed-array KD-tree (O(n log n) build)
- * - Cluster circles are also Canvas-rendered CircleMarkers (no DOM per point)
- * - Spotlight mask uses a single inverted Polygon (world ring + territory hole)
+ * Features:
+ * - HD vector tiles via OpenFreeMap (no API key)
+ * - 3D buildings at zoom ≥ 15
+ * - Spotlight mask: territory interior clear, outside dimmed
+ * - Household markers: supercluster + custom HTML markers
+ * - Map style switcher (streets, satellite, topo, dark)
+ * - Dark mode responsive
  */
 
 import { useEffect, useRef, useState } from 'react';
+import Supercluster from 'supercluster';
 
-// ─── Map style registry ───────────────────────────────────────────────────────
-const MAP_STYLES = [
-  {
-    id: 'esri-street',
-    label: 'Street',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles © Esri',
-    maxZoom: 19,
-    darkUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    darkAttribution: 'Tiles © Esri',
-  },
-  {
-    id: 'carto-voyager',
-    label: 'Voyager',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '© OpenStreetMap contributors © CARTO',
-    maxZoom: 19,
-    darkUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    darkAttribution: '© OpenStreetMap contributors © CARTO',
-  },
-  {
-    id: 'osm',
-    label: 'OSM',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19,
-    darkUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    darkAttribution: '© OpenStreetMap contributors',
-  },
-  {
-    id: 'topo',
-    label: 'Topo',
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors, © OpenTopoMap',
-    maxZoom: 17,
-    darkUrl: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    darkAttribution: '© OpenStreetMap contributors, © OpenTopoMap',
-  },
-  {
-    id: 'esri-imagery',
-    label: 'Satellite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles © Esri',
-    maxZoom: 19,
-    darkUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    darkAttribution: 'Tiles © Esri',
-  },
-] as const;
-
-const DEFAULT_STYLE_ID = 'esri-street';
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface HouseholdPoint {
   id: string;
@@ -79,162 +27,105 @@ export interface HouseholdPoint {
 }
 
 export interface TerritoryMapProps {
-  /** Active territory boundary GeoJSON string — highlighted + spotlight mask */
   boundary?: string | null;
-  /** Other congregation territory boundaries shown as muted context layers */
   allBoundaries?: Array<{ id: string; name: string; boundary: string }>;
-  /** Households with lat/lng — clustered + canvas-rendered */
   households?: HouseholdPoint[];
-  /** Override map center */
   center?: [number, number];
   className?: string;
-  /** Called when a household marker is clicked — id + address */
   onHouseholdClick?: (id: string, address: string) => void;
 }
 
-// Status → fill color
+// ─── Map styles ───────────────────────────────────────────────────────────────
+
+const MAP_STYLES = [
+  {
+    id: 'streets',
+    label: 'Street',
+    url: 'https://tiles.openfreemap.org/styles/liberty',
+  },
+  {
+    id: 'bright',
+    label: 'Bright',
+    url: 'https://tiles.openfreemap.org/styles/bright',
+  },
+  {
+    id: 'positron',
+    label: 'Light',
+    url: 'https://tiles.openfreemap.org/styles/positron',
+  },
+  {
+    id: 'dark',
+    label: 'Dark',
+    url: 'https://tiles.openfreemap.org/styles/dark',
+  },
+] as const;
+
+type StyleId = (typeof MAP_STYLES)[number]['id'];
+const DEFAULT_STYLE: StyleId = 'streets';
+
+// ─── Status colors ────────────────────────────────────────────────────────────
+
 const STATUS_COLOR: Record<string, string> = {
-  not_visited:   '#94a3b8',
-  not_home:      '#f59e0b',
-  return_visit:  '#a855f7',
-  do_not_visit:  '#ef4444',
-  visited:       '#22c55e',
-  active:        '#3b82f6',
-  moved:         '#6b7280',
-  inactive:      '#6b7280',
-  new:           '#94a3b8',
+  not_visited:  '#94a3b8',
+  not_home:     '#f59e0b',
+  return_visit: '#a855f7',
+  do_not_visit: '#ef4444',
+  visited:      '#22c55e',
+  active:       '#3b82f6',
+  moved:        '#6b7280',
+  inactive:     '#6b7280',
+  new:          '#94a3b8',
 };
 const DEFAULT_COLOR = '#94a3b8';
 
-// Type → SVG path (24×24 viewBox, centered glyph)
-// Each icon is a white-stroked shape on a colored background pin
+// ─── Type icons (SVG paths, 24×24 viewBox) ───────────────────────────────────
+
 const TYPE_SVG: Record<string, string> = {
-  // House — simple roof + walls, fits 12×12 render area
-  house: `<path stroke="white" stroke-width="2" stroke-linejoin="round" fill="none"
-    d="M12 4 L22 11 V22 H16 V16 H8 V22 H2 V11 Z"/>`,
-  // Apartment — building with floors
-  apartment: `<rect x="4" y="5" width="16" height="17" rx="1" stroke="white" stroke-width="2" fill="none"/>
-    <line x1="4" y1="11" x2="20" y2="11" stroke="white" stroke-width="1.5"/>
-    <line x1="4" y1="17" x2="20" y2="17" stroke="white" stroke-width="1.5"/>
-    <line x1="12" y1="5" x2="12" y2="22" stroke="white" stroke-width="1.5"/>`,
-  // Business — briefcase
-  business: `<rect x="3" y="8" width="18" height="13" rx="1.5" stroke="white" stroke-width="2" fill="none"/>
-    <path d="M8 8 V6 Q8 4 10 4 H14 Q16 4 16 6 V8" stroke="white" stroke-width="2" fill="none"/>
-    <line x1="3" y1="14" x2="21" y2="14" stroke="white" stroke-width="1.5"/>`,
-  // Condo — tall building with windows
-  condo: `<rect x="5" y="2" width="14" height="21" rx="1" stroke="white" stroke-width="2" fill="none"/>
-    <rect x="8" y="6" width="3" height="3" fill="white" opacity="0.9"/>
-    <rect x="13" y="6" width="3" height="3" fill="white" opacity="0.9"/>
-    <rect x="8" y="12" width="3" height="3" fill="white" opacity="0.9"/>
-    <rect x="13" y="12" width="3" height="3" fill="white" opacity="0.9"/>`,
+  house: '<path stroke="white" stroke-width="2" stroke-linejoin="round" fill="none" d="M12 4 L22 11 V22 H16 V16 H8 V22 H2 V11 Z"/>',
+  apartment: '<rect x="4" y="5" width="16" height="17" rx="1" stroke="white" stroke-width="2" fill="none"/><line x1="4" y1="11" x2="20" y2="11" stroke="white" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="white" stroke-width="1.5"/><line x1="12" y1="5" x2="12" y2="22" stroke="white" stroke-width="1.5"/>',
+  business: '<rect x="3" y="8" width="18" height="13" rx="1.5" stroke="white" stroke-width="2" fill="none"/><path d="M8 8 V6 Q8 4 10 4 H14 Q16 4 16 6 V8" stroke="white" stroke-width="2" fill="none"/><line x1="3" y1="14" x2="21" y2="14" stroke="white" stroke-width="1.5"/>',
+  condo: '<rect x="5" y="2" width="14" height="21" rx="1" stroke="white" stroke-width="2" fill="none"/><rect x="8" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="8" y="12" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="12" width="3" height="3" fill="white" opacity="0.9"/>',
 };
 const DEFAULT_SVG = TYPE_SVG.house;
 
-/**
- * Google Maps-style marker:
- * - Filled circle with white icon inside
- * - Plain text label to the right, no border/pill
- * - Count badge top-right for clusters
- */
-/**
- * Google Maps-style pin:
- * - White teardrop body with subtle drop shadow
- * - Status-colored filled circle at the head (generous padding ~5px)
- * - White icon centered inside the circle
- * - Plain text label to the right
- * - Optional dark count badge top-right for clusters
- *
- * SVG viewBox 36×46: circle head (r=13) centered at (18,18),
- * teardrop narrows to a soft rounded tip at bottom-center (18,44).
- * Anchor point = tip (0,0 in the zero-size DivIcon container).
- */
-function makePinHtml(
-  color: string,
-  iconSvg: string,
-  label: string,
-  badge?: number,
-): string {
+// ─── Pin HTML builder ─────────────────────────────────────────────────────────
+
+function makePinHtml(color: string, iconSvg: string, label: string, badge?: number): string {
   const truncated = label.length > 20 ? label.slice(0, 20) + '\u2026' : label;
 
-  // Badge HTML (no nested template literals)
   const badgeHtml = badge !== undefined
-    ? [
-        '<div style="',
-          'position:absolute;top:-5px;right:-7px;',
-          'min-width:16px;height:16px;',
-          'background:#1e293b;color:white;',
-          'font-size:9px;font-weight:700;',
-          'border-radius:9999px;',
-          'display:flex;align-items:center;justify-content:center;',
-          'border:2px solid white;padding:0 3px;',
-          'box-shadow:0 1px 4px rgba(0,0,0,.35);',
-        '">',
-        String(badge),
-        '</div>',
-      ].join('')
+    ? ['<div style="position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;',
+        'background:#1e293b;color:white;font-size:9px;font-weight:700;border-radius:9999px;',
+        'display:flex;align-items:center;justify-content:center;border:2px solid white;',
+        'padding:0 3px;box-shadow:0 1px 4px rgba(0,0,0,.35);">',
+        String(badge), '</div>'].join('')
     : '';
 
-  // Pin SVG: 26×30. Round head, short body, fully rounded bottom tip (no sharp point).
-  // Circle r=10 centered at (13,13), 3px padding from 26px head.
   const pinSvg = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="28" viewBox="0 0 26 28"',
     ' style="display:block;filter:drop-shadow(0 1px 5px rgba(0,0,0,0.28))">',
-    // White teardrop — round head, fully rounded bottom tip via large arc
-    '<path d="M13 2',
-    ' C6.4 2 2 6.8 2 13',
-    ' C2 19.5 7 23 11 26',
-    ' A2.2 2.2 0 0 0 15 26',
-    ' C19 24 24 19.5 24 13',
-    ' C24 6.8 19.6 2 13 2 Z"',
-    ' fill="white"/>',
-    // Status color circle
-    '<circle cx="13" cy="13" r="9" fill="' + color + '"/>',
-    // White icon (12×12, centered at 13,13 → translate 7,7)
-    '<g transform="translate(7,7)">',
-    '<svg width="12" height="12" viewBox="0 0 24 24">',
-    iconSvg,
-    '</svg></g>',
+    '<path d="M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26',
+    ' A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z" fill="white"/>',
+    '<circle cx="13" cy="13" r="9" fill="', color, '"/>',
+    '<g transform="translate(7,7)"><svg width="12" height="12" viewBox="0 0 24 24">', iconSvg, '</svg></g>',
     '</svg>',
   ].join('');
 
   return [
     '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">',
-
-      // Pin container — tail tip anchored at (0,0)
       '<div style="position:absolute;left:-13px;top:-27px;pointer-events:auto;">',
-        pinSvg,
-        badgeHtml,
+        pinSvg, badgeHtml,
       '</div>',
-
-      // Label — right of pin, vertically centered on circle head
-      '<div style="',
-        'position:absolute;left:15px;top:-19px;',
-        'color:#1e293b;',
-        '-webkit-text-stroke:2px white;paint-order:stroke fill;',
-        'font-size:10px;font-weight:500;line-height:1.3;',
-        'white-space:nowrap;pointer-events:none;',
-      '">',
+      '<div style="position:absolute;left:15px;top:-19px;color:#1e293b;',
+        'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
+        '-webkit-text-stroke:2px white;paint-order:stroke fill;">',
         truncated,
       '</div>',
-
     '</div>',
   ].join('');
 }
 
-function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string, address: string) {
-  const color   = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-  const iconSvg = TYPE_SVG[type] ?? DEFAULT_SVG;
-  const label   = address.split(' ').slice(0, 3).join(' ');
-  return L.divIcon({
-    html:       makePinHtml(color, iconSvg, label),
-    className:  '',
-    iconSize:   [0, 0],
-    iconAnchor: [0, 0],
-    popupAnchor:[13, -27],
-  });
-}
-
-// ─── Canvas renderer kept for potential future use ───────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TerritoryMap({
   boundary,
@@ -244,30 +135,17 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
 }: TerritoryMapProps) {
-  const mapRef          = useRef<HTMLDivElement>(null);
-  const mapInstance     = useRef<unknown>(null);
-  const clusterGroupRef   = useRef<unknown>(null);
-  const indexRef          = useRef<unknown>(null);
-  const leafletRef        = useRef<unknown>(null);
-  const superclusterRef   = useRef<unknown>(null);
-  const tileLayerRef      = useRef<unknown>(null);   // active tile layer
-  const mapReadyRef       = useRef(false);
+  const mapRef        = useRef<HTMLDivElement>(null);
+  const mapInstance   = useRef<import('maplibre-gl').Map | null>(null);
+  const markersRef    = useRef<import('maplibre-gl').Marker[]>([]);
+  const onClickRef    = useRef(onHouseholdClick);
+  onClickRef.current  = onHouseholdClick;
+
+  const [styleId, setStyleId] = useState<StyleId>(DEFAULT_STYLE);
+  const [showPicker, setShowPicker] = useState(false);
   const [mapReady, setMapReady] = useState(false);
-  const [mapStyleId, setMapStyleId] = useState(DEFAULT_STYLE_ID);
-  const [showStylePicker, setShowStylePicker] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-  const onClickRef        = useRef(onHouseholdClick);
-  onClickRef.current      = onHouseholdClick;
 
-  // Detect dark mode
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    setIsDark(mq.matches || document.documentElement.classList.contains('dark'));
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
+  // ── Init map ──────────────────────────────────────────────────────────────
   // biome-ignore lint/correctness/useExhaustiveDependencies: one-time mount
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -275,302 +153,320 @@ export default function TerritoryMap({
 
     let destroyed = false;
 
-    Promise.all([
-      import('leaflet'),
-      import('supercluster'),
-    ]).then(([L, { default: Supercluster }]) => {      if (destroyed || !mapRef.current) return;
+    import('maplibre-gl').then((mgl) => {
+      if (destroyed || !mapRef.current) return;
 
-      // ── Fix webpack-broken default icons ──────────────────────────────────
-      // @ts-expect-error Leaflet internals
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
-      // ── Map init ──────────────────────────────────────────────────────────
-      const map = L.map(mapRef.current as HTMLElement, {
-        zoomControl: false,
-        scrollWheelZoom: true,
-        preferCanvas: false, // polygons stay SVG; we pass renderer per-layer
-      });
-      mapInstance.current = map;
-
-      // Tile layer is managed entirely by the style effect below
-      // (don't add one here to avoid orphaned layers)
-
-      // ── Determine initial view ────────────────────────────────────────────
       const validPts = households.filter((h) => h.latitude && h.longitude);
+      let lng = center?.[1] ?? 124.85;
+      let lat = center?.[0] ?? 8.37;
+      let zoom = 14;
 
-      let mapCenter: [number, number] = center ?? [8.37, 124.85]; // fallback: Philippines
-      if (validPts.length > 0 && !center) {
-        const lats = validPts.map((h) => Number(h.latitude));
-        const lngs = validPts.map((h) => Number(h.longitude));
-        mapCenter = [
-          (Math.min(...lats) + Math.max(...lats)) / 2,
-          (Math.min(...lngs) + Math.max(...lngs)) / 2,
-        ];
-      }
-      map.setView(mapCenter, 15);
-
-      // ── Context territory boundaries (muted dashed outlines) ─────────────
-      const contextLayers: ReturnType<typeof L.geoJSON>[] = [];
-      for (const tb of allBoundaries) {
-        try {
-          const geo = JSON.parse(tb.boundary);
-          const layer = L.geoJSON(geo, {
-            style: {
-              color: '#94a3b8', weight: 1.5,
-              fillOpacity: 0.04, fillColor: '#94a3b8',
-              dashArray: '4 4',
-            },
-          }).addTo(map);
-          layer.bindTooltip(tb.name, { permanent: false, direction: 'center', className: 'text-xs' });
-          contextLayers.push(layer);
-        } catch { /* skip malformed */ }
-      }
-
-      // ── Active territory spotlight ────────────────────────────────────────
-      let activeBorderLayer: ReturnType<typeof L.geoJSON> | null = null;
+      // Center on boundary if available
       if (boundary) {
         try {
           const geo = JSON.parse(boundary);
-          // GeoJSON coords are [lng, lat]; convert to Leaflet [lat, lng] arrays
-          const outerRing: [number,number][] = (geo?.geometry?.coordinates?.[0] ?? [])
-            .map(([lng, lat]: [number, number]) => [lat, lng] as [number,number]);
-
-          if (outerRing.length) {
-            // Use L.polygon with holes — Leaflet renders this correctly on infinite canvas.
-            // Outer ring = massive world bbox (lat/lng), hole = territory ring.
-            // L.polygon coords: [[outerRing], [holeRing]]
-            const worldOuter: [number,number][] = [[-90,-360],[90,-360],[90,360],[-90,360]];
-            L.polygon([worldOuter, outerRing], {
-              color: '#6B9ECC',
-              weight: 0,
-              fillColor: '#64748b',
-              fillOpacity: 0.35,
-              stroke: false,
-            }).addTo(map);
-
-            // Clean border on top
-            activeBorderLayer = L.geoJSON(geo, {
-              style: { color: '#6B9ECC', weight: 2.5, fillOpacity: 0, stroke: true },
-            }).addTo(map);
+          const coords: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
+          if (coords.length) {
+            const lngs = coords.map(([x]) => x);
+            const lats = coords.map(([, y]) => y);
+            lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+            lat = (Math.min(...lats) + Math.max(...lats)) / 2;
           }
         } catch { /* skip */ }
+      } else if (validPts.length) {
+        const lats = validPts.map((h) => Number(h.latitude));
+        const lngs = validPts.map((h) => Number(h.longitude));
+        lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
       }
 
-      // Fit to active border or all context layers
-      const fitTarget = activeBorderLayer ?? (contextLayers.length > 0 ? L.featureGroup(contextLayers) : null);
-      if (fitTarget) {
-        try { map.fitBounds((fitTarget as ReturnType<typeof L.geoJSON>).getBounds(), { padding: [24, 24] }); }
-        catch { /* bounds may be empty */ }
-      }
+      const style = MAP_STYLES.find((s) => s.id === styleId) ?? MAP_STYLES[0];
 
-      // Store refs for the households effect to use
-      clusterGroupRef.current   = L.layerGroup().addTo(map);
-      leafletRef.current        = L;
-      superclusterRef.current   = Supercluster;
-      mapReadyRef.current = true;
-      setMapReady(true); // triggers households effect
+      const map = new mgl.Map({
+        container: mapRef.current as HTMLElement,
+        style: style.url,
+        center: [lng, lat],
+        zoom,
+        attributionControl: false,
+      });
+
+      map.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-left');
+
+      mapInstance.current = map;
+
+      map.on('load', () => {
+        if (destroyed) return;
+
+        // ── 3D buildings ────────────────────────────────────────────────────
+        const layers = map.getStyle().layers;
+        let labelLayerId: string | undefined;
+        for (const layer of layers) {
+          if (layer.type === 'symbol' && (layer.layout as Record<string, unknown>)?.['text-field']) {
+            labelLayerId = layer.id;
+            break;
+          }
+        }
+
+        if (map.getSource('composite') || map.getSource('openmaptiles')) {
+          map.addLayer({
+            id: '3d-buildings',
+            source: map.getSource('composite') ? 'composite' : 'openmaptiles',
+            'source-layer': 'building',
+            type: 'fill-extrusion',
+            minzoom: 15,
+            paint: {
+              'fill-extrusion-color': '#d4d4d4',
+              'fill-extrusion-height': ['get', 'height'],
+              'fill-extrusion-base': ['get', 'min_height'],
+              'fill-extrusion-opacity': 0.6,
+            },
+          }, labelLayerId);
+        }
+
+        // ── Context territory polygons ───────────────────────────────────────
+        for (const tb of allBoundaries) {
+          try {
+            const geo = JSON.parse(tb.boundary);
+            const sourceId = `boundary-${tb.id}`;
+            map.addSource(sourceId, { type: 'geojson', data: geo });
+            map.addLayer({
+              id: `boundary-fill-${tb.id}`,
+              type: 'fill',
+              source: sourceId,
+              paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 },
+            });
+            map.addLayer({
+              id: `boundary-line-${tb.id}`,
+              type: 'line',
+              source: sourceId,
+              paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
+            });
+          } catch { /* skip */ }
+        }
+
+        // ── Active territory spotlight ───────────────────────────────────────
+        if (boundary) {
+          try {
+            const geo = JSON.parse(boundary);
+            const outerRing: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
+            if (outerRing.length) {
+              const worldOuter: [number, number][] = [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]];
+              const maskGeo = {
+                type: 'Feature',
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [worldOuter, outerRing],
+                },
+              };
+              map.addSource('spotlight-mask', { type: 'geojson', data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D } ? D : never });
+              map.addLayer({
+                id: 'spotlight-fill',
+                type: 'fill',
+                source: 'spotlight-mask',
+                paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+              });
+              // Border
+              map.addSource('active-boundary', { type: 'geojson', data: geo });
+              map.addLayer({
+                id: 'active-boundary-line',
+                type: 'line',
+                source: 'active-boundary',
+                paint: { 'line-color': '#6B9ECC', 'line-width': 2.5 },
+              });
+
+              // Fit map to territory
+              const lngs = outerRing.map(([x]) => x);
+              const lats = outerRing.map(([, y]) => y);
+              map.fitBounds(
+                [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+                { padding: 60, duration: 0 }
+              );
+            }
+          } catch { /* skip */ }
+        }
+
+        setMapReady(true);
+      });
     });
 
     return () => {
       destroyed = true;
+      for (const m of markersRef.current) m.remove();
+      markersRef.current = [];
       if (mapInstance.current) {
-        (mapInstance.current as { remove: () => void }).remove();
+        mapInstance.current.remove();
         mapInstance.current = null;
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Style / dark-mode effect — swaps tile layer when style or dark mode changes ──
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is a trigger flag
+  // ── Style switcher effect ─────────────────────────────────────────────────
   useEffect(() => {
-    const map  = mapInstance.current as (import('leaflet').Map | null);
-    const L    = leafletRef.current  as (typeof import('leaflet') | null);
-    if (!map || !L) return;
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+    const style = MAP_STYLES.find((s) => s.id === styleId) ?? MAP_STYLES[0];
+    map.setStyle(style.url);
+  }, [styleId, mapReady]);
 
-    const style = MAP_STYLES.find((s) => s.id === mapStyleId) ?? MAP_STYLES[0];
-    const url   = isDark ? style.darkUrl   : style.url;
-    const attr  = isDark ? style.darkAttribution : style.attribution;
-
-    // Remove existing tile layer
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current as import('leaflet').TileLayer);
-    }
-    const layer = L.tileLayer(url, { attribution: attr, maxZoom: style.maxZoom });
-    layer.addTo(map);
-    // Ensure tile layer is below everything else
-    (layer as unknown as { setZIndex: (z: number) => void }).setZIndex?.(0);
-    tileLayerRef.current = layer;
-  }, [mapStyleId, isDark, mapReady]);
-
-  // ── Households effect — re-runs whenever households array changes ──────────
-  // Rebuilds supercluster index and re-renders markers reactively.
-  // Separated from init so async SWR data arriving after mount is handled.
+  // ── Household markers effect ──────────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
   useEffect(() => {
-    const map   = mapInstance.current as (import('leaflet').Map | null);
-    const L     = leafletRef.current  as (typeof import('leaflet') | null);
-    const group = clusterGroupRef.current as (import('leaflet').LayerGroup | null);
-    if (!map || !L || !group) return;
-    // Narrow L type for TS (already guarded above)
-    const Leaflet = L as typeof import('leaflet');
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    // Clear existing markers
+    for (const m of markersRef.current) m.remove();
+    markersRef.current = [];
 
     const validPts = households.filter((h) => h.latitude && h.longitude);
-    if (validPts.length === 0) { group.clearLayers(); return; }
+    if (!validPts.length) return;
 
-    const Supercluster = superclusterRef.current as (typeof import('supercluster') | null);
-    if (!mapReady || !Supercluster) return;
+    import('maplibre-gl').then((mgl) => {
+      if (!mapInstance.current) return;
 
-    const CLUSTER_RADIUS = 100;
-    const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-      radius: CLUSTER_RADIUS, maxZoom: 18, minPoints: 2,
-    });
-    index.load(validPts.map((h) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [Number(h.longitude), Number(h.latitude)] },
-      properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
-    })));
-    indexRef.current = index;
+      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
+        radius: 128, maxZoom: 18, minPoints: 2,
+      });
 
-    function renderClusters() {
-      const idx = indexRef.current as typeof index | null;
-      if (!idx || !map || !group) return;
-      group.clearLayers();
+      index.load(validPts.map((h) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [Number(h.longitude), Number(h.latitude)] },
+        properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
+      })));
 
-      const bounds = map.getBounds();
-      const bbox: [number, number, number, number] = [
-        bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
-      ];
-      const zoom = Math.floor(map.getZoom());
-      const clusters = idx.getClusters(bbox, zoom);
+      function renderMarkers() {
+        const m = mapInstance.current;
+        if (!m) return;
 
-      for (const feature of clusters) {
-        const [lng, lat] = feature.geometry.coordinates;
-        const props = feature.properties as Record<string, unknown>;
+        // Clear
+        for (const mk of markersRef.current) mk.remove();
+        markersRef.current = [];
 
-        if (props.cluster) {
-          const count     = props.point_count as number;
-          const clusterId = props.cluster_id as number;
-          const leaves    = idx.getLeaves(clusterId, 1);
-          const rep       = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
-          const repStatus  = rep?.status  ?? 'not_visited';
-          const repType    = rep?.type    ?? 'house';
-          const repAddress = rep?.address ?? '';
-          const repColor   = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
-          const repIcon    = TYPE_SVG[repType] ?? DEFAULT_SVG;
-          const repLabel   = repAddress.split(' ').slice(0, 3).join(' ');
+        const bounds = m.getBounds();
+        const bbox: [number, number, number, number] = [
+          bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
+        ];
+        const zoom = Math.floor(m.getZoom());
+        const clusters = index.getClusters(bbox, zoom);
 
-          const clusterMarker = Leaflet.marker([lat, lng], {
-            icon: Leaflet.divIcon({
-              html: makePinHtml(repColor, repIcon, repLabel, count),
-              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-27],
-            }),
-          });
-          clusterMarker.on('click', () => {
-            map.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
-          });
-          group.addLayer(clusterMarker);
+        for (const feature of clusters) {
+          const [lng, lat] = feature.geometry.coordinates;
+          const props = feature.properties as Record<string, unknown>;
 
-        } else {
-          const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
-          const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-          const marker = Leaflet.marker([lat, lng], { icon: makeHouseholdIcon(Leaflet, status, hType, address) });
+          const el = document.createElement('div');
+          el.style.cssText = 'cursor:pointer;';
 
+          if (props.cluster) {
+            const count = props.point_count as number;
+            const clusterId = props.cluster_id as number;
+            const leaves = index.getLeaves(clusterId, 1);
+            const rep = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
+            const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
+            const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
+            const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
+            el.innerHTML = makePinHtml(color, icon, label, count);
+            el.addEventListener('click', () => {
+              m.flyTo({
+                center: [lng, lat],
+                zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
+                duration: 400,
+              });
+            });
+          } else {
+            const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
+            const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+            const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
+            const label = address.split(' ').slice(0, 3).join(' ');
+            el.innerHTML = makePinHtml(color, icon, label);
 
-          const onHClick = onClickRef.current;
-          const logBtn = onHClick
-            ? [
-                '<button data-hid="', id, '"',
-                ' style="margin-top:8px;width:100%;padding:4px 0;background:', statusColor,
-                ';color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">',
-                'Log Visit</button>',
-              ].join('')
-            : '';
-          const popupHtml = [
-            '<div style="min-width:150px">',
-              '<p style="font-weight:600;margin:0 0 4px">', address, '</p>',
-              '<span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:9999px;',
-                'background:', statusColor, '22;color:', statusColor,
-                ';text-transform:capitalize;font-weight:600;">',
-                status.replace(/_/g, ' '),
-              '</span>',
-              logBtn,
-            '</div>',
-          ].join('');
-          marker.bindPopup(popupHtml, { maxWidth: 220, closeButton: false });
-          if (onHClick) {
-            marker.on('popupopen', () => {
-              const btn = document.querySelector<HTMLButtonElement>(`button[data-hid="${id}"]`);
-              if (btn) btn.onclick = () => onHClick(id, address);
+            el.addEventListener('click', () => {
+              const onHClick = onClickRef.current;
+              // Show popup
+              const popup = new mgl.Popup({ closeButton: false, className: 'territory-popup', offset: [0, -30] })
+                .setHTML([
+                  '<div style="min-width:150px;padding:2px 0">',
+                    '<p style="font-weight:600;margin:0 0 4px;font-size:13px">', address, '</p>',
+                    '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
+                      'background:', color, '22;color:', color, ';text-transform:capitalize;font-weight:600;">',
+                      status.replace(/_/g, ' '),
+                    '</span>',
+                    onHClick
+                      ? ['<button onclick="window.__mapLogVisit(\'' + id + '\',\'' + address.replace(/'/g, "\\'") + '\')"',
+                         ' style="margin-top:8px;width:100%;padding:5px 0;background:', color,
+                         ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                         'Log Visit</button>'].join('')
+                      : '',
+                  '</div>',
+                ].join(''))
+                .setLngLat([lng, lat])
+                .addTo(m);
+
+              if (onHClick) {
+                (window as unknown as Record<string, unknown>).__mapLogVisit = (hId: string, hAddr: string) => {
+                  popup.remove();
+                  onHClick(hId, hAddr);
+                };
+              }
             });
           }
-          (marker as unknown as { householdId: string }).householdId = id;
-          group.addLayer(marker);
+
+          const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([lng, lat])
+            .addTo(m);
+          markersRef.current.push(marker);
         }
       }
-    }
 
-    // Initial render + bind to map events
-    map.off('moveend zoomend'); // remove previous listener
-    renderClusters();
-    map.on('moveend zoomend', renderClusters);
-
-  }, [households, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+      renderMarkers();
+      map?.off('moveend', renderMarkers);
+      map?.on('moveend', renderMarkers);
+    });
+  }, [households, mapReady]);
 
   return (
     <div className={`relative ${className}`}>
-      {/* Leaflet CSS */}
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossOrigin="" />
+      {/* MapLibre GL CSS */}
+      <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" crossOrigin="" />
 
       <style>{`
-        .leaflet-popup-content-wrapper { border-radius: 12px !important; }
-        .leaflet-popup-content { margin: 10px 12px !important; }
-        .leaflet-div-icon { background: transparent !important; border: none !important; }
-        .household-label {
-          background: white !important;
-          border: none !important;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.15) !important;
-          border-radius: 9999px !important;
-          padding: 2px 8px !important;
-          font-size: 10px !important;
-          font-weight: 600 !important;
-          color: #1e293b !important;
-          white-space: nowrap !important;
+        .maplibregl-canvas { outline: none; }
+        .territory-popup .maplibregl-popup-content {
+          border-radius: 12px !important;
+          padding: 10px 12px !important;
+          box-shadow: 0 4px 16px rgba(0,0,0,.15) !important;
         }
-        .household-label::before { display: none !important; }
+        .territory-popup .maplibregl-popup-tip { display: none; }
+        .maplibregl-div-icon { background: transparent !important; border: none !important; }
       `}</style>
 
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Map style switcher — top-right, expands downward */}
+      {/* Style switcher — top-right, expands downward */}
       <div className="absolute top-14 right-3 z-[1002]">
         <button
           type="button"
-          onClick={() => setShowStylePicker((p) => !p)}
+          onClick={() => setShowPicker((p) => !p)}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M3 6h18M3 12h18M3 18h18"/>
           </svg>
-          {MAP_STYLES.find((s) => s.id === mapStyleId)?.label ?? 'Map'}
+          {MAP_STYLES.find((s) => s.id === styleId)?.label ?? 'Map'}
         </button>
-        {showStylePicker && (
+        {showPicker && (
           <div className="mt-1 flex flex-col gap-1 items-end">
             {MAP_STYLES.map((s) => (
               <button
                 key={s.id}
                 type="button"
-                onClick={() => { setMapStyleId(s.id); setShowStylePicker(false); }}
-                className={[
-                  'px-2.5 py-1 rounded-lg text-[10px] shadow-sm backdrop-blur-md transition-all',
-                  mapStyleId === s.id
-                    ? 'bg-primary text-white'
-                    : 'bg-white/70 dark:bg-gray-900/70 text-foreground hover:bg-white dark:hover:bg-gray-800',
-                ].join(' ')}
+                onClick={() => { setStyleId(s.id); setShowPicker(false); }}
                 style={{ fontWeight: 600, fontSize: '10px' }}
+                className={[
+                  'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-md transition-all',
+                  styleId === s.id
+                    ? 'bg-primary text-white'
+                    : 'bg-white/70 dark:bg-gray-900/70 text-foreground hover:bg-white',
+                ].join(' ')}
               >
                 {s.label}
               </button>
@@ -581,10 +477,8 @@ export default function TerritoryMap({
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
-          <p className="text-xs font-medium text-muted-foreground">Map coming soon</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-            Add household coordinates to see markers
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">No map data</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5">Add a boundary or household coordinates</p>
         </div>
       )}
     </div>
