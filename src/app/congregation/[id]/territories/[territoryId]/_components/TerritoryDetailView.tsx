@@ -112,7 +112,7 @@ export default function TerritoryDetailView() {
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
               return (
-                <div className="relative overflow-hidden h-full">
+                <div className="relative h-full">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
