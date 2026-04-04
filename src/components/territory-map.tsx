@@ -545,17 +545,27 @@ export default function TerritoryMap({
 
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Map style switcher — bottom-right */}
-      <div className="absolute bottom-14 right-3 z-[1002]">
+      {/* Map style switcher — top-right, expands downward */}
+      <div className="absolute top-14 right-3 z-[1002]">
+        <button
+          type="button"
+          onClick={() => setShowStylePicker((p) => !p)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+          {MAP_STYLES.find((s) => s.id === mapStyleId)?.label ?? 'Map'}
+        </button>
         {showStylePicker && (
-          <div className="mb-1 flex flex-col gap-1 items-end">
+          <div className="mt-1 flex flex-col gap-1 items-end">
             {MAP_STYLES.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => { setMapStyleId(s.id); setShowStylePicker(false); }}
                 className={[
-                  'px-2.5 py-1 rounded-lg text-[10px] font-600 shadow-sm backdrop-blur-md transition-all',
+                  'px-2.5 py-1 rounded-lg text-[10px] shadow-sm backdrop-blur-md transition-all',
                   mapStyleId === s.id
                     ? 'bg-primary text-white'
                     : 'bg-white/70 dark:bg-gray-900/70 text-foreground hover:bg-white dark:hover:bg-gray-800',
@@ -567,16 +577,6 @@ export default function TerritoryMap({
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setShowStylePicker((p) => !p)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M3 6h18M3 12h18M3 18h18"/>
-          </svg>
-          {MAP_STYLES.find((s) => s.id === mapStyleId)?.label ?? 'Map'}
-        </button>
       </div>
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
