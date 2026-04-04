@@ -111,7 +111,7 @@ function makePinHtml(
            style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.26)) drop-shadow(0 0 1px rgba(0,0,0,0.1))">
         <!-- Very round head, gentle right-leaning tail -->
         <path d="M18 2 C9.2 2 2 9.2 2 18 C2 26 8 33 13 39 Q15 42 15 43 Q15.5 44 16 43.5 Q17 42.5 19 40 C24 34 34 26.5 34 18 C34 9.2 26.8 2 18 2 Z"
-          fill="#f8fafc" stroke="#d1d5db" stroke-width="1.5"/>
+          fill="white" stroke="white" stroke-width="1.5"/>
         <!-- Status color circle, ~5px padding from teardrop edge -->
         <circle cx="18" cy="18" r="13" fill="\${color}"/>
         <!-- White icon centered -->
