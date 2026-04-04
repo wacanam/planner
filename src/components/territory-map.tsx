@@ -16,7 +16,7 @@
  * - Spotlight mask uses a single inverted Polygon (world ring + territory hole)
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 export interface HouseholdPoint {
   id: string;
@@ -166,8 +166,16 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
 }: TerritoryMapProps) {
-  const mapRef       = useRef<HTMLDivElement>(null);
-  const mapInstance  = useRef<unknown>(null);
+  const mapRef          = useRef<HTMLDivElement>(null);
+  const mapInstance     = useRef<unknown>(null);
+  const clusterGroupRef   = useRef<unknown>(null);
+  const indexRef          = useRef<unknown>(null);
+  const leafletRef        = useRef<unknown>(null);
+  const superclusterRef   = useRef<unknown>(null);
+  const mapReadyRef       = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
+  const onClickRef        = useRef(onHouseholdClick);
+  onClickRef.current      = onHouseholdClick;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: one-time mount
   useEffect(() => {
@@ -179,8 +187,7 @@ export default function TerritoryMap({
     Promise.all([
       import('leaflet'),
       import('supercluster'),
-    ]).then(([L, { default: Supercluster }]) => {
-      if (destroyed || !mapRef.current) return;
+    ]).then(([L, { default: Supercluster }]) => {      if (destroyed || !mapRef.current) return;
 
       // ── Fix webpack-broken default icons ──────────────────────────────────
       // @ts-expect-error Leaflet internals
@@ -267,170 +274,12 @@ export default function TerritoryMap({
         catch { /* bounds may be empty */ }
       }
 
-      // ── Supercluster setup ────────────────────────────────────────────────
-      if (validPts.length === 0) return;
-
-      /**
-       * Buffer-based clustering radius.
-       *
-       * supercluster radius is in pixels at zoom 256-tile space (tile size = 256px).
-       * The visual footprint of each marker is:
-       *   - Pin:   32px wide
-       *   - Label: ~140px wide (10px font, ~14 chars avg, + padding)
-       *   - Total: ~172px at screen resolution
-       *
-       * Convert screen px → supercluster radius:
-       *   supercluster_radius = screen_px * (256 / tileSize)
-       * Leaflet default tileSize = 256, so ratio = 1.
-       * We add 20% breathing room to avoid tight packing.
-       *
-       * At high zoom (18+) markers are far apart; at low zoom they cluster.
-       * radius: 170 means two markers must be >170px apart at the current zoom
-       * to render individually — matching their combined visual footprint.
-       */
-      const PIN_WIDTH_PX    = 22;
-      const LABEL_WIDTH_PX  = 70;  // visible label footprint (overlap tolerated at mid-zoom)
-      const BUFFER_PX       = 8;   // tight breathing room
-      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 100
-
-      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-        radius:    CLUSTER_RADIUS,
-        maxZoom:   18,
-        minPoints: 2, // even 2 overlapping markers should cluster
-      });
-
-      index.load(
-        validPts.map((h) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [Number(h.longitude), Number(h.latitude)] },
-          properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
-        }))
-      );
-
-      // Layer group holds all rendered cluster/point markers (replaced on each update)
-      const clusterGroup = L.layerGroup().addTo(map);
-
-      function renderClusters() {
-        clusterGroup.clearLayers();
-
-        const bounds = map.getBounds();
-        const bbox: [number, number, number, number] = [
-          bounds.getWest(), bounds.getSouth(),
-          bounds.getEast(), bounds.getNorth(),
-        ];
-        const zoom = Math.floor(map.getZoom());
-        const clusters = index.getClusters(bbox, zoom);
-
-        for (const feature of clusters) {
-          const [lng, lat] = feature.geometry.coordinates;
-          const props = feature.properties as Record<string, unknown>;
-
-          if (props.cluster) {
-            // ── Representative pin + count badge ─────────────────────────
-            // Pick one real leaf to get type/status for the icon
-            const count = props.point_count as number;
-            const clusterId = props.cluster_id as number;
-            const leaves = index.getLeaves(clusterId, 1);
-            const rep = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
-            const repStatus  = rep?.status  ?? 'not_visited';
-            const repType    = rep?.type    ?? 'house';
-            const repAddress = rep?.address ?? '';
-
-            // Build icon HTML: representative pin + count badge
-            const repColor = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
-            const repIcon  = TYPE_SVG[repType] ?? DEFAULT_SVG;
-
-            const repLabel = repAddress.split(' ').slice(0, 3).join(' ');
-            const html = makePinHtml(repColor, repIcon, repLabel, count);
-
-            const clusterMarker = L.marker([lat, lng], {
-              icon: L.divIcon({
-                html,
-                className:  '',
-                iconSize:   [0, 0],
-                iconAnchor: [0, 0],
-                popupAnchor:[11, -26],
-              }),
-            });
-
-            // Label on hover
-            clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
-              permanent: false,
-              direction: 'right',
-              offset: [16, -38],
-              className: 'household-label',
-            });
-
-            clusterMarker.on('click', () => {
-              const expansionZoom = Math.min(
-                index.getClusterExpansionZoom(clusterId),
-                18
-              );
-              map.flyTo([lat, lng], expansionZoom, { duration: 0.4 });
-            });
-
-            clusterGroup.addLayer(clusterMarker);
-          } else {
-            // ── Individual icon marker (DivIcon, type-shaped + status-colored) ──
-            const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
-
-            const marker = L.marker([lat, lng], {
-              icon: makeHouseholdIcon(L, status, hType, address),
-            });
-
-            // Label as hover tooltip — no overlap between markers
-            marker.bindTooltip(address, {
-              permanent: false,
-              direction: 'right',
-              offset: [16, -38],
-              className: 'household-label',
-            });
-
-            const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-            const logBtn = onHouseholdClick
-              ? `<button
-                  data-hid="${id}"
-                  data-haddr="${address.replace(/"/g, '&quot;')}"
-                  style="
-                    margin-top:8px;width:100%;
-                    padding:4px 0;
-                    background:${statusColor};color:white;
-                    border:none;border-radius:6px;
-                    font-size:11px;font-weight:600;cursor:pointer;
-                  ">Log Visit</button>`
-              : '';
-
-            marker.bindPopup(
-              `<div style="min-width:150px">
-                <p style="font-weight:600;margin:0 0 4px">${address}</p>
-                <span style="
-                  display:inline-block;
-                  font-size:10px;padding:2px 6px;
-                  border-radius:9999px;
-                  background:${statusColor}22;color:${statusColor};
-                  text-transform:capitalize;font-weight:600;
-                ">${status.replace(/_/g, ' ')}</span>
-                ${logBtn}
-              </div>`,
-              { maxWidth: 220, closeButton: false }
-            );
-
-            // Delegate click on "Log Visit" button inside popup
-            if (onHouseholdClick) {
-              marker.on('popupopen', () => {
-                const btn = document.querySelector<HTMLButtonElement>(`button[data-hid="${id}"]`);
-                if (btn) btn.onclick = () => onHouseholdClick(id, address);
-              });
-            }
-
-            (marker as unknown as { householdId: string }).householdId = id;
-            clusterGroup.addLayer(marker);
-          }
-        }
-      }
-
-      renderClusters();
-      map.on('moveend zoomend', renderClusters);
+      // Store refs for the households effect to use
+      clusterGroupRef.current   = L.layerGroup().addTo(map);
+      leafletRef.current        = L;
+      superclusterRef.current   = Supercluster;
+      mapReadyRef.current = true;
+      setMapReady(true); // triggers households effect
     });
 
     return () => {
@@ -441,6 +290,111 @@ export default function TerritoryMap({
       }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Households effect — re-runs whenever households array changes ──────────
+  // Rebuilds supercluster index and re-renders markers reactively.
+  // Separated from init so async SWR data arriving after mount is handled.
+  useEffect(() => {
+    const map   = mapInstance.current as (import('leaflet').Map | null);
+    const L     = leafletRef.current  as (typeof import('leaflet') | null);
+    const group = clusterGroupRef.current as (import('leaflet').LayerGroup | null);
+    if (!map || !L || !group) return;
+
+    const validPts = households.filter((h) => h.latitude && h.longitude);
+    if (validPts.length === 0) { group.clearLayers(); return; }
+
+    const Supercluster = superclusterRef.current as (typeof import('supercluster') | null);
+    if (!mapReady || !Supercluster) return;
+
+    const CLUSTER_RADIUS = 100;
+    const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
+      radius: CLUSTER_RADIUS, maxZoom: 18, minPoints: 2,
+    });
+    index.load(validPts.map((h) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [Number(h.longitude), Number(h.latitude)] },
+      properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
+    })));
+    indexRef.current = index;
+
+    function renderClusters() {
+      const idx = indexRef.current as typeof index | null;
+      if (!idx || !map || !group) return;
+      group.clearLayers();
+
+      const bounds = map.getBounds();
+      const bbox: [number, number, number, number] = [
+        bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
+      ];
+      const zoom = Math.floor(map.getZoom());
+      const clusters = idx.getClusters(bbox, zoom);
+
+      for (const feature of clusters) {
+        const [lng, lat] = feature.geometry.coordinates;
+        const props = feature.properties as Record<string, unknown>;
+
+        if (props.cluster) {
+          const count     = props.point_count as number;
+          const clusterId = props.cluster_id as number;
+          const leaves    = idx.getLeaves(clusterId, 1);
+          const rep       = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
+          const repStatus  = rep?.status  ?? 'not_visited';
+          const repType    = rep?.type    ?? 'house';
+          const repAddress = rep?.address ?? '';
+          const repColor   = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
+          const repIcon    = TYPE_SVG[repType] ?? DEFAULT_SVG;
+          const repLabel   = repAddress.split(' ').slice(0, 3).join(' ');
+
+          const clusterMarker = L!.marker([lat, lng], {
+            icon: L!.divIcon({
+              html: makePinHtml(repColor, repIcon, repLabel, count),
+              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [11,-26],
+            }),
+          });
+          clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
+            permanent: false, direction: 'right', offset: [16,-38], className: 'household-label',
+          });
+          clusterMarker.on('click', () => {
+            map!.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
+          });
+          group.addLayer(clusterMarker);
+
+        } else {
+          const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
+          const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+          const marker = L!.marker([lat, lng], { icon: makeHouseholdIcon(L!, status, hType, address) });
+          marker.bindTooltip(address, { permanent: false, direction: 'right', offset: [16,-38], className: 'household-label' });
+
+          const onHClick = onClickRef.current;
+          const logBtn = onHClick
+            ? `<button data-hid="${id}" style="margin-top:8px;width:100%;padding:4px 0;background:${statusColor};color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Log Visit</button>`
+            : '';
+          marker.bindPopup(
+            `<div style="min-width:150px">
+              <p style="font-weight:600;margin:0 0 4px">${address}</p>
+              <span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:9999px;background:${statusColor}22;color:${statusColor};text-transform:capitalize;font-weight:600;">${status.replace(/_/g, ' ')}</span>
+              ${logBtn}
+            </div>`,
+            { maxWidth: 220, closeButton: false }
+          );
+          if (onHClick) {
+            marker.on('popupopen', () => {
+              const btn = document.querySelector<HTMLButtonElement>(`button[data-hid="${id}"]`);
+              if (btn) btn.onclick = () => onHClick(id, address);
+            });
+          }
+          (marker as unknown as { householdId: string }).householdId = id;
+          group.addLayer(marker);
+        }
+      }
+    }
+
+    // Initial render + bind to map events
+    map.off('moveend zoomend'); // remove previous listener
+    renderClusters();
+    map.on('moveend zoomend', renderClusters);
+
+  }, [households, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={`relative ${className}`}>

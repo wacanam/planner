@@ -141,26 +141,12 @@ export default function TerritoryDetailView() {
             </Badge>
           </div>
 
-          <div className="px-4 py-4 space-y-3">
-            {/* Hero stats — households only, coverage shown on map */}
-            <div className="rounded-2xl bg-muted/40 border border-border p-4 flex items-center justify-between">
-              <div className="text-center flex-1">
-                <p className="text-lg font-bold text-foreground">{territory.householdsCount}</p>
-                <p className="text-xs text-muted-foreground">Households</p>
-              </div>
-              <div className="w-px h-8 bg-border" />
-              <div className="text-center flex-1">
-                <p className="text-lg font-bold text-foreground">{Number(territory.coveragePercent).toFixed(0)}%</p>
-                <p className="text-xs text-muted-foreground">Covered</p>
-              </div>
-            </div>
-
-            {/* Map + Assignment overlay + Coverage HUD */}
-
+          <div className="px-4 pb-4 pt-2 space-y-3">
+            {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative rounded-2xl border border-border overflow-hidden h-[520px]">
+                <div className="relative rounded-2xl border border-border overflow-hidden h-[540px]">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
@@ -171,19 +157,31 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Coverage HUD — top of map */}
+                  {/* Top HUD — stats + coverage bar */}
                   <div className="absolute top-0 left-0 right-0 z-[1000] px-3 pt-2 pointer-events-none">
-                    <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Coverage</span>
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm space-y-1.5">
+                      {/* Stats row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[11px] font-semibold text-foreground">
+                            {territory.householdsCount} <span className="text-muted-foreground font-normal">households</span>
+                          </span>
+                          <span className="text-muted-foreground/40 text-xs">·</span>
+                          <Badge className={`text-[10px] border px-2 py-0 h-5 ${statusColors[territory.status] ?? ''}`} variant="outline">
+                            {territory.status}
+                          </Badge>
+                        </div>
+                        <span className="text-[11px] font-bold text-foreground tabular-nums">
+                          {Number(territory.coveragePercent).toFixed(1)}% covered
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${Math.min(100, Number(territory.coveragePercent))}%` }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-foreground tabular-nums whitespace-nowrap">
-                        {Number(territory.coveragePercent).toFixed(1)}%
-                      </span>
                     </div>
                   </div>
 
