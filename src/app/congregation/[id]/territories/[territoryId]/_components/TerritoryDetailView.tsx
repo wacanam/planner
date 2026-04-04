@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
@@ -26,19 +26,6 @@ type LocalAssignment = {
   assigneeName: string | null;
   assigneeEmail: string | null;
   groupName: string | null;
-};
-
-const statusColors: Record<string, string> = {
-  available: 'bg-green-100 text-green-800 border-green-200',
-  assigned: 'bg-blue-100 text-blue-800 border-blue-200',
-  completed: 'bg-purple-100 text-purple-800 border-purple-200',
-  archived: 'bg-gray-100 text-gray-600 border-gray-200',
-};
-
-const assignmentStatusColors: Record<string, string> = {
-  active: 'bg-blue-100 text-blue-800 border-blue-200',
-  completed: 'bg-purple-100 text-purple-800 border-purple-200',
-  returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
 function getAssigneeDisplayName(a: LocalAssignment): string {
@@ -77,9 +64,9 @@ export default function TerritoryDetailView() {
       const geo = JSON.parse(boundaryStr);
       const geomStr = geo?.geometry ? JSON.stringify(geo.geometry) : null;
       if (!geomStr) return null;
-      return `/api/households?boundary=${encodeURIComponent(geomStr)}`;
+      return `/api/households?boundary=${encodeURIComponent(geomStr)}&syncTerritory=${territoryId}`;
     } catch { return null; }
-  }, [boundaryStr]);
+  }, [boundaryStr, territoryId]);
 
   type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null; type?: string | null };
   const { data: householdsResp } = useSWR<HouseholdItem[]>(
@@ -124,7 +111,6 @@ export default function TerritoryDetailView() {
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
-              const active = assignments.find((a) => a.status === 'active');
               return (
                 <div className="relative overflow-hidden h-full">
                   <TerritoryMap
@@ -174,7 +160,7 @@ export default function TerritoryDetailView() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[11px] font-semibold text-foreground">
-                            {territory.householdsCount} <span className="text-muted-foreground font-normal">households</span>
+                            {householdsInTerritory.length} <span className="text-muted-foreground font-normal">households</span>
                           </span>
 
                         </div>

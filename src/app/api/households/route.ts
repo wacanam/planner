@@ -1,14 +1,14 @@
 import type { NextRequest } from 'next/server';
-import { asc, and, sql as drizzleSql } from 'drizzle-orm';
-import { db, households } from '@/db';
+import { asc, and, eq, sql as drizzleSql } from 'drizzle-orm';
+import { db, households, territories } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
 // GET /api/households
-// Supports two spatial query modes:
-//   1. ?boundary=<GeoJSON>  — ST_Within against territory polygon (exact, uses GIST index)
-//   2. ?minLat&maxLat&minLng&maxLng — bbox fallback (used when no boundary provided)
+// ?boundary=<GeoJSON geometry>  — ST_Within (PostGIS, GIST-indexed, exact polygon)
+// ?syncTerritory=<id>           — also update territory.householdsCount with the live count
+// ?minLat&maxLat&minLng&maxLng  — bbox fallback
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const boundaryParam = searchParams.get('boundary');
+    const syncTerritoryId = searchParams.get('syncTerritory');
     const minLat = searchParams.get('minLat');
     const maxLat = searchParams.get('maxLat');
     const minLng = searchParams.get('minLng');
@@ -48,6 +49,16 @@ export async function GET(req: NextRequest) {
       .from(households)
       .where(whereClause)
       .orderBy(asc(households.address));
+
+    // Sync territory householdsCount if requested (keeps static field accurate)
+    if (syncTerritoryId && results.length >= 0) {
+      try {
+        await db
+          .update(territories)
+          .set({ householdsCount: results.length, updatedAt: new Date() })
+          .where(eq(territories.id, syncTerritoryId));
+      } catch { /* non-fatal */ }
+    }
 
     return successResponse(results, undefined, 200, requestId);
   } catch (err) {
