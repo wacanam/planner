@@ -148,6 +148,8 @@ export default function TerritoryMap({
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
   const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
   const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
+  const headingMarkerRef  = useRef<import('maplibre-gl').Marker | null>(null);
+  const headingAngleRef   = useRef<number>(0);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
 
@@ -451,15 +453,76 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
-  // ── Location toggle — delegates to MapLibre GeolocateControl ─────────────
+  // ── Location toggle — GeolocateControl + DeviceOrientation heading ──────
   // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
   useEffect(() => {
     const geolocate = geolocateRef.current;
-    if (!geolocate || !mapReady) return;
-    if (locationOn) {
-      geolocate.trigger();
+    const map = mapInstance.current;
+    if (!geolocate || !map || !mapReady) return;
+
+    if (!locationOn) {
+      // Remove heading cone
+      if (headingMarkerRef.current) {
+        headingMarkerRef.current.remove();
+        headingMarkerRef.current = null;
+      }
+      return;
     }
-    // Off state: GeolocateControl handles its own off state on re-trigger
+
+    // Trigger built-in location dot
+    geolocate.trigger();
+
+    // Build heading cone marker (synced to user position via geolocate events)
+    import('maplibre-gl').then((mgl) => {
+      const coneEl = document.createElement('div');
+      coneEl.style.cssText = [
+        'width:0;height:0;',
+        'pointer-events:none;',
+        'border-left:9px solid transparent;',
+        'border-right:9px solid transparent;',
+        'border-bottom:28px solid rgba(59,130,246,0.5);',
+        'transform-origin:50% 100%;',
+        'transform:translateX(-50%) rotate(0deg);',
+        'position:relative;left:50%;',
+        'transition:transform 0.3s ease-out;',
+      ].join('');
+
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'width:1px;height:1px;overflow:visible;';
+      wrapper.appendChild(coneEl);
+
+      const headingMarker = new mgl.Marker({ element: wrapper, anchor: 'bottom' });
+      headingMarkerRef.current = headingMarker;
+
+      // Update heading cone position when user moves
+      const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
+        headingMarker.setLngLat([e.coords.longitude, e.coords.latitude]).addTo(map);
+        // Use GPS heading if available (when moving)
+        if (e.coords.heading !== null) {
+          headingAngleRef.current = e.coords.heading;
+          coneEl.style.transform = `translateX(-50%) rotate(${e.coords.heading}deg)`;
+        }
+      };
+      geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
+
+      // Use DeviceOrientationEvent for compass heading (when stationary)
+      const onOrientation = (e: DeviceOrientationEvent) => {
+        if (!headingMarkerRef.current) return;
+        // webkitCompassHeading is iOS; alpha is standard (needs adjustment)
+        const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+        const angle = compass !== undefined ? compass : (360 - (e.alpha ?? 0));
+        headingAngleRef.current = angle;
+        coneEl.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+      };
+      window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+      window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+
+      return () => {
+        geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
+        window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+        window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+      };
+    });
   }, [locationOn, mapReady]);
 
   return (
