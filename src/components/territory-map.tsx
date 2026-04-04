@@ -96,12 +96,12 @@ function makePinHtml(
   // Teardrop: 32w × 38h. Rounder head, shorter softer tail. Circle r=12 at (16,16) with 4px padding.
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
-    <!-- Label left of pin -->
+    <!-- Label right of pin -->
     <div style="
       position:absolute;
-      right:19px;top:-21px;
+      left:19px;top:-21px;
       color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.2;
-      white-space:nowrap;pointer-events:none;text-align:right;
+      white-space:nowrap;pointer-events:none;
     ">${truncated}</div>
 
     <!-- Teardrop pin -->
