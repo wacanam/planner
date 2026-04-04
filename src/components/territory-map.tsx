@@ -119,17 +119,9 @@ function makePinHtml(
           <svg width="14" height="14" viewBox="0 0 24 24">\${iconSvg}</svg>
         </g>
       </svg>
-      \${badge !== undefined ? `
-      <div style="
-        position:absolute;top:-4px;right:-6px;
-        min-width:15px;height:15px;
-        background:#1e293b;color:white;
-        font-size:8px;font-weight:700;
-        border-radius:9999px;
-        display:flex;align-items:center;justify-content:center;
-        border:1.5px solid white;padding:0 3px;
-        box-shadow:0 1px 3px rgba(0,0,0,.3);
-      ">\${badge}</div>` : ''}
+      ${badge !== undefined ? (
+        '<div style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;background:#1e293b;color:white;font-size:8px;font-weight:700;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:1.5px solid white;padding:0 3px;box-shadow:0 1px 3px rgba(0,0,0,.3);">' + badge + '</div>'
+      ) : ''}
     </div>
   </div>`;
 }
