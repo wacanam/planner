@@ -126,13 +126,13 @@ function makePinHtml(
   // Pin SVG: 26×30. Round head, short body, fully rounded bottom tip (no sharp point).
   // Circle r=10 centered at (13,13), 3px padding from 26px head.
   const pinSvg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="30" viewBox="0 0 26 30"',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="28" viewBox="0 0 26 28"',
     ' style="display:block;filter:drop-shadow(0 1px 5px rgba(0,0,0,0.28))">',
     // White teardrop — round head, fully rounded bottom tip via large arc
     '<path d="M13 2',
     ' C6.4 2 2 6.8 2 13',
-    ' C2 19.5 7 24 11 27.5',
-    ' A2.2 2.2 0 0 0 15 27.5',
+    ' C2 19.5 7 23 11 26',
+    ' A2.2 2.2 0 0 0 15 26',
     ' C19 24 24 19.5 24 13',
     ' C24 6.8 19.6 2 13 2 Z"',
     ' fill="white"/>',
@@ -150,7 +150,7 @@ function makePinHtml(
     '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">',
 
       // Pin container — tail tip anchored at (0,0)
-      '<div style="position:absolute;left:-13px;top:-29px;pointer-events:auto;">',
+      '<div style="position:absolute;left:-13px;top:-27px;pointer-events:auto;">',
         pinSvg,
         badgeHtml,
       '</div>',
@@ -159,7 +159,7 @@ function makePinHtml(
       '<div style="',
         'position:absolute;left:15px;top:-19px;',
         'color:#1e293b;',
-        '-webkit-text-stroke:1px white;paint-order:stroke fill;',
+        '-webkit-text-stroke:2px white;paint-order:stroke fill;',
         'font-size:10px;font-weight:500;line-height:1.3;',
         'white-space:nowrap;pointer-events:none;',
       '">',
@@ -179,7 +179,7 @@ function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: st
     className:  '',
     iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[13, -29],
+    popupAnchor:[13, -27],
   });
 }
 
@@ -380,7 +380,7 @@ export default function TerritoryMap({
           const clusterMarker = L!.marker([lat, lng], {
             icon: L!.divIcon({
               html: makePinHtml(repColor, repIcon, repLabel, count),
-              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-29],
+              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-27],
             }),
           });
           clusterMarker.on('click', () => {
