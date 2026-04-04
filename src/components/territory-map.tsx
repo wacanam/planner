@@ -135,16 +135,7 @@ function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: st
   });
 }
 
-// ─── Cluster appearance ───────────────────────────────────────────────────────
-const CLUSTER_COLORS = [
-  { max: 10,   fill: '#3b82f6', r: 16 },
-  { max: 50,   fill: '#8b5cf6', r: 20 },
-  { max: 9999, fill: '#ef4444', r: 26 },
-];
-
-function clusterStyle(count: number) {
-  return CLUSTER_COLORS.find((c) => count <= c.max) ?? CLUSTER_COLORS[2];
-}
+// ─── Canvas renderer kept for potential future use ───────────────────────────
 
 export default function TerritoryMap({
   boundary,
@@ -178,8 +169,8 @@ export default function TerritoryMap({
         shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       });
 
-      // ── Canvas renderer (shared across all household markers) ─────────────
-      const canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 });
+      // ── Canvas renderer (available for future canvas layers) ─────────────
+      const canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 }); // eslint-disable-line @typescript-eslint/no-unused-vars
 
       // ── Map init ──────────────────────────────────────────────────────────
       const map = L.map(mapRef.current as HTMLElement, {
@@ -293,35 +284,67 @@ export default function TerritoryMap({
           const props = feature.properties as Record<string, unknown>;
 
           if (props.cluster) {
-            // ── Cluster circle (canvas) ──────────────────────────────────
+            // ── Representative pin + count badge ─────────────────────────
+            // Pick one real leaf to get type/status for the icon
             const count = props.point_count as number;
-            const style = clusterStyle(count);
-            const circle = L.circleMarker([lat, lng], {
-              renderer: canvasRenderer,
-              radius: style.r,
-              fillColor: style.fill,
-              fillOpacity: 0.85,
-              color: '#fff',
-              weight: 2,
+            const clusterId = props.cluster_id as number;
+            const leaves = index.getLeaves(clusterId, 1);
+            const rep = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
+            const repStatus  = rep?.status  ?? 'not_visited';
+            const repType    = rep?.type    ?? 'house';
+            const repAddress = rep?.address ?? '';
+
+            // Build icon HTML: pin + count badge top-right
+            const repColor = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
+            const repIcon  = TYPE_SVG[repType] ?? DEFAULT_SVG;
+            const badgeSize = count > 99 ? 20 : 16;
+
+            const html = `
+            <div style="position:relative;display:inline-block;pointer-events:auto">
+              <!-- Representative teardrop pin -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34" style="display:block">
+                <path d="M14 1 C7.4 1 2 6.4 2 13 C2 21 14 33 14 33 C14 33 26 21 26 13 C26 6.4 20.6 1 14 1 Z"
+                  fill="${repColor}" stroke="white" stroke-width="1.5"/>
+                <g transform="translate(2,1)">
+                  <svg width="24" height="24" viewBox="0 0 24 24">${repIcon}</svg>
+                </g>
+              </svg>
+              <!-- Count badge top-right -->
+              <div style="
+                position:absolute;
+                top:-5px;right:-8px;
+                min-width:${badgeSize}px;height:${badgeSize}px;
+                background:#1e293b;
+                color:white;
+                font-size:9px;font-weight:700;
+                border-radius:9999px;
+                display:flex;align-items:center;justify-content:center;
+                border:1.5px solid white;
+                padding:0 3px;
+                box-shadow:0 1px 3px rgba(0,0,0,.3);
+                pointer-events:none;
+              ">${count}</div>
+            </div>`;
+
+            const clusterMarker = L.marker([lat, lng], {
+              icon: L.divIcon({
+                html,
+                className: '',
+                iconSize:   [28, 34],
+                iconAnchor: [14, 34],
+                popupAnchor:[0, -36],
+              }),
             });
 
-            // Label inside circle via tooltip (permanent, no pointer-events)
-            circle.bindTooltip(String(count), {
-              permanent: true,
-              direction: 'center',
-              className: 'cluster-label',
-              offset: [0, 0],
-            });
-
-            circle.on('click', () => {
+            clusterMarker.on('click', () => {
               const expansionZoom = Math.min(
-                index.getClusterExpansionZoom(props.cluster_id as number),
+                index.getClusterExpansionZoom(clusterId),
                 18
               );
               map.flyTo([lat, lng], expansionZoom, { duration: 0.4 });
             });
 
-            clusterGroup.addLayer(circle);
+            clusterGroup.addLayer(clusterMarker);
           } else {
             // ── Individual icon marker (DivIcon, type-shaped + status-colored) ──
             const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
@@ -374,19 +397,9 @@ export default function TerritoryMap({
       {/* Leaflet CSS */}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossOrigin="" />
 
-      {/* Cluster label style — tiny Leaflet tooltip repurposed as count badge */}
       <style>{`
-        .cluster-label {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          color: #fff;
-          font-size: 11px;
-          font-weight: 700;
-          pointer-events: none;
-          white-space: nowrap;
-        }
-        .cluster-label::before { display: none; }
+        .leaflet-popup-content-wrapper { border-radius: 12px !important; }
+        .leaflet-popup-content { margin: 10px 12px !important; }
       `}</style>
 
       <div ref={mapRef} className="w-full h-full rounded-2xl overflow-hidden" />
