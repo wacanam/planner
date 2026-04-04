@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
@@ -91,6 +91,7 @@ export default function TerritoryDetailView() {
 
   const backHref = `/congregation/${congregationId}/territories`;
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
   const router = useRouter();
 
   // When a household pin is tapped, navigate to the active assignment visit log
@@ -119,7 +120,7 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className="max-w-2xl mx-auto min-w-0 w-full flex flex-col h-dvh overflow-hidden relative">
+        <main className={`min-w-0 w-full flex flex-col h-dvh overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000] max-w-none' : ' max-w-2xl mx-auto relative'}` }>
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
@@ -135,6 +136,19 @@ export default function TerritoryDetailView() {
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     className="h-full"
                   />
+
+                  {/* Fullscreen toggle — top-right */}
+                  <div className="absolute top-0 right-0 z-[1001] p-3 pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={() => setMapFullscreen(p => !p)}
+                      className="flex items-center justify-center w-8 h-8 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-lg shadow-sm"
+                    >
+                      {mapFullscreen
+                        ? <Minimize2 className="h-4 w-4 text-foreground" />
+                        : <Maximize2 className="h-4 w-4 text-foreground" />}
+                    </button>
+                  </div>
 
                   {/* Back button + title overlay — top-left of map */}
                   <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
