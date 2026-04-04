@@ -4,13 +4,15 @@ import React, { useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
+import { MAP_STYLES } from '@/components/territory-map';
+import type { StyleId } from '@/components/territory-map';
 
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
@@ -26,19 +28,6 @@ type LocalAssignment = {
   assigneeName: string | null;
   assigneeEmail: string | null;
   groupName: string | null;
-};
-
-const statusColors: Record<string, string> = {
-  available: 'bg-green-100 text-green-800 border-green-200',
-  assigned: 'bg-blue-100 text-blue-800 border-blue-200',
-  completed: 'bg-purple-100 text-purple-800 border-purple-200',
-  archived: 'bg-gray-100 text-gray-600 border-gray-200',
-};
-
-const assignmentStatusColors: Record<string, string> = {
-  active: 'bg-blue-100 text-blue-800 border-blue-200',
-  completed: 'bg-purple-100 text-purple-800 border-purple-200',
-  returned: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
 function getAssigneeDisplayName(a: LocalAssignment): string {
@@ -77,9 +66,9 @@ export default function TerritoryDetailView() {
       const geo = JSON.parse(boundaryStr);
       const geomStr = geo?.geometry ? JSON.stringify(geo.geometry) : null;
       if (!geomStr) return null;
-      return `/api/households?boundary=${encodeURIComponent(geomStr)}`;
+      return `/api/households?boundary=${encodeURIComponent(geomStr)}&syncTerritory=${territoryId}`;
     } catch { return null; }
-  }, [boundaryStr]);
+  }, [boundaryStr, territoryId]);
 
   type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null; type?: string | null };
   const { data: householdsResp } = useSWR<HouseholdItem[]>(
@@ -92,6 +81,24 @@ export default function TerritoryDetailView() {
   const backHref = `/congregation/${congregationId}/territories`;
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
+  const [mapStyle, setMapStyle] = useState<StyleId>('streets');
+  const [showStylePicker, setShowStylePicker] = useState(false);
+
+  // Auto-switch map style when dark mode toggles
+  React.useEffect(() => {
+    const update = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setMapStyle((prev) => {
+        if (isDark && prev !== 'dark') return 'dark';
+        if (!isDark && prev === 'dark') return 'streets';
+        return prev;
+      });
+    };
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
   const router = useRouter();
 
   // When a household pin is tapped, navigate to the active assignment visit log
@@ -106,11 +113,18 @@ export default function TerritoryDetailView() {
   return (
     <ProtectedPage congregationId={congregationId}>
       {loading ? (
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-3 animate-pulse">
-          <div className="h-8 w-48 bg-muted rounded-lg" />
-          <div className="h-28 bg-muted rounded-2xl" />
-          <div className="h-20 bg-muted rounded-2xl" />
-          <div className="h-16 bg-muted rounded-2xl" />
+        <div className="max-w-2xl mx-auto w-full flex flex-col h-dvh overflow-hidden animate-pulse relative">
+          {/* Map area */}
+          <div className="flex-1 bg-muted" />
+          {/* Back button + title overlay */}
+          <div className="absolute top-3 left-3 flex items-center gap-2">
+            <div className="h-7 w-7 bg-muted-foreground/20 rounded-lg" />
+            <div className="h-4 w-28 bg-muted-foreground/20 rounded-full" />
+          </div>
+          {/* HUD strip */}
+          <div className="absolute top-14 left-3 right-3 h-9 bg-muted-foreground/20 rounded-xl" />
+          {/* Assignment strip */}
+          <div className="h-11 shrink-0 bg-muted-foreground/20 border-t border-border" />
         </div>
       ) : error || !territory ? (
         <div className="p-6 text-destructive text-sm">
@@ -124,13 +138,13 @@ export default function TerritoryDetailView() {
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
-              const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative overflow-hidden h-full">
+                <div className="relative h-full">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
+                    mapStyle={mapStyle}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -142,7 +156,7 @@ export default function TerritoryDetailView() {
                     <button
                       type="button"
                       onClick={() => setMapFullscreen(p => !p)}
-                      className="flex items-center justify-center w-8 h-8 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-lg shadow-sm"
+                      className="flex items-center justify-center w-8 h-8 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-lg shadow-sm"
                     >
                       {mapFullscreen
                         ? <Minimize2 className="h-4 w-4 text-foreground" />
@@ -152,7 +166,7 @@ export default function TerritoryDetailView() {
 
                   {/* Back button + title overlay — top-left of map */}
                   <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
-                    <div className="flex items-center gap-2 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-2 py-1.5 shadow-sm">
                       <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                         <Link href={backHref}>
                           <ArrowLeft className="h-4 w-4" />
@@ -169,12 +183,12 @@ export default function TerritoryDetailView() {
 
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
-                    <div className="bg-white/25 dark:bg-gray-900/25 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm space-y-1.5">
+                    <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">
                       {/* Stats row */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[11px] font-semibold text-foreground">
-                            {territory.householdsCount} <span className="text-muted-foreground font-normal">households</span>
+                            {householdsInTerritory.length} <span className="text-muted-foreground font-normal">households</span>
                           </span>
 
                         </div>
@@ -197,12 +211,47 @@ export default function TerritoryDetailView() {
             })()}
           </div>{/* end flex-1 map wrapper */}
 
+          {/* Map style switcher — fixed, shifts up when assignment strip expands */}
+          <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            {showStylePicker && (
+              <div className="mb-1 flex flex-col gap-1 items-end">
+                {MAP_STYLES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { setMapStyle(s.id); setShowStylePicker(false); }}
+                    style={{ fontWeight: 600, fontSize: '10px' }}
+                    className={[
+                      'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
+                      mapStyle === s.id
+                        ? 'bg-primary text-white'
+                        : 'bg-white/5 dark:bg-gray-900/10 text-foreground hover:bg-white',
+                    ].join(' ')}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowStylePicker((p) => !p)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M3 6h18M3 12h18M3 18h18"/>
+              </svg>
+              {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
+            </button>
+          </div>
+
           {/* Assignment strip — shrink-0 sibling of map, always visible */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
               return (
-                <div className="fixed bottom-0 left-0 right-0 z-[1100] border-t border-blue-200/30 dark:border-blue-900/20 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md">
+                <div className="fixed bottom-0 left-0 right-0 z-[1100]">
+                  <div className="max-w-2xl mx-auto border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
@@ -239,6 +288,7 @@ export default function TerritoryDetailView() {
                       </Button>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })()}
