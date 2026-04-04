@@ -472,19 +472,19 @@ export default function TerritoryMap({
     // Trigger built-in location dot
     geolocate.trigger();
 
-    // Build heading cone marker (synced to user position via geolocate events)
+    // ── Heading cone — high-frequency gyro/compass ──────────────────────
     import('maplibre-gl').then((mgl) => {
+      // Cone element — NO CSS transition (we drive it via rAF)
       const coneEl = document.createElement('div');
       coneEl.style.cssText = [
         'width:0;height:0;',
         'pointer-events:none;',
-        'border-left:9px solid transparent;',
-        'border-right:9px solid transparent;',
-        'border-bottom:28px solid rgba(59,130,246,0.5);',
+        'border-left:10px solid transparent;',
+        'border-right:10px solid transparent;',
+        'border-bottom:32px solid rgba(59,130,246,0.55);',
         'transform-origin:50% 100%;',
-        'transform:translateX(-50%) rotate(0deg);',
         'position:relative;left:50%;',
-        'transition:transform 0.3s ease-out;',
+        'will-change:transform;',
       ].join('');
 
       const wrapper = document.createElement('div');
@@ -494,30 +494,58 @@ export default function TerritoryMap({
       const headingMarker = new mgl.Marker({ element: wrapper, anchor: 'bottom' });
       headingMarkerRef.current = headingMarker;
 
-      // Update heading cone position when user moves
+      // Low-pass filter state — smooths noisy gyro without adding lag
+      let smoothAngle = 0;
+      let hasAngle = false;
+      const ALPHA = 0.15; // lower = smoother but laggier; 0.15 is a good balance
+      let rafId = 0;
+
+      function applyRotation() {
+        coneEl.style.transform = `translateX(-50%) rotate(${smoothAngle}deg)`;
+        rafId = requestAnimationFrame(applyRotation);
+      }
+      rafId = requestAnimationFrame(applyRotation);
+
+      // Smooth angle update with short-path interpolation (handles 359°→1° correctly)
+      function updateAngle(raw: number) {
+        if (!hasAngle) { smoothAngle = raw; hasAngle = true; return; }
+        // Shortest path: diff in [-180, 180]
+        let diff = ((raw - smoothAngle + 540) % 360) - 180;
+        smoothAngle = (smoothAngle + ALPHA * diff + 360) % 360;
+      }
+
+      // Sync cone position with GPS dot
       const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
         headingMarker.setLngLat([e.coords.longitude, e.coords.latitude]).addTo(map);
-        // Use GPS heading if available (when moving)
-        if (e.coords.heading !== null) {
-          headingAngleRef.current = e.coords.heading;
-          coneEl.style.transform = `translateX(-50%) rotate(${e.coords.heading}deg)`;
+        if (e.coords.heading !== null && !Number.isNaN(e.coords.heading)) {
+          updateAngle(e.coords.heading);
         }
       };
       geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
 
-      // Use DeviceOrientationEvent for compass heading (when stationary)
+      // DeviceOrientationEvent — ~60Hz compass/gyro, most responsive source
       const onOrientation = (e: DeviceOrientationEvent) => {
         if (!headingMarkerRef.current) return;
-        // webkitCompassHeading is iOS; alpha is standard (needs adjustment)
         const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-        const angle = compass !== undefined ? compass : (360 - (e.alpha ?? 0));
-        headingAngleRef.current = angle;
-        coneEl.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+        const raw = compass !== undefined
+          ? compass                      // iOS: true north bearing
+          : (360 - (e.alpha ?? 0)) % 360; // Android: convert alpha to bearing
+        updateAngle(raw);
       };
+
+      // Prefer absolute (Android), fall back to relative (iOS uses webkitCompassHeading)
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation', onOrientation as EventListener, true);
 
+      // iOS 13+ requires explicit permission
+      type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+      const DOE = DeviceOrientationEvent as DOE;
+      if (typeof DOE.requestPermission === 'function') {
+        DOE.requestPermission().catch(() => {/* user denied, heading won't show */});
+      }
+
       return () => {
+        cancelAnimationFrame(rafId);
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
