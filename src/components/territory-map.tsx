@@ -423,10 +423,10 @@ export default function TerritoryMap({
         .household-label::before { display: none !important; }
       `}</style>
 
-      <div ref={mapRef} className="w-full h-full rounded-2xl overflow-hidden" />
+      <div ref={mapRef} className="w-full h-full" />
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 rounded-2xl text-center p-4 pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
           <p className="text-xs font-medium text-muted-foreground">Map coming soon</p>
           <p className="text-[11px] text-muted-foreground/70 mt-0.5">
             Add household coordinates to see markers
