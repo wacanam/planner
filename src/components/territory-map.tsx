@@ -93,28 +93,28 @@ function makePinHtml(
 ): string {
   const truncated = label.length > 20 ? `${label.slice(0, 20)}…` : label;
 
-  // Teardrop: 28w × 36h. Circle head r=11 at (14,14). Tail tip at (14,35).
+  // Teardrop: 32w × 38h. Rounder head, shorter softer tail. Circle r=12 at (16,16) with 4px padding.
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
-    <!-- Label left of pin, right-aligned, vertically centered on circle -->
+    <!-- Label left of pin -->
     <div style="
       position:absolute;
-      right:17px;top:-19px;
+      right:19px;top:-21px;
       color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.2;
       white-space:nowrap;pointer-events:none;text-align:right;
     ">${truncated}</div>
 
-    <!-- Teardrop pin: white body, colored circle, white icon -->
-    <div style="position:absolute;left:-14px;top:-36px;pointer-events:auto;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"
-           style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.32)) drop-shadow(0 0 1px rgba(0,0,0,0.15))">
-        <!-- White teardrop body -->
-        <path d="M14 2 C7.4 2 2 7.4 2 14 C2 22 14 34.5 14 34.5 C14 34.5 26 22 26 14 C26 7.4 20.6 2 14 2 Z"
+    <!-- Teardrop pin -->
+    <div style="position:absolute;left:-16px;top:-38px;pointer-events:auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="38" viewBox="0 0 32 38"
+           style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.28)) drop-shadow(0 0 1px rgba(0,0,0,0.12))">
+        <!-- Rounder teardrop: bigger head radius, softer shorter tail -->
+        <path d="M16 2 C8.3 2 2 8.3 2 16 C2 23 9 31 13.5 36 Q14.8 37.5 16 37.5 Q17.2 37.5 18.5 36 C23 31 30 23 30 16 C30 8.3 23.7 2 16 2 Z"
           fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
-        <!-- Status color circle -->
-        <circle cx="14" cy="14" r="11" fill="${color}"/>
-        <!-- White icon centered in circle -->
-        <g transform="translate(8,8)">
+        <!-- Status color circle with 4px padding inside head -->
+        <circle cx="16" cy="16" r="12" fill="${color}"/>
+        <!-- White icon centered -->
+        <g transform="translate(10,10)">
           <svg width="12" height="12" viewBox="0 0 24 24">${iconSvg}</svg>
         </g>
       </svg>
