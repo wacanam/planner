@@ -37,6 +37,8 @@ export interface TerritoryMapProps {
   /** Override map center */
   center?: [number, number];
   className?: string;
+  /** Called when a household marker is clicked — id + address */
+  onHouseholdClick?: (id: string, address: string) => void;
 }
 
 // Status → fill color
@@ -150,6 +152,7 @@ export default function TerritoryMap({
   households = [],
   center,
   className = '',
+  onHouseholdClick,
 }: TerritoryMapProps) {
   const mapRef       = useRef<HTMLDivElement>(null);
   const mapInstance  = useRef<unknown>(null);
@@ -176,9 +179,6 @@ export default function TerritoryMap({
         shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       });
 
-      // ── Canvas renderer (available for future canvas layers) ─────────────
-      const canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 }); // eslint-disable-line @typescript-eslint/no-unused-vars
-
       // ── Map init ──────────────────────────────────────────────────────────
       const map = L.map(mapRef.current as HTMLElement, {
         zoomControl: true,
@@ -197,8 +197,8 @@ export default function TerritoryMap({
 
       let mapCenter: [number, number] = center ?? [8.37, 124.85]; // fallback: Philippines
       if (validPts.length > 0 && !center) {
-        const lats = validPts.map((h) => +h.latitude!);
-        const lngs = validPts.map((h) => +h.longitude!);
+        const lats = validPts.map((h) => Number(h.latitude));
+        const lngs = validPts.map((h) => Number(h.longitude));
         mapCenter = [
           (Math.min(...lats) + Math.max(...lats)) / 2,
           (Math.min(...lngs) + Math.max(...lngs)) / 2,
@@ -290,7 +290,7 @@ export default function TerritoryMap({
       index.load(
         validPts.map((h) => ({
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [+h.longitude!, +h.latitude!] },
+          geometry: { type: 'Point', coordinates: [Number(h.longitude), Number(h.latitude)] },
           properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
         }))
       );
@@ -373,24 +373,42 @@ export default function TerritoryMap({
               className: 'household-label',
             });
 
+            const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+            const logBtn = onHouseholdClick
+              ? `<button
+                  data-hid="${id}"
+                  data-haddr="${address.replace(/"/g, '&quot;')}"
+                  style="
+                    margin-top:8px;width:100%;
+                    padding:4px 0;
+                    background:${statusColor};color:white;
+                    border:none;border-radius:6px;
+                    font-size:11px;font-weight:600;cursor:pointer;
+                  ">Log Visit</button>`
+              : '';
+
             marker.bindPopup(
               `<div style="min-width:150px">
                 <p style="font-weight:600;margin:0 0 4px">${address}</p>
                 <span style="
                   display:inline-block;
-                  font-size:10px;
-                  padding:2px 6px;
+                  font-size:10px;padding:2px 6px;
                   border-radius:9999px;
-                  background:${STATUS_COLOR[status] ?? DEFAULT_COLOR}22;
-                  color:${STATUS_COLOR[status] ?? DEFAULT_COLOR};
-                  text-transform:capitalize;
-                  font-weight:600;
-                ">
-                  ${status.replace(/_/g, ' ')}
-                </span>
+                  background:${statusColor}22;color:${statusColor};
+                  text-transform:capitalize;font-weight:600;
+                ">${status.replace(/_/g, ' ')}</span>
+                ${logBtn}
               </div>`,
               { maxWidth: 220, closeButton: false }
             );
+
+            // Delegate click on "Log Visit" button inside popup
+            if (onHouseholdClick) {
+              marker.on('popupopen', () => {
+                const btn = document.querySelector<HTMLButtonElement>(`button[data-hid="${id}"]`);
+                if (btn) btn.onclick = () => onHouseholdClick(id, address);
+              });
+            }
 
             (marker as unknown as { householdId: string }).householdId = id;
             clusterGroup.addLayer(marker);

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useState, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +13,7 @@ import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
 
 // Dynamic import — Leaflet requires browser APIs
-import type { TerritoryMapProps } from '@/components/territory-map';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
 
 type LocalAssignment = {
@@ -92,6 +91,16 @@ export default function TerritoryDetailView() {
 
   const backHref = `/congregation/${congregationId}/territories`;
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
+  const router = useRouter();
+
+  // When a household pin is tapped, navigate to the active assignment visit log
+  // pre-selecting that household via query param
+  const handleHouseholdClick = useCallback((householdId: string) => {
+    const active = assignments.find((a) => a.status === 'active');
+    if (active) {
+      router.push(`/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`);
+    }
+  }, [assignments, congregationId, router]);
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -171,9 +180,10 @@ export default function TerritoryDetailView() {
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
+                    onHouseholdClick={handleHouseholdClick}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
-                      .map(t => ({ id: t.id, name: t.name, boundary: t.boundary! }))}
+                      .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     className="h-full"
                   />
 

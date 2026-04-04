@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
 
-    let whereClause;
+    let whereClause: ReturnType<typeof import("drizzle-orm").and> | ReturnType<typeof import("drizzle-orm").sql> | undefined;
 
     if (boundaryParam) {
       // ── Mode 1: exact polygon via PostGIS ST_Within ────────────────────

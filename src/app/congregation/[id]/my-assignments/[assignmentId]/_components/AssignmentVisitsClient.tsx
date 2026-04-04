@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -898,6 +898,15 @@ export default function VisitsClient() {
   const [activeTab, setActiveTab] = useState<Tab>('households');
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [showAddHousehold, setShowAddHousehold] = useState(false);
+
+  // Auto-open log dialog when navigated from map with ?householdId=
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const hid = searchParams?.get('householdId');
+    if (!hid || householdsLoading) return;
+    const target = serverHouseholds.find((h) => h.id === hid);
+    if (target) setLogVisitHousehold(target);
+  }, [searchParams, serverHouseholds, householdsLoading]);
 
   const [pendingVisits, setPendingVisits] = useState<PendingWrite[]>([]);
   const [pendingHouseholds, setPendingHouseholds] = useState<PendingWrite[]>([]);
