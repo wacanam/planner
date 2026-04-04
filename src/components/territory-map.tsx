@@ -16,7 +16,58 @@
  * - Spotlight mask uses a single inverted Polygon (world ring + territory hole)
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+// ─── Map style registry ───────────────────────────────────────────────────────
+const MAP_STYLES = [
+  {
+    id: 'esri-street',
+    label: 'Street',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri',
+    maxZoom: 19,
+    darkUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    darkAttribution: 'Tiles © Esri',
+  },
+  {
+    id: 'carto-voyager',
+    label: 'Voyager',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors © CARTO',
+    maxZoom: 19,
+    darkUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    darkAttribution: '© OpenStreetMap contributors © CARTO',
+  },
+  {
+    id: 'osm',
+    label: 'OSM',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19,
+    darkUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    darkAttribution: '© OpenStreetMap contributors',
+  },
+  {
+    id: 'topo',
+    label: 'Topo',
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors, © OpenTopoMap',
+    maxZoom: 17,
+    darkUrl: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    darkAttribution: '© OpenStreetMap contributors, © OpenTopoMap',
+  },
+  {
+    id: 'esri-imagery',
+    label: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri',
+    maxZoom: 19,
+    darkUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    darkAttribution: 'Tiles © Esri',
+  },
+] as const;
+
+const DEFAULT_STYLE_ID = 'esri-street';
 
 export interface HouseholdPoint {
   id: string;
@@ -199,10 +250,23 @@ export default function TerritoryMap({
   const indexRef          = useRef<unknown>(null);
   const leafletRef        = useRef<unknown>(null);
   const superclusterRef   = useRef<unknown>(null);
+  const tileLayerRef      = useRef<unknown>(null);   // active tile layer
   const mapReadyRef       = useRef(false);
   const [mapReady, setMapReady] = useState(false);
+  const [mapStyleId, setMapStyleId] = useState(DEFAULT_STYLE_ID);
+  const [showStylePicker, setShowStylePicker] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
+
+  // Detect dark mode
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDark(mq.matches || document.documentElement.classList.contains('dark'));
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: one-time mount
   useEffect(() => {
@@ -233,10 +297,11 @@ export default function TerritoryMap({
       });
       mapInstance.current = map;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
+      L.tileLayer(MAP_STYLES[0].url, {
+        attribution: MAP_STYLES[0].attribution,
+        maxZoom: MAP_STYLES[0].maxZoom,
       }).addTo(map);
+      tileLayerRef.current = null; // managed by style effect below
 
       // ── Determine initial view ────────────────────────────────────────────
       const validPts = households.filter((h) => h.latitude && h.longitude);
@@ -323,6 +388,28 @@ export default function TerritoryMap({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Style / dark-mode effect — swaps tile layer when style or dark mode changes ──
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is a trigger flag
+  useEffect(() => {
+    const map  = mapInstance.current as (import('leaflet').Map | null);
+    const L    = leafletRef.current  as (typeof import('leaflet') | null);
+    if (!map || !L) return;
+
+    const style = MAP_STYLES.find((s) => s.id === mapStyleId) ?? MAP_STYLES[0];
+    const url   = isDark ? style.darkUrl   : style.url;
+    const attr  = isDark ? style.darkAttribution : style.attribution;
+
+    // Remove existing tile layer
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current as import('leaflet').TileLayer);
+    }
+    const layer = L.tileLayer(url, { attribution: attr, maxZoom: style.maxZoom });
+    layer.addTo(map);
+    // Ensure tile layer is below everything else
+    (layer as unknown as { setZIndex: (z: number) => void }).setZIndex?.(0);
+    tileLayerRef.current = layer;
+  }, [mapStyleId, isDark, mapReady]);
+
   // ── Households effect — re-runs whenever households array changes ──────────
   // Rebuilds supercluster index and re-renders markers reactively.
   // Separated from init so async SWR data arriving after mount is handled.
@@ -331,6 +418,8 @@ export default function TerritoryMap({
     const L     = leafletRef.current  as (typeof import('leaflet') | null);
     const group = clusterGroupRef.current as (import('leaflet').LayerGroup | null);
     if (!map || !L || !group) return;
+    // Narrow L type for TS (already guarded above)
+    const Leaflet = L as typeof import('leaflet');
 
     const validPts = households.filter((h) => h.latitude && h.longitude);
     if (validPts.length === 0) { group.clearLayers(); return; }
@@ -377,21 +466,21 @@ export default function TerritoryMap({
           const repIcon    = TYPE_SVG[repType] ?? DEFAULT_SVG;
           const repLabel   = repAddress.split(' ').slice(0, 3).join(' ');
 
-          const clusterMarker = L!.marker([lat, lng], {
-            icon: L!.divIcon({
+          const clusterMarker = Leaflet.marker([lat, lng], {
+            icon: Leaflet.divIcon({
               html: makePinHtml(repColor, repIcon, repLabel, count),
               className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-27],
             }),
           });
           clusterMarker.on('click', () => {
-            map!.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
+            map.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
           });
           group.addLayer(clusterMarker);
 
         } else {
           const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
           const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-          const marker = L!.marker([lat, lng], { icon: makeHouseholdIcon(L!, status, hType, address) });
+          const marker = Leaflet.marker([lat, lng], { icon: makeHouseholdIcon(Leaflet, status, hType, address) });
 
 
           const onHClick = onClickRef.current;
@@ -458,6 +547,40 @@ export default function TerritoryMap({
       `}</style>
 
       <div ref={mapRef} className="w-full h-full" />
+
+      {/* Map style switcher — bottom-right */}
+      <div className="absolute bottom-3 right-3 z-[1002]">
+        {showStylePicker && (
+          <div className="mb-1 flex flex-col gap-1 items-end">
+            {MAP_STYLES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => { setMapStyleId(s.id); setShowStylePicker(false); }}
+                className={[
+                  'px-2.5 py-1 rounded-lg text-[10px] font-600 shadow-sm backdrop-blur-md transition-all',
+                  mapStyleId === s.id
+                    ? 'bg-primary text-white'
+                    : 'bg-white/70 dark:bg-gray-900/70 text-foreground hover:bg-white dark:hover:bg-gray-800',
+                ].join(' ')}
+                style={{ fontWeight: 600, fontSize: '10px' }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowStylePicker((p) => !p)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+          {MAP_STYLES.find((s) => s.id === mapStyleId)?.label ?? 'Map'}
+        </button>
+      </div>
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
