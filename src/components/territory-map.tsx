@@ -522,8 +522,10 @@ export default function TerritoryMap({
       // rAF loop — apply smoothed angle to cone rotation
       function render() {
         if (hasAngle && hasPos) {
-          currentDisplayAngle = smoothAngle;
-          cone.style.transform = `rotate(${currentDisplayAngle}deg)`;
+          const mapBearing = mapInstance.current?.getBearing() ?? 0;
+          // Cone angle = absolute heading minus map's current rotation
+          const relativeAngle = (smoothAngle - mapBearing + 360) % 360;
+          cone.style.transform = `rotate(${relativeAngle}deg)`;
         }
         rafId = requestAnimationFrame(render);
       }
