@@ -159,6 +159,7 @@ function makePinHtml(
       '<div style="',
         'position:absolute;left:15px;top:-19px;',
         'color:#1e293b;',
+        '-webkit-text-stroke:1px white;paint-order:stroke fill;',
         'font-size:10px;font-weight:500;line-height:1.3;',
         'white-space:nowrap;pointer-events:none;',
       '">',
