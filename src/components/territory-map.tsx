@@ -135,7 +135,7 @@ function makePinHtml(
       font-size:10px;font-weight:500;line-height:1;
       white-space:nowrap;
       pointer-events:none;
-      text-shadow:0 1px 3px rgba(255,255,255,0.9),0 -1px 3px rgba(255,255,255,0.9),1px 0 3px rgba(255,255,255,0.9),-1px 0 3px rgba(255,255,255,0.9);
+      
     ">${truncated}</div>
   </div>`;
 }
