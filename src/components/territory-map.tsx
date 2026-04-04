@@ -289,9 +289,9 @@ export default function TerritoryMap({
        * to render individually — matching their combined visual footprint.
        */
       const PIN_WIDTH_PX    = 22;
-      const LABEL_WIDTH_PX  = 110; // ~18 chars × 9px + padding
-      const BUFFER_PX       = 16;  // breathing room
-      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 148
+      const LABEL_WIDTH_PX  = 70;  // visible label footprint (overlap tolerated at mid-zoom)
+      const BUFFER_PX       = 8;   // tight breathing room
+      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 100
 
       const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
         radius:    CLUSTER_RADIUS,
