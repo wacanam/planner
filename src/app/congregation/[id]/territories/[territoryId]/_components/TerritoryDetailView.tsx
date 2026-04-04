@@ -113,11 +113,15 @@ export default function TerritoryDetailView() {
   return (
     <ProtectedPage congregationId={congregationId}>
       {loading ? (
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-3 animate-pulse">
-          <div className="h-8 w-48 bg-muted rounded-lg" />
-          <div className="h-28 bg-muted rounded-2xl" />
-          <div className="h-20 bg-muted rounded-2xl" />
-          <div className="h-16 bg-muted rounded-2xl" />
+        <div className="max-w-2xl mx-auto w-full flex flex-col h-dvh overflow-hidden animate-pulse">
+          {/* Map area skeleton */}
+          <div className="flex-1 bg-muted" />
+          {/* Back button overlay skeleton */}
+          <div className="absolute top-3 left-3 h-9 w-32 bg-muted/60 rounded-xl" />
+          {/* HUD skeleton */}
+          <div className="absolute top-14 left-3 right-3 h-10 bg-muted/60 rounded-xl" />
+          {/* Assignment strip skeleton */}
+          <div className="h-11 bg-muted/60 border-t border-border" />
         </div>
       ) : error || !territory ? (
         <div className="p-6 text-destructive text-sm">
