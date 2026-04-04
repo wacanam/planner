@@ -133,20 +133,15 @@ export default function TerritoryDetailView() {
                 #{territory.number} {territory.name}
               </p>
             </div>
-            <Badge
-              className={`text-xs border shrink-0 ${statusColors[territory.status] ?? ''}`}
-              variant="outline"
-            >
-              {territory.status}
-            </Badge>
+
           </div>
 
-          <div className="px-4 pb-4 pt-2 space-y-3">
+          <div className="px-4 pb-4 pt-2">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative rounded-2xl border border-border overflow-hidden h-[540px]">
+                <div className="relative rounded-2xl border border-border overflow-hidden h-[calc(100dvh-13rem)]">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
@@ -166,10 +161,7 @@ export default function TerritoryDetailView() {
                           <span className="text-[11px] font-semibold text-foreground">
                             {territory.householdsCount} <span className="text-muted-foreground font-normal">households</span>
                           </span>
-                          <span className="text-muted-foreground/40 text-xs">·</span>
-                          <Badge className={`text-[10px] border px-2 py-0 h-5 ${statusColors[territory.status] ?? ''}`} variant="outline">
-                            {territory.status}
-                          </Badge>
+
                         </div>
                         <span className="text-[11px] font-bold text-foreground tabular-nums">
                           {Number(territory.coveragePercent).toFixed(1)}% covered
