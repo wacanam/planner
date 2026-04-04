@@ -60,6 +60,9 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'avatar-upload') {
     event.waitUntil(syncAvatarUpload());
   }
+  if (event.tag === 'visits-sync') {
+    event.waitUntil(syncVisitsAndHouseholds());
+  }
 });
 
 /**
@@ -166,11 +169,152 @@ async function syncAvatarUpload() {
   }
 }
 
+// ─── Background Sync — visits + households ────────────────────────────────────
+
+async function syncVisitsAndHouseholds() {
+  const db = await openIDB();
+
+  let token;
+  try {
+    token = await requestFreshToken();
+  } catch (err) {
+    console.log('[SW] Could not get auth token for visits sync:', err.message);
+    throw err;
+  }
+
+  // Sync pending households first (visits may reference them)
+  const pendingHouseholds = await db.getAll('pending-households');
+  for (const entry of pendingHouseholds) {
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const res = await fetch('/api/households', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(entry.data),
+        });
+        if (res.ok) {
+          await db.delete('pending-households', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'HOUSEHOLD_SYNCED', pendingId: entry.id });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
+          attempt++;
+        } else {
+          throw new Error(`POST /api/households failed: ${res.status}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Sync pending visits
+  const pendingVisits = await db.getAll('pending-visits');
+  for (const entry of pendingVisits) {
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const res = await fetch('/api/visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(entry.data),
+        });
+        if (res.ok) {
+          await db.delete('pending-visits', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'VISIT_SYNCED', pendingId: entry.id });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
+          attempt++;
+        } else {
+          throw new Error(`POST /api/visits failed: ${res.status}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Sync pending encounters
+  const pendingEncounters = await db.getAll('pending-encounters');
+  for (const entry of pendingEncounters) {
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const visitId = entry.data.visitId;
+        const res = await fetch(`/api/visits/${visitId}/encounters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(entry.data),
+        });
+        if (res.ok) {
+          await db.delete('pending-encounters', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'ENCOUNTER_SYNCED', pendingId: entry.id });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try {
+            token = await requestFreshToken();
+          } catch {
+            throw new Error('Token refresh failed');
+          }
+          attempt++;
+        } else {
+          throw new Error(`POST /api/visits/:id/encounters failed: ${res.status}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+}
+
 // ─── Minimal IDB helper ───────────────────────────────────────────────────────
 
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('ministry-planner', 2);
+    const req = indexedDB.open('ministry-planner', 4);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('pending-avatars')) {
@@ -178,6 +322,21 @@ function openIDB() {
       }
       if (!db.objectStoreNames.contains('auth')) {
         db.createObjectStore('auth');
+      }
+      if (!db.objectStoreNames.contains('pending-visits')) {
+        db.createObjectStore('pending-visits', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-households')) {
+        db.createObjectStore('pending-households', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-encounters')) {
+        db.createObjectStore('pending-encounters', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('visits-cache')) {
+        db.createObjectStore('visits-cache');
+      }
+      if (!db.objectStoreNames.contains('households-cache')) {
+        db.createObjectStore('households-cache');
       }
     };
     req.onsuccess = (e) => resolve(wrapDB(e.target.result));
@@ -204,6 +363,12 @@ function wrapDB(db) {
       new Promise((res, rej) => {
         const r = tx(store, 'readwrite').delete(key);
         r.onsuccess = () => res();
+        r.onerror = () => rej(r.error);
+      }),
+    getAll: (store) =>
+      new Promise((res, rej) => {
+        const r = tx(store, 'readonly').getAll();
+        r.onsuccess = () => res(r.result);
         r.onerror = () => rej(r.error);
       }),
   };

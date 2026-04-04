@@ -88,6 +88,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
       navLinks = [
         { href: `/congregation/${id}/dashboard`, label: 'Home' },
         { href: `/congregation/${id}/my-assignments`, label: 'My Assignments' },
+        { href: `/congregation/${id}/records`, label: 'Records' },
         { href: `/congregation/${id}/territories`, label: 'Territories' },
       ];
     }
@@ -95,7 +96,8 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
 
   // Determine the home href based on role
   const homeHref = (() => {
-    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) return '/admin/dashboard';
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN)
+      return '/admin/dashboard';
     const id = congregationId ?? user.congregationId ?? '';
     return id ? `/congregation/${id}/dashboard` : '/dashboard';
   })();
@@ -105,10 +107,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link
-            href={homeHref}
-            className="flex items-center gap-2.5 group"
-          >
+          <Link href={homeHref} className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
               <MapPin size={16} className="text-primary" />
             </div>

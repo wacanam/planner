@@ -73,6 +73,8 @@ export interface Territory {
   groupId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Territory boundary — GeoJSON string, null until PostGIS multi-polygon is added */
+  boundary?: string | null;
   /** Flat joined field — present on list endpoint, absent on detail endpoint */
   publisherName?: string | null;
   /** Flat joined field — present on list endpoint, absent on detail endpoint */
@@ -226,6 +228,93 @@ export interface User {
   congregationId?: string | null;
   isActive: boolean;
   avatarUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Visits ────────────────────────────────────────────────────────────────────
+
+/** /api/territories/:id/visits  /api/assignments/:id/visits  /api/visits */
+export interface Visit {
+  id: string;
+  userId: string;
+  householdId: string;
+  visitDate: string;
+  outcome: string;
+  householdStatusBefore?: string | null;
+  householdStatusAfter?: string | null;
+  duration?: number | null;
+  literatureLeft?: string | null;
+  bibleTopicDiscussed?: string | null;
+  returnVisitPlanned: boolean;
+  nextVisitDate?: string | null;
+  nextVisitNotes?: string | null;
+  assignmentId?: string | null;
+  notes?: string | null;
+  syncStatus: string;
+  offlineCreated: boolean;
+  syncedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Joined fields */
+  householdAddress?: string;
+  householdCity?: string;
+  encounterCount?: number;
+}
+
+// ─── Households ────────────────────────────────────────────────────────────────
+
+/** /api/households */
+export interface Household {
+  id: string;
+  address: string;
+  houseNumber?: string | null;
+  unitNumber?: string | null;
+  streetName: string;
+  city: string;
+  postalCode?: string | null;
+  country?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  location?: string | null;
+  type: string;
+  floor?: number | null;
+  occupantsCount?: number | null;
+  languages?: string | null;
+  bestTimeToCall?: string | null;
+  status: string;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
+  notes?: string | null;
+  lwpNotes?: string | null;
+  createdById?: string | null;
+  updatedById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Encounters ────────────────────────────────────────────────────────────────
+
+export interface Encounter {
+  id: string;
+  visitId: string;
+  householdId: string;
+  userId: string;
+  name?: string | null;
+  gender: string;
+  ageGroup?: string | null;
+  role: string;
+  response: string;
+  languageSpoken?: string | null;
+  topicDiscussed?: string | null;
+  literatureAccepted?: string | null;
+  bibleStudyInterest: boolean;
+  returnVisitRequested: boolean;
+  nextVisitNotes?: string | null;
+  notes?: string | null;
+  syncStatus: string;
+  offlineCreated: boolean;
+  syncedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

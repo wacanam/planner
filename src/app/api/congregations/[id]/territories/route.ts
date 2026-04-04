@@ -57,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert(territories)
     .values({
       congregationId: id,
+      createdById: auth.user.userId,
       name,
       number: number ?? name,
       notes,
