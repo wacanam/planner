@@ -347,9 +347,6 @@ export default function TerritoryMap({
               className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [18,-43],
             }),
           });
-          clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
-            permanent: false, direction: 'right', offset: [15,-26], className: 'household-label',
-          });
           clusterMarker.on('click', () => {
             map!.flyTo([lat, lng], Math.min(idx.getClusterExpansionZoom(clusterId), 18), { duration: 0.4 });
           });
