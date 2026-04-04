@@ -398,6 +398,7 @@ export default function TerritoryMap({
       <style>{`
         .leaflet-popup-content-wrapper { border-radius: 12px !important; }
         .leaflet-popup-content { margin: 10px 12px !important; }
+        .leaflet-div-icon { background: transparent !important; border: none !important; }
         .household-label {
           background: white !important;
           border: none !important;
