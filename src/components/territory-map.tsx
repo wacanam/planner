@@ -359,7 +359,7 @@ export default function TerritoryMap({
           const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
           const statusColor = STATUS_COLOR[status] ?? DEFAULT_COLOR;
           const marker = L!.marker([lat, lng], { icon: makeHouseholdIcon(L!, status, hType, address) });
-          marker.bindTooltip(address, { permanent: false, direction: 'right', offset: [15,-26], className: 'household-label' });
+
 
           const onHClick = onClickRef.current;
           const logBtn = onHClick
