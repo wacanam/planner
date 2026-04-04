@@ -193,7 +193,7 @@ export default function TerritoryMap({
 
       // ── Map init ──────────────────────────────────────────────────────────
       const map = L.map(mapRef.current as HTMLElement, {
-        zoomControl: true,
+        zoomControl: false,
         scrollWheelZoom: true,
         preferCanvas: false, // polygons stay SVG; we pass renderer per-layer
       });

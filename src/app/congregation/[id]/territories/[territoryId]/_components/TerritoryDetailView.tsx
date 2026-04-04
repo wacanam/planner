@@ -173,7 +173,7 @@ export default function TerritoryDetailView() {
 
                   {/* Coverage HUD — top of map */}
                   <div className="absolute top-0 left-0 right-0 z-[1000] px-3 pt-2 pointer-events-none">
-                    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
+                    <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Coverage</span>
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
@@ -197,7 +197,7 @@ export default function TerritoryDetailView() {
                       <button
                         type="button"
                         onClick={() => setAssignmentExpanded(p => !p)}
-                        className="w-full flex items-center justify-between px-4 py-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-t border-blue-200 dark:border-blue-900/40"
+                        className="w-full flex items-center justify-between px-4 py-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border-t border-blue-200/50 dark:border-blue-900/30"
                       >
                         <div className="flex items-center gap-2">
                           {active.groupName
@@ -214,7 +214,7 @@ export default function TerritoryDetailView() {
 
                       {/* Expanded panel */}
                       {assignmentExpanded && (
-                        <div className="px-4 py-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-blue-100 dark:border-blue-900/20 flex items-end justify-between gap-2">
+                        <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md border-t border-blue-100/50 dark:border-blue-900/20 flex items-end justify-between gap-2">
                           <div>
                             <p className="font-semibold text-sm text-foreground">
                               {getAssigneeDisplayName(active)}
