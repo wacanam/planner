@@ -85,37 +85,88 @@ const DEFAULT_SVG = TYPE_SVG.house;
  * - Plain text label to the right, no border/pill
  * - Count badge top-right for clusters
  */
+/**
+ * Google Maps-style pin:
+ * - White teardrop body with subtle drop shadow
+ * - Status-colored filled circle at the head (generous padding ~5px)
+ * - White icon centered inside the circle
+ * - Plain text label to the right
+ * - Optional dark count badge top-right for clusters
+ *
+ * SVG viewBox 36×46: circle head (r=13) centered at (18,18),
+ * teardrop narrows to a soft rounded tip at bottom-center (18,44).
+ * Anchor point = tip (0,0 in the zero-size DivIcon container).
+ */
 function makePinHtml(
   color: string,
   iconSvg: string,
   label: string,
   badge?: number,
 ): string {
-  const truncated = label.length > 20 ? label.slice(0, 20) + '…' : label;
+  const truncated = label.length > 20 ? label.slice(0, 20) + '\u2026' : label;
+
+  // Badge HTML (no nested template literals)
   const badgeHtml = badge !== undefined
-    ? '<div style="position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;background:#1e293b;color:white;font-size:8px;font-weight:700;border-radius:9999px;display:flex;align-items:center;justify-content:center;border:1.5px solid white;padding:0 3px;box-shadow:0 1px 3px rgba(0,0,0,.3);">' + badge + '</div>'
+    ? [
+        '<div style="',
+          'position:absolute;top:-5px;right:-7px;',
+          'min-width:16px;height:16px;',
+          'background:#1e293b;color:white;',
+          'font-size:9px;font-weight:700;',
+          'border-radius:9999px;',
+          'display:flex;align-items:center;justify-content:center;',
+          'border:2px solid white;padding:0 3px;',
+          'box-shadow:0 1px 4px rgba(0,0,0,.35);',
+        '">',
+        String(badge),
+        '</div>',
+      ].join('')
     : '';
 
-  return (
-    '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">' +
+  // Pin SVG: white teardrop + colored circle + white icon
+  const pinSvg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46"',
+    ' style="display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3)) drop-shadow(0 0 2px rgba(0,0,0,0.1))">',
+    // White teardrop — round head, smooth narrow tail
+    '<path d="M18 2',
+    ' C9.2 2 2 9.2 2 18',
+    ' C2 27 10 35 16 42',
+    ' Q17 44.5 18 45',
+    ' Q19 44.5 20 42',
+    ' C26 35 34 27 34 18',
+    ' C34 9.2 26.8 2 18 2 Z"',
+    ' fill="white"/>',
+    // Status color circle (r=13, 5px padding inside 36px head)
+    '<circle cx="18" cy="18" r="13" fill="' + color + '"/>',
+    // White icon (14×14, centered: translate from (18-7, 18-7) = (11,11))
+    '<g transform="translate(11,11)">',
+    '<svg width="14" height="14" viewBox="0 0 24 24">',
+    iconSvg,
+    '</svg></g>',
+    '</svg>',
+  ].join('');
 
-      // Label right of pin
-      '<div style="position:absolute;left:21px;top:-24px;color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;">' +
-        truncated +
-      '</div>' +
+  return [
+    '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">',
 
-      // Teardrop pin
-      '<div style="position:absolute;left:-18px;top:-43px;pointer-events:auto;">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44" style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.26)) drop-shadow(0 0 1px rgba(0,0,0,0.1))">' +
-          '<path d="M18 2 C9.2 2 2 9.2 2 18 C2 26 8 33 13 39 Q15 42 15 43 Q15.5 44 16 43.5 Q17 42.5 19 40 C24 34 34 26.5 34 18 C34 9.2 26.8 2 18 2 Z" fill="white" stroke="white" stroke-width="1.5"/>' +
-          '<circle cx="18" cy="18" r="13" fill="' + color + '"/>' +
-          '<g transform="translate(11,11)"><svg width="14" height="14" viewBox="0 0 24 24">' + iconSvg + '</svg></g>' +
-        '</svg>' +
-        badgeHtml +
-      '</div>' +
+      // Pin container — tail tip anchored at (0,0)
+      '<div style="position:absolute;left:-18px;top:-45px;pointer-events:auto;">',
+        pinSvg,
+        badgeHtml,
+      '</div>',
 
-    '</div>'
-  );
+      // Label — right of pin, vertically centered on circle head
+      '<div style="',
+        'position:absolute;left:20px;top:-25px;',
+        'color:#1e293b;',
+        'font-size:10px;font-weight:500;line-height:1.3;',
+        'white-space:nowrap;pointer-events:none;',
+      '">',
+        truncated,
+      '</div>',
+
+    '</div>',
+  ].join('');
 }
 
 function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string, address: string) {
