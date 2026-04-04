@@ -395,16 +395,25 @@ export default function TerritoryMap({
 
           const onHClick = onClickRef.current;
           const logBtn = onHClick
-            ? `<button data-hid="${id}" style="margin-top:8px;width:100%;padding:4px 0;background:${statusColor};color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Log Visit</button>`
+            ? [
+                '<button data-hid="', id, '"',
+                ' style="margin-top:8px;width:100%;padding:4px 0;background:', statusColor,
+                ';color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">',
+                'Log Visit</button>',
+              ].join('')
             : '';
-          marker.bindPopup(
-            `<div style="min-width:150px">
-              <p style="font-weight:600;margin:0 0 4px">${address}</p>
-              <span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:9999px;background:${statusColor}22;color:${statusColor};text-transform:capitalize;font-weight:600;">${status.replace(/_/g, ' ')}</span>
-              ${logBtn}
-            </div>`,
-            { maxWidth: 220, closeButton: false }
-          );
+          const popupHtml = [
+            '<div style="min-width:150px">',
+              '<p style="font-weight:600;margin:0 0 4px">', address, '</p>',
+              '<span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:9999px;',
+                'background:', statusColor, '22;color:', statusColor,
+                ';text-transform:capitalize;font-weight:600;">',
+                status.replace(/_/g, ' '),
+              '</span>',
+              logBtn,
+            '</div>',
+          ].join('');
+          marker.bindPopup(popupHtml, { maxWidth: 220, closeButton: false });
           if (onHClick) {
             marker.on('popupopen', () => {
               const btn = document.querySelector<HTMLButtonElement>(`button[data-hid="${id}"]`);
