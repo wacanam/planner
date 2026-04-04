@@ -119,9 +119,9 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className="max-w-2xl mx-auto min-w-0 w-full">
+        <main className="max-w-2xl mx-auto min-w-0 w-full flex flex-col h-dvh overflow-hidden">
           {/* Sticky compact header */}
-          <div className="sticky top-16 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-2">
+          <div className="shrink-0 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-2 z-30">
             <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
               <Link href={backHref}>
                 <ArrowLeft className="h-4 w-4" />
@@ -136,12 +136,12 @@ export default function TerritoryDetailView() {
 
           </div>
 
-          <div className="px-4 pb-4 pt-2">
+          <div className="flex-1 min-h-0 px-4 pb-4 pt-2">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative rounded-2xl border border-border overflow-hidden h-[calc(100dvh-13rem)]">
+                <div className="relative rounded-2xl border border-border overflow-hidden h-full">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
