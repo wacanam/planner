@@ -475,42 +475,49 @@ export default function TerritoryMap({
         setLocError(null);
         const { longitude, latitude, heading } = pos.coords;
 
-        // Build location dot HTML — blue pulsing circle + heading cone
-        const headingCone = heading !== null
-          ? ['<div style="',
-              'position:absolute;',
+        if (locationMarkerRef.current) {
+          // ── Update existing marker in-place — no DOM rebuild ──────────────
+          locationMarkerRef.current.setLngLat([longitude, latitude]);
+          const cone = locationMarkerRef.current.getElement().querySelector<HTMLElement>('.loc-cone');
+          if (cone) {
+            if (heading !== null) {
+              cone.style.display = 'block';
+              cone.style.transform = `translateX(-50%) rotate(${heading}deg)`;
+            } else {
+              cone.style.display = 'none';
+            }
+          }
+        } else {
+          // ── First fix: build marker DOM ───────────────────────────────────
+          const el = document.createElement('div');
+          el.style.cssText = 'position:relative;width:20px;height:20px;';
+          el.innerHTML = [
+            // Heading cone — CSS transition for smooth rotation
+            '<div class="loc-cone" style="',
+              'position:absolute;display:', heading !== null ? 'block' : 'none', ';',
               'width:0;height:0;',
               'border-left:8px solid transparent;',
               'border-right:8px solid transparent;',
-              'border-bottom:20px solid rgba(59,130,246,0.35);',
-              'top:-20px;left:50%;transform:translateX(-50%) rotate(', String(heading), 'deg);',
+              'border-bottom:22px solid rgba(59,130,246,0.4);',
+              'top:-22px;left:50%;',
+              'transform:translateX(-50%) rotate(', String(heading ?? 0), 'deg);',
               'transform-origin:50% 100%;',
-            '"></div>'].join('')
-          : '';
+              'transition:transform 0.4s ease-out;',
+            '"></div>',
+            // Outer pulse ring
+            '<div style="position:absolute;inset:-6px;border-radius:50%;',
+              'background:rgba(59,130,246,0.15);border:1.5px solid rgba(59,130,246,0.4);',
+              'animation:location-pulse 2s ease-out infinite;"></div>',
+            // Inner blue dot
+            '<div style="position:absolute;inset:2px;border-radius:50%;',
+              'background:#3b82f6;border:2.5px solid white;',
+              'box-shadow:0 1px 6px rgba(0,0,0,0.3);"></div>',
+          ].join('');
 
-        const el = document.createElement('div');
-        el.style.cssText = 'position:relative;width:20px;height:20px;';
-        el.innerHTML = [
-          headingCone,
-          // Outer pulse ring
-          '<div style="position:absolute;inset:-6px;border-radius:50%;',
-            'background:rgba(59,130,246,0.15);border:1.5px solid rgba(59,130,246,0.4);',
-            'animation:location-pulse 2s ease-out infinite;"></div>',
-          // Inner blue dot
-          '<div style="position:absolute;inset:2px;border-radius:50%;',
-            'background:#3b82f6;border:2.5px solid white;',
-            'box-shadow:0 1px 6px rgba(0,0,0,0.3);"></div>',
-        ].join('');
-
-        if (locationMarkerRef.current) {
-          locationMarkerRef.current.setLngLat([longitude, latitude]);
-          locationMarkerRef.current.getElement().innerHTML = el.innerHTML;
-        } else {
           const marker = new mgl.Marker({ element: el, anchor: 'center' })
             .setLngLat([longitude, latitude])
             .addTo(m);
           locationMarkerRef.current = marker;
-          // Fly to location on first fix
           m.flyTo({ center: [longitude, latitude], zoom: 16, duration: 800 });
         }
       }
