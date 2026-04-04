@@ -133,7 +133,7 @@ export default function TerritoryDetailView() {
                     <button
                       type="button"
                       onClick={() => setMapFullscreen(p => !p)}
-                      className="flex items-center justify-center w-8 h-8 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-lg shadow-sm"
+                      className="flex items-center justify-center w-8 h-8 bg-white/25 dark:bg-gray-900/25 backdrop-blur-md rounded-lg shadow-sm"
                     >
                       {mapFullscreen
                         ? <Minimize2 className="h-4 w-4 text-foreground" />
@@ -143,7 +143,7 @@ export default function TerritoryDetailView() {
 
                   {/* Back button + title overlay — top-left of map */}
                   <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
-                    <div className="flex items-center gap-2 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white/25 dark:bg-gray-900/25 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
                       <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                         <Link href={backHref}>
                           <ArrowLeft className="h-4 w-4" />
@@ -202,7 +202,7 @@ export default function TerritoryDetailView() {
                       'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-md transition-all',
                       mapStyle === s.id
                         ? 'bg-primary text-white'
-                        : 'bg-white/70 dark:bg-gray-900/70 text-foreground hover:bg-white',
+                        : 'bg-white/25 dark:bg-gray-900/25 text-foreground hover:bg-white',
                     ].join(' ')}
                   >
                     {s.label}
@@ -213,7 +213,7 @@ export default function TerritoryDetailView() {
             <button
               type="button"
               onClick={() => setShowStylePicker((p) => !p)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/25 dark:bg-gray-900/25 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M3 6h18M3 12h18M3 18h18"/>
@@ -227,7 +227,7 @@ export default function TerritoryDetailView() {
               const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
               return (
-                <div className="fixed bottom-0 left-0 right-0 z-[1100] border-t border-blue-200/30 dark:border-blue-900/20 bg-white/30 dark:bg-gray-900/30 backdrop-blur-md">
+                <div className="fixed bottom-0 left-0 right-0 z-[1100] border-t border-blue-200/30 dark:border-blue-900/20 bg-white/25 dark:bg-gray-900/25 backdrop-blur-md">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
