@@ -111,17 +111,19 @@ export async function POST(req: NextRequest) {
             const geomStr = geo?.geometry ? JSON.stringify(geo.geometry) : null;
 
             if (geomStr) {
-              // Count households inside territory that have been visited
-              const [{ visitedCount }] = await db
-                .select({ visitedCount: sql<number>`count(*)::int` })
+              // Dynamic denominator: count all households spatially inside territory
+              // Worked statuses: visited | return_visit | do_not_visit | moved | inactive
+              const [{ workedCount, totalCount }] = await db
+                .select({
+                  workedCount: sql<number>`COUNT(*) FILTER (WHERE ${households.status} IN ('visited','return_visit','do_not_visit','moved','inactive'))::int`,
+                  totalCount:  sql<number>`COUNT(*)::int`,
+                })
                 .from(households)
-                .where(sql`
-                  ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))
-                  AND ${households.status} != 'not_visited'
-                `);
+                .where(sql`ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))`);
 
-              const total = territory.householdsCount ?? 0;
-              const coverage = total > 0 ? ((visitedCount / total) * 100).toFixed(2) : '0';
+              const coverage = totalCount > 0
+                ? ((workedCount / totalCount) * 100).toFixed(2)
+                : '0';
 
               await db
                 .update(territories)

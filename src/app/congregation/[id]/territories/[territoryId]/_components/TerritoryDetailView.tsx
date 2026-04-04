@@ -142,37 +142,21 @@ export default function TerritoryDetailView() {
           </div>
 
           <div className="px-4 py-4 space-y-3">
-            {/* Hero stats — 2 col, no redundant Status */}
-            <div className="rounded-2xl bg-muted/40 border border-border p-4 grid grid-cols-2 gap-3 text-center">
-              <div>
+            {/* Hero stats — households only, coverage shown on map */}
+            <div className="rounded-2xl bg-muted/40 border border-border p-4 flex items-center justify-between">
+              <div className="text-center flex-1">
                 <p className="text-lg font-bold text-foreground">{territory.householdsCount}</p>
                 <p className="text-xs text-muted-foreground">Households</p>
               </div>
-              <div>
-                <p className="text-lg font-bold text-foreground">
-                  {Number(territory.coveragePercent).toFixed(0)}%
-                </p>
-                <p className="text-xs text-muted-foreground">Coverage</p>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-center flex-1">
+                <p className="text-lg font-bold text-foreground">{Number(territory.coveragePercent).toFixed(0)}%</p>
+                <p className="text-xs text-muted-foreground">Covered</p>
               </div>
             </div>
 
-            {/* Coverage bar */}
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Coverage progress</span>
-                <span className="font-medium text-foreground">
-                  {Number(territory.coveragePercent).toFixed(1)}%
-                </span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Number(territory.coveragePercent))}%` }}
-                />
-              </div>
-            </div>
+            {/* Map + Assignment overlay + Coverage HUD */}
 
-            {/* Map + Assignment overlay */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
@@ -186,6 +170,22 @@ export default function TerritoryDetailView() {
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     className="h-full"
                   />
+
+                  {/* Coverage HUD — top of map */}
+                  <div className="absolute top-0 left-0 right-0 z-[1000] px-3 pt-2 pointer-events-none">
+                    <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2 shadow-sm">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Coverage</span>
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Number(territory.coveragePercent))}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] font-bold text-foreground tabular-nums whitespace-nowrap">
+                        {Number(territory.coveragePercent).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
 
                   {/* Assignment overlay — docked to map bottom */}
                   {active && (
