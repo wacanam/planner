@@ -538,7 +538,7 @@ export default function TerritoryMap({
         'width:36px;height:48px;',
         'bottom:0;',               // base sits at wrapper origin (dot center)
         'left:-18px;',             // center horizontally
-        'background:linear-gradient(to top, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0) 100%);',
+        'background:linear-gradient(to top, rgba(59,130,246,0.4) 0%, rgba(59,130,246,0) 100%);',
         'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
         'transform-origin:50% 100%;', // pivot at base center
         'will-change:transform;',
@@ -551,6 +551,8 @@ export default function TerritoryMap({
       wrapper.appendChild(cone);
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
+      // Place cone behind the GeolocateControl dot (which has z-index ~100)
+      wrapper.style.zIndex = '-1';
 
       // rAF loop — apply smoothed angle to cone rotation
       function render(timestamp: number) {
@@ -567,7 +569,7 @@ export default function TerritoryMap({
             // Short-path diff between magnetometer and current estimate
             const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
             // Complementary filter: 98% gyro integration + 2% magnetometer pull
-            compAngle = (compAngle + gyroAdvance + 0.02 * magDiff + 360) % 360;
+            compAngle = (compAngle + gyroAdvance + 0.04 * magDiff + 360) % 360;
           }
 
           const mapBearing = mapInstance.current?.getBearing() ?? 0;
