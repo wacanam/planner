@@ -441,20 +441,10 @@ export default function TerritoryMap({
 
       <div ref={mapRef} className="w-full h-full" />
 
-      {/* Style switcher — top-right, expands downward */}
-      <div className="absolute top-14 right-3 z-[1002]">
-        <button
-          type="button"
-          onClick={() => setShowPicker((p) => !p)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M3 6h18M3 12h18M3 18h18"/>
-          </svg>
-          {MAP_STYLES.find((s) => s.id === styleId)?.label ?? 'Map'}
-        </button>
+      {/* Style switcher — bottom-right, above assignment strip, list expands upward */}
+      <div className="absolute bottom-16 right-3 z-[1002]">
         {showPicker && (
-          <div className="mt-1 flex flex-col gap-1 items-end">
+          <div className="mb-1 flex flex-col gap-1 items-end">
             {MAP_STYLES.map((s) => (
               <button
                 key={s.id}
@@ -473,6 +463,16 @@ export default function TerritoryMap({
             ))}
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setShowPicker((p) => !p)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/70 dark:bg-gray-900/70 backdrop-blur-md shadow-sm text-[10px] font-semibold text-foreground"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+          {MAP_STYLES.find((s) => s.id === styleId)?.label ?? 'Map'}
+        </button>
       </div>
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
