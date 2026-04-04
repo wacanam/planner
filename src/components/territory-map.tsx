@@ -490,12 +490,45 @@ export default function TerritoryMap({
       let hasPos = false;
 
       // Smoothing state
-      let smoothAngle = 0;
-      let hasAngle = false;
-      const ALPHA = 0.18;      // balanced: responsive but not jittery
-      const DEADBAND = 3.0;    // ignore noise below 3° — reduces oscillation
+      // ── Complementary filter ─────────────────────────────────────────────
+      // Gyroscope: fast, smooth, no noise — but drifts over time (no absolute ref)
+      // Magnetometer: absolute but slow and noisy
+      // Complementary filter = gyro for fast changes + magnetometer for drift correction
+      //   angle = (1 - α) × (angle + gyro_rate × dt) + α × magnetometer
+      // α = 0.02 means 98% gyro, 2% magnetometer correction per tick → very smooth
+
+      let compAngle = 0;        // complementary filter output
+      let hasAngle  = false;
+      let lastTime  = 0;
+
+      // Gyro rates from DeviceMotionEvent (deg/s around Z axis = yaw)
+      let gyroRateZ = 0;
+      const onMotion = (e: DeviceMotionEvent) => {
+        // rotationRate.alpha = yaw rate on some devices, beta/gamma on others
+        // use alpha (rotation around Z = vertical axis = heading change)
+        gyroRateZ = e.rotationRate?.alpha ?? 0;
+      };
+      window.addEventListener('devicemotion', onMotion as EventListener, true);
+
+      // Magnetometer angle from DeviceOrientationEvent
+      let magAngle = 0;
+      let hasMag   = false;
+      const onOrientation = (e: DeviceOrientationEvent) => {
+        const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+        magAngle = compass !== undefined ? compass : (360 - (e.alpha ?? 0)) % 360;
+        hasMag = true;
+      };
+      window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+      window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+
+      // iOS 13+ permission
+      type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+      const DOE = DeviceOrientationEvent as DOE;
+      if (typeof DOE.requestPermission === 'function') {
+        DOE.requestPermission().catch(() => {});
+      }
+
       let rafId = 0;
-      let currentDisplayAngle = 0;
 
       // Cone: beam pointing UP from origin (0,0). Rotation pivot = base = center of dot.
       // Wrapper is 0×0 so MapLibre anchor='center' puts it exactly on the GPS coord.
@@ -520,24 +553,30 @@ export default function TerritoryMap({
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
 
       // rAF loop — apply smoothed angle to cone rotation
-      function render() {
-        if (hasAngle && hasPos) {
+      function render(timestamp: number) {
+        if (hasMag && hasPos) {
+          const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0;
+          lastTime = timestamp;
+
+          if (!hasAngle) {
+            compAngle = magAngle;
+            hasAngle = true;
+          } else {
+            // Integrate gyro: advance angle by gyro rate × dt
+            const gyroAdvance = gyroRateZ * dt;
+            // Short-path diff between magnetometer and current estimate
+            const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
+            // Complementary filter: 98% gyro integration + 2% magnetometer pull
+            compAngle = (compAngle + gyroAdvance + 0.02 * magDiff + 360) % 360;
+          }
+
           const mapBearing = mapInstance.current?.getBearing() ?? 0;
-          // Cone angle = absolute heading minus map's current rotation
-          const relativeAngle = (smoothAngle - mapBearing + 360) % 360;
+          const relativeAngle = (compAngle - mapBearing + 360) % 360;
           cone.style.transform = `rotate(${relativeAngle}deg)`;
         }
         rafId = requestAnimationFrame(render);
       }
       rafId = requestAnimationFrame(render);
-
-      // Update smoothed angle with deadband
-      function updateAngle(raw: number) {
-        if (!hasAngle) { smoothAngle = raw; hasAngle = true; return; }
-        const diff = ((raw - smoothAngle + 540) % 360) - 180;
-        if (Math.abs(diff) < DEADBAND) return; // ignore noise below threshold
-        smoothAngle = (smoothAngle + ALPHA * diff + 360) % 360;
-      }
 
       // Sync cone position with GPS dot
       const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
@@ -545,34 +584,14 @@ export default function TerritoryMap({
         userLat = e.coords.latitude;
         hasPos = true;
         coneMarker.setLngLat([userLng, userLat]).addTo(mapInstance.current!);
-        if (e.coords.heading !== null && !Number.isNaN(e.coords.heading)) {
-          updateAngle(e.coords.heading);
-        }
       };
       geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
-
-      // DeviceOrientation — compass heading at ~60Hz
-      const onOrientation = (e: DeviceOrientationEvent) => {
-        const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-        const raw = compass !== undefined
-          ? compass
-          : (360 - (e.alpha ?? 0)) % 360;
-        updateAngle(raw);
-      };
-      window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-      window.addEventListener('deviceorientation', onOrientation as EventListener, true);
-
-      // iOS 13+ permission
-      type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-      const DOE = DeviceOrientationEvent as DOE;
-      if (typeof DOE.requestPermission === 'function') {
-        DOE.requestPermission().catch(() => {});
-      }
 
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
         coneMarker.remove();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
+        window.removeEventListener('devicemotion', onMotion as EventListener, true);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
       };
