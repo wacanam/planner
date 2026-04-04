@@ -549,7 +549,7 @@ export default function TerritoryMap({
       <div ref={mapRef} className="w-full h-full" />
 
       {/* Map style switcher — bottom-right */}
-      <div className="absolute bottom-3 right-3 z-[1002]">
+      <div className="absolute bottom-14 right-3 z-[1002]">
         {showStylePicker && (
           <div className="mb-1 flex flex-col gap-1 items-end">
             {MAP_STYLES.map((s) => (
