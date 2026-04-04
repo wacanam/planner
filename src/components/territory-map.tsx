@@ -247,17 +247,22 @@ export default function TerritoryMap({
       if (boundary) {
         try {
           const geo = JSON.parse(boundary);
-          const outerRing = geo?.geometry?.coordinates?.[0];
-          if (outerRing) {
-            // World mask with territory as hole → everything outside = gray
-            const worldRing = [[-360, -180], [360, -180], [360, 180], [-360, 180], [-360, -180]];
-            L.geoJSON(
-              {
-                type: 'Feature',
-                geometry: { type: 'Polygon', coordinates: [worldRing, [...outerRing].reverse()] },
-              } as Parameters<typeof L.geoJSON>[0],
-              { style: { color: '#6B9ECC', weight: 0, fillColor: '#64748b', fillOpacity: 0.35, stroke: false } }
-            ).addTo(map);
+          // GeoJSON coords are [lng, lat]; convert to Leaflet [lat, lng] arrays
+          const outerRing: [number,number][] = (geo?.geometry?.coordinates?.[0] ?? [])
+            .map(([lng, lat]: [number, number]) => [lat, lng] as [number,number]);
+
+          if (outerRing.length) {
+            // Use L.polygon with holes — Leaflet renders this correctly on infinite canvas.
+            // Outer ring = massive world bbox (lat/lng), hole = territory ring.
+            // L.polygon coords: [[outerRing], [holeRing]]
+            const worldOuter: [number,number][] = [[-90,-360],[90,-360],[90,360],[-90,360]];
+            L.polygon([worldOuter, outerRing], {
+              color: '#6B9ECC',
+              weight: 0,
+              fillColor: '#64748b',
+              fillOpacity: 0.35,
+              stroke: false,
+            }).addTo(map);
 
             // Clean border on top
             activeBorderLayer = L.geoJSON(geo, {

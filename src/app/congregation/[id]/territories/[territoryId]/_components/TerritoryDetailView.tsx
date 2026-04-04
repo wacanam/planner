@@ -178,53 +178,50 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                  {/* Assignment overlay — docked to map bottom */}
-                  {active && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 z-[1000]"
-                      style={{ pointerEvents: 'auto' }}
-                    >
-                      {/* Collapsed handle — always visible */}
-                      <button
-                        type="button"
-                        onClick={() => setAssignmentExpanded(p => !p)}
-                        className="w-full flex items-center justify-between px-4 py-2 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md border-t border-blue-200/50 dark:border-blue-900/30"
-                      >
-                        <div className="flex items-center gap-2">
-                          {active.groupName
-                            ? <Users className="h-3.5 w-3.5 text-blue-500" />
-                            : <User  className="h-3.5 w-3.5 text-blue-500" />}
-                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
-                            Assigned to {getAssigneeDisplayName(active)}
-                          </span>
-                        </div>
-                        {assignmentExpanded
-                          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                          : <ChevronUp   className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </button>
+                </div>
+              );
+            })()}
 
-                      {/* Expanded panel */}
-                      {assignmentExpanded && (
-                        <div className="px-4 py-3 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md border-t border-blue-100/50 dark:border-blue-900/20 flex items-end justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-sm text-foreground">
-                              {getAssigneeDisplayName(active)}
-                            </p>
-                            {active.assignedAt && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Since {new Date(active.assignedAt).toLocaleDateString()}
-                                {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
-                              </p>
-                            )}
-                          </div>
-                          <Button asChild size="sm" variant="outline" className="shrink-0 bg-background/80">
-                            <Link href={`/congregation/${congregationId}/my-assignments`}>
-                              <MapPin className="h-3.5 w-3.5" />
-                              Log Visits
-                            </Link>
-                          </Button>
-                        </div>
-                      )}
+            {/* Assignment strip — sticky bottom, always visible outside map */}
+            {(() => {
+              const active = assignments.find((a) => a.status === 'active');
+              if (!active) return null;
+              return (
+                <div className="shrink-0 border-t border-blue-200/50 dark:border-blue-900/30 bg-background/95 backdrop-blur-md">
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentExpanded(p => !p)}
+                    className="w-full flex items-center justify-between px-4 py-2.5"
+                  >
+                    <div className="flex items-center gap-2">
+                      {active.groupName
+                        ? <Users className="h-3.5 w-3.5 text-blue-500" />
+                        : <User  className="h-3.5 w-3.5 text-blue-500" />}
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+                        Assigned to {getAssigneeDisplayName(active)}
+                      </span>
+                    </div>
+                    {assignmentExpanded
+                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      : <ChevronUp   className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </button>
+                  {assignmentExpanded && (
+                    <div className="px-4 pb-4 flex items-end justify-between gap-2 border-t border-blue-100/50">
+                      <div>
+                        <p className="font-semibold text-sm text-foreground mt-2">{getAssigneeDisplayName(active)}</p>
+                        {active.assignedAt && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Since {new Date(active.assignedAt).toLocaleDateString()}
+                            {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
+                          </p>
+                        )}
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="shrink-0">
+                        <Link href={`/congregation/${congregationId}/my-assignments`}>
+                          <MapPin className="h-3.5 w-3.5" />
+                          Log Visits
+                        </Link>
+                      </Button>
                     </div>
                   )}
                 </div>
