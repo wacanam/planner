@@ -166,7 +166,7 @@ export default function TerritoryDetailView() {
             </div>
 
             {/* Map — active territory highlighted, all congregation polygons as context layers */}
-            <div className="rounded-2xl border border-border overflow-hidden h-56">
+            <div className="rounded-2xl border border-border overflow-hidden h-96">
               <TerritoryMap
                 boundary={territory.boundary}
                 households={householdsInTerritory}
