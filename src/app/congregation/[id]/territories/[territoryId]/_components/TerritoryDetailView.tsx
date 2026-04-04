@@ -204,8 +204,8 @@ export default function TerritoryDetailView() {
             })()}
           </div>{/* end flex-1 map wrapper */}
 
-          {/* Map style switcher — fixed bottom-right, just above assignment strip */}
-          <div className="fixed bottom-12 right-3 z-[1200]">
+          {/* Map style switcher — fixed, shifts up when assignment strip expands */}
+          <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
             {showStylePicker && (
               <div className="mb-1 flex flex-col gap-1 items-end">
                 {MAP_STYLES.map((s) => (
