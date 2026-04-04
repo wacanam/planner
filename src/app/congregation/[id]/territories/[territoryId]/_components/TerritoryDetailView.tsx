@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Users, MapPin } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
@@ -94,6 +94,7 @@ export default function TerritoryDetailView() {
   const householdsInTerritory = householdsResp ?? [];
 
   const backHref = `/congregation/${congregationId}/territories`;
+  const [assignmentExpanded, setAssignmentExpanded] = useState(false);
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -165,58 +166,69 @@ export default function TerritoryDetailView() {
               </div>
             </div>
 
-            {/* Map — active territory highlighted, all congregation polygons as context layers */}
-            <div className="rounded-2xl border border-border overflow-hidden h-96">
-              <TerritoryMap
-                boundary={territory.boundary}
-                households={householdsInTerritory}
-                allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
-                  .filter(t => t.boundary && t.id !== territory.id)
-                  .map(t => ({ id: t.id, name: t.name, boundary: t.boundary! }))}
-                className="h-full"
-              />
-            </div>
-
-            {/* Current assignment */}
+            {/* Map + Assignment overlay */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
-              if (!active) return null;
               return (
-                <div className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    {active.groupName ? (
-                      <Users className="h-4 w-4 text-blue-500 shrink-0" />
-                    ) : (
-                      <User className="h-4 w-4 text-blue-500 shrink-0" />
-                    )}
-                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
-                      Currently Assigned
-                    </p>
-                  </div>
-                  <div className="flex items-end justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">
-                        {getAssigneeDisplayName(active)}
-                      </p>
-                      {active.assignedAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Since {new Date(active.assignedAt).toLocaleDateString()}
-                          {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
-                        </p>
+                <div className="relative rounded-2xl border border-border overflow-hidden h-96">
+                  <TerritoryMap
+                    boundary={territory.boundary}
+                    households={householdsInTerritory}
+                    allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
+                      .filter(t => t.boundary && t.id !== territory.id)
+                      .map(t => ({ id: t.id, name: t.name, boundary: t.boundary! }))}
+                    className="h-full"
+                  />
+
+                  {/* Assignment overlay — docked to map bottom */}
+                  {active && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 z-[1000]"
+                      style={{ pointerEvents: 'auto' }}
+                    >
+                      {/* Collapsed handle — always visible */}
+                      <button
+                        type="button"
+                        onClick={() => setAssignmentExpanded(p => !p)}
+                        className="w-full flex items-center justify-between px-4 py-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-t border-blue-200 dark:border-blue-900/40"
+                      >
+                        <div className="flex items-center gap-2">
+                          {active.groupName
+                            ? <Users className="h-3.5 w-3.5 text-blue-500" />
+                            : <User  className="h-3.5 w-3.5 text-blue-500" />}
+                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+                            Assigned to {getAssigneeDisplayName(active)}
+                          </span>
+                        </div>
+                        {assignmentExpanded
+                          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          : <ChevronUp   className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </button>
+
+                      {/* Expanded panel */}
+                      {assignmentExpanded && (
+                        <div className="px-4 py-3 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-blue-100 dark:border-blue-900/20 flex items-end justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-sm text-foreground">
+                              {getAssigneeDisplayName(active)}
+                            </p>
+                            {active.assignedAt && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Since {new Date(active.assignedAt).toLocaleDateString()}
+                                {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
+                              </p>
+                            )}
+                          </div>
+                          <Button asChild size="sm" variant="outline" className="shrink-0 bg-background/80">
+                            <Link href={`/congregation/${congregationId}/my-assignments`}>
+                              <MapPin className="h-3.5 w-3.5" />
+                              Log Visits
+                            </Link>
+                          </Button>
+                        </div>
                       )}
                     </div>
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0 bg-background/80"
-                    >
-                      <Link href={`/congregation/${congregationId}/my-assignments`}>
-                        <MapPin className="h-3.5 w-3.5" />
-                        Log Visits
-                      </Link>
-                    </Button>
-                  </div>
+                  )}
                 </div>
               );
             })()}

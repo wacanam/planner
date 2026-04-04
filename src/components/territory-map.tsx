@@ -99,31 +99,25 @@ const DEFAULT_SVG = TYPE_SVG.house;
 function makePinHtml(
   color: string,
   iconSvg: string,
-  label: string,
   badge?: number,
 ): string {
-  const truncated = label.length > 20 ? `${label.slice(0, 20)}…` : label;
   const badgeSize = badge !== undefined ? (badge > 99 ? 20 : 16) : 0;
 
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
     <!-- Pin — anchored at bottom-center (0,0) -->
-    <div style="
-      position:absolute;
-      left:-14px;top:-34px;
-      pointer-events:auto;
-    ">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="34" viewBox="0 0 28 34" style="display:block">
-        <path d="M14 1 C7.4 1 2 6.4 2 13 C2 21 14 33 14 33 C14 33 26 21 26 13 C26 6.4 20.6 1 14 1 Z"
-          fill="${color}" stroke="white" stroke-width="1.5"/>
-        <!-- Inner icon with padding: translate(4,3), scale to 20×20 inside 28×34 -->
-        <g transform="translate(4,3)">
+    <div style="position:absolute;left:-16px;top:-38px;pointer-events:auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="38" viewBox="0 0 32 38" style="display:block">
+        <path d="M16 1 C8.3 1 2 7.3 2 15 C2 24 16 37 16 37 C16 37 30 24 30 15 C30 7.3 23.7 1 16 1 Z"
+          fill="${color}" stroke="white" stroke-width="1.8"/>
+        <!-- Icon with generous padding: 8px on all sides inside 32×32 head -->
+        <g transform="translate(6,4)">
           <svg width="20" height="20" viewBox="0 0 24 24">${iconSvg}</svg>
         </g>
       </svg>
       ${badge !== undefined ? `
       <div style="
-        position:absolute;top:-5px;right:-8px;
+        position:absolute;top:-5px;right:-9px;
         min-width:${badgeSize}px;height:${badgeSize}px;
         background:#1e293b;color:white;
         font-size:9px;font-weight:700;
@@ -133,33 +127,18 @@ function makePinHtml(
         box-shadow:0 1px 3px rgba(0,0,0,.3);
       ">${badge}</div>` : ''}
     </div>
-    <!-- Label pill — floats right of pin, vertically centered on pin head (~-21px) -->
-    <div style="
-      position:absolute;
-      left:16px;top:-28px;
-      background:white;
-      color:#1e293b;
-      font-size:10px;font-weight:600;line-height:1.2;
-      padding:2px 7px;
-      border-radius:9999px;
-      border:1.5px solid ${color};
-      box-shadow:0 1px 4px rgba(0,0,0,0.15);
-      white-space:nowrap;
-      pointer-events:none;
-      z-index:1;
-    ">${truncated}</div>
   </div>`;
 }
 
-function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string, address: string) {
+function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string) {
   const color   = STATUS_COLOR[status] ?? DEFAULT_COLOR;
   const iconSvg = TYPE_SVG[type] ?? DEFAULT_SVG;
   return L.divIcon({
-    html:       makePinHtml(color, iconSvg, address),
+    html:       makePinHtml(color, iconSvg),
     className:  '',
-    iconSize:   [0, 0],   // zero-size anchor; visual drawn via absolute positioning
+    iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[14, -34],
+    popupAnchor:[16, -38],
   });
 }
 
@@ -322,12 +301,11 @@ export default function TerritoryMap({
             const repType    = rep?.type    ?? 'house';
             const repAddress = rep?.address ?? '';
 
-            // Build icon HTML: representative pin + label + count badge
+            // Build icon HTML: representative pin + count badge
             const repColor = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
             const repIcon  = TYPE_SVG[repType] ?? DEFAULT_SVG;
-            const label    = repAddress.length > 20 ? `${repAddress.slice(0, 20)}…` : repAddress;
 
-            const html = makePinHtml(repColor, repIcon, label, count);
+            const html = makePinHtml(repColor, repIcon, count);
 
             const clusterMarker = L.marker([lat, lng], {
               icon: L.divIcon({
@@ -335,8 +313,16 @@ export default function TerritoryMap({
                 className:  '',
                 iconSize:   [0, 0],
                 iconAnchor: [0, 0],
-                popupAnchor:[14, -34],
+                popupAnchor:[16, -38],
               }),
+            });
+
+            // Label on hover
+            clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
+              permanent: false,
+              direction: 'right',
+              offset: [16, -38],
+              className: 'household-label',
             });
 
             clusterMarker.on('click', () => {
@@ -353,8 +339,15 @@ export default function TerritoryMap({
             const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
 
             const marker = L.marker([lat, lng], {
-              icon: makeHouseholdIcon(L, status, hType, address),
-              // Canvas not applicable to DivIcon — SVG icons stay lightweight at <500 pts
+              icon: makeHouseholdIcon(L, status, hType),
+            });
+
+            // Label as hover tooltip — no overlap between markers
+            marker.bindTooltip(address, {
+              permanent: false,
+              direction: 'right',
+              offset: [16, -38],
+              className: 'household-label',
             });
 
             marker.bindPopup(
@@ -403,6 +396,18 @@ export default function TerritoryMap({
       <style>{`
         .leaflet-popup-content-wrapper { border-radius: 12px !important; }
         .leaflet-popup-content { margin: 10px 12px !important; }
+        .household-label {
+          background: white !important;
+          border: none !important;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.15) !important;
+          border-radius: 9999px !important;
+          padding: 2px 8px !important;
+          font-size: 10px !important;
+          font-weight: 600 !important;
+          color: #1e293b !important;
+          white-space: nowrap !important;
+        }
+        .household-label::before { display: none !important; }
       `}</style>
 
       <div ref={mapRef} className="w-full h-full rounded-2xl overflow-hidden" />
