@@ -258,10 +258,33 @@ export default function TerritoryMap({
       // ── Supercluster setup ────────────────────────────────────────────────
       if (validPts.length === 0) return;
 
+      /**
+       * Buffer-based clustering radius.
+       *
+       * supercluster radius is in pixels at zoom 256-tile space (tile size = 256px).
+       * The visual footprint of each marker is:
+       *   - Pin:   32px wide
+       *   - Label: ~140px wide (10px font, ~14 chars avg, + padding)
+       *   - Total: ~172px at screen resolution
+       *
+       * Convert screen px → supercluster radius:
+       *   supercluster_radius = screen_px * (256 / tileSize)
+       * Leaflet default tileSize = 256, so ratio = 1.
+       * We add 20% breathing room to avoid tight packing.
+       *
+       * At high zoom (18+) markers are far apart; at low zoom they cluster.
+       * radius: 170 means two markers must be >170px apart at the current zoom
+       * to render individually — matching their combined visual footprint.
+       */
+      const PIN_WIDTH_PX    = 32;
+      const LABEL_WIDTH_PX  = 145; // ~14 chars × 10px + padding
+      const BUFFER_PX       = 20;  // breathing room
+      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 197
+
       const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-        radius: 60,
-        maxZoom: 18,
-        minPoints: 3,
+        radius:    CLUSTER_RADIUS,
+        maxZoom:   18,
+        minPoints: 2, // even 2 overlapping markers should cluster
       });
 
       index.load(
