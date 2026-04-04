@@ -188,7 +188,7 @@ export default function TerritoryDetailView() {
               const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
               return (
-                <div className="shrink-0 border-t border-blue-200/50 dark:border-blue-900/30 bg-background/95 backdrop-blur-md">
+                <div className="fixed bottom-0 left-0 right-0 z-[1100] border-t border-blue-200/50 dark:border-blue-900/30 bg-background/95 backdrop-blur-md">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
