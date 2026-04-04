@@ -92,16 +92,29 @@ function makePinHtml(
   badge?: number,
 ): string {
   const truncated = label.length > 20 ? `${label.slice(0, 20)}…` : label;
-  const R = 14; // circle radius px
-  const D = R * 2;
 
+  // Teardrop: 28w × 36h. Circle head r=11 at (14,14). Tail tip at (14,35).
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
-    <!-- Circle marker — centered at (0,0) anchor -->
-    <div style="position:absolute;left:-${R}px;top:-${R}px;pointer-events:auto;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="${D}" height="${D}" viewBox="0 0 ${D} ${D}" style="display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.35))">
-        <circle cx="${R}" cy="${R}" r="${R-1}" fill="${color}"/>
-        <g transform="translate(${R-6},${R-6})">
+    <!-- Label left of pin, right-aligned, vertically centered on circle -->
+    <div style="
+      position:absolute;
+      right:17px;top:-19px;
+      color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.2;
+      white-space:nowrap;pointer-events:none;text-align:right;
+    ">${truncated}</div>
+
+    <!-- Teardrop pin: white body, colored circle, white icon -->
+    <div style="position:absolute;left:-14px;top:-36px;pointer-events:auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36"
+           style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.32)) drop-shadow(0 0 1px rgba(0,0,0,0.15))">
+        <!-- White teardrop body -->
+        <path d="M14 2 C7.4 2 2 7.4 2 14 C2 22 14 34.5 14 34.5 C14 34.5 26 22 26 14 C26 7.4 20.6 2 14 2 Z"
+          fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+        <!-- Status color circle -->
+        <circle cx="14" cy="14" r="11" fill="${color}"/>
+        <!-- White icon centered in circle -->
+        <g transform="translate(8,8)">
           <svg width="12" height="12" viewBox="0 0 24 24">${iconSvg}</svg>
         </g>
       </svg>
@@ -117,18 +130,6 @@ function makePinHtml(
         box-shadow:0 1px 3px rgba(0,0,0,.3);
       ">${badge}</div>` : ''}
     </div>
-    <!-- Plain text label — right of circle, vertically centered -->
-    <div style="
-      position:absolute;
-      left:${R + 5}px;top:${-R}px;
-      height:${D}px;
-      display:flex;align-items:center;
-      color:#1a1a1a;
-      font-size:10px;font-weight:500;line-height:1;
-      white-space:nowrap;
-      pointer-events:none;
-      
-    ">${truncated}</div>
   </div>`;
 }
 
