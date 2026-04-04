@@ -181,8 +181,9 @@ export default function TerritoryDetailView() {
                 </div>
               );
             })()}
+          </div>{/* end flex-1 map wrapper */}
 
-            {/* Assignment strip — sticky bottom, always visible outside map */}
+          {/* Assignment strip — shrink-0 sibling of map, always visible */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               if (!active) return null;
@@ -227,50 +228,6 @@ export default function TerritoryDetailView() {
                 </div>
               );
             })()}
-
-            {/* Notes */}
-            {territory.notes && (
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <p className="text-xs text-muted-foreground font-medium mb-1">Notes</p>
-                <p className="text-sm text-foreground">{territory.notes}</p>
-              </div>
-            )}
-
-            {/* Assignment history — collapsed rows */}
-            {(() => {
-              const history = assignments.filter((a) => a.status !== 'active');
-              if (history.length === 0) return null;
-              return (
-                <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium px-1">
-                    History
-                  </p>
-                  {history.map((a) => (
-                    <div
-                      key={a.id}
-                      className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{getAssigneeDisplayName(a)}</p>
-                        {a.assignedAt && (
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(a.assignedAt).toLocaleDateString()}
-                            {a.returnedAt && ` → ${new Date(a.returnedAt).toLocaleDateString()}`}
-                          </p>
-                        )}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs capitalize shrink-0 ml-3 ${assignmentStatusColors[a.status] ?? ''}`}
-                      >
-                        {a.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
         </main>
       )}
     </ProtectedPage>
