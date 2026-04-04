@@ -119,29 +119,13 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className="max-w-2xl mx-auto min-w-0 w-full flex flex-col h-dvh overflow-hidden">
-          {/* Sticky compact header */}
-          <div className="shrink-0 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-2 z-30">
-            <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-              <Link href={backHref}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground font-medium">Territory</p>
-              <p className="text-sm font-bold text-foreground truncate leading-tight">
-                #{territory.number} {territory.name}
-              </p>
-            </div>
-
-          </div>
-
-          <div className="flex-1 min-h-0 px-4 pb-4 pt-2">
+        <main className="max-w-2xl mx-auto min-w-0 w-full flex flex-col h-dvh overflow-hidden relative">
+          <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
               const active = assignments.find((a) => a.status === 'active');
               return (
-                <div className="relative rounded-2xl border border-border overflow-hidden h-full">
+                <div className="relative overflow-hidden h-full">
                   <TerritoryMap
                     boundary={territory.boundary}
                     households={householdsInTerritory}
@@ -152,8 +136,25 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Top HUD — stats + coverage bar */}
-                  <div className="absolute top-0 left-0 right-0 z-[1000] px-3 pt-2 pointer-events-none">
+                  {/* Back button + title overlay — top-left of map */}
+                  <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
+                    <div className="flex items-center gap-2 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md rounded-xl px-2 py-1.5 shadow-sm">
+                      <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                        <Link href={backHref}>
+                          <ArrowLeft className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <div className="min-w-0 pr-1">
+                        <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">Territory</p>
+                        <p className="text-xs font-bold text-foreground truncate leading-tight max-w-[180px]">
+                          #{territory.number} {territory.name}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top HUD — stats + coverage bar (below back button) */}
+                  <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
                     <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md rounded-xl px-3 py-2 shadow-sm space-y-1.5">
                       {/* Stats row */}
                       <div className="flex items-center justify-between">

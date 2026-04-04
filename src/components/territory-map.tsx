@@ -250,7 +250,7 @@ export default function TerritoryMap({
           const outerRing = geo?.geometry?.coordinates?.[0];
           if (outerRing) {
             // World mask with territory as hole → everything outside = gray
-            const worldRing = [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]];
+            const worldRing = [[-360, -180], [360, -180], [360, 180], [-360, 180], [-360, -180]];
             L.geoJSON(
               {
                 type: 'Feature',
