@@ -93,42 +93,43 @@ function makePinHtml(
 ): string {
   const truncated = label.length > 20 ? `${label.slice(0, 20)}…` : label;
 
-  // Teardrop: 32w × 38h. Rounder head, shorter softer tail. Circle r=12 at (16,16) with 4px padding.
+  // 36w × 44h. Very round head, slight right-offset tail, generous padding.
+  // Circle r=13 at (18,18), tail tip offset-right at ~(15,43).
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
-    <!-- Label right of pin -->
+    <!-- Label right of pin, vertically centered on circle -->
     <div style="
       position:absolute;
-      left:19px;top:-21px;
-      color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.2;
+      left:21px;top:-24px;
+      color:#1e293b;font-size:10.5px;font-weight:500;line-height:1.3;
       white-space:nowrap;pointer-events:none;
-    ">${truncated}</div>
+    ">\${truncated}</div>
 
-    <!-- Teardrop pin -->
-    <div style="position:absolute;left:-16px;top:-38px;pointer-events:auto;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="38" viewBox="0 0 32 38"
-           style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.28)) drop-shadow(0 0 1px rgba(0,0,0,0.12))">
-        <!-- Rounder teardrop: bigger head radius, softer shorter tail -->
-        <path d="M16 2 C8.3 2 2 8.3 2 16 C2 23 9 31 13.5 36 Q14.8 37.5 16 37.5 Q17.2 37.5 18.5 36 C23 31 30 23 30 16 C30 8.3 23.7 2 16 2 Z"
-          fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
-        <!-- Status color circle with 4px padding inside head -->
-        <circle cx="16" cy="16" r="12" fill="${color}"/>
+    <!-- Teardrop pin anchored at tail tip (offset slightly right like Google Maps) -->
+    <div style="position:absolute;left:-18px;top:-43px;pointer-events:auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44"
+           style="display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.26)) drop-shadow(0 0 1px rgba(0,0,0,0.1))">
+        <!-- Very round head, gentle right-leaning tail -->
+        <path d="M18 2 C9.2 2 2 9.2 2 18 C2 26 8 33 13 39 Q15 42 15 43 Q15.5 44 16 43.5 Q17 42.5 19 40 C24 34 34 26.5 34 18 C34 9.2 26.8 2 18 2 Z"
+          fill="#f8fafc" stroke="#d1d5db" stroke-width="1.5"/>
+        <!-- Status color circle, ~5px padding from teardrop edge -->
+        <circle cx="18" cy="18" r="13" fill="\${color}"/>
         <!-- White icon centered -->
-        <g transform="translate(10,10)">
-          <svg width="12" height="12" viewBox="0 0 24 24">${iconSvg}</svg>
+        <g transform="translate(11,11)">
+          <svg width="14" height="14" viewBox="0 0 24 24">\${iconSvg}</svg>
         </g>
       </svg>
-      ${badge !== undefined ? `
+      \${badge !== undefined ? `
       <div style="
         position:absolute;top:-4px;right:-6px;
-        min-width:14px;height:14px;
+        min-width:15px;height:15px;
         background:#1e293b;color:white;
         font-size:8px;font-weight:700;
         border-radius:9999px;
         display:flex;align-items:center;justify-content:center;
         border:1.5px solid white;padding:0 3px;
         box-shadow:0 1px 3px rgba(0,0,0,.3);
-      ">${badge}</div>` : ''}
+      ">\${badge}</div>` : ''}
     </div>
   </div>`;
 }
@@ -142,7 +143,7 @@ function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: st
     className:  '',
     iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[13, -34],
+    popupAnchor:[18, -43],
   });
 }
 
@@ -343,7 +344,7 @@ export default function TerritoryMap({
           const clusterMarker = L!.marker([lat, lng], {
             icon: L!.divIcon({
               html: makePinHtml(repColor, repIcon, repLabel, count),
-              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [13,-34],
+              className: '', iconSize: [0,0], iconAnchor: [0,0], popupAnchor: [18,-43],
             }),
           });
           clusterMarker.bindTooltip(`${repAddress} +${count - 1} more`, {
