@@ -101,46 +101,58 @@ const DEFAULT_SVG = TYPE_SVG.house;
 function makePinHtml(
   color: string,
   iconSvg: string,
+  label: string,
   badge?: number,
 ): string {
-  const badgeSize = badge !== undefined ? (badge > 99 ? 20 : 16) : 0;
+  const truncated = label.length > 18 ? `${label.slice(0, 18)}…` : label;
 
   return `
   <div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">
     <!-- Pin — anchored at bottom-center (0,0) -->
-    <div style="position:absolute;left:-16px;top:-38px;pointer-events:auto;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="38" viewBox="0 0 32 38" style="display:block">
-        <path d="M16 1 C8.3 1 2 7.3 2 15 C2 24 16 37 16 37 C16 37 30 24 30 15 C30 7.3 23.7 1 16 1 Z"
-          fill="${color}" stroke="white" stroke-width="1.8"/>
-        <!-- Icon with generous padding: 8px on all sides inside 32×32 head -->
-        <g transform="translate(6,4)">
-          <svg width="20" height="20" viewBox="0 0 24 24">${iconSvg}</svg>
+    <div style="position:absolute;left:-11px;top:-26px;pointer-events:auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="26" viewBox="0 0 22 26" style="display:block">
+        <path d="M11 1 C5.5 1 1 5.5 1 11 C1 17.5 11 25 11 25 C11 25 21 17.5 21 11 C21 5.5 16.5 1 11 1 Z"
+          fill="${color}" stroke="white" stroke-width="1.5"/>
+        <!-- Icon: centered in 22×22 head with 3px padding -->
+        <g transform="translate(3,2)">
+          <svg width="16" height="16" viewBox="0 0 24 24">${iconSvg}</svg>
         </g>
       </svg>
       ${badge !== undefined ? `
       <div style="
-        position:absolute;top:-5px;right:-9px;
-        min-width:${badgeSize}px;height:${badgeSize}px;
+        position:absolute;top:-4px;right:-7px;
+        min-width:14px;height:14px;
         background:#1e293b;color:white;
-        font-size:9px;font-weight:700;
+        font-size:8px;font-weight:700;
         border-radius:9999px;
         display:flex;align-items:center;justify-content:center;
-        border:1.5px solid white;padding:0 3px;
+        border:1.5px solid white;padding:0 2px;
         box-shadow:0 1px 3px rgba(0,0,0,.3);
       ">${badge}</div>` : ''}
     </div>
+    <!-- Label pill — floats right, vertically centered on pin head -->
+    <div style="
+      position:absolute;left:13px;top:-22px;
+      background:white;color:#1e293b;
+      font-size:9px;font-weight:600;line-height:1;
+      padding:2px 6px;border-radius:9999px;
+      border:1.5px solid ${color};
+      box-shadow:0 1px 3px rgba(0,0,0,0.12);
+      white-space:nowrap;pointer-events:none;
+    ">${truncated}</div>
   </div>`;
 }
 
-function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string) {
+function makeHouseholdIcon(L: typeof import('leaflet'), status: string, type: string, address: string) {
   const color   = STATUS_COLOR[status] ?? DEFAULT_COLOR;
   const iconSvg = TYPE_SVG[type] ?? DEFAULT_SVG;
+  const label   = address.split(' ').slice(0, 3).join(' '); // first 3 words of address
   return L.divIcon({
-    html:       makePinHtml(color, iconSvg),
+    html:       makePinHtml(color, iconSvg, label),
     className:  '',
     iconSize:   [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor:[16, -38],
+    popupAnchor:[11, -26],
   });
 }
 
@@ -276,10 +288,10 @@ export default function TerritoryMap({
        * radius: 170 means two markers must be >170px apart at the current zoom
        * to render individually — matching their combined visual footprint.
        */
-      const PIN_WIDTH_PX    = 32;
-      const LABEL_WIDTH_PX  = 145; // ~14 chars × 10px + padding
-      const BUFFER_PX       = 20;  // breathing room
-      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 197
+      const PIN_WIDTH_PX    = 22;
+      const LABEL_WIDTH_PX  = 110; // ~18 chars × 9px + padding
+      const BUFFER_PX       = 16;  // breathing room
+      const CLUSTER_RADIUS  = PIN_WIDTH_PX + LABEL_WIDTH_PX + BUFFER_PX; // ≈ 148
 
       const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
         radius:    CLUSTER_RADIUS,
@@ -328,7 +340,8 @@ export default function TerritoryMap({
             const repColor = STATUS_COLOR[repStatus] ?? DEFAULT_COLOR;
             const repIcon  = TYPE_SVG[repType] ?? DEFAULT_SVG;
 
-            const html = makePinHtml(repColor, repIcon, count);
+            const repLabel = repAddress.split(' ').slice(0, 3).join(' ');
+            const html = makePinHtml(repColor, repIcon, repLabel, count);
 
             const clusterMarker = L.marker([lat, lng], {
               icon: L.divIcon({
@@ -336,7 +349,7 @@ export default function TerritoryMap({
                 className:  '',
                 iconSize:   [0, 0],
                 iconAnchor: [0, 0],
-                popupAnchor:[16, -38],
+                popupAnchor:[11, -26],
               }),
             });
 
@@ -362,7 +375,7 @@ export default function TerritoryMap({
             const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
 
             const marker = L.marker([lat, lng], {
-              icon: makeHouseholdIcon(L, status, hType),
+              icon: makeHouseholdIcon(L, status, hType, address),
             });
 
             // Label as hover tooltip — no overlap between markers
