@@ -1,4 +1,11 @@
-import { integer, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, text, timestamp, uuid, varchar, customType } from 'drizzle-orm/pg-core';
+
+// PostGIS geometry type — Drizzle doesn't ship a built-in, so we use customType.
+// Stored as geometry(Point,4326); JS value is the raw WKB hex string from Postgres.
+// We only read it server-side for spatial queries; the client never uses this column directly.
+const geometry = customType<{ data: string; driverData: string }>({
+  dataType() { return 'geometry(Point,4326)'; },
+});
 
 /**
  * Household — a physical address/dwelling on the congregation's map.
@@ -23,8 +30,6 @@ export const households = pgTable('households', {
   country: varchar('country', { length: 100 }),
   latitude: varchar('latitude', { length: 30 }), // decimal degrees
   longitude: varchar('longitude', { length: 30 }), // decimal degrees
-  // Interim WKT/GeoJSON — will become geometry(Point,4326) with PostGIS
-  location: text('location'),
 
   // ── Physical characteristics ──────────────────────────────────────────────
   // house | apartment | condo | townhouse | mobile_home | business | other
@@ -49,10 +54,15 @@ export const households = pgTable('households', {
   lwpNotes: text('lwpNotes'), // literature work placement notes
 
   // ── Audit ─────────────────────────────────────────────────────────────────
-  createdById: uuid('createdById'), // who added this household
-  updatedById: uuid('updatedById'), // who last edited it
+  createdById: uuid('createdById'),
+  updatedById: uuid('updatedById'),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().notNull(),
+
+  // ── Spatial (PostGIS) ─────────────────────────────────────────────────────
+  // Auto-synced from latitude/longitude via DB trigger households_sync_location.
+  // Use for ST_Within / ST_DWithin queries; never send to client.
+  location: geometry('location'),
 });
 
 export type Household = typeof households.$inferSelect;

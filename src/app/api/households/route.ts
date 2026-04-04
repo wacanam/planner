@@ -6,6 +6,9 @@ import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers
 import { NextResponse } from 'next/server';
 
 // GET /api/households
+// Supports two spatial query modes:
+//   1. ?boundary=<GeoJSON>  — ST_Within against territory polygon (exact, uses GIST index)
+//   2. ?minLat&maxLat&minLng&maxLng — bbox fallback (used when no boundary provided)
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -13,22 +16,37 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
+    const boundaryParam = searchParams.get('boundary');
     const minLat = searchParams.get('minLat');
     const maxLat = searchParams.get('maxLat');
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
 
-    // Cast varchar lat/lng to numeric for correct comparison (not lexicographic)
-    const conditions = [];
-    if (minLat) conditions.push(drizzleSql`${households.latitude}::numeric >= ${Number(minLat)}`);
-    if (maxLat) conditions.push(drizzleSql`${households.latitude}::numeric <= ${Number(maxLat)}`);
-    if (minLng) conditions.push(drizzleSql`${households.longitude}::numeric >= ${Number(minLng)}`);
-    if (maxLng) conditions.push(drizzleSql`${households.longitude}::numeric <= ${Number(maxLng)}`);
+    let whereClause;
+
+    if (boundaryParam) {
+      // ── Mode 1: exact polygon via PostGIS ST_Within ────────────────────
+      // GIST index on households.location makes this O(log n)
+      whereClause = drizzleSql`
+        ST_Within(
+          ${households.location},
+          ST_GeomFromGeoJSON(${boundaryParam})
+        )
+      `;
+    } else if (minLat || maxLat || minLng || maxLng) {
+      // ── Mode 2: bbox fallback ─────────────────────────────────────────
+      const conditions = [];
+      if (minLat) conditions.push(drizzleSql`${households.latitude}::numeric >= ${Number(minLat)}`);
+      if (maxLat) conditions.push(drizzleSql`${households.latitude}::numeric <= ${Number(maxLat)}`);
+      if (minLng) conditions.push(drizzleSql`${households.longitude}::numeric >= ${Number(minLng)}`);
+      if (maxLng) conditions.push(drizzleSql`${households.longitude}::numeric <= ${Number(maxLng)}`);
+      whereClause = conditions.length ? and(...conditions) : undefined;
+    }
 
     const results = await db
       .select()
       .from(households)
-      .where(conditions.length ? and(...conditions) : undefined)
+      .where(whereClause)
       .orderBy(asc(households.address));
 
     return successResponse(results, undefined, 200, requestId);
