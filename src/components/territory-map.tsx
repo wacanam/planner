@@ -363,13 +363,81 @@ export default function TerritoryMap({
           }
         }
 
-        // Tap dot → calibration
-        geolocate.on('geolocate', () => {
-          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
-          if (dot && !dot.getAttribute('data-calib-listener')) {
-            dot.setAttribute('data-calib-listener', '1');
+        // ── Attach heading cone when GeolocateControl activates ──────────
+        let coneChild: HTMLElement | null = null;
+        let rafId = 0;
+        let heading = 0;
+
+        const startHeading = () => {
+          // Inject cone child into the user location dot
+          const attachCone = () => {
+            const dot = map.getContainer().querySelector<HTMLElement>('.maplibregl-user-location-dot');
+            if (!dot || coneChild) return;
+            const w = document.createElement('div');
+            w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center;will-change:transform;';
+            const cone = document.createElement('div');
+            cone.style.cssText = [
+              'position:absolute;left:50%;bottom:100%;margin-bottom:2px;',
+              'transform:translateX(-50%);',
+              'width:0;height:0;',
+              'border-left:5px solid transparent;',
+              'border-right:5px solid transparent;',
+              'border-bottom:16px solid rgba(59,130,246,0.85);',
+              'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+            ].join('');
+            w.appendChild(cone);
+            dot.style.overflow = 'visible';
+            dot.appendChild(w);
+            coneChild = w;
+          };
+
+          // Poll until dot exists (appears on first GPS fix)
+          const poll = setInterval(() => { attachCone(); if (coneChild) clearInterval(poll); }, 300);
+
+          // rAF: rotate cone with map bearing compensation
+          let lastAngle = -1;
+          const render = () => {
+            if (coneChild) {
+              const bearing = mapInstance.current?.getBearing() ?? 0;
+              const angle = (heading - bearing + 360) % 360;
+              if (Math.abs(angle - lastAngle) > 0.5) {
+                coneChild.style.transform = `rotate(${angle}deg)`;
+                lastAngle = angle;
+              }
+            }
+            rafId = requestAnimationFrame(render);
+          };
+          rafId = requestAnimationFrame(render);
+
+          // Compass/orientation listeners
+          const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+            const raw = (window as unknown as { HeadingFilter?: unknown }).HeadingFilter
+              ? null
+              : getTiltCompensatedHeading(e);
+            if (raw !== null) heading = raw;
+          };
+          window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+          window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+
+          // iOS 13+ permission (if not already granted)
+          type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+          const DOE = DeviceOrientationEvent as DOE;
+          if (typeof DOE.requestPermission === 'function') {
+            DOE.requestPermission().catch(() => {});
           }
-        });
+
+          return () => {
+            clearInterval(poll);
+            cancelAnimationFrame(rafId);
+            if (coneChild) { coneChild.remove(); coneChild = null; }
+            window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+            window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+          };
+        };
+
+        let stopHeading: (() => void) | null = null;
+        geolocate.on('trackuserlocationstart', () => { stopHeading = startHeading(); });
+        geolocate.on('trackuserlocationend',   () => { stopHeading?.(); stopHeading = null; });
 
         setMapReady(true);
       });
