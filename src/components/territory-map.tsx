@@ -503,39 +503,36 @@ export default function TerritoryMap({
     };
     geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
 
-    // ── Flashlight cone with circular-mean heading filter ─────────────────
+    // ── Flashlight cone — raw OS heading, no extra filtering ────────────
     import('maplibre-gl').then((mgl) => {
-      // Position state
       let userLng = 0, userLat = 0;
       let dispLng = 0, dispLat = 0;
       let hasPos  = false;
-      const POS_ALPHA = 0.12; // position lerp — smooth GPS jumps
 
-      // Circular moving average over last 12 readings
-      // iOS webkitCompassHeading fires at ~60Hz — 12 readings ≈ 200ms lag
-      // This is the optimal tradeoff: smooth but still responsive to real turns
-      const hf = new HeadingFilter(12);
+      // Trust the OS heading directly — no extra filter
+      // iOS webkitCompassHeading = CoreMotion sensor fusion (already optimal)
+      // Android deviceorientationabsolute alpha = OS-fused tilt-compensated heading
+      let heading = 0;
+      let hasHeading = false;
 
       // Calibration
       let badAccCount = 0, needsCalib = false;
-      const CALIB_THRESHOLD = 8;
       let lastCalibCheck = 0;
 
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
         const raw = getTiltCompensatedHeading(e);
         if (raw === null) return;
-        hf.update(raw);
+        heading    = raw;
+        hasHeading = true;
 
-        // Calibration: check every 2s based on real sensor accuracy
         const now = performance.now();
         if (now - lastCalibCheck > 2000) {
           lastCalibCheck = now;
           const acc = getCompassAccuracy(e);
           if (acc === 'poor' || acc === 'uncalibrated') {
-            if (++badAccCount >= CALIB_THRESHOLD) needsCalib = true;
+            if (++badAccCount >= 8) needsCalib = true;
           } else if (acc === 'good' || acc === 'ok') {
-            badAccCount = 0;
-            needsCalib  = false;
+            badAccCount = 0; needsCalib = false;
           }
         }
       };
@@ -543,25 +540,6 @@ export default function TerritoryMap({
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
 
-      // Android: try AbsoluteOrientationSensor (quaternion-based, most accurate)
-      // Falls back to deviceorientationabsolute if unavailable
-      type AOS = { new(opts: { frequency: number }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
-      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOS | undefined;
-      let aosSensor: ReturnType<AOS['prototype']['constructor']> | null = null;
-      if (AOS) {
-        try {
-          aosSensor = new AOS({ frequency: 60 });
-          aosSensor.onreading = () => {
-            if (!aosSensor) return;
-            const h = getHeadingFromQuaternion(aosSensor.quaternion);
-            hf.update(h);
-          };
-          aosSensor.onerror = () => { aosSensor = null; }; // fall back to deviceorientation
-          aosSensor.start();
-        } catch { aosSensor = null; }
-      }
-
-      // iOS 13+ permission
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
       const DOE = DeviceOrientationEvent as DOE;
       if (typeof DOE.requestPermission === 'function') {
@@ -575,8 +553,8 @@ export default function TerritoryMap({
         'position:absolute;',
         'width:36px;height:48px;',
         'bottom:0;left:-18px;',
-        'background:linear-gradient(to top, rgba(59,130,246,0.4) 0%, rgba(59,130,246,0) 100%);',
-        'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
+        'background:linear-gradient(to top,rgba(59,130,246,0.45) 0%,rgba(59,130,246,0) 100%);',
+        'clip-path:polygon(30% 100%,70% 100%,100% 0%,0% 0%);',
         'transform-origin:50% 100%;',
         'will-change:transform;',
         'pointer-events:none;',
@@ -589,18 +567,28 @@ export default function TerritoryMap({
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
 
+      // Only update DOM when values actually change — skip redundant frames
+      let lastAngle = -1, lastLng = 0, lastLat = 0;
+
       function render() {
-        if (hf.isReady && hasPos) {
+        if (hasHeading && hasPos) {
           setNeedsCalibration(needsCalib);
           onCalibrationNeeded?.(needsCalib);
 
-          dispLng += POS_ALPHA * (userLng - dispLng);
-          dispLat += POS_ALPHA * (userLat - dispLat);
-          coneMarker.setLngLat([dispLng, dispLat]);
+          dispLng += 0.12 * (userLng - dispLng);
+          dispLat += 0.12 * (userLat - dispLat);
 
-          const mapBearing    = mapInstance.current?.getBearing() ?? 0;
-          const relativeAngle = (hf.current - mapBearing + 360) % 360;
-          cone.style.transform = `rotate(${relativeAngle}deg)`;
+          if (Math.abs(dispLng - lastLng) > 1e-6 || Math.abs(dispLat - lastLat) > 1e-6) {
+            coneMarker.setLngLat([dispLng, dispLat]);
+            lastLng = dispLng; lastLat = dispLat;
+          }
+
+          const mapBearing = mapInstance.current?.getBearing() ?? 0;
+          const angle = (heading - mapBearing + 360) % 360;
+          if (Math.abs(angle - lastAngle) > 0.5) {
+            cone.style.transform = `rotate(${angle}deg)`;
+            lastAngle = angle;
+          }
         }
         rafId = requestAnimationFrame(render);
       }
@@ -620,8 +608,6 @@ export default function TerritoryMap({
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
         coneMarker.remove();
-        hf.reset();
-        aosSensor?.stop();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
