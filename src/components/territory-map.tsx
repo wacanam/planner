@@ -39,6 +39,7 @@ export interface TerritoryMapProps {
   mapStyle?: StyleId;
   locationOn?: boolean;
   onCalibrationNeeded?: (needed: boolean) => void;
+  onLocationDotClick?: () => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export default function TerritoryMap({
   mapStyle = DEFAULT_STYLE,
   locationOn = false,
   onCalibrationNeeded,
+  onLocationDotClick,
 }: TerritoryMapProps) {
   const mapRef            = useRef<HTMLDivElement>(null);
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
@@ -317,6 +319,19 @@ export default function TerritoryMap({
         // Add control off-screen — we use our own toggle button
         map.addControl(geolocate);
         geolocateRef.current = geolocate;
+
+        // Tap on location dot → trigger calibration
+        geolocate.on('geolocate', () => {
+          // Dot renders after first fix — attach click once
+          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
+          if (dot && !dot.getAttribute('data-calib-listener')) {
+            dot.setAttribute('data-calib-listener', '1');
+            dot.addEventListener('click', (e) => {
+              e.stopPropagation();
+              onLocationDotClick?.();
+            });
+          }
+        });
 
         setMapReady(true);
       });
