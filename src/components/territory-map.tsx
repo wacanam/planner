@@ -355,6 +355,12 @@ export default function TerritoryMap({
     if (!map || !mapReady) return;
     const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
     map.setStyle(style.url);
+    // After style reload, re-trigger location if it was active
+    map.once('styledata', () => {
+      if (locationOn && geolocateRef.current) {
+        setTimeout(() => geolocateRef.current?.trigger(), 300);
+      }
+    });
   }, [mapStyle, mapReady]);
 
   // ── Household markers effect ──────────────────────────────────────────────
@@ -493,11 +499,18 @@ export default function TerritoryMap({
     // navigator.geolocation.getCurrentPosition primes the permission prompt,
     // then geolocate.trigger() activates the MapLibre dot.
     const triggerLocation = () => {
-      // Small delay ensures MapLibre internal state is ready after style loads
-      setTimeout(() => {
+      // Retry until trigger() returns true (MapLibre ready) or timeout
+      let attempts = 0;
+      const attempt = () => {
         const g = geolocateRef.current;
-        if (g) g.trigger();
-      }, 100);
+        if (!g) return;
+        const ok = g.trigger();
+        if (!ok && attempts < 10) {
+          attempts++;
+          setTimeout(attempt, 200);
+        }
+      };
+      setTimeout(attempt, 100);
     };
 
     if (navigator.permissions) {
