@@ -643,11 +643,8 @@ export default function TerritoryMap({
         } catch { aosSensor = null; }
       }
 
-      type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-      const DOE = DeviceOrientationEvent as DOE;
-      if (typeof DOE.requestPermission === 'function') {
-        DOE.requestPermission().catch(() => {});
-      }
+      // iOS 13+ DeviceOrientation permission is requested in the button onClick
+      // (user gesture context). No need to request it here.
 
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);

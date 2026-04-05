@@ -327,13 +327,19 @@ export default function TerritoryDetailView() {
               type="button"
               onClick={() => {
                   if (!locationOn) {
-                    // Call getCurrentPosition synchronously in the user gesture
-                    // context — required by Safari to allow geolocation access
+                    // Both GPS + DeviceOrientation permissions must be requested
+                    // synchronously inside the user gesture (iOS Safari/Chrome requirement)
                     navigator.geolocation.getCurrentPosition(
                       () => setLocationOn(true),
-                      () => setLocationOn(true), // still try even on error
+                      () => setLocationOn(true),
                       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
+                    // Request DeviceOrientation permission on iOS 13+ in same gesture
+                    type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+                    const DOE = DeviceOrientationEvent as DOE;
+                    if (typeof DOE.requestPermission === 'function') {
+                      DOE.requestPermission().catch(() => {});
+                    }
                   } else {
                     setLocationOn(false);
                   }
