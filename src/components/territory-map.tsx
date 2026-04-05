@@ -38,6 +38,7 @@ export interface TerritoryMapProps {
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
   locationOn?: boolean;
+  onCalibrationNeeded?: (needed: boolean) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -143,6 +144,7 @@ export default function TerritoryMap({
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
   locationOn = false,
+  onCalibrationNeeded,
 }: TerritoryMapProps) {
   const mapRef            = useRef<HTMLDivElement>(null);
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
@@ -597,6 +599,7 @@ export default function TerritoryMap({
         if (hasMag && hasPos) {
           // Update calibration warning
           setNeedsCalibration(needsCalib);
+          onCalibrationNeeded?.(needsCalib);
           const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0;
           lastTime = timestamp;
 

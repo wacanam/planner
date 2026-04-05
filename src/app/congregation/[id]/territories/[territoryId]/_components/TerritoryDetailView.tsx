@@ -84,6 +84,7 @@ export default function TerritoryDetailView() {
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
+  const [showCalibPrompt, setShowCalibPrompt] = useState(false);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -147,6 +148,7 @@ export default function TerritoryDetailView() {
                     onHouseholdClick={handleHouseholdClick}
                     mapStyle={mapStyle}
                     locationOn={locationOn}
+                    onCalibrationNeeded={(needed: boolean) => { if (needed) setShowCalibPrompt(true); }}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -214,7 +216,23 @@ export default function TerritoryDetailView() {
           </div>{/* end flex-1 map wrapper */}
 
           {/* Location toggle — fixed bottom-left, opposite to style switcher */}
-          <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+          <div className={`fixed left-3 z-[1200] transition-all duration-200 flex flex-col items-start gap-2 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            {/* Calibrate button — appears when location is on */}
+            {locationOn && (
+              <button
+                type="button"
+                onClick={() => setShowCalibPrompt((p) => !p)}
+                title="Calibrate compass"
+                className="flex items-center justify-center w-8 h-8 rounded-full shadow-md backdrop-blur-[2px] bg-white/10 dark:bg-gray-900/10 text-foreground"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+                  <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                </svg>
+              </button>
+            )}
+            {/* Location toggle */}
             <button
               type="button"
               onClick={() => setLocationOn((p) => !p)}
@@ -230,6 +248,23 @@ export default function TerritoryDetailView() {
               </svg>
             </button>
           </div>
+
+          {/* Manual calibration overlay */}
+          {locationOn && showCalibPrompt && (
+            <div
+              className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto"
+              onClick={() => setShowCalibPrompt(false)}
+            >
+              <div className="bg-black/75 text-white text-center px-6 py-5 rounded-2xl max-w-[220px] space-y-2">
+                <div className="text-4xl">∞</div>
+                <p className="text-sm font-semibold">Calibrate compass</p>
+                <p className="text-xs text-white/70 leading-snug">
+                  Slowly move your device in a figure-8 pattern until the heading stabilizes
+                </p>
+                <p className="text-[10px] text-white/40 mt-2">Tap anywhere to dismiss</p>
+              </div>
+            </div>
+          )}
 
           {/* Map style switcher — fixed, shifts up when assignment strip expands */}
           <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
