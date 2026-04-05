@@ -535,12 +535,15 @@ export default function TerritoryMap({
       // Android deviceorientationabsolute alpha = OS-fused tilt-compensated heading
       let heading = 0;
       let hasHeading = false;
+      let usingAOS   = false; // true = AbsoluteOrientationSensor active (Android best)
 
       // Calibration
       let badAccCount = 0, needsCalib = false;
       let lastCalibCheck = 0;
 
+      // deviceorientation fallback (iOS Chrome = webkitCompassHeading, Android fallback)
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
+        if (usingAOS) return; // AOS is active, ignore this event
         const raw = getTiltCompensatedHeading(e);
         if (raw === null) return;
         heading    = raw;
@@ -560,6 +563,41 @@ export default function TerritoryMap({
 
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
+
+      // AbsoluteOrientationSensor — Android OS-level quaternion fusion
+      // Same quality as CoreMotion on iOS: gyro + mag + accel fused by the OS
+      // When available, this is the primary source (overrides deviceorientation)
+      type AOSType = {
+        new(opts: { frequency: number; referenceFrame?: string }): {
+          start(): void; stop(): void;
+          onreading: (() => void) | null;
+          onerror:   ((e: unknown) => void) | null;
+          quaternion: readonly [number, number, number, number];
+        };
+      };
+      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
+      let aosSensor: InstanceType<AOSType> | null = null;
+
+      if (AOS) {
+        try {
+          // referenceFrame:'screen' accounts for screen rotation (portrait/landscape)
+          aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+          aosSensor.onreading = () => {
+            if (!aosSensor) return;
+            heading    = getHeadingFromQuaternion(aosSensor.quaternion);
+            hasHeading = true;
+            usingAOS   = true;
+          };
+          aosSensor.onerror = () => {
+            usingAOS  = false;
+            aosSensor = null;
+            // Fall back to deviceorientation (already listening)
+          };
+          aosSensor.start();
+        } catch {
+          aosSensor = null;
+        }
+      }
 
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
       const DOE = DeviceOrientationEvent as DOE;
@@ -629,6 +667,7 @@ export default function TerritoryMap({
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
         coneMarker.remove();
+        aosSensor?.stop();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
