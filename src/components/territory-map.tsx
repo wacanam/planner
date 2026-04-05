@@ -407,11 +407,11 @@ export default function TerritoryMap({
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:100px;height:70px;',
-            'left:-50px;',               // center horizontally on anchor
+            'width:80px;height:70px;',
+            'left:-40px;',               // center horizontally on anchor
             'bottom:0;',                 // base at anchor (dot center)
             'background:linear-gradient(to top, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0) 100%);',
-            'clip-path:polygon(50% 100%, 10% 0%, 90% 0%);',, // triangle: tip at bottom-center, wide at top
+            'clip-path:polygon(50% 100%, 5% 0%, 95% 0%);',, // triangle: tip at bottom-center, wide at top
             'pointer-events:none;',
           ].join('');
 
