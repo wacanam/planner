@@ -262,8 +262,8 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Fullscreen toggle — right center (temp moved for GPS testing) */}
-                  <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[1001] p-2 pointer-events-auto">
+                  {/* Fullscreen toggle — left of built-in geolocate (top-right) */}
+                  <div className="absolute top-0 right-10 z-[1001] p-2 pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setMapFullscreen(p => !p)}
@@ -328,24 +328,22 @@ export default function TerritoryDetailView() {
             <button
               type="button"
               onClick={() => {
-                  if (!locationOn) {
-                    // Must call trigger() synchronously in the gesture for Safari.
-                    // Call it immediately (may be a no-op if map not ready yet),
-                    // then set state so the useEffect retry loop takes over.
-                    geolocateTriggerRef.current?.();
-
-                    // DeviceOrientation permission (iOS 13+ Safari)
-                    type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-                    const DOE = DeviceOrientationEvent as DOE;
-                    if (typeof DOE.requestPermission === 'function') {
-                      DOE.requestPermission()
-                        .then(() => setLocationOn(true))
-                        .catch(() => setLocationOn(true));
-                    } else {
-                      setLocationOn(true);
-                    }
+                  // Click the built-in MapLibre geolocate button directly —
+                  // identical behavior, handles all browser/permission quirks natively
+                  const nativeBtn = document.querySelector<HTMLButtonElement>('.maplibregl-ctrl-geolocate');
+                  if (nativeBtn) {
+                    nativeBtn.click();
+                    setLocationOn((p) => !p);
                   } else {
-                    setLocationOn(false);
+                    // Fallback if button not found
+                    geolocateTriggerRef.current?.();
+                    setLocationOn((p) => !p);
+                  }
+                  // DeviceOrientation permission (iOS 13+)
+                  type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+                  const DOE = DeviceOrientationEvent as DOE;
+                  if (typeof DOE.requestPermission === 'function') {
+                    DOE.requestPermission().catch(() => {});
                   }
                 }}
               title={locationOn ? 'Hide my location' : 'Show my location'}
