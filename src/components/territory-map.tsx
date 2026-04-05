@@ -526,10 +526,11 @@ export default function TerritoryMap({
 
       // Gyro rates from DeviceMotionEvent (deg/s around Z axis = yaw)
       let gyroRateZ = 0;
+      const GYRO_DEADBAND = 0.5; // deg/s — ignore micro-vibration / sensor bias
       const onMotion = (e: DeviceMotionEvent) => {
-        // rotationRate.alpha = yaw rate on some devices, beta/gamma on others
-        // use alpha (rotation around Z = vertical axis = heading change)
-        gyroRateZ = e.rotationRate?.alpha ?? 0;
+        const raw = e.rotationRate?.alpha ?? 0;
+        // Zero out tiny rates — they're just bias noise, not real rotation
+        gyroRateZ = Math.abs(raw) > GYRO_DEADBAND ? raw : 0;
       };
       window.addEventListener('devicemotion', onMotion as EventListener, true);
 
@@ -627,14 +628,20 @@ export default function TerritoryMap({
             const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
             const absDiff = Math.abs(magDiff);
 
-            // Adaptive magnetometer pull:
-            // - Small diff (< 5°): likely noise → near-zero pull (0.005) to avoid oscillation
-            // - Medium diff (5–30°): gradual correction → linear scale up to 0.04
-            // - Large diff (> 30°): real turn → strong pull (0.08) to stay accurate
+            // When stationary (gyro = 0), increase mag pull to correct drift faster
+            // When moving, use adaptive pull based on disagreement size
+            const isStationary = gyroRateZ === 0;
             let magPull: number;
-            if (absDiff < 5)       magPull = 0.005;
-            else if (absDiff < 30) magPull = 0.005 + (absDiff - 5) * (0.035 / 25);
-            else                   magPull = 0.08;
+            if (isStationary) {
+              // Stationary: mag drives correction — but still gentle to avoid noise
+              magPull = absDiff < 3 ? 0.01 : 0.05;
+            } else if (absDiff < 5) {
+              magPull = 0.005;  // noise gate
+            } else if (absDiff < 30) {
+              magPull = 0.005 + (absDiff - 5) * (0.035 / 25);
+            } else {
+              magPull = 0.08;   // large real turn
+            }
 
             compAngle = (compAngle + gyroAdvance + magPull * magDiff + 360) % 360;
           }
