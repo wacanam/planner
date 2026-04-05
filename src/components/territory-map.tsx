@@ -474,7 +474,13 @@ export default function TerritoryMap({
         };
 
         geolocate.on('trackuserlocationstart', startHeading);
-        geolocate.on('trackuserlocationend',   stopHeading);
+        // userlocationlostfocus = map panned (background state) — keep cone
+        // trackuserlocationend = user explicitly turned off — remove cone
+        geolocate.on('trackuserlocationend', () => {
+          // Only stop if fully OFF (button toggled off), not just panned away
+          const state = (geolocate as unknown as { _watchState?: string })._watchState;
+          if (!state || state === 'OFF') stopHeading();
+        });
       });
     });
 
