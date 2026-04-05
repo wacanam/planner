@@ -334,8 +334,10 @@ export default function TerritoryMap({
         // No custom toggle needed — fires on trackuserlocationstart/end
         let coneEl: HTMLElement | null = null;
         let headingRafId = 0;
-        let currentHeading = 0;
         let lastConeAngle = -1;
+
+        // Circular mean filter (12 readings ≈ 200ms at 60Hz) — same as working version
+        const hf = new HeadingFilter(12);
 
         const attachCone = () => {
           const dot = map.getContainer().querySelector<HTMLElement>('.maplibregl-user-location-dot');
@@ -361,7 +363,7 @@ export default function TerritoryMap({
         const renderCone = () => {
           if (coneEl) {
             const bearing = map.getBearing();
-            const angle = (currentHeading - bearing + 360) % 360;
+            const angle = (hf.current - bearing + 360) % 360;
             if (Math.abs(angle - lastConeAngle) > 0.5) {
               coneEl.style.transform = `rotate(${angle}deg)`;
               lastConeAngle = angle;
@@ -372,7 +374,7 @@ export default function TerritoryMap({
 
         const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
           const raw = getTiltCompensatedHeading(e);
-          if (raw !== null) currentHeading = raw;
+          if (raw !== null) hf.update(raw);
         };
 
         const startHeading = () => {
@@ -390,6 +392,7 @@ export default function TerritoryMap({
         const stopHeading = () => {
           cancelAnimationFrame(headingRafId);
           if (coneEl) { coneEl.remove(); coneEl = null; lastConeAngle = -1; }
+          hf.reset();
           window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
         };
