@@ -382,10 +382,13 @@ export default function TerritoryMap({
           w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
           const cone = document.createElement('div');
           cone.style.cssText = [
-            'position:absolute;left:50%;bottom:100%;',
-            'transform:translateX(-50%);margin-bottom:1px;',
+            // Position base at center of wrapper (= center of dot)
+            'position:absolute;',
+            'left:50%;',
+            'bottom:50%;',                    // start from center of dot
+            'transform:translateX(-50%);',    // center horizontally
             'width:40px;height:52px;',
-            'margin-left:-20px;',
+            'margin-left:0;',
             'background:linear-gradient(to top, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0) 100%);',
             'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
             'pointer-events:none;',
