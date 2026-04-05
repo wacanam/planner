@@ -574,29 +574,31 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
-        /* Geolocate button — matches fullscreen button style exactly */
+        /* Geolocate button — translucent pill matching other overlays */
         .maplibregl-ctrl-geolocate {
-          background: white !important;
+          background: rgba(255,255,255,0.25) !important;
+          backdrop-filter: blur(2px) !important;
+          -webkit-backdrop-filter: blur(2px) !important;
           border: none !important;
-          border-radius: 4px !important;
-          width: 29px !important;
-          height: 29px !important;
-          box-shadow: 0 0 0 2px rgba(0,0,0,0.1) !important;
+          border-radius: 8px !important;
+          width: 32px !important;
+          height: 32px !important;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important;
           cursor: pointer !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
           padding: 0 !important;
         }
-        .maplibregl-ctrl-geolocate:hover { background: #f0f0f0 !important; }
-        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active {
-          background: white !important;
+        .maplibregl-ctrl-geolocate:hover { background: rgba(255,255,255,0.35) !important; }
+        /* Replace icon with navigation arrow */
+        .maplibregl-ctrl-geolocate .maplibregl-ctrl-icon {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%231e293b'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important;
+          background-size: 18px 18px !important;
         }
-        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon {
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' viewBox='0 0 29 29'%3E%3Ccircle cx='14.5' cy='14.5' r='5' fill='%233b82f6'/%3E%3Cpath stroke='%233b82f6' stroke-width='1.5' d='M14.5 3v4M14.5 22v4M3 14.5h4M22 14.5h4'/%3E%3Ccircle cx='14.5' cy='14.5' r='8' fill='none' stroke='%233b82f6' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+        /* Active state — blue arrow */
+        .maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon,
+        .maplibregl-ctrl-geolocate-active-error .maplibregl-ctrl-icon {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important;
         }
-        .maplibregl-ctrl-top-right { margin: 10px 10px 0 0 !important; }
-        .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 0 0 0 0 !important; }
+        .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 10px 10px 0 0 !important; }
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
