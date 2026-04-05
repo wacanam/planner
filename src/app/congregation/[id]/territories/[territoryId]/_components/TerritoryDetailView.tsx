@@ -37,31 +37,33 @@ function getAssigneeDisplayName(a: LocalAssignment): string {
 // ─── Calibration overlay ──────────────────────────────────────────────────────
 function CalibrationOverlay({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = React.useState<'guide' | 'done'>('guide');
+  const [accuracy, setAccuracy] = React.useState<number | null>(null);
 
-  // Listen to real compass accuracy — complete when accuracy improves
   React.useEffect(() => {
     if (phase === 'done') return;
 
     let goodCount = 0;
-    const GOOD_THRESHOLD = 5; // consecutive good readings = calibrated
+    const GOOD_THRESHOLD = 5;
 
     const onOrientation = (e: DeviceOrientationEvent & { webkitCompassAccuracy?: number }) => {
       const acc = e.webkitCompassAccuracy;
-      if (acc !== undefined && acc >= 0 && acc <= 15) {
-        goodCount++;
-        if (goodCount >= GOOD_THRESHOLD) setPhase('done');
-      } else {
-        goodCount = 0;
+      if (acc !== undefined && acc >= 0) {
+        setAccuracy(Math.round(acc));
+        if (acc <= 15) {
+          goodCount++;
+          if (goodCount >= GOOD_THRESHOLD) setPhase('done');
+        } else {
+          goodCount = 0;
+        }
       }
     };
 
     window.addEventListener('deviceorientation', onOrientation as EventListener, true);
-    // Fallback: auto-complete after 10s if no iOS accuracy data available
-    const fallback = setTimeout(() => setPhase('done'), 10000);
+    // No auto-complete timer — completes only when compass is actually calibrated
+    // For Android (no webkitCompassAccuracy), user taps Done manually after figure-8
 
     return () => {
       window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
-      clearTimeout(fallback);
     };
   }, [phase]);
 
@@ -98,7 +100,16 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
             <p className="text-xs text-white/60 leading-snug">
               Slowly tilt and rotate your device in a figure-8 pattern
             </p>
-            {/* Indeterminate progress — completes when accuracy actually improves */}
+            {/* Accuracy indicator — iOS only */}
+            {accuracy !== null && (
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${accuracy <= 15 ? 'bg-green-400' : accuracy <= 25 ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                <span className="text-[11px] text-white/60">
+                  {accuracy <= 15 ? 'Good accuracy' : accuracy <= 25 ? `±${accuracy}° — keep going` : `±${accuracy}° — needs calibration`}
+                </span>
+              </div>
+            )}
+            {/* Indeterminate pulse bar */}
             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-500 rounded-full"
@@ -111,6 +122,16 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
                 to   { width: 60%; margin-left: 40%; }
               }
             `}</style>
+            {/* Manual Done for Android (no webkitCompassAccuracy) */}
+            {accuracy === null && (
+              <button
+                type="button"
+                onClick={() => setPhase('done')}
+                className="w-full py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-semibold transition-colors"
+              >
+                Done
+              </button>
+            )}
           </>
         ) : (
           <>

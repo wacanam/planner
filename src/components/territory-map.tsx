@@ -41,6 +41,7 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  onLocationDotClick?: () => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -164,6 +165,7 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  onLocationDotClick,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -469,6 +471,13 @@ export default function TerritoryMap({
         } | null;
         ctrl?._userLocationDotMarker?.setPitchAlignment('map');
         ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
+        // Tap dot → open calibration prompt
+        const dotEl = ctrl?._userLocationDotMarker?.getElement();
+        if (dotEl && !dotEl.getAttribute('data-calib-click')) {
+          dotEl.setAttribute('data-calib-click', '1');
+          dotEl.style.cursor = 'pointer';
+          dotEl.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
+        }
         window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.addEventListener('deviceorientation', onOrientation as EventListener, true);
         if (AOS) {
