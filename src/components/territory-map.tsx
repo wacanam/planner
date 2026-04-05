@@ -503,70 +503,45 @@ export default function TerritoryMap({
     };
     geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
 
-    // ── Flashlight cone — Kalman filter with gyro predict + mag update ────
+    // ── Flashlight cone with circular-mean heading filter ─────────────────
     import('maplibre-gl').then((mgl) => {
       // Position state
       let userLng = 0, userLat = 0;
       let dispLng = 0, dispLat = 0;
       let hasPos  = false;
-      const POS_ALPHA = 0.15;
+      const POS_ALPHA = 0.12; // position lerp — smooth GPS jumps
 
-      // Kalman filter: Q=0.3 (gyro noise), R=3 (mag noise)
-      const kf = new HeadingFilter(0.3, 3);
+      // Circular moving average over last 12 readings
+      // iOS webkitCompassHeading fires at ~60Hz — 12 readings ≈ 200ms lag
+      // This is the optimal tradeoff: smooth but still responsive to real turns
+      const hf = new HeadingFilter(12);
 
-      // Gyro state
-      let gyroRate = 0;
-      let lastMotionTime = 0;
-      const GYRO_THRESHOLD = 0.3; // deg/s deadband
-
-      const onMotion = (e: DeviceMotionEvent) => {
-        const rate = e.rotationRate?.alpha ?? 0;
-        gyroRate = Math.abs(rate) > GYRO_THRESHOLD ? rate : 0;
-        lastMotionTime = performance.now();
-      };
-      window.addEventListener('devicemotion', onMotion as EventListener, true);
-
-      // Calibration state — based on actual accuracy, not timer
+      // Calibration
       let badAccCount = 0, needsCalib = false;
-      const CALIB_THRESHOLD = 10;
+      const CALIB_THRESHOLD = 8;
       let lastCalibCheck = 0;
 
-      let lastOrientTime = 0;
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
-        const now = performance.now();
-        const dt  = lastOrientTime ? Math.min((now - lastOrientTime) / 1000, 0.1) : 0;
-        lastOrientTime = now;
-
         const raw = getTiltCompensatedHeading(e);
         if (raw === null) return;
+        hf.update(raw);
 
-        // Predict with gyro if fresh (< 200ms old)
-        const gyroAge = now - lastMotionTime;
-        if (kf.isReady && dt > 0 && gyroAge < 200) {
-          kf.predict(gyroRate, dt);
-        }
-
-        // Update with magnetometer
-        kf.update(raw);
-
-        // Real calibration check — only on iOS where we have accuracy data
-        if (now - lastCalibCheck > 2000) { // check every 2s
+        // Calibration: check every 2s based on real sensor accuracy
+        const now = performance.now();
+        if (now - lastCalibCheck > 2000) {
           lastCalibCheck = now;
           const acc = getCompassAccuracy(e);
           if (acc === 'poor' || acc === 'uncalibrated') {
-            badAccCount++;
-            if (badAccCount >= CALIB_THRESHOLD) {
-              needsCalib = true;
-            }
+            if (++badAccCount >= CALIB_THRESHOLD) needsCalib = true;
           } else if (acc === 'good' || acc === 'ok') {
             badAccCount = 0;
-            needsCalib = false;
+            needsCalib  = false;
           }
         }
       };
 
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-      window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+      window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
 
       // iOS 13+ permission
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
@@ -597,7 +572,7 @@ export default function TerritoryMap({
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
 
       function render() {
-        if (kf.isReady && hasPos) {
+        if (hf.isReady && hasPos) {
           setNeedsCalibration(needsCalib);
           onCalibrationNeeded?.(needsCalib);
 
@@ -606,7 +581,7 @@ export default function TerritoryMap({
           coneMarker.setLngLat([dispLng, dispLat]);
 
           const mapBearing    = mapInstance.current?.getBearing() ?? 0;
-          const relativeAngle = (kf.current - mapBearing + 360) % 360;
+          const relativeAngle = (hf.current - mapBearing + 360) % 360;
           cone.style.transform = `rotate(${relativeAngle}deg)`;
         }
         rafId = requestAnimationFrame(render);
@@ -627,11 +602,10 @@ export default function TerritoryMap({
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
         coneMarker.remove();
-        kf.reset();
+        hf.reset();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
-        window.removeEventListener('devicemotion', onMotion as EventListener, true);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-        window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+        window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
       };
     });
   }, [locationOn, mapReady]);
