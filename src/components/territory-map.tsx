@@ -436,15 +436,22 @@ export default function TerritoryMap({
         const renderHeading = () => {
           if (hasHeading) {
             const w = getHeadingCone();
-            if (w) {
+            const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
+            const dot = ctrl?._dotElement;
+            if (w && dot) {
               const bearing = map.getBearing();
               const pitch   = map.getPitch();
               const angle   = (headingAngle - bearing + 360) % 360;
-              // Apply pitch as rotateX perspective so cone tilts forward in 3D
-              // perspective() gives depth, rotateX() tilts the cone to match map pitch
-              const perspectivePx = 200;
-              w.style.transform = `perspective(${perspectivePx}px) rotateX(${pitch * 0.5}deg) rotate(${angle}deg)`;
+              // Rotate cone to compass heading
+              w.style.transform = `rotate(${angle}deg)`;
               lastHeadingAngle = angle;
+              // Apply 3D perspective tilt to the dot's parent so dot + cone tilt together
+              const dotParent = dot.parentElement;
+              if (dotParent) {
+                dotParent.style.transform = `perspective(300px) rotateX(${pitch * 0.6}deg)`;
+                dotParent.style.transformOrigin = '50% 100%';
+                dotParent.style.willChange = 'transform';
+              }
             }
           }
           headingRafId = requestAnimationFrame(renderHeading);
@@ -471,6 +478,10 @@ export default function TerritoryMap({
           cancelAnimationFrame(headingRafId);
           if (headingConeChild) { headingConeChild.remove(); headingConeChild = null; lastHeadingAngle = -1; }
           hasHeading = false; usingAOS = false;
+          // Reset dot parent perspective
+          const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
+          const dotParent = ctrl?._dotElement?.parentElement;
+          if (dotParent) dotParent.style.transform = '';
           aosSensor?.stop(); aosSensor = null;
           window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
