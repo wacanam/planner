@@ -491,30 +491,35 @@ export default function TerritoryMap({
     if (!geolocate || !map || !mapReady) return;
 
     if (!locationOn) {
+      // Clean up heading
       if (headingCleanupRef.current) {
         headingCleanupRef.current();
         headingCleanupRef.current = null;
       }
       setNeedsCalibration(false);
+      // Stop GeolocateControl — trigger() cycles it back to OFF state
+      // and removes the dot + accuracy circle
+      const g = geolocateRef.current;
+      if (g) {
+        // GeolocateControl with trackUserLocation cycles: OFF→WAITING→ACTIVE→OFF
+        // When active, one trigger() call cycles back to OFF
+        const state = (g as unknown as { _watchState?: string })._watchState;
+        if (state && state !== 'OFF') {
+          g.trigger(); // cycles to OFF, removes dot
+        }
+      }
       return;
     }
 
-    // Activate location dot — retry until trigger() returns true
-    // Also call getCurrentPosition to ensure GPS is active in Safari
-    const triggerLocation = () => {
-      // Prime GPS (Safari needs this even after permission is granted)
-      navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 5000 });
-      // Retry trigger until MapLibre accepts it
-      let attempts = 0;
-      const attempt = () => {
-        const g = geolocateRef.current;
-        if (!g) return;
-        const ok = g.trigger();
-        if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
-      };
-      attempt();
+    // Activate location dot with retry
+    let attempts = 0;
+    const attempt = () => {
+      const g = geolocateRef.current;
+      if (!g) return;
+      const ok = g.trigger();
+      if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
     };
-    triggerLocation();
+    attempt();
 
     // Fly to user on first GPS fix (fires as soon as location is available)
     const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
