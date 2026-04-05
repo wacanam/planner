@@ -14,7 +14,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
-import { HeadingFilter, getTiltCompensatedHeading, getCompassAccuracy, getHeadingFromQuaternion } from '@/lib/heading-filter';
+import {
+  getCompassAccuracy,
+  getHeadingFromQuaternion,
+  getTiltCompensatedHeading,
+  HeadingFilter,
+} from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,8 +32,8 @@ export interface HouseholdPoint {
   type?: string | null;
 }
 
-export { MAP_STYLES };
 export type { StyleId };
+export { MAP_STYLES };
 
 export interface TerritoryMapProps {
   boundary?: string | null;
@@ -38,11 +43,6 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
-  locationOn?: boolean;
-  onCalibrationNeeded?: (needed: boolean) => void;
-  onLocationDotClick?: () => void;
-  /** Called once map is ready — parent can call trigger() synchronously from a gesture */
-  onGeolocateReady?: (trigger: () => void) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -76,63 +76,82 @@ const DEFAULT_STYLE: StyleId = 'streets';
 // ─── Status colors ────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  not_visited:  '#94a3b8',
-  not_home:     '#f59e0b',
+  not_visited: '#94a3b8',
+  not_home: '#f59e0b',
   return_visit: '#a855f7',
   do_not_visit: '#ef4444',
-  visited:      '#22c55e',
-  active:       '#3b82f6',
-  moved:        '#6b7280',
-  inactive:     '#6b7280',
-  new:          '#94a3b8',
+  visited: '#22c55e',
+  active: '#3b82f6',
+  moved: '#6b7280',
+  inactive: '#6b7280',
+  new: '#94a3b8',
 };
 const DEFAULT_COLOR = '#94a3b8';
 
 // ─── Type icons (SVG paths, 24×24 viewBox) ───────────────────────────────────
 
 const TYPE_SVG: Record<string, string> = {
-  house: '<path stroke="white" stroke-width="2" stroke-linejoin="round" fill="none" d="M12 4 L22 11 V22 H16 V16 H8 V22 H2 V11 Z"/>',
-  apartment: '<rect x="4" y="5" width="16" height="17" rx="1" stroke="white" stroke-width="2" fill="none"/><line x1="4" y1="11" x2="20" y2="11" stroke="white" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="white" stroke-width="1.5"/><line x1="12" y1="5" x2="12" y2="22" stroke="white" stroke-width="1.5"/>',
-  business: '<rect x="3" y="8" width="18" height="13" rx="1.5" stroke="white" stroke-width="2" fill="none"/><path d="M8 8 V6 Q8 4 10 4 H14 Q16 4 16 6 V8" stroke="white" stroke-width="2" fill="none"/><line x1="3" y1="14" x2="21" y2="14" stroke="white" stroke-width="1.5"/>',
-  condo: '<rect x="5" y="2" width="14" height="21" rx="1" stroke="white" stroke-width="2" fill="none"/><rect x="8" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="8" y="12" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="12" width="3" height="3" fill="white" opacity="0.9"/>',
+  house:
+    '<path stroke="white" stroke-width="2" stroke-linejoin="round" fill="none" d="M12 4 L22 11 V22 H16 V16 H8 V22 H2 V11 Z"/>',
+  apartment:
+    '<rect x="4" y="5" width="16" height="17" rx="1" stroke="white" stroke-width="2" fill="none"/><line x1="4" y1="11" x2="20" y2="11" stroke="white" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="white" stroke-width="1.5"/><line x1="12" y1="5" x2="12" y2="22" stroke="white" stroke-width="1.5"/>',
+  business:
+    '<rect x="3" y="8" width="18" height="13" rx="1.5" stroke="white" stroke-width="2" fill="none"/><path d="M8 8 V6 Q8 4 10 4 H14 Q16 4 16 6 V8" stroke="white" stroke-width="2" fill="none"/><line x1="3" y1="14" x2="21" y2="14" stroke="white" stroke-width="1.5"/>',
+  condo:
+    '<rect x="5" y="2" width="14" height="21" rx="1" stroke="white" stroke-width="2" fill="none"/><rect x="8" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="6" width="3" height="3" fill="white" opacity="0.9"/><rect x="8" y="12" width="3" height="3" fill="white" opacity="0.9"/><rect x="13" y="12" width="3" height="3" fill="white" opacity="0.9"/>',
 };
 const DEFAULT_SVG = TYPE_SVG.house;
 
 // ─── Pin HTML builder ─────────────────────────────────────────────────────────
 
-function makePinHtml(color: string, iconSvg: string, label: string, badge?: number, dark = false): string {
+function makePinHtml(
+  color: string,
+  iconSvg: string,
+  label: string,
+  badge?: number,
+  dark = false
+): string {
   const truncated = label.length > 20 ? label.slice(0, 20) + '\u2026' : label;
   const labelColor = dark ? '#f1f5f9' : '#1e293b';
   const strokeColor = dark ? '#0f172a' : 'white';
 
-  const badgeHtml = badge !== undefined
-    ? ['<div style="position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;',
-        'background:#1e293b;color:white;font-size:9px;font-weight:700;border-radius:9999px;',
-        'display:flex;align-items:center;justify-content:center;border:2px solid white;',
-        'padding:0 3px;box-shadow:0 1px 4px rgba(0,0,0,.35);">',
-        String(badge), '</div>'].join('')
-    : '';
+  const badgeHtml =
+    badge !== undefined
+      ? [
+          '<div style="position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;',
+          'background:#1e293b;color:white;font-size:9px;font-weight:700;border-radius:9999px;',
+          'display:flex;align-items:center;justify-content:center;border:2px solid white;',
+          'padding:0 3px;box-shadow:0 1px 4px rgba(0,0,0,.35);">',
+          String(badge),
+          '</div>',
+        ].join('')
+      : '';
 
   const pinSvg = [
     '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="28" viewBox="0 0 26 28"',
     ' style="display:block;filter:drop-shadow(0 1px 5px rgba(0,0,0,0.28))">',
     '<path d="M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26',
     ' A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z" fill="white"/>',
-    '<circle cx="13" cy="13" r="9" fill="', color, '"/>',
-    '<g transform="translate(7,7)"><svg width="12" height="12" viewBox="0 0 24 24">', iconSvg, '</svg></g>',
+    '<circle cx="13" cy="13" r="9" fill="',
+    color,
+    '"/>',
+    '<g transform="translate(7,7)"><svg width="12" height="12" viewBox="0 0 24 24">',
+    iconSvg,
+    '</svg></g>',
     '</svg>',
   ].join('');
 
   return [
     '<div style="position:relative;width:0;height:0;overflow:visible;pointer-events:none">',
-      '<div style="position:absolute;left:-13px;top:-27px;pointer-events:auto;">',
-        pinSvg, badgeHtml,
-      '</div>',
-      '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
-        'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
-        '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
-        truncated,
-      '</div>',
+    '<div style="position:absolute;left:-13px;top:-27px;pointer-events:auto;">',
+    pinSvg,
+    badgeHtml,
+    '</div>',
+    '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
+    'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
+    '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
+    truncated,
+    '</div>',
     '</div>',
   ].join('');
 }
@@ -147,23 +166,17 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
-  locationOn = false,
-  onCalibrationNeeded,
-  onLocationDotClick,
-  onGeolocateReady,
 }: TerritoryMapProps) {
-  const mapRef            = useRef<HTMLDivElement>(null);
-  const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
-  const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
-  const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
-  const headingCleanupRef = useRef<(() => void) | null>(null);
-  const headingAngleRef   = useRef<number>(0);
-  const onClickRef        = useRef(onHouseholdClick);
-  onClickRef.current      = onHouseholdClick;
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
+  const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
+  const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
+  const headingAngleRef = useRef<number>(0);
+  const onClickRef = useRef(onHouseholdClick);
+  onClickRef.current = onHouseholdClick;
 
-  const [mapReady, setMapReady]         = useState(false);
-  const [isDark, setIsDark]             = useState(false);
-  const [needsCalibration, setNeedsCalibration] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const update = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -187,7 +200,7 @@ export default function TerritoryMap({
       const validPts = households.filter((h) => h.latitude && h.longitude);
       let lng = center?.[1] ?? 124.85;
       let lat = center?.[0] ?? 8.37;
-      let zoom = 14;
+      const zoom = 14;
 
       // Center on boundary if available
       if (boundary) {
@@ -200,7 +213,9 @@ export default function TerritoryMap({
             lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
             lat = (Math.min(...lats) + Math.max(...lats)) / 2;
           }
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       } else if (validPts.length) {
         const lats = validPts.map((h) => Number(h.latitude));
         const lngs = validPts.map((h) => Number(h.longitude));
@@ -230,10 +245,6 @@ export default function TerritoryMap({
       });
       map.addControl(geolocate, 'top-right');
       geolocateRef.current = geolocate;
-      onGeolocateReady?.(() => {
-        const btn = (geolocate as unknown as { _geolocateButton?: HTMLButtonElement })._geolocateButton;
-        if (btn) btn.click(); else geolocate.trigger();
-      });
 
       mapInstance.current = map;
 
@@ -244,26 +255,32 @@ export default function TerritoryMap({
         const layers = map.getStyle().layers;
         let labelLayerId: string | undefined;
         for (const layer of layers) {
-          if (layer.type === 'symbol' && (layer.layout as Record<string, unknown>)?.['text-field']) {
+          if (
+            layer.type === 'symbol' &&
+            (layer.layout as Record<string, unknown>)?.['text-field']
+          ) {
             labelLayerId = layer.id;
             break;
           }
         }
 
         if (map.getSource('composite') || map.getSource('openmaptiles')) {
-          map.addLayer({
-            id: '3d-buildings',
-            source: map.getSource('composite') ? 'composite' : 'openmaptiles',
-            'source-layer': 'building',
-            type: 'fill-extrusion',
-            minzoom: 15,
-            paint: {
-              'fill-extrusion-color': '#d4d4d4',
-              'fill-extrusion-height': ['get', 'height'],
-              'fill-extrusion-base': ['get', 'min_height'],
-              'fill-extrusion-opacity': 0.6,
+          map.addLayer(
+            {
+              id: '3d-buildings',
+              source: map.getSource('composite') ? 'composite' : 'openmaptiles',
+              'source-layer': 'building',
+              type: 'fill-extrusion',
+              minzoom: 15,
+              paint: {
+                'fill-extrusion-color': '#d4d4d4',
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': ['get', 'min_height'],
+                'fill-extrusion-opacity': 0.6,
+              },
             },
-          }, labelLayerId);
+            labelLayerId
+          );
         }
 
         // ── Context territory polygons ───────────────────────────────────────
@@ -284,7 +301,9 @@ export default function TerritoryMap({
               source: sourceId,
               paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
             });
-          } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
         }
 
         // ── Active territory spotlight ───────────────────────────────────────
@@ -293,7 +312,13 @@ export default function TerritoryMap({
             const geo = JSON.parse(boundary);
             const outerRing: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
             if (outerRing.length) {
-              const worldOuter: [number, number][] = [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]];
+              const worldOuter: [number, number][] = [
+                [-180, -90],
+                [180, -90],
+                [180, 90],
+                [-180, 90],
+                [-180, -90],
+              ];
               const maskGeo = {
                 type: 'Feature',
                 geometry: {
@@ -301,7 +326,12 @@ export default function TerritoryMap({
                   coordinates: [worldOuter, outerRing],
                 },
               };
-              map.addSource('spotlight-mask', { type: 'geojson', data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D } ? D : never });
+              map.addSource('spotlight-mask', {
+                type: 'geojson',
+                data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D }
+                  ? D
+                  : never,
+              });
               map.addLayer({
                 id: 'spotlight-fill',
                 type: 'fill',
@@ -321,14 +351,129 @@ export default function TerritoryMap({
               const lngs = outerRing.map(([x]) => x);
               const lats = outerRing.map(([, y]) => y);
               map.fitBounds(
-                [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+                [
+                  [Math.min(...lngs), Math.min(...lats)],
+                  [Math.max(...lngs), Math.max(...lats)],
+                ],
                 { padding: 60, duration: 0 }
               );
             }
-          } catch { /* skip */ }
+          } catch {
+            /* skip */
+          }
         }
 
         setMapReady(true);
+
+        // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
+        // Proper Marker so it tilts natively with map pitch (no CSS hacks)
+        let coneMkr: import('maplibre-gl').Marker | null = null;
+        let coneEl: HTMLElement | null = null;
+        let headingRafId = 0;
+        let headingAngle = 0;
+        let hasHeading = false;
+        let lastHeadingAngle = -1;
+        let usingAOS = false;
+        let userLng = 0, userLat = 0, hasPos = false;
+
+        const createConeMarker = () => {
+          if (coneMkr) return coneMkr;
+          // Cone element: dot-sized base (15px), short beam ~60px
+          const el = document.createElement('div');
+          el.style.cssText = 'position:relative;width:0;height:0;overflow:visible;pointer-events:none;';
+          const cone = document.createElement('div');
+          cone.style.cssText = [
+            'position:absolute;',
+            'width:60px;height:60px;',   // short beam
+            'left:-30px;bottom:0;',       // base centered at marker anchor
+            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.65) 0%, rgba(59,130,246,0.3) 45%, rgba(59,130,246,0) 75%);',
+            'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
+            'pointer-events:none;',
+            'will-change:transform;',
+          ].join('');
+          el.appendChild(cone);
+          coneEl = el;
+          coneMkr = new mgl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'map' });
+          return coneMkr;
+        };
+
+        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+          if (usingAOS) return;
+          const raw = getTiltCompensatedHeading(e);
+          if (raw !== null) { headingAngle = raw; hasHeading = true; }
+        };
+
+        type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
+        const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
+        let aosSensor: InstanceType<AOSType> | null = null;
+
+        const renderHeading = () => {
+          if (hasHeading && hasPos) {
+            const mkr = createConeMarker();
+            mkr.setLngLat([userLng, userLat]).addTo(map);
+            const bearing = map.getBearing();
+            const angle   = (headingAngle - bearing + 360) % 360;
+            if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
+              coneEl.style.transform = `rotate(${angle}deg)`;
+              lastHeadingAngle = angle;
+            }
+          }
+          headingRafId = requestAnimationFrame(renderHeading);
+        };
+
+        // Sync cone marker position with GPS
+        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
+          userLng = e.coords.longitude;
+          userLat = e.coords.latitude;
+          hasPos = true;
+        });
+
+        const startHeading = () => {
+          headingRafId = requestAnimationFrame(renderHeading);
+          // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
+          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('map');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
+          window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+          window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+          if (AOS) {
+            try {
+              aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+              aosSensor.onreading = () => { if (aosSensor) { headingAngle = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; } };
+              aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
+              aosSensor.start();
+            } catch { aosSensor = null; }
+          }
+          type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+          const DOE = DeviceOrientationEvent as DOE;
+          if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
+        };
+
+        const stopHeading = () => {
+          cancelAnimationFrame(headingRafId);
+          coneMkr?.remove(); coneMkr = null; coneEl = null; lastHeadingAngle = -1;
+          hasHeading = false; usingAOS = false; hasPos = false;
+          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
+          aosSensor?.stop(); aosSensor = null;
+          window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+          window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+        };
+
+        geolocate.on('trackuserlocationstart', () => {
+          map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
+          startHeading();
+        });
+        // userlocationlostfocus = map panned (background state) — keep cone
+        // trackuserlocationend = user explicitly turned off — remove cone
+        geolocate.on('trackuserlocationend', () => {
+          const state = (geolocate as unknown as { _watchState?: string })._watchState;
+          if (!state || state === 'OFF') {
+            map.easeTo({ pitch: 0, duration: 400 });
+            stopHeading();
+          }
+        });
       });
     });
 
@@ -368,15 +513,29 @@ export default function TerritoryMap({
     import('maplibre-gl').then((mgl) => {
       if (!mapInstance.current) return;
 
-      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-        radius: 128, maxZoom: 18, minPoints: 2,
-      });
+      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>(
+        {
+          radius: 128,
+          maxZoom: 18,
+          minPoints: 2,
+        }
+      );
 
-      index.load(validPts.map((h) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [Number(h.longitude), Number(h.latitude)] },
-        properties: { id: h.id, address: h.address, status: h.status ?? 'not_visited', type: h.type ?? 'house' },
-      })));
+      index.load(
+        validPts.map((h) => ({
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [Number(h.longitude), Number(h.latitude)],
+          },
+          properties: {
+            id: h.id,
+            address: h.address,
+            status: h.status ?? 'not_visited',
+            type: h.type ?? 'house',
+          },
+        }))
+      );
 
       function renderMarkers() {
         const m = mapInstance.current;
@@ -388,7 +547,10 @@ export default function TerritoryMap({
 
         const bounds = m.getBounds();
         const bbox: [number, number, number, number] = [
-          bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth(),
+          bounds.getWest(),
+          bounds.getSouth(),
+          bounds.getEast(),
+          bounds.getNorth(),
         ];
         const zoom = Math.floor(m.getZoom());
         const clusters = index.getClusters(bbox, zoom);
@@ -404,7 +566,9 @@ export default function TerritoryMap({
             const count = props.point_count as number;
             const clusterId = props.cluster_id as number;
             const leaves = index.getLeaves(clusterId, 1);
-            const rep = leaves[0]?.properties as { status: string; type: string; address: string } | undefined;
+            const rep = leaves[0]?.properties as
+              | { status: string; type: string; address: string }
+              | undefined;
             const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
             const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
             const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
@@ -417,7 +581,12 @@ export default function TerritoryMap({
               });
             });
           } else {
-            const { id, address, status, type: hType } = props as { id: string; address: string; status: string; type: string };
+            const {
+              id,
+              address,
+              status,
+              type: hType,
+            } = props as { id: string; address: string; status: string; type: string };
             const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
             const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
             const label = address.split(' ').slice(0, 3).join(' ');
@@ -426,27 +595,49 @@ export default function TerritoryMap({
             el.addEventListener('click', () => {
               const onHClick = onClickRef.current;
               // Show popup
-              const popup = new mgl.Popup({ closeButton: false, className: 'territory-popup', offset: [0, -30] })
-                .setHTML([
-                  '<div style="min-width:150px;padding:2px 0">',
-                    '<p style="font-weight:600;margin:0 0 4px;font-size:13px">', address, '</p>',
+              const popup = new mgl.Popup({
+                closeButton: false,
+                className: 'territory-popup',
+                offset: [0, -30],
+              })
+                .setHTML(
+                  [
+                    '<div style="min-width:150px;padding:2px 0">',
+                    '<p style="font-weight:600;margin:0 0 4px;font-size:13px">',
+                    address,
+                    '</p>',
                     '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
-                      'background:', color, '22;color:', color, ';text-transform:capitalize;font-weight:600;">',
-                      status.replace(/_/g, ' '),
+                    'background:',
+                    color,
+                    '22;color:',
+                    color,
+                    ';text-transform:capitalize;font-weight:600;">',
+                    status.replace(/_/g, ' '),
                     '</span>',
                     onHClick
-                      ? ['<button onclick="window.__mapLogVisit(\'' + id + '\',\'' + address.replace(/'/g, "\\'") + '\')"',
-                         ' style="margin-top:8px;width:100%;padding:5px 0;background:', color,
-                         ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
-                         'Log Visit</button>'].join('')
+                      ? [
+                          '<button onclick="window.__mapLogVisit(\'' +
+                            id +
+                            "','" +
+                            address.replace(/'/g, "\\'") +
+                            '\')"',
+                          ' style="margin-top:8px;width:100%;padding:5px 0;background:',
+                          color,
+                          ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                          'Log Visit</button>',
+                        ].join('')
                       : '',
-                  '</div>',
-                ].join(''))
+                    '</div>',
+                  ].join('')
+                )
                 .setLngLat([lng, lat])
                 .addTo(m);
 
               if (onHClick) {
-                (window as unknown as Record<string, unknown>).__mapLogVisit = (hId: string, hAddr: string) => {
+                (window as unknown as Record<string, unknown>).__mapLogVisit = (
+                  hId: string,
+                  hAddr: string
+                ) => {
                   popup.remove();
                   onHClick(hId, hAddr);
                 };
@@ -467,139 +658,14 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
-  // ── Location toggle — GeolocateControl via ref ────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
-  useEffect(() => {
-    const geolocate = geolocateRef.current;
-    if (!geolocate || !mapReady) return;
-
-    if (!locationOn) {
-      // Cycle back to OFF if currently active
-      const state = (geolocate as unknown as { _watchState?: string })._watchState;
-      if (state && state !== 'OFF') geolocate.trigger();
-      if (headingCleanupRef.current) { headingCleanupRef.current(); headingCleanupRef.current = null; }
-      setNeedsCalibration(false);
-      return;
-    }
-
-    // Trigger with retry until control is ready
-    let attempts = 0;
-    const attempt = () => {
-      if (!geolocateRef.current) return;
-      const ok = geolocateRef.current.trigger();
-      if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
-    };
-    attempt();
-
-    // Fly on first fix
-    const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
-      mapInstance.current?.flyTo({
-        center: [e.coords.longitude, e.coords.latitude],
-        zoom: Math.max(mapInstance.current.getZoom(), 17),
-        duration: 600, essential: true,
-      });
-      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
-    };
-    geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
-
-    return () => {
-      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
-    };
-  }, [locationOn, mapReady]);
-
-  // ── Heading: rotate dot child on compass update ────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
-  useEffect(() => {
-    if (!locationOn || !mapReady) return;
-
-    const refs = geolocateRef.current as unknown as { _dotElement: HTMLElement } | null;
-    if (!refs) return;
-
-    let coneChild: HTMLElement | null = null;
-    const getCone = () => {
-      if (coneChild) return coneChild;
-      const dot = refs._dotElement;
-      if (!dot) return null;
-      const w = document.createElement('div');
-      w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
-      const cone = document.createElement('div');
-      cone.style.cssText = [
-        'position:absolute;left:50%;bottom:100%;',
-        'transform:translateX(-50%);margin-bottom:2px;',
-        'width:0;height:0;',
-        'border-left:5px solid transparent;',
-        'border-right:5px solid transparent;',
-        'border-bottom:16px solid rgba(59,130,246,0.85);',
-        'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
-      ].join('');
-      w.appendChild(cone);
-      dot.style.overflow = 'visible';
-      dot.appendChild(w);
-      coneChild = w;
-      return w;
-    };
-
-    let heading = 0, hasHeading = false, usingAOS = false;
-    let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
-    let rafId = 0, lastAngle = -1;
-
-    function render() {
-      if (hasHeading) {
-        setNeedsCalibration(needsCalib);
-        onCalibrationNeeded?.(needsCalib);
-        const w = getCone();
-        if (w) {
-          const mapBearing = mapInstance.current?.getBearing() ?? 0;
-          const angle = (heading - mapBearing + 360) % 360;
-          if (Math.abs(angle - lastAngle) > 0.5) { w.style.transform = `rotate(${angle}deg)`; lastAngle = angle; }
-        }
-      }
-      rafId = requestAnimationFrame(render);
-    }
-    rafId = requestAnimationFrame(render);
-
-    const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
-      if (usingAOS) return;
-      const raw = getTiltCompensatedHeading(e);
-      if (raw === null) return;
-      heading = raw; hasHeading = true;
-      const now = performance.now();
-      if (now - lastCalibCheck > 2000) {
-        lastCalibCheck = now;
-        const acc = getCompassAccuracy(e);
-        if (acc === 'poor' || acc === 'uncalibrated') { if (++badAccCount >= 8) needsCalib = true; }
-        else if (acc === 'good' || acc === 'ok') { badAccCount = 0; needsCalib = false; }
-      }
-    };
-    window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-    window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
-
-    type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
-    const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
-    let aosSensor: InstanceType<AOSType> | null = null;
-    if (AOS) {
-      try {
-        aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
-        aosSensor.onreading = () => { if (!aosSensor) return; heading = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; };
-        aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
-        aosSensor.start();
-      } catch { aosSensor = null; }
-    }
-
-    // iOS 13+ permission already requested in onClick gesture
-    return () => {
-      cancelAnimationFrame(rafId);
-      if (coneChild) { coneChild.remove(); coneChild = null; }
-      aosSensor?.stop();
-      window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-      window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
-    };
-  }, [locationOn, mapReady]);
-
   return (
     <div className={`relative ${className}`}>
       {/* MapLibre GL CSS */}
-      <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css" crossOrigin="" />
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css"
+        crossOrigin=""
+      />
 
       <style>{`
         .maplibregl-canvas { outline: none; }
@@ -620,7 +686,12 @@ export default function TerritoryMap({
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
-        .maplibregl-user-location-accuracy-circle { z-index: 0 !important; }
+        /* Accuracy circle — Google Maps style: large soft blue, very transparent */
+        .maplibregl-user-location-accuracy-circle {
+          background: rgba(59,130,246,0.08) !important;
+          border: 1.5px solid rgba(59,130,246,0.2) !important;
+          z-index: 0 !important;
+        }
         @keyframes location-pulse {
           0%   { transform: scale(1);   opacity: 0.7; }
           70%  { transform: scale(2.2); opacity: 0;   }
@@ -630,23 +701,12 @@ export default function TerritoryMap({
 
       <div ref={mapRef} className="w-full h-full" />
 
-
-
-      {/* Compass calibration prompt */}
-      {locationOn && needsCalibration && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1003] pointer-events-none">
-          <div className="bg-black/70 text-white text-center px-4 py-3 rounded-2xl max-w-[200px]">
-            <div className="text-2xl mb-1">∞</div>
-            <p className="text-[11px] font-semibold leading-tight">Calibrate compass</p>
-            <p className="text-[10px] text-white/70 mt-1">Move device in a figure-8 pattern</p>
-          </div>
-        </div>
-      )}
-
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
           <p className="text-xs font-medium text-muted-foreground">No map data</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-0.5">Add a boundary or household coordinates</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+            Add a boundary or household coordinates
+          </p>
         </div>
       )}
     </div>
