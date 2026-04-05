@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
+import { HeadingFilter, getTiltCompensatedHeading, getCompassAccuracy, getHeadingFromQuaternion } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,11 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  locationOn?: boolean;
+  onCalibrationNeeded?: (needed: boolean) => void;
+  onLocationDotClick?: () => void;
+  /** Called once map is ready — parent can call trigger() synchronously from a gesture */
+  onGeolocateReady?: (trigger: () => void) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -141,15 +147,23 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  locationOn = false,
+  onCalibrationNeeded,
+  onLocationDotClick,
+  onGeolocateReady,
 }: TerritoryMapProps) {
-  const mapRef        = useRef<HTMLDivElement>(null);
-  const mapInstance   = useRef<import('maplibre-gl').Map | null>(null);
-  const markersRef    = useRef<import('maplibre-gl').Marker[]>([]);
-  const onClickRef    = useRef(onHouseholdClick);
-  onClickRef.current  = onHouseholdClick;
+  const mapRef            = useRef<HTMLDivElement>(null);
+  const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
+  const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
+  const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
+  const headingCleanupRef = useRef<(() => void) | null>(null);
+  const headingAngleRef   = useRef<number>(0);
+  const onClickRef        = useRef(onHouseholdClick);
+  onClickRef.current      = onHouseholdClick;
 
-  const [mapReady, setMapReady] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [mapReady, setMapReady]         = useState(false);
+  const [isDark, setIsDark]             = useState(false);
+  const [needsCalibration, setNeedsCalibration] = useState(false);
 
   useEffect(() => {
     const update = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -299,6 +313,28 @@ export default function TerritoryMap({
           } catch { /* skip */ }
         }
 
+        // ── GeolocateControl (built-in location + heading) ───────────────
+        // Built-in GeolocateControl — held via ref, triggered by our button
+        const geolocate = new mgl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showAccuracyCircle: true,
+          showUserLocation: true,
+          fitBoundsOptions: { zoom: 16 },
+        });
+        map.addControl(geolocate);
+        geolocateRef.current = geolocate;
+        onGeolocateReady?.(() => geolocate.trigger());
+
+        // Tap dot → calibration
+        geolocate.on('geolocate', () => {
+          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
+          if (dot && !dot.getAttribute('data-calib-listener')) {
+            dot.setAttribute('data-calib-listener', '1');
+            dot.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
+          }
+        });
+
         setMapReady(true);
       });
     });
@@ -320,6 +356,7 @@ export default function TerritoryMap({
     if (!map || !mapReady) return;
     const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
     map.setStyle(style.url);
+    // watchPosition continues after style change — markers re-added on next GPS fix
   }, [mapStyle, mapReady]);
 
   // ── Household markers effect ──────────────────────────────────────────────
@@ -437,6 +474,135 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
+  // ── Location toggle — GeolocateControl via ref ────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
+  useEffect(() => {
+    const geolocate = geolocateRef.current;
+    if (!geolocate || !mapReady) return;
+
+    if (!locationOn) {
+      // Cycle back to OFF if currently active
+      const state = (geolocate as unknown as { _watchState?: string })._watchState;
+      if (state && state !== 'OFF') geolocate.trigger();
+      if (headingCleanupRef.current) { headingCleanupRef.current(); headingCleanupRef.current = null; }
+      setNeedsCalibration(false);
+      return;
+    }
+
+    // Trigger with retry until control is ready
+    let attempts = 0;
+    const attempt = () => {
+      if (!geolocateRef.current) return;
+      const ok = geolocateRef.current.trigger();
+      if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
+    };
+    attempt();
+
+    // Fly on first fix
+    const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
+      mapInstance.current?.flyTo({
+        center: [e.coords.longitude, e.coords.latitude],
+        zoom: Math.max(mapInstance.current.getZoom(), 17),
+        duration: 600, essential: true,
+      });
+      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+    };
+    geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+
+    return () => {
+      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+    };
+  }, [locationOn, mapReady]);
+
+  // ── Heading: rotate dot child on compass update ────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
+  useEffect(() => {
+    if (!locationOn || !mapReady) return;
+
+    const refs = geolocateRef.current as unknown as { _dotElement: HTMLElement } | null;
+    if (!refs) return;
+
+    let coneChild: HTMLElement | null = null;
+    const getCone = () => {
+      if (coneChild) return coneChild;
+      const dot = refs._dotElement;
+      if (!dot) return null;
+      const w = document.createElement('div');
+      w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
+      const cone = document.createElement('div');
+      cone.style.cssText = [
+        'position:absolute;left:50%;bottom:100%;',
+        'transform:translateX(-50%);margin-bottom:2px;',
+        'width:0;height:0;',
+        'border-left:5px solid transparent;',
+        'border-right:5px solid transparent;',
+        'border-bottom:16px solid rgba(59,130,246,0.85);',
+        'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+      ].join('');
+      w.appendChild(cone);
+      dot.style.overflow = 'visible';
+      dot.appendChild(w);
+      coneChild = w;
+      return w;
+    };
+
+    let heading = 0, hasHeading = false, usingAOS = false;
+    let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
+    let rafId = 0, lastAngle = -1;
+
+    function render() {
+      if (hasHeading) {
+        setNeedsCalibration(needsCalib);
+        onCalibrationNeeded?.(needsCalib);
+        const w = getCone();
+        if (w) {
+          const mapBearing = mapInstance.current?.getBearing() ?? 0;
+          const angle = (heading - mapBearing + 360) % 360;
+          if (Math.abs(angle - lastAngle) > 0.5) { w.style.transform = `rotate(${angle}deg)`; lastAngle = angle; }
+        }
+      }
+      rafId = requestAnimationFrame(render);
+    }
+    rafId = requestAnimationFrame(render);
+
+    const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
+      if (usingAOS) return;
+      const raw = getTiltCompensatedHeading(e);
+      if (raw === null) return;
+      heading = raw; hasHeading = true;
+      const now = performance.now();
+      if (now - lastCalibCheck > 2000) {
+        lastCalibCheck = now;
+        const acc = getCompassAccuracy(e);
+        if (acc === 'poor' || acc === 'uncalibrated') { if (++badAccCount >= 8) needsCalib = true; }
+        else if (acc === 'good' || acc === 'ok') { badAccCount = 0; needsCalib = false; }
+      }
+    };
+    window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+    window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
+
+    type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
+    const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
+    let aosSensor: InstanceType<AOSType> | null = null;
+    if (AOS) {
+      try {
+        aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+        aosSensor.onreading = () => { if (!aosSensor) return; heading = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; };
+        aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
+        aosSensor.start();
+      } catch { aosSensor = null; }
+    }
+
+    // iOS 13+ permission already requested in onClick gesture
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (coneChild) { coneChild.remove(); coneChild = null; }
+      aosSensor?.stop();
+      window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+      window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
+    };
+  }, [locationOn, mapReady]);
+
   return (
     <div className={`relative ${className}`}>
       {/* MapLibre GL CSS */}
@@ -451,9 +617,33 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
+        /* Hide built-in geolocate button — we use our own toggle */
+        .maplibregl-ctrl-geolocate { display: none !important; }
+        /* Cone marker behind the location dot */
+        .loc-cone-wrapper { z-index: 1 !important; }
+        .maplibregl-user-location-dot { z-index: 2 !important; }
+        .maplibregl-user-location-accuracy-circle { z-index: 0 !important; }
+        @keyframes location-pulse {
+          0%   { transform: scale(1);   opacity: 0.7; }
+          70%  { transform: scale(2.2); opacity: 0;   }
+          100% { transform: scale(2.2); opacity: 0;   }
+        }
       `}</style>
 
       <div ref={mapRef} className="w-full h-full" />
+
+
+
+      {/* Compass calibration prompt */}
+      {locationOn && needsCalibration && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1003] pointer-events-none">
+          <div className="bg-black/70 text-white text-center px-4 py-3 rounded-2xl max-w-[200px]">
+            <div className="text-2xl mb-1">∞</div>
+            <p className="text-[11px] font-semibold leading-tight">Calibrate compass</p>
+            <p className="text-[10px] text-white/70 mt-1">Move device in a figure-8 pattern</p>
+          </div>
+        </div>
+      )}
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">

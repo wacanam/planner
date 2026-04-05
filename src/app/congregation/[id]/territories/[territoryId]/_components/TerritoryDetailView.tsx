@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,110 @@ type LocalAssignment = {
 
 function getAssigneeDisplayName(a: LocalAssignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
+}
+
+// ─── Calibration overlay ──────────────────────────────────────────────────────
+function CalibrationOverlay({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = React.useState<'guide' | 'done'>('guide');
+
+  // Listen to real compass accuracy — complete when accuracy improves
+  React.useEffect(() => {
+    if (phase === 'done') return;
+
+    let goodCount = 0;
+    const GOOD_THRESHOLD = 5; // consecutive good readings = calibrated
+
+    const onOrientation = (e: DeviceOrientationEvent & { webkitCompassAccuracy?: number }) => {
+      const acc = e.webkitCompassAccuracy;
+      if (acc !== undefined && acc >= 0 && acc <= 15) {
+        goodCount++;
+        if (goodCount >= GOOD_THRESHOLD) setPhase('done');
+      } else {
+        goodCount = 0;
+      }
+    };
+
+    window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+    // Fallback: auto-complete after 10s if no iOS accuracy data available
+    const fallback = setTimeout(() => setPhase('done'), 10000);
+
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+      clearTimeout(fallback);
+    };
+  }, [phase]);
+
+  return (
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
+      <div className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-[260px] w-full mx-4 space-y-4">
+        {phase === 'guide' ? (
+          <>
+            {/* Animated figure-8 SVG */}
+            <div className="flex justify-center">
+              <svg width="80" height="50" viewBox="0 0 80 50" fill="none" aria-label="Figure 8 animation">
+                <style>{`
+                  @keyframes fig8 {
+                    0%   { offset-distance: 0%; }
+                    100% { offset-distance: 100%; }
+                  }
+                  .fig8-dot {
+                    offset-path: path('M40,25 C40,10 65,10 65,25 C65,40 40,40 40,25 C40,10 15,10 15,25 C15,40 40,40 40,25');
+                    animation: fig8 2s linear infinite;
+                  }
+                `}</style>
+                {/* Figure-8 path outline */}
+                <path
+                  d="M40,25 C40,10 65,10 65,25 C65,40 40,40 40,25 C40,10 15,10 15,25 C15,40 40,40 40,25"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                {/* Animated dot */}
+                <circle className="fig8-dot" r="5" fill="#3b82f6" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold">Calibrating compass</p>
+            <p className="text-xs text-white/60 leading-snug">
+              Slowly tilt and rotate your device in a figure-8 pattern
+            </p>
+            {/* Indeterminate progress — completes when accuracy actually improves */}
+            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full"
+                style={{ animation: 'calib-pulse 1.5s ease-in-out infinite alternate' }}
+              />
+            </div>
+            <style>{`
+              @keyframes calib-pulse {
+                from { width: 20%; margin-left: 0%; }
+                to   { width: 60%; margin-left: 40%; }
+              }
+            `}</style>
+          </>
+        ) : (
+          <>
+            {/* Done state */}
+            <div className="flex justify-center">
+              <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-green-400">Calibration complete</p>
+            <p className="text-xs text-white/60">Compass accuracy improved</p>
+            <button
+              type="button"
+              onClick={onDone}
+              className="w-full py-2 bg-blue-500 hover:bg-blue-600 rounded-xl text-sm font-semibold transition-colors"
+            >
+              Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function TerritoryDetailView() {
@@ -83,6 +187,9 @@ export default function TerritoryDetailView() {
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
   const [showStylePicker, setShowStylePicker] = useState(false);
+  const [locationOn, setLocationOn] = useState(false);
+  const [showCalibPrompt, setShowCalibPrompt] = useState(false);
+  const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -145,6 +252,10 @@ export default function TerritoryDetailView() {
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
                     mapStyle={mapStyle}
+                    locationOn={locationOn}
+                    onCalibrationNeeded={(needed: boolean) => { if (needed) setShowCalibPrompt(true); }}
+                    onLocationDotClick={() => setShowCalibPrompt(true)}
+                    onGeolocateReady={(fn: () => void) => { geolocateTriggerRef.current = fn; }}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -210,6 +321,49 @@ export default function TerritoryDetailView() {
               );
             })()}
           </div>{/* end flex-1 map wrapper */}
+
+          {/* Location toggle — fixed bottom-left */}
+          <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            {/* Location toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                  if (!locationOn) {
+                    // Must call trigger() synchronously in the gesture for Safari.
+                    // Call it immediately (may be a no-op if map not ready yet),
+                    // then set state so the useEffect retry loop takes over.
+                    geolocateTriggerRef.current?.();
+
+                    // DeviceOrientation permission (iOS 13+ Safari)
+                    type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+                    const DOE = DeviceOrientationEvent as DOE;
+                    if (typeof DOE.requestPermission === 'function') {
+                      DOE.requestPermission()
+                        .then(() => setLocationOn(true))
+                        .catch(() => setLocationOn(true));
+                    } else {
+                      setLocationOn(true);
+                    }
+                  } else {
+                    setLocationOn(false);
+                  }
+                }}
+              title={locationOn ? 'Hide my location' : 'Show my location'}
+              className={[
+                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+                locationOn ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
+              ].join(' ')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Manual calibration overlay */}
+          {locationOn && showCalibPrompt && (
+            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
+          )}
 
           {/* Map style switcher — fixed, shifts up when assignment strip expands */}
           <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
