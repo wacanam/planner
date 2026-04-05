@@ -220,6 +220,21 @@ export default function TerritoryMap({
 
       map.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-left');
 
+      // GeolocateControl added before load — ref available immediately on first tap
+      const geolocate = new mgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+        showUserLocation: true,
+        fitBoundsOptions: { zoom: 16 },
+      });
+      map.addControl(geolocate, 'top-right');
+      geolocateRef.current = geolocate;
+      onGeolocateReady?.(() => {
+        const btn = (geolocate as unknown as { _geolocateButton?: HTMLButtonElement })._geolocateButton;
+        if (btn) btn.click(); else geolocate.trigger();
+      });
+
       mapInstance.current = map;
 
       map.on('load', () => {
@@ -312,28 +327,6 @@ export default function TerritoryMap({
             }
           } catch { /* skip */ }
         }
-
-        // ── GeolocateControl (built-in location + heading) ───────────────
-        // Built-in GeolocateControl — held via ref, triggered by our button
-        const geolocate = new mgl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-          trackUserLocation: true,
-          showAccuracyCircle: true,
-          showUserLocation: true,
-          fitBoundsOptions: { zoom: 16 },
-        });
-        map.addControl(geolocate);
-        geolocateRef.current = geolocate;
-        onGeolocateReady?.(() => geolocate.trigger());
-
-        // Tap dot → calibration
-        geolocate.on('geolocate', () => {
-          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
-          if (dot && !dot.getAttribute('data-calib-listener')) {
-            dot.setAttribute('data-calib-listener', '1');
-            dot.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
-          }
-        });
 
         setMapReady(true);
       });
@@ -617,8 +610,13 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
-        /* Hide built-in geolocate button — we use our own toggle */
-        .maplibregl-ctrl-geolocate { display: none !important; }
+        /* Geolocate — translucent, navigation arrow icon */
+        .maplibregl-ctrl-top-right .maplibregl-ctrl-group { background: transparent !important; border: none !important; box-shadow: none !important; }
+        .maplibregl-ctrl-geolocate { background: rgba(255,255,255,0.25) !important; backdrop-filter: blur(2px) !important; -webkit-backdrop-filter: blur(2px) !important; border: none !important; border-radius: 8px !important; width: 32px !important; height: 32px !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15) !important; cursor: pointer !important; padding: 0 !important; }
+        .maplibregl-ctrl-geolocate:hover { background: rgba(255,255,255,0.35) !important; }
+        .maplibregl-ctrl-geolocate .maplibregl-ctrl-icon { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%231e293b'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important; background-size: 18px 18px !important; }
+        .maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon, .maplibregl-ctrl-geolocate-active-error .maplibregl-ctrl-icon { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important; }
+        .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 10px 10px 0 0 !important; }
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
