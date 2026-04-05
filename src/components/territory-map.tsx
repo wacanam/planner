@@ -220,6 +220,18 @@ export default function TerritoryMap({
 
       map.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-left');
 
+      // GeolocateControl added BEFORE load so ref is available on first button tap
+      const geolocate = new mgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showAccuracyCircle: true,
+        showUserLocation: true,
+        fitBoundsOptions: { zoom: 16 },
+      });
+      map.addControl(geolocate);
+      geolocateRef.current = geolocate;
+      onGeolocateReady?.(() => geolocate.trigger());
+
       mapInstance.current = map;
 
       map.on('load', () => {
@@ -312,19 +324,6 @@ export default function TerritoryMap({
             }
           } catch { /* skip */ }
         }
-
-        // ── GeolocateControl (built-in location + heading) ───────────────
-        // Built-in GeolocateControl — held via ref, triggered by our button
-        const geolocate = new mgl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-          trackUserLocation: true,
-          showAccuracyCircle: true,
-          showUserLocation: true,
-          fitBoundsOptions: { zoom: 16 },
-        });
-        map.addControl(geolocate);
-        geolocateRef.current = geolocate;
-        onGeolocateReady?.(() => geolocate.trigger());
 
         // Tap dot → calibration
         geolocate.on('geolocate', () => {
