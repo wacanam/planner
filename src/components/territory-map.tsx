@@ -538,35 +538,44 @@ export default function TerritoryMap({
       // Calibration
       let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
 
-      // Insert heading arrow CSS into the dot via a dynamic <style> tag
-      // The arrow is a ::before pseudo rotating inside the dot
-      const styleId = 'maplibre-heading-arrow';
-      if (!document.getElementById(styleId)) {
-        const s = document.createElement('style');
-        s.id = styleId;
-        s.textContent = [
-          '.maplibregl-user-location-dot {',
-          '  transform-origin: center center;',
-          '  transition: none;',
-          '  will-change: transform;',
-          '}',
-          '.maplibregl-user-location-dot::before {',
-          '  content: "";',
-          '  position: absolute;',
-          '  left: 50%;',
-          '  bottom: 100%;',
-          '  transform: translateX(-50%);',
-          '  width: 0; height: 0;',
-          '  border-left: 5px solid transparent;',
-          '  border-right: 5px solid transparent;',
-          '  border-bottom: 14px solid rgba(59,130,246,0.85);',
-          '  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));',
-          '}',
-        ].join('\n');
-        document.head.appendChild(s);
-      }
-
+      // Build a rotating child inside _dotElement — never touch the parent's
+      // transform (MapLibre uses it for positioning). Instead we insert a
+      // zero-size wrapper that covers the dot's center and rotates a cone.
       const getDot = () => (geolocate as unknown as { _dotElement?: HTMLElement })._dotElement;
+
+      // Create cone child — injected once after first GPS fix
+      let coneChild: HTMLElement | null = null;
+      const getCone = () => {
+        if (coneChild) return coneChild;
+        const dot = getDot();
+        if (!dot) return null;
+        // Wrapper: same size as dot (12px), overflow visible
+        const w = document.createElement('div');
+        w.style.cssText = [
+          'position:absolute;inset:0;',
+          'pointer-events:none;',
+          'transform-origin:center center;',
+          'will-change:transform;',
+        ].join('');
+        // Cone: sits above center of dot
+        const cone = document.createElement('div');
+        cone.style.cssText = [
+          'position:absolute;',
+          'left:50%;bottom:100%;',
+          'transform:translateX(-50%);',
+          'width:0;height:0;',
+          'border-left:5px solid transparent;',
+          'border-right:5px solid transparent;',
+          'border-bottom:16px solid rgba(59,130,246,0.85);',
+          'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+          'margin-bottom:2px;',
+        ].join('');
+        w.appendChild(cone);
+        dot.style.overflow = 'visible';
+        dot.appendChild(w);
+        coneChild = w;
+        return w;
+      };
 
       let rafId = 0;
       let lastAngle = -1;
@@ -575,12 +584,12 @@ export default function TerritoryMap({
         if (hasHeading) {
           setNeedsCalibration(needsCalib);
           onCalibrationNeeded?.(needsCalib);
-          const dot = getDot();
-          if (dot) {
+          const w = getCone();
+          if (w) {
             const mapBearing = mapInstance.current?.getBearing() ?? 0;
             const angle = (heading - mapBearing + 360) % 360;
             if (Math.abs(angle - lastAngle) > 0.5) {
-              dot.style.transform = `rotate(${angle}deg)`;
+              w.style.transform = `rotate(${angle}deg)`;
               lastAngle = angle;
             }
           }
@@ -642,8 +651,7 @@ export default function TerritoryMap({
 
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
-        const dot = getDot();
-        if (dot) dot.style.transform = '';
+        if (coneChild) { coneChild.remove(); coneChild = null; }
         aosSensor?.stop();
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
