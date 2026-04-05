@@ -383,10 +383,10 @@ export default function TerritoryMap({
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:60px;height:60px;',
-            'left:-30px;bottom:0;',
-            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.65) 0%, rgba(59,130,246,0.3) 45%, rgba(59,130,246,0) 75%);',
-            'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
+            'width:100px;height:80px;',
+            'left:-50px;bottom:8px;',    // offset up by dot radius (8px) so base aligns with dot edge
+            'background:radial-gradient(ellipse 40% 100% at 50% 100%, rgba(59,130,246,0.7) 0%, rgba(59,130,246,0.3) 50%, rgba(59,130,246,0) 80%);',
+            'clip-path:polygon(42.5% 100%, 57.5% 100%, 92% 0%, 8% 0%);', // base = 15px wide (dot size)
             'pointer-events:none;',
             'will-change:transform;',
           ].join('');
