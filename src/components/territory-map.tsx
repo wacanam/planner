@@ -15,10 +15,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
 import {
-  getCompassAccuracy,
   getHeadingFromQuaternion,
   getTiltCompensatedHeading,
-  HeadingFilter,
 } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -171,7 +169,6 @@ export default function TerritoryMap({
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
   const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
-  const headingAngleRef = useRef<number>(0);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
 
@@ -402,278 +399,318 @@ export default function TerritoryMap({
           coneMkr = mkr;
           return coneMkr;
         };
-          return coneMkr;
+
+      const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+        if (usingAOS) return;
+        const raw = getTiltCompensatedHeading(e);
+        if (raw !== null) {
+          headingAngle = raw;
+          hasHeading = true;
+        }
+      };
+
+      type AOSType = {
+        new (opts: {
+          frequency: number;
+          referenceFrame?: string;
+        }): {
+          start(): void;
+          stop(): void;
+          onreading: (() => void) | null;
+          onerror: ((e: unknown) => void) | null;
+          quaternion: readonly [number, number, number, number];
         };
+      };
+      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as
+        | AOSType
+        | undefined;
+      let aosSensor: InstanceType<AOSType> | null = null;
 
-        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
-          if (usingAOS) return;
-          const raw = getTiltCompensatedHeading(e);
-          if (raw !== null) { headingAngle = raw; hasHeading = true; }
-        };
-
-        type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
-        const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
-        let aosSensor: InstanceType<AOSType> | null = null;
-
-        const renderHeading = () => {
-          // Only rotate — never add/remove marker in rAF loop
-          if (hasHeading && hasPos && coneMkr) {
-            const bearing = map.getBearing();
-            const angle   = (headingAngle - bearing + 360) % 360;
-            if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
-              coneEl.style.transform = `rotate(${angle}deg)`;
-              lastHeadingAngle = angle;
-            }
+      const renderHeading = () => {
+        // Only rotate — never add/remove marker in rAF loop
+        if (hasHeading && hasPos && coneMkr) {
+          const bearing = map.getBearing();
+          const angle = (headingAngle - bearing + 360) % 360;
+          if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
+            coneEl.style.transform = `rotate(${angle}deg)`;
+            lastHeadingAngle = angle;
           }
-          headingRafId = requestAnimationFrame(renderHeading);
-        };
+        }
+        headingRafId = requestAnimationFrame(renderHeading);
+      };
 
-        // Create + add cone marker only on first GPS fix, then just update position
-        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
-          userLng = e.coords.longitude;
-          userLat = e.coords.latitude;
-          if (!hasPos) {
-            // First fix: create marker and add to map
-            const mkr = createConeMarker();
-            mkr.setLngLat([userLng, userLat]).addTo(map);
-            hasPos = true;
-          } else {
-            // Subsequent fixes: just move it
-            coneMkr?.setLngLat([userLng, userLat]);
+      // Create + add cone marker only on first GPS fix, then just update position
+      geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
+        userLng = e.coords.longitude;
+        userLat = e.coords.latitude;
+        if (!hasPos) {
+          // First fix: create marker and add to map
+          const mkr = createConeMarker();
+          mkr.setLngLat([userLng, userLat]).addTo(map);
+          hasPos = true;
+        } else {
+          // Subsequent fixes: just move it
+          coneMkr?.setLngLat([userLng, userLat]);
+        }
+      });
+
+      const startHeading = () => {
+        headingRafId = requestAnimationFrame(renderHeading);
+        // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
+        const ctrl = geolocateRef.current as unknown as {
+          _userLocationDotMarker?: import('maplibre-gl').Marker;
+          _accuracyCircleMarker?: import('maplibre-gl').Marker;
+        } | null;
+        ctrl?._userLocationDotMarker?.setPitchAlignment('map');
+        ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
+        window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+        window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+        if (AOS) {
+          try {
+            aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+            aosSensor.onreading = () => {
+              if (aosSensor) {
+                headingAngle = getHeadingFromQuaternion(aosSensor.quaternion);
+                hasHeading = true;
+                usingAOS = true;
+              }
+            };
+            aosSensor.onerror = () => {
+              usingAOS = false;
+              aosSensor = null;
+            };
+            aosSensor.start();
+          } catch {
+            aosSensor = null;
           }
-        });
+        }
+        type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+        const DOE = DeviceOrientationEvent as DOE;
+        if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
+      };
 
-        const startHeading = () => {
-          headingRafId = requestAnimationFrame(renderHeading);
-          // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
-          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
-          ctrl?._userLocationDotMarker?.setPitchAlignment('map');
-          ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
-          window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-          window.addEventListener('deviceorientation', onOrientation as EventListener, true);
-          if (AOS) {
-            try {
-              aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
-              aosSensor.onreading = () => { if (aosSensor) { headingAngle = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; } };
-              aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
-              aosSensor.start();
-            } catch { aosSensor = null; }
-          }
-          type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-          const DOE = DeviceOrientationEvent as DOE;
-          if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
-        };
+      const stopHeading = () => {
+        cancelAnimationFrame(headingRafId);
+        coneMkr?.remove();
+        coneMkr = null;
+        coneEl = null;
+        lastHeadingAngle = -1;
+        hasHeading = false;
+        usingAOS = false;
+        hasPos = false;
+        const ctrl = geolocateRef.current as unknown as {
+          _userLocationDotMarker?: import('maplibre-gl').Marker;
+          _accuracyCircleMarker?: import('maplibre-gl').Marker;
+        } | null;
+        ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
+        ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
+        aosSensor?.stop();
+        aosSensor = null;
+        window.removeEventListener(
+          'deviceorientationabsolute',
+          onOrientation as EventListener,
+          true
+        );
+        window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+      };
 
-        const stopHeading = () => {
-          cancelAnimationFrame(headingRafId);
-          coneMkr?.remove(); coneMkr = null; coneEl = null; lastHeadingAngle = -1;
-          hasHeading = false; usingAOS = false; hasPos = false;
-          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
-          ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
-          ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
-          aosSensor?.stop(); aosSensor = null;
-          window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-          window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
-        };
-
-        geolocate.on('trackuserlocationstart', () => {
-          map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
-          startHeading();
-        });
-        // userlocationlostfocus = map panned (background state) — keep cone
-        // trackuserlocationend = user explicitly turned off — remove cone
-        geolocate.on('trackuserlocationend', () => {
-          const state = (geolocate as unknown as { _watchState?: string })._watchState;
-          if (!state || state === 'OFF') {
-            map.easeTo({ pitch: 0, duration: 400 });
-            stopHeading();
-          }
-        });
+      geolocate.on('trackuserlocationstart', () => {
+        map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
+        startHeading();
+      });
+      // userlocationlostfocus = map panned (background state) — keep cone
+      // trackuserlocationend = user explicitly turned off — remove cone
+      geolocate.on('trackuserlocationend', () => {
+        const state = (geolocate as unknown as { _watchState?: string })._watchState;
+        if (!state || state === 'OFF') {
+          map.easeTo({ pitch: 0, duration: 400 });
+          stopHeading();
+        }
       });
     });
+  });
 
-    return () => {
-      destroyed = true;
-      for (const m of markersRef.current) m.remove();
-      markersRef.current = [];
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
-  useEffect(() => {
-    const map = mapInstance.current;
-    if (!map || !mapReady) return;
-    const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
-    map.setStyle(style.url);
-    // watchPosition continues after style change — markers re-added on next GPS fix
-  }, [mapStyle, mapReady]);
-
-  // ── Household markers effect ──────────────────────────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
-  useEffect(() => {
-    const map = mapInstance.current;
-    if (!map || !mapReady) return;
-
-    // Clear existing markers
+  return () => {
+    destroyed = true;
     for (const m of markersRef.current) m.remove();
     markersRef.current = [];
+    if (mapInstance.current) {
+      mapInstance.current.remove();
+      mapInstance.current = null;
+    }
+  };
+}
+, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const validPts = households.filter((h) => h.latitude && h.longitude);
-    if (!validPts.length) return;
+// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+  const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
+  map.setStyle(style.url);
+  // watchPosition continues after style change — markers re-added on next GPS fix
+}, [mapStyle, mapReady]);
 
-    import('maplibre-gl').then((mgl) => {
-      if (!mapInstance.current) return;
+// ── Household markers effect ──────────────────────────────────────────────
+// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
 
-      const index = new Supercluster<{ id: string; address: string; status: string; type: string }>(
-        {
-          radius: 128,
-          maxZoom: 18,
-          minPoints: 2,
-        }
-      );
+  // Clear existing markers
+  for (const m of markersRef.current) m.remove();
+  markersRef.current = [];
 
-      index.load(
-        validPts.map((h) => ({
-          type: 'Feature' as const,
-          geometry: {
-            type: 'Point' as const,
-            coordinates: [Number(h.longitude), Number(h.latitude)],
-          },
-          properties: {
-            id: h.id,
-            address: h.address,
-            status: h.status ?? 'not_visited',
-            type: h.type ?? 'house',
-          },
-        }))
-      );
+  const validPts = households.filter((h) => h.latitude && h.longitude);
+  if (!validPts.length) return;
 
-      function renderMarkers() {
-        const m = mapInstance.current;
-        if (!m) return;
+  import('maplibre-gl').then((mgl) => {
+    if (!mapInstance.current) return;
 
-        // Clear
-        for (const mk of markersRef.current) mk.remove();
-        markersRef.current = [];
-
-        const bounds = m.getBounds();
-        const bbox: [number, number, number, number] = [
-          bounds.getWest(),
-          bounds.getSouth(),
-          bounds.getEast(),
-          bounds.getNorth(),
-        ];
-        const zoom = Math.floor(m.getZoom());
-        const clusters = index.getClusters(bbox, zoom);
-
-        for (const feature of clusters) {
-          const [lng, lat] = feature.geometry.coordinates;
-          const props = feature.properties as Record<string, unknown>;
-
-          const el = document.createElement('div');
-          el.style.cssText = 'cursor:pointer;';
-
-          if (props.cluster) {
-            const count = props.point_count as number;
-            const clusterId = props.cluster_id as number;
-            const leaves = index.getLeaves(clusterId, 1);
-            const rep = leaves[0]?.properties as
-              | { status: string; type: string; address: string }
-              | undefined;
-            const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
-            const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
-            const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
-            el.innerHTML = makePinHtml(color, icon, label, count, isDark);
-            el.addEventListener('click', () => {
-              m.flyTo({
-                center: [lng, lat],
-                zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
-                duration: 400,
-              });
-            });
-          } else {
-            const {
-              id,
-              address,
-              status,
-              type: hType,
-            } = props as { id: string; address: string; status: string; type: string };
-            const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-            const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
-            const label = address.split(' ').slice(0, 3).join(' ');
-            el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
-
-            el.addEventListener('click', () => {
-              const onHClick = onClickRef.current;
-              // Show popup
-              const popup = new mgl.Popup({
-                closeButton: false,
-                className: 'territory-popup',
-                offset: [0, -30],
-              })
-                .setHTML(
-                  [
-                    '<div style="min-width:150px;padding:2px 0">',
-                    '<p style="font-weight:600;margin:0 0 4px;font-size:13px">',
-                    address,
-                    '</p>',
-                    '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
-                    'background:',
-                    color,
-                    '22;color:',
-                    color,
-                    ';text-transform:capitalize;font-weight:600;">',
-                    status.replace(/_/g, ' '),
-                    '</span>',
-                    onHClick
-                      ? [
-                          '<button onclick="window.__mapLogVisit(\'' +
-                            id +
-                            "','" +
-                            address.replace(/'/g, "\\'") +
-                            '\')"',
-                          ' style="margin-top:8px;width:100%;padding:5px 0;background:',
-                          color,
-                          ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
-                          'Log Visit</button>',
-                        ].join('')
-                      : '',
-                    '</div>',
-                  ].join('')
-                )
-                .setLngLat([lng, lat])
-                .addTo(m);
-
-              if (onHClick) {
-                (window as unknown as Record<string, unknown>).__mapLogVisit = (
-                  hId: string,
-                  hAddr: string
-                ) => {
-                  popup.remove();
-                  onHClick(hId, hAddr);
-                };
-              }
-            });
-          }
-
-          const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
-            .setLngLat([lng, lat])
-            .addTo(m);
-          markersRef.current.push(marker);
-        }
-      }
-
-      renderMarkers();
-      map?.off('moveend', renderMarkers);
-      map?.on('moveend', renderMarkers);
+    const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
+      radius: 128,
+      maxZoom: 18,
+      minPoints: 2,
     });
-  }, [households, mapReady, isDark]);
 
-  return (
+    index.load(
+      validPts.map((h) => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [Number(h.longitude), Number(h.latitude)],
+        },
+        properties: {
+          id: h.id,
+          address: h.address,
+          status: h.status ?? 'not_visited',
+          type: h.type ?? 'house',
+        },
+      }))
+    );
+
+    function renderMarkers() {
+      const m = mapInstance.current;
+      if (!m) return;
+
+      // Clear
+      for (const mk of markersRef.current) mk.remove();
+      markersRef.current = [];
+
+      const bounds = m.getBounds();
+      const bbox: [number, number, number, number] = [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ];
+      const zoom = Math.floor(m.getZoom());
+      const clusters = index.getClusters(bbox, zoom);
+
+      for (const feature of clusters) {
+        const [lng, lat] = feature.geometry.coordinates;
+        const props = feature.properties as Record<string, unknown>;
+
+        const el = document.createElement('div');
+        el.style.cssText = 'cursor:pointer;';
+
+        if (props.cluster) {
+          const count = props.point_count as number;
+          const clusterId = props.cluster_id as number;
+          const leaves = index.getLeaves(clusterId, 1);
+          const rep = leaves[0]?.properties as
+            | { status: string; type: string; address: string }
+            | undefined;
+          const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
+          const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
+          const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
+          el.innerHTML = makePinHtml(color, icon, label, count, isDark);
+          el.addEventListener('click', () => {
+            m.flyTo({
+              center: [lng, lat],
+              zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
+              duration: 400,
+            });
+          });
+        } else {
+          const {
+            id,
+            address,
+            status,
+            type: hType,
+          } = props as { id: string; address: string; status: string; type: string };
+          const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+          const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
+          const label = address.split(' ').slice(0, 3).join(' ');
+          el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
+
+          el.addEventListener('click', () => {
+            const onHClick = onClickRef.current;
+            // Show popup
+            const popup = new mgl.Popup({
+              closeButton: false,
+              className: 'territory-popup',
+              offset: [0, -30],
+            })
+              .setHTML(
+                [
+                  '<div style="min-width:150px;padding:2px 0">',
+                  '<p style="font-weight:600;margin:0 0 4px;font-size:13px">',
+                  address,
+                  '</p>',
+                  '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
+                  'background:',
+                  color,
+                  '22;color:',
+                  color,
+                  ';text-transform:capitalize;font-weight:600;">',
+                  status.replace(/_/g, ' '),
+                  '</span>',
+                  onHClick
+                    ? [
+                        '<button onclick="window.__mapLogVisit(\'' +
+                          id +
+                          "','" +
+                          address.replace(/'/g, "\\'") +
+                          '\')"',
+                        ' style="margin-top:8px;width:100%;padding:5px 0;background:',
+                        color,
+                        ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                        'Log Visit</button>',
+                      ].join('')
+                    : '',
+                  '</div>',
+                ].join('')
+              )
+              .setLngLat([lng, lat])
+              .addTo(m);
+
+            if (onHClick) {
+              (window as unknown as Record<string, unknown>).__mapLogVisit = (
+                hId: string,
+                hAddr: string
+              ) => {
+                popup.remove();
+                onHClick(hId, hAddr);
+              };
+            }
+          });
+        }
+
+        const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([lng, lat])
+          .addTo(m);
+        markersRef.current.push(marker);
+      }
+    }
+
+    renderMarkers();
+    map?.off('moveend', renderMarkers);
+    map?.on('moveend', renderMarkers);
+  });
+}, [households, mapReady, isDark]);
+
+return (
     <div className={`relative ${className}`}>
       {/* MapLibre GL CSS */}
       <link
