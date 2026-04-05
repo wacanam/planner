@@ -622,8 +622,8 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
-        /* Hide built-in geolocate button — we use our own toggle */
-        .maplibregl-ctrl-geolocate { display: none !important; }
+        /* Built-in geolocate button — visible for testing */
+        /* .maplibregl-ctrl-geolocate { display: none !important; } */
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
