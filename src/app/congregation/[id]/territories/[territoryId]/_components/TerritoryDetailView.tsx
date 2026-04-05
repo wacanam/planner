@@ -183,12 +183,12 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Fullscreen toggle — left of built-in geolocate (top-right) */}
-                  <div className="absolute top-0 right-10 z-[1001] p-2 pointer-events-auto">
+                  {/* Fullscreen toggle — same style as geolocate button */}
+                  <div className="absolute top-0 right-10 z-[1001] p-2.5 pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setMapFullscreen((p) => !p)}
-                      className="flex items-center justify-center w-8 h-8 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-lg shadow-sm"
+                      className="flex items-center justify-center w-[29px] h-[29px] bg-white dark:bg-gray-800 rounded-md shadow-md"
                     >
                       {mapFullscreen ? (
                         <Minimize2 className="h-4 w-4 text-foreground" />

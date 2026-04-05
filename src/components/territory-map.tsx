@@ -574,20 +574,29 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
-        /* Style built-in geolocate button to match our UI */
+        /* Geolocate button — matches fullscreen button style exactly */
         .maplibregl-ctrl-geolocate {
-          background: rgba(255,255,255,0.1) !important;
+          background: white !important;
           border: none !important;
-          border-radius: 9999px !important;
-          width: 36px !important;
-          height: 36px !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
-          backdrop-filter: blur(2px) !important;
+          border-radius: 4px !important;
+          width: 29px !important;
+          height: 29px !important;
+          box-shadow: 0 0 0 2px rgba(0,0,0,0.1) !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 0 !important;
         }
-        .maplibregl-ctrl-geolocate:hover { background: rgba(255,255,255,0.2) !important; }
-        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active { background: #3b82f6 !important; }
-        .maplibregl-ctrl-geolocate .maplibregl-ctrl-icon { filter: none !important; }
-        .maplibregl-ctrl-bottom-left .maplibregl-ctrl { margin: 0 0 12px 12px !important; }
+        .maplibregl-ctrl-geolocate:hover { background: #f0f0f0 !important; }
+        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active {
+          background: white !important;
+        }
+        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' viewBox='0 0 29 29'%3E%3Ccircle cx='14.5' cy='14.5' r='5' fill='%233b82f6'/%3E%3Cpath stroke='%233b82f6' stroke-width='1.5' d='M14.5 3v4M14.5 22v4M3 14.5h4M22 14.5h4'/%3E%3Ccircle cx='14.5' cy='14.5' r='8' fill='none' stroke='%233b82f6' stroke-width='1.5'/%3E%3C/svg%3E") !important;
+        }
+        .maplibregl-ctrl-top-right { margin: 10px 10px 0 0 !important; }
+        .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 0 0 0 0 !important; }
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
