@@ -325,7 +325,19 @@ export default function TerritoryDetailView() {
             {/* Location toggle */}
             <button
               type="button"
-              onClick={() => setLocationOn((p) => !p)}
+              onClick={() => {
+                  if (!locationOn) {
+                    // Call getCurrentPosition synchronously in the user gesture
+                    // context — required by Safari to allow geolocation access
+                    navigator.geolocation.getCurrentPosition(
+                      () => setLocationOn(true),
+                      () => setLocationOn(true), // still try even on error
+                      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                  } else {
+                    setLocationOn(false);
+                  }
+                }}
               title={locationOn ? 'Hide my location' : 'Show my location'}
               className={[
                 'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',

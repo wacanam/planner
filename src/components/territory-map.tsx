@@ -509,15 +509,8 @@ export default function TerritoryMap({
       setTimeout(attempt, 100);
     };
 
-    // Safari doesn't support navigator.permissions for geolocation
-    // and blocks getCurrentPosition in async context.
-    // Simplest fix: call getCurrentPosition directly to prime the permission
-    // prompt, then trigger MapLibre's control.
-    navigator.geolocation.getCurrentPosition(
-      () => triggerLocation(),
-      () => triggerLocation(), // trigger anyway — let MapLibre handle the error UI
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+    // Permission already granted via button click (user gesture) — just trigger
+    triggerLocation();
 
     // Fly to user on first GPS fix (fires as soon as location is available)
     const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
