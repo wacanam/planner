@@ -365,61 +365,75 @@ export default function TerritoryMap({
 
         setMapReady(true);
 
-        // ── Heading cone — separate marker (not child of dot) ────────────
-        // Same approach as working manual toggle in main — separate mgl.Marker
-        // avoids inheriting dot's internal transforms (which inverted the angle)
-        let coneMarker: import('maplibre-gl').Marker | null = null;
-        let userLng = 0, userLat = 0;
+        // ── Heading cone — child of _dotElement (exact copy of working main formula) ──
+        let headingConeChild: HTMLElement | null = null;
         let headingRafId = 0;
-        let lastConeAngle = -1;
-        let rawHeading = 0;
+        let headingAngle = 0;
+        let hasHeading = false;
+        let lastHeadingAngle = -1;
+        let usingAOS = false;
 
-        // Cone element (0×0 wrapper, cone floats above via absolute positioning)
-        const makeConeEl = () => {
+        const getHeadingCone = () => {
+          if (headingConeChild) return headingConeChild;
+          const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
+          const dot = ctrl?._dotElement;
+          if (!dot) return null;
           const w = document.createElement('div');
-          w.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
-          w.classList.add('loc-cone-wrapper');
+          w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
           const cone = document.createElement('div');
           cone.style.cssText = [
-            'position:absolute;left:50%;bottom:100%;margin-bottom:2px;',
-            'transform:translateX(-50%);',
+            'position:absolute;left:50%;bottom:100%;',
+            'transform:translateX(-50%);margin-bottom:2px;',
             'width:0;height:0;',
             'border-left:5px solid transparent;',
             'border-right:5px solid transparent;',
             'border-bottom:16px solid rgba(59,130,246,0.85);',
             'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
-            'will-change:transform;',
           ].join('');
           w.appendChild(cone);
+          dot.style.overflow = 'visible';
+          dot.appendChild(w);
+          headingConeChild = w;
           return w;
         };
 
-        const renderCone = () => {
-          if (coneMarker) {
-            const bearing = map.getBearing();
-            const angle = (rawHeading - bearing + 360) % 360;  // same as working main formula
-            if (Math.abs(angle - lastConeAngle) > 0.5) {
-              const el = coneMarker.getElement();
-              el.style.transform = `rotate(${angle}deg)`;
-              lastConeAngle = angle;
-            }
-          }
-          headingRafId = requestAnimationFrame(renderCone);
+        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+          if (usingAOS) return;
+          const raw = getTiltCompensatedHeading(e);
+          if (raw !== null) { headingAngle = raw; hasHeading = true; }
         };
 
-        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
-          const raw = getTiltCompensatedHeading(e);
-          if (raw !== null) { rawHeading = raw; }
+        type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
+        const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
+        let aosSensor: InstanceType<AOSType> | null = null;
+
+        const renderHeading = () => {
+          if (hasHeading) {
+            const w = getHeadingCone();
+            if (w) {
+              const bearing = map.getBearing();
+              const angle = (headingAngle - bearing + 360) % 360;
+              if (Math.abs(angle - lastHeadingAngle) > 0.5) {
+                w.style.transform = `rotate(${angle}deg)`;
+                lastHeadingAngle = angle;
+              }
+            }
+          }
+          headingRafId = requestAnimationFrame(renderHeading);
         };
 
         const startHeading = () => {
-          // Create cone marker immediately — position synced via geolocate events
-          const el = makeConeEl();
-          coneMarker = new mgl.Marker({ element: el, anchor: 'center' });
-          headingRafId = requestAnimationFrame(renderCone);
+          headingRafId = requestAnimationFrame(renderHeading);
           window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.addEventListener('deviceorientation', onOrientation as EventListener, true);
-          // iOS 13+ permission
+          if (AOS) {
+            try {
+              aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+              aosSensor.onreading = () => { if (aosSensor) { headingAngle = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; } };
+              aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
+              aosSensor.start();
+            } catch { aosSensor = null; }
+          }
           type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
           const DOE = DeviceOrientationEvent as DOE;
           if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
@@ -427,19 +441,12 @@ export default function TerritoryMap({
 
         const stopHeading = () => {
           cancelAnimationFrame(headingRafId);
-          coneMarker?.remove();
-          coneMarker = null;
-          lastConeAngle = -1;
+          if (headingConeChild) { headingConeChild.remove(); headingConeChild = null; lastHeadingAngle = -1; }
+          hasHeading = false; usingAOS = false;
+          aosSensor?.stop(); aosSensor = null;
           window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
         };
-
-        // Sync cone marker position with GPS fixes
-        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
-          userLng = e.coords.longitude;
-          userLat = e.coords.latitude;
-          coneMarker?.setLngLat([userLng, userLat]).addTo(map);
-        });
 
         geolocate.on('trackuserlocationstart', startHeading);
         geolocate.on('trackuserlocationend',   stopHeading);
