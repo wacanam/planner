@@ -436,22 +436,11 @@ export default function TerritoryMap({
         const renderHeading = () => {
           if (hasHeading) {
             const w = getHeadingCone();
-            const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
-            const dot = ctrl?._dotElement;
-            if (w && dot) {
+            if (w) {
               const bearing = map.getBearing();
-              const pitch   = map.getPitch();
               const angle   = (headingAngle - bearing + 360) % 360;
-              // Rotate cone to compass heading
               w.style.transform = `rotate(${angle}deg)`;
               lastHeadingAngle = angle;
-              // Apply 3D perspective tilt to the dot's parent so dot + cone tilt together
-              const dotParent = dot.parentElement;
-              if (dotParent) {
-                dotParent.style.transform = `perspective(300px) rotateX(${pitch * 0.6}deg)`;
-                dotParent.style.transformOrigin = '50% 100%';
-                dotParent.style.willChange = 'transform';
-              }
             }
           }
           headingRafId = requestAnimationFrame(renderHeading);
@@ -459,6 +448,10 @@ export default function TerritoryMap({
 
         const startHeading = () => {
           headingRafId = requestAnimationFrame(renderHeading);
+          // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
+          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('map');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
           window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.addEventListener('deviceorientation', onOrientation as EventListener, true);
           if (AOS) {
@@ -478,10 +471,10 @@ export default function TerritoryMap({
           cancelAnimationFrame(headingRafId);
           if (headingConeChild) { headingConeChild.remove(); headingConeChild = null; lastHeadingAngle = -1; }
           hasHeading = false; usingAOS = false;
-          // Reset dot parent perspective
-          const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
-          const dotParent = ctrl?._dotElement?.parentElement;
-          if (dotParent) dotParent.style.transform = '';
+          // Reset dot marker pitch alignment
+          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
           aosSensor?.stop(); aosSensor = null;
           window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
