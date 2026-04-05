@@ -399,7 +399,8 @@ export default function TerritoryMap({
           const render = () => {
             if (coneChild) {
               const bearing = mapInstance.current?.getBearing() ?? 0;
-              const angle = (heading - bearing + 360) % 360;
+              // Negate heading because CSS rotate is clockwise but heading convention varies
+              const angle = (360 - heading - bearing + 720) % 360;
               if (Math.abs(angle - lastAngle) > 0.5) {
                 coneChild.style.transform = `rotate(${angle}deg)`;
                 lastAngle = angle;
