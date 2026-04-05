@@ -329,13 +329,18 @@ export default function TerritoryDetailView() {
               type="button"
               onClick={() => {
                   if (!locationOn) {
-                    // Request DeviceOrientation permission synchronously (iOS 13+ Safari/Chrome)
+                    // Must call trigger() synchronously in the gesture for Safari.
+                    // Call it immediately (may be a no-op if map not ready yet),
+                    // then set state so the useEffect retry loop takes over.
+                    geolocateTriggerRef.current?.();
+
+                    // DeviceOrientation permission (iOS 13+ Safari)
                     type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
                     const DOE = DeviceOrientationEvent as DOE;
                     if (typeof DOE.requestPermission === 'function') {
                       DOE.requestPermission()
                         .then(() => setLocationOn(true))
-                        .catch(() => setLocationOn(true)); // try anyway
+                        .catch(() => setLocationOn(true));
                     } else {
                       setLocationOn(true);
                     }
