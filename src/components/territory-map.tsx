@@ -228,7 +228,7 @@ export default function TerritoryMap({
         showUserLocation: true,
         fitBoundsOptions: { zoom: 16 },
       });
-      map.addControl(geolocate, 'right');
+      map.addControl(geolocate, 'top-right');
       geolocateRef.current = geolocate;
       onGeolocateReady?.(() => geolocate.trigger());
 
