@@ -365,24 +365,20 @@ export default function TerritoryMap({
 
         setMapReady(true);
 
-        // ── Heading cone — auto-attaches when GeolocateControl activates ──
-        // No custom toggle needed — fires on trackuserlocationstart/end
-        let coneEl: HTMLElement | null = null;
+        // ── Heading cone — separate marker (not child of dot) ────────────
+        // Same approach as working manual toggle in main — separate mgl.Marker
+        // avoids inheriting dot's internal transforms (which inverted the angle)
+        let coneMarker: import('maplibre-gl').Marker | null = null;
+        let userLng = 0, userLat = 0;
         let headingRafId = 0;
         let lastConeAngle = -1;
+        let rawHeading = 0;
 
-        // Circular mean filter — same as working main branch
-        const hf = new HeadingFilter(12);
-        let rawHeading = 0; // also track raw for direct use
-
-        const attachCone = () => {
-          const dot = map
-            .getContainer()
-            .querySelector<HTMLElement>('.maplibregl-user-location-dot');
-          if (!dot || coneEl) return;
-          const wrapper = document.createElement('div');
-          wrapper.style.cssText =
-            'position:absolute;inset:0;pointer-events:none;transform-origin:center;will-change:transform;';
+        // Cone element (0×0 wrapper, cone floats above via absolute positioning)
+        const makeConeEl = () => {
+          const w = document.createElement('div');
+          w.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
+          w.classList.add('loc-cone-wrapper');
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;left:50%;bottom:100%;margin-bottom:2px;',
@@ -392,20 +388,19 @@ export default function TerritoryMap({
             'border-right:5px solid transparent;',
             'border-bottom:16px solid rgba(59,130,246,0.85);',
             'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+            'will-change:transform;',
           ].join('');
-          wrapper.appendChild(cone);
-          dot.style.overflow = 'visible';
-          dot.appendChild(wrapper);
-          coneEl = wrapper;
+          w.appendChild(cone);
+          return w;
         };
 
         const renderCone = () => {
-          if (coneEl) {
+          if (coneMarker) {
             const bearing = map.getBearing();
-            // Invert: dot's parent container may already apply a transform
-            const angle = (360 - rawHeading + bearing + 360) % 360;
+            const angle = (rawHeading - bearing + 360) % 360;  // same as working main formula
             if (Math.abs(angle - lastConeAngle) > 0.5) {
-              coneEl.style.transform = `rotate(${angle}deg)`;
+              const el = coneMarker.getElement();
+              el.style.transform = `rotate(${angle}deg)`;
               lastConeAngle = angle;
             }
           }
@@ -414,21 +409,15 @@ export default function TerritoryMap({
 
         const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
           const raw = getTiltCompensatedHeading(e);
-          if (raw !== null) { hf.update(raw); rawHeading = raw; }
+          if (raw !== null) { rawHeading = raw; }
         };
 
         const startHeading = () => {
-          // Poll until dot appears (first GPS fix)
-          const poll = setInterval(() => {
-            attachCone();
-            if (coneEl) clearInterval(poll);
-          }, 300);
+          // Create cone marker immediately — position synced via geolocate events
+          const el = makeConeEl();
+          coneMarker = new mgl.Marker({ element: el, anchor: 'center' });
           headingRafId = requestAnimationFrame(renderCone);
-          window.addEventListener(
-            'deviceorientationabsolute',
-            onOrientation as EventListener,
-            true
-          );
+          window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.addEventListener('deviceorientation', onOrientation as EventListener, true);
           // iOS 13+ permission
           type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
@@ -438,22 +427,22 @@ export default function TerritoryMap({
 
         const stopHeading = () => {
           cancelAnimationFrame(headingRafId);
-          if (coneEl) {
-            coneEl.remove();
-            coneEl = null;
-            lastConeAngle = -1;
-          }
-          hf.reset();
-          window.removeEventListener(
-            'deviceorientationabsolute',
-            onOrientation as EventListener,
-            true
-          );
+          coneMarker?.remove();
+          coneMarker = null;
+          lastConeAngle = -1;
+          window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
           window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
         };
 
+        // Sync cone marker position with GPS fixes
+        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
+          userLng = e.coords.longitude;
+          userLat = e.coords.latitude;
+          coneMarker?.setLngLat([userLng, userLat]).addTo(map);
+        });
+
         geolocate.on('trackuserlocationstart', startHeading);
-        geolocate.on('trackuserlocationend', stopHeading);
+        geolocate.on('trackuserlocationend',   stopHeading);
       });
     });
 
