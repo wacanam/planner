@@ -610,10 +610,18 @@ export default function TerritoryMap({
           } else {
             const gyroAdvance = gyroRateZ * dt;
             const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
-            // 0.025 pull: slower magnetometer correction = less oscillation
-            // Only apply mag correction if diff > 1° to filter micro-noise
-            const magCorrection = Math.abs(magDiff) > 1.0 ? 0.025 * magDiff : 0;
-            compAngle = (compAngle + gyroAdvance + magCorrection + 360) % 360;
+            const absDiff = Math.abs(magDiff);
+
+            // Adaptive magnetometer pull:
+            // - Small diff (< 5°): likely noise → near-zero pull (0.005) to avoid oscillation
+            // - Medium diff (5–30°): gradual correction → linear scale up to 0.04
+            // - Large diff (> 30°): real turn → strong pull (0.08) to stay accurate
+            let magPull: number;
+            if (absDiff < 5)       magPull = 0.005;
+            else if (absDiff < 30) magPull = 0.005 + (absDiff - 5) * (0.035 / 25);
+            else                   magPull = 0.08;
+
+            compAngle = (compAngle + gyroAdvance + magPull * magDiff + 360) % 360;
           }
 
           // ── Smooth position lerp — eliminates GPS jump artifacts ────────
