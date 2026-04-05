@@ -407,11 +407,11 @@ export default function TerritoryMap({
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:120px;height:130px;',
-            'left:-60px;',
+            'width:180px;height:180px;',
+            'left:-90px;',
             'bottom:0;',
             // Radial gradient from center-bottom — bright at tip, fades outward
-            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0.25) 40%, rgba(59,130,246,0) 70%);',
+            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.7) 0%, rgba(59,130,246,0.35) 45%, rgba(59,130,246,0) 75%);',
             'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
             'pointer-events:none;',
           ].join('');
