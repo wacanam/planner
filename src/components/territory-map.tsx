@@ -545,6 +545,8 @@ export default function TerritoryMap({
 
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
         orientCount++;
+
+        // iOS: webkitCompassHeading is already tilt-compensated by the OS
         if (e.webkitCompassHeading !== undefined) {
           const acc = e.webkitCompassAccuracy ?? -1;
           if (orientCount > CALIB_DELAY) {
@@ -552,7 +554,7 @@ export default function TerritoryMap({
               badAccCount++;
               needsCalib = badAccCount >= CALIB_THRESHOLD;
             } else {
-              badAccCount = 0;   // reset on good reading
+              badAccCount = 0;
               needsCalib = false;
             }
           }
@@ -560,17 +562,30 @@ export default function TerritoryMap({
           hasMag = true;
           return;
         }
-        // Android absolute: alpha is clockwise from true north when absolute=true
-        if ((e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true && e.alpha !== null) {
-          magAngle = (360 - e.alpha!) % 360;
+
+        // Android: alpha is NOT tilt-compensated — apply tilt compensation
+        // using beta (pitch) and gamma (roll) to get true horizontal heading
+        if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+          const alpha = e.alpha * (Math.PI / 180);
+          const beta  = e.beta  * (Math.PI / 180);
+          const gamma = e.gamma * (Math.PI / 180);
+
+          // Tilt-compensated heading using rotation matrix projection
+          // (standard algorithm for phone-held-at-angle compass)
+          const x = Math.cos(alpha) * Math.sin(beta) * Math.sin(gamma)
+                  - Math.sin(alpha) * Math.cos(gamma);
+          const y = Math.sin(alpha) * Math.sin(beta) * Math.sin(gamma)
+                  + Math.cos(alpha) * Math.cos(gamma);
+
+          let heading = Math.atan2(x, y) * (180 / Math.PI);
+          if (heading < 0) heading += 360;
+
+          // For deviceorientationabsolute, heading is clockwise from true north
+          magAngle = ((e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true)
+            ? heading
+            : (360 - heading) % 360;
           hasMag = true;
           needsCalib = false;
-          return;
-        }
-        // Fallback: relative alpha (may drift, not true north)
-        if (e.alpha !== null) {
-          magAngle = (360 - e.alpha!) % 360;
-          hasMag = true;
         }
       };
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
