@@ -379,35 +379,44 @@ export default function TerritoryMap({
           const dot = ctrl?._dotElement;
           if (!dot) return null;
 
-          // Wrapper: same size as dot, overflow visible so beam extends beyond bounds
-          // z-index -1 so beam sits BEHIND the dot (looks like one element)
+          // Make dot solid so beam base isn't visible through it
+          dot.style.background = '#3b82f6';
+          dot.style.boxShadow = '0 0 0 3px white, 0 0 0 4px rgba(59,130,246,0.4)';
+
+          // Make all parent containers overflow-visible so beam shows during pan
+          let el: HTMLElement | null = dot;
+          while (el && el !== document.body) {
+            el.style.overflow = 'visible';
+            el = el.parentElement;
+          }
+
+          // Wrapper: zero-size at dot center, overflow visible, behind dot
           const w = document.createElement('div');
           w.style.cssText = [
-            'position:absolute;inset:0;',
+            'position:absolute;',
+            'top:50%;left:50%;',         // anchor at dot center
+            'width:0;height:0;',          // zero-size so it doesn't affect layout
+            'overflow:visible;',
             'pointer-events:none;',
-            'transform-origin:center center;',
+            'transform-origin:0 0;',     // rotate around dot center
             'will-change:transform;',
-            'z-index:-1;',               // behind the dot
-            'overflow:visible;',         // beam extends past dot bounds
+            'z-index:-1;',
           ].join('');
 
+          // Beam: wide fan shape, no visible base (starts thin at 0,0 = dot center)
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'left:50%;',
-            'bottom:50%;',               // base anchored at dot center
-            'transform:translateX(-50%);',
-            'width:56px;height:60px;',   // wider + taller beam
-            'background:linear-gradient(to top, rgba(59,130,246,0.6) 0%, rgba(59,130,246,0) 100%);',
-            'clip-path:polygon(25% 100%, 75% 100%, 100% 0%, 0% 0%);',
+            'width:70px;height:65px;',
+            'left:-35px;',               // center horizontally on anchor
+            'bottom:0;',                 // base at anchor (dot center)
+            'background:linear-gradient(to top, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0) 100%);',
+            'clip-path:polygon(50% 100%, 0% 0%, 100% 0%);', // triangle: tip at bottom-center, wide at top
             'pointer-events:none;',
           ].join('');
 
-          // Ensure the dot itself allows overflow and stacks above beam
-          dot.style.overflow = 'visible';
-          dot.style.position = 'relative';
-          dot.style.zIndex = '1';
           w.appendChild(cone);
+          dot.style.position = 'relative';
           dot.appendChild(w);
           headingConeChild = w;
           return w;
