@@ -466,7 +466,7 @@ export default function TerritoryMap({
         headingCleanupRef.current();
         headingCleanupRef.current = null;
       }
-      // Don't reset bearing — keep map orientation as-is
+      setNeedsCalibration(false);
       return;
     }
 
@@ -519,14 +519,17 @@ export default function TerritoryMap({
       // Magnetometer angle from DeviceOrientationEvent
       let magAngle  = 0;
       let hasMag    = false;
-      let needsCalib = false;
+      let needsCalib    = false;
+      let orientCount   = 0;          // wait for stable readings before showing prompt
+      const CALIB_DELAY = 8;         // readings before calibration check kicks in
 
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
+        orientCount++;
         // iOS: use webkitCompassHeading (true north, calibrated by OS)
         if (e.webkitCompassHeading !== undefined) {
-          // webkitCompassAccuracy: -1 = uncalibrated, 0-3 = accuracy level
           const acc = e.webkitCompassAccuracy ?? -1;
-          needsCalib = acc < 0 || acc > 25; // > 25° error = needs calibration
+          // Only flag calibration after several readings — avoids false positive on first load
+          needsCalib = orientCount > CALIB_DELAY && (acc < 0 || acc > 25);
           magAngle = e.webkitCompassHeading;
           hasMag = true;
           return;
