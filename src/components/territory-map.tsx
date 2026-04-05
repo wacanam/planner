@@ -499,22 +499,21 @@ export default function TerritoryMap({
       return;
     }
 
-    // Trigger built-in location dot
-    // On iOS, geolocation must be triggered from a user gesture context.
-    // navigator.geolocation.getCurrentPosition primes the permission prompt,
-    // then geolocate.trigger() activates the MapLibre dot.
+    // Activate location dot — retry until trigger() returns true
+    // Also call getCurrentPosition to ensure GPS is active in Safari
     const triggerLocation = () => {
+      // Prime GPS (Safari needs this even after permission is granted)
+      navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+      // Retry trigger until MapLibre accepts it
       let attempts = 0;
       const attempt = () => {
         const g = geolocateRef.current;
         if (!g) return;
         const ok = g.trigger();
-        if (!ok && attempts < 10) { attempts++; setTimeout(attempt, 200); }
+        if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
       };
-      setTimeout(attempt, 100);
+      attempt();
     };
-
-    // Permission already granted via button click (user gesture) — just trigger
     triggerLocation();
 
     // Fly to user on first GPS fix (fires as soon as location is available)

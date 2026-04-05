@@ -329,26 +329,16 @@ export default function TerritoryDetailView() {
               type="button"
               onClick={() => {
                   if (!locationOn) {
-                    // All permission requests + GeolocateControl.trigger() must
-                    // happen synchronously in the user gesture (Safari requirement)
-
-                    // 1. GPS permission
-                    navigator.geolocation.getCurrentPosition(
-                      () => setLocationOn(true),
-                      () => setLocationOn(true),
-                      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                    // 2. DeviceOrientation permission (iOS 13+)
+                    // Request DeviceOrientation permission synchronously (iOS 13+ Safari/Chrome)
                     type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
                     const DOE = DeviceOrientationEvent as DOE;
                     if (typeof DOE.requestPermission === 'function') {
-                      DOE.requestPermission().then(() => {
-                        // After permission granted, trigger location dot
-                        geolocateTriggerRef.current?.();
-                      }).catch(() => {});
+                      DOE.requestPermission()
+                        .then(() => setLocationOn(true))
+                        .catch(() => setLocationOn(true)); // try anyway
+                    } else {
+                      setLocationOn(true);
                     }
-                    // 3. Trigger GeolocateControl immediately (for non-iOS / already permitted)
-                    geolocateTriggerRef.current?.();
                   } else {
                     setLocationOn(false);
                   }
