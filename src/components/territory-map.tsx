@@ -230,7 +230,12 @@ export default function TerritoryMap({
       });
       map.addControl(geolocate, 'top-right');
       geolocateRef.current = geolocate;
-      onGeolocateReady?.(() => geolocate.trigger());
+      onGeolocateReady?.(() => {
+        // Click the native button — same as user gesture, works on all browsers
+        const btn = (geolocate as unknown as { _geolocateButton?: HTMLButtonElement })._geolocateButton;
+        if (btn) btn.click();
+        else geolocate.trigger();
+      });
 
       mapInstance.current = map;
 

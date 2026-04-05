@@ -328,17 +328,10 @@ export default function TerritoryDetailView() {
             <button
               type="button"
               onClick={() => {
-                  // Click the built-in MapLibre geolocate button directly —
-                  // identical behavior, handles all browser/permission quirks natively
-                  const nativeBtn = document.querySelector<HTMLButtonElement>('.maplibregl-ctrl-geolocate');
-                  if (nativeBtn) {
-                    nativeBtn.click();
-                    setLocationOn((p) => !p);
-                  } else {
-                    // Fallback if button not found
-                    geolocateTriggerRef.current?.();
-                    setLocationOn((p) => !p);
-                  }
+                  // geolocateTriggerRef clicks the native _geolocateButton directly
+                  geolocateTriggerRef.current?.();
+                  setLocationOn((p) => !p);
+
                   // DeviceOrientation permission (iOS 13+)
                   type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
                   const DOE = DeviceOrientationEvent as DOE;
