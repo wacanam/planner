@@ -73,7 +73,9 @@ export function getTiltCompensatedHeading(
   if (h < 0) h += 360;
 
   const abs = (e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true;
-  return abs ? h : (360 - h) % 360;
+  // deviceorientationabsolute: alpha increases counter-clockwise, invert to clockwise
+  // relative deviceorientation: (360 - h) already handles the inversion
+  return abs ? (360 - h) % 360 : (360 - h) % 360;
 }
 
 /**
@@ -92,11 +94,12 @@ export function getTiltCompensatedHeading(
  */
 export function getHeadingFromQuaternion(q: readonly [number, number, number, number]): number {
   const [x, y, z, w] = q;
-  // Extract yaw (rotation around vertical axis) from quaternion
+  // Extract yaw from quaternion, then invert to get clockwise-from-north heading
   const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
   let deg = yaw * (180 / Math.PI);
   if (deg < 0) deg += 360;
-  return deg;
+  // AOS quaternion yaw is counter-clockwise; invert to clockwise compass bearing
+  return (360 - deg) % 360;
 }
 
 /** iOS compass accuracy. */
