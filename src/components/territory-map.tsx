@@ -520,16 +520,24 @@ export default function TerritoryMap({
       let magAngle  = 0;
       let hasMag    = false;
       let needsCalib    = false;
-      let orientCount   = 0;          // wait for stable readings before showing prompt
-      const CALIB_DELAY = 8;         // readings before calibration check kicks in
+      let orientCount   = 0;
+      let badAccCount   = 0;          // consecutive bad accuracy readings
+      const CALIB_DELAY   = 10;       // readings before checking
+      const CALIB_THRESHOLD = 8;      // consecutive bad readings needed to show prompt
 
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
         orientCount++;
-        // iOS: use webkitCompassHeading (true north, calibrated by OS)
         if (e.webkitCompassHeading !== undefined) {
           const acc = e.webkitCompassAccuracy ?? -1;
-          // Only flag calibration after several readings — avoids false positive on first load
-          needsCalib = orientCount > CALIB_DELAY && (acc < 0 || acc > 25);
+          if (orientCount > CALIB_DELAY) {
+            if (acc < 0 || acc > 25) {
+              badAccCount++;
+              needsCalib = badAccCount >= CALIB_THRESHOLD;
+            } else {
+              badAccCount = 0;   // reset on good reading
+              needsCalib = false;
+            }
+          }
           magAngle = e.webkitCompassHeading;
           hasMag = true;
           return;
