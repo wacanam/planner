@@ -262,8 +262,8 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Fullscreen toggle — top-right */}
-                  <div className="absolute top-0 right-0 z-[1001] p-3 pointer-events-auto">
+                  {/* Fullscreen toggle — right center */}
+                  <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[1001] p-2 pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setMapFullscreen(p => !p)}
