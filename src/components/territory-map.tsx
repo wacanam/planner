@@ -371,8 +371,9 @@ export default function TerritoryMap({
         let headingRafId = 0;
         let lastConeAngle = -1;
 
-        // Circular mean filter (12 readings ≈ 200ms at 60Hz) — same as working version
+        // Circular mean filter — same as working main branch
         const hf = new HeadingFilter(12);
+        let rawHeading = 0; // also track raw for direct use
 
         const attachCone = () => {
           const dot = map
@@ -401,7 +402,7 @@ export default function TerritoryMap({
         const renderCone = () => {
           if (coneEl) {
             const bearing = map.getBearing();
-            const angle = (hf.current - bearing + 360) % 360;
+            const angle = (rawHeading - bearing + 360) % 360;
             if (Math.abs(angle - lastConeAngle) > 0.5) {
               coneEl.style.transform = `rotate(${angle}deg)`;
               lastConeAngle = angle;
@@ -412,7 +413,7 @@ export default function TerritoryMap({
 
         const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
           const raw = getTiltCompensatedHeading(e);
-          if (raw !== null) hf.update(raw);
+          if (raw !== null) { hf.update(raw); rawHeading = raw; }
         };
 
         const startHeading = () => {
