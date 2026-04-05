@@ -402,7 +402,8 @@ export default function TerritoryMap({
         const renderCone = () => {
           if (coneEl) {
             const bearing = map.getBearing();
-            const angle = (rawHeading - bearing + 360) % 360;
+            // Invert: dot's parent container may already apply a transform
+            const angle = (360 - rawHeading + bearing + 360) % 360;
             if (Math.abs(angle - lastConeAngle) > 0.5) {
               coneEl.style.transform = `rotate(${angle}deg)`;
               lastConeAngle = angle;
