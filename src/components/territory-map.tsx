@@ -575,6 +575,11 @@ export default function TerritoryMap({
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
         /* Geolocate button — translucent pill matching other overlays */
+        .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
         .maplibregl-ctrl-geolocate {
           background: rgba(255,255,255,0.25) !important;
           backdrop-filter: blur(2px) !important;
@@ -588,12 +593,11 @@ export default function TerritoryMap({
           padding: 0 !important;
         }
         .maplibregl-ctrl-geolocate:hover { background: rgba(255,255,255,0.35) !important; }
-        /* Replace icon with navigation arrow */
+        /* Navigation arrow icon */
         .maplibregl-ctrl-geolocate .maplibregl-ctrl-icon {
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%231e293b'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important;
           background-size: 18px 18px !important;
         }
-        /* Active state — blue arrow */
         .maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon,
         .maplibregl-ctrl-geolocate-active-error .maplibregl-ctrl-icon {
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z'/%3E%3C/svg%3E") !important;
