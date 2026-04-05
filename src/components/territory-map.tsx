@@ -524,32 +524,79 @@ export default function TerritoryMap({
     };
     geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
 
-    // ── Flashlight cone — raw OS heading, no extra filtering ────────────
-    import('maplibre-gl').then((mgl) => {
-      let userLng = 0, userLat = 0;
-      let dispLng = 0, dispLat = 0;
-      let hasPos  = false;
+    // ── Heading: rotate native GeolocateControl dot ─────────────────────
+    // _dotElement is MapLibre's own location dot — we inject a heading arrow
+    // as a CSS ::before element and rotate it directly. No custom markers.
+    import('maplibre-gl').then(() => {
+      const geolocate = geolocateRef.current;
+      if (!geolocate) return;
 
-      // Trust the OS heading directly — no extra filter
-      // iOS webkitCompassHeading = CoreMotion sensor fusion (already optimal)
-      // Android deviceorientationabsolute alpha = OS-fused tilt-compensated heading
-      let heading = 0;
+      let heading    = 0;
       let hasHeading = false;
-      let usingAOS   = false; // true = AbsoluteOrientationSensor active (Android best)
+      let usingAOS   = false;
 
       // Calibration
-      let badAccCount = 0, needsCalib = false;
-      let lastCalibCheck = 0;
+      let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
 
-      // deviceorientation fallback (iOS Chrome = webkitCompassHeading, Android fallback)
+      // Insert heading arrow CSS into the dot via a dynamic <style> tag
+      // The arrow is a ::before pseudo rotating inside the dot
+      const styleId = 'maplibre-heading-arrow';
+      if (!document.getElementById(styleId)) {
+        const s = document.createElement('style');
+        s.id = styleId;
+        s.textContent = [
+          '.maplibregl-user-location-dot {',
+          '  transform-origin: center center;',
+          '  transition: none;',
+          '  will-change: transform;',
+          '}',
+          '.maplibregl-user-location-dot::before {',
+          '  content: "";',
+          '  position: absolute;',
+          '  left: 50%;',
+          '  bottom: 100%;',
+          '  transform: translateX(-50%);',
+          '  width: 0; height: 0;',
+          '  border-left: 5px solid transparent;',
+          '  border-right: 5px solid transparent;',
+          '  border-bottom: 14px solid rgba(59,130,246,0.85);',
+          '  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));',
+          '}',
+        ].join('\n');
+        document.head.appendChild(s);
+      }
+
+      const getDot = () => (geolocate as unknown as { _dotElement?: HTMLElement })._dotElement;
+
+      let rafId = 0;
+      let lastAngle = -1;
+
+      function render() {
+        if (hasHeading) {
+          setNeedsCalibration(needsCalib);
+          onCalibrationNeeded?.(needsCalib);
+          const dot = getDot();
+          if (dot) {
+            const mapBearing = mapInstance.current?.getBearing() ?? 0;
+            const angle = (heading - mapBearing + 360) % 360;
+            if (Math.abs(angle - lastAngle) > 0.5) {
+              dot.style.transform = `rotate(${angle}deg)`;
+              lastAngle = angle;
+            }
+          }
+        }
+        rafId = requestAnimationFrame(render);
+      }
+      rafId = requestAnimationFrame(render);
+
+      // deviceorientation fallback
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
-        if (usingAOS) return; // AOS is active, ignore this event
+        if (usingAOS) return;
         const raw = getTiltCompensatedHeading(e);
         if (raw === null) return;
         heading    = raw;
         hasHeading = true;
-
-        const now = performance.now();
+        const now  = performance.now();
         if (now - lastCalibCheck > 2000) {
           lastCalibCheck = now;
           const acc = getCompassAccuracy(e);
@@ -560,13 +607,10 @@ export default function TerritoryMap({
           }
         }
       };
-
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
 
-      // AbsoluteOrientationSensor — Android OS-level quaternion fusion
-      // Same quality as CoreMotion on iOS: gyro + mag + accel fused by the OS
-      // When available, this is the primary source (overrides deviceorientation)
+      // AbsoluteOrientationSensor (Android best)
       type AOSType = {
         new(opts: { frequency: number; referenceFrame?: string }): {
           start(): void; stop(): void;
@@ -577,26 +621,17 @@ export default function TerritoryMap({
       };
       const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
       let aosSensor: InstanceType<AOSType> | null = null;
-
       if (AOS) {
         try {
-          // referenceFrame:'screen' accounts for screen rotation (portrait/landscape)
           aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
           aosSensor.onreading = () => {
             if (!aosSensor) return;
-            heading    = getHeadingFromQuaternion(aosSensor.quaternion);
-            hasHeading = true;
-            usingAOS   = true;
+            heading = getHeadingFromQuaternion(aosSensor.quaternion);
+            hasHeading = true; usingAOS = true;
           };
-          aosSensor.onerror = () => {
-            usingAOS  = false;
-            aosSensor = null;
-            // Fall back to deviceorientation (already listening)
-          };
+          aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
           aosSensor.start();
-        } catch {
-          aosSensor = null;
-        }
+        } catch { aosSensor = null; }
       }
 
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
@@ -605,70 +640,11 @@ export default function TerritoryMap({
         DOE.requestPermission().catch(() => {});
       }
 
-      // Cone element
-      let rafId = 0;
-      const cone = document.createElement('div');
-      cone.style.cssText = [
-        'position:absolute;',
-        'width:36px;height:48px;',
-        'bottom:0;left:-18px;',
-        'background:linear-gradient(to top,rgba(59,130,246,0.45) 0%,rgba(59,130,246,0) 100%);',
-        'clip-path:polygon(30% 100%,70% 100%,100% 0%,0% 0%);',
-        'transform-origin:50% 100%;',
-        'will-change:transform;',
-        'pointer-events:none;',
-      ].join('');
-
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
-      wrapper.classList.add('loc-cone-wrapper');
-      wrapper.appendChild(cone);
-
-      const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
-
-      // Only update DOM when values actually change — skip redundant frames
-      let lastAngle = -1, lastLng = 0, lastLat = 0;
-
-      function render() {
-        if (hasHeading && hasPos) {
-          setNeedsCalibration(needsCalib);
-          onCalibrationNeeded?.(needsCalib);
-
-          dispLng += 0.12 * (userLng - dispLng);
-          dispLat += 0.12 * (userLat - dispLat);
-
-          if (Math.abs(dispLng - lastLng) > 1e-6 || Math.abs(dispLat - lastLat) > 1e-6) {
-            coneMarker.setLngLat([dispLng, dispLat]);
-            lastLng = dispLng; lastLat = dispLat;
-          }
-
-          const mapBearing = mapInstance.current?.getBearing() ?? 0;
-          const angle = (heading - mapBearing + 360) % 360;
-          if (Math.abs(angle - lastAngle) > 0.5) {
-            cone.style.transform = `rotate(${angle}deg)`;
-            lastAngle = angle;
-          }
-        }
-        rafId = requestAnimationFrame(render);
-      }
-      rafId = requestAnimationFrame(render);
-
-      const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
-        userLng = e.coords.longitude;
-        userLat = e.coords.latitude;
-        if (!hasPos) {
-          dispLng = userLng; dispLat = userLat;
-          coneMarker.setLngLat([dispLng, dispLat]).addTo(mapInstance.current!);
-        }
-        hasPos = true;
-      };
-      geolocate.on('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
-
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
-        coneMarker.remove();
+        const dot = getDot();
+        if (dot) dot.style.transform = '';
         aosSensor?.stop();
-        geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
       };
