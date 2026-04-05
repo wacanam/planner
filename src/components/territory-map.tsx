@@ -153,8 +153,9 @@ export default function TerritoryMap({
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
 
-  const [mapReady, setMapReady]       = useState(false);
-  const [isDark, setIsDark]           = useState(false);
+  const [mapReady, setMapReady]         = useState(false);
+  const [isDark, setIsDark]             = useState(false);
+  const [needsCalibration, setNeedsCalibration] = useState(false);
 
   useEffect(() => {
     const update = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -516,12 +517,32 @@ export default function TerritoryMap({
       window.addEventListener('devicemotion', onMotion as EventListener, true);
 
       // Magnetometer angle from DeviceOrientationEvent
-      let magAngle = 0;
-      let hasMag   = false;
-      const onOrientation = (e: DeviceOrientationEvent) => {
-        const compass = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
-        magAngle = compass !== undefined ? compass : (360 - (e.alpha ?? 0)) % 360;
-        hasMag = true;
+      let magAngle  = 0;
+      let hasMag    = false;
+      let needsCalib = false;
+
+      const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
+        // iOS: use webkitCompassHeading (true north, calibrated by OS)
+        if (e.webkitCompassHeading !== undefined) {
+          // webkitCompassAccuracy: -1 = uncalibrated, 0-3 = accuracy level
+          const acc = e.webkitCompassAccuracy ?? -1;
+          needsCalib = acc < 0 || acc > 25; // > 25° error = needs calibration
+          magAngle = e.webkitCompassHeading;
+          hasMag = true;
+          return;
+        }
+        // Android absolute: alpha is clockwise from true north when absolute=true
+        if ((e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true && e.alpha !== null) {
+          magAngle = (360 - e.alpha!) % 360;
+          hasMag = true;
+          needsCalib = false;
+          return;
+        }
+        // Fallback: relative alpha (may drift, not true north)
+        if (e.alpha !== null) {
+          magAngle = (360 - e.alpha!) % 360;
+          hasMag = true;
+        }
       };
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation', onOrientation as EventListener, true);
@@ -563,6 +584,8 @@ export default function TerritoryMap({
       // rAF loop — apply smoothed angle to cone rotation
       function render(timestamp: number) {
         if (hasMag && hasPos) {
+          // Update calibration warning
+          setNeedsCalibration(needsCalib);
           const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0;
           lastTime = timestamp;
 
@@ -647,6 +670,17 @@ export default function TerritoryMap({
       <div ref={mapRef} className="w-full h-full" />
 
 
+
+      {/* Compass calibration prompt */}
+      {locationOn && needsCalibration && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[1003] pointer-events-none">
+          <div className="bg-black/70 text-white text-center px-4 py-3 rounded-2xl max-w-[200px]">
+            <div className="text-2xl mb-1">∞</div>
+            <p className="text-[11px] font-semibold leading-tight">Calibrate compass</p>
+            <p className="text-[10px] text-white/70 mt-1">Move device in a figure-8 pattern</p>
+          </div>
+        </div>
+      )}
 
       {!boundary && households.filter((h) => h.latitude && h.longitude).length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/60 text-center p-4 pointer-events-none">
