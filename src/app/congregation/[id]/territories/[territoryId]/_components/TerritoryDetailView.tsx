@@ -38,11 +38,32 @@ function getAssigneeDisplayName(a: LocalAssignment): string {
 function CalibrationOverlay({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = React.useState<'guide' | 'done'>('guide');
 
-  // Auto-advance to "done" after 6s (time to do a few figure-8s)
+  // Listen to real compass accuracy — complete when accuracy improves
   React.useEffect(() => {
-    const t = setTimeout(() => setPhase('done'), 6000);
-    return () => clearTimeout(t);
-  }, []);
+    if (phase === 'done') return;
+
+    let goodCount = 0;
+    const GOOD_THRESHOLD = 5; // consecutive good readings = calibrated
+
+    const onOrientation = (e: DeviceOrientationEvent & { webkitCompassAccuracy?: number }) => {
+      const acc = e.webkitCompassAccuracy;
+      if (acc !== undefined && acc >= 0 && acc <= 15) {
+        goodCount++;
+        if (goodCount >= GOOD_THRESHOLD) setPhase('done');
+      } else {
+        goodCount = 0;
+      }
+    };
+
+    window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+    // Fallback: auto-complete after 10s if no iOS accuracy data available
+    const fallback = setTimeout(() => setPhase('done'), 10000);
+
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+      clearTimeout(fallback);
+    };
+  }, [phase]);
 
   return (
     <div className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
@@ -77,17 +98,17 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
             <p className="text-xs text-white/60 leading-snug">
               Slowly tilt and rotate your device in a figure-8 pattern
             </p>
-            {/* Progress bar */}
+            {/* Indeterminate progress — completes when accuracy actually improves */}
             <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-500 rounded-full"
-                style={{ animation: 'calib-progress 6s linear forwards' }}
+                style={{ animation: 'calib-pulse 1.5s ease-in-out infinite alternate' }}
               />
             </div>
             <style>{`
-              @keyframes calib-progress {
-                from { width: 0%; }
-                to   { width: 100%; }
+              @keyframes calib-pulse {
+                from { width: 20%; margin-left: 0%; }
+                to   { width: 60%; margin-left: 40%; }
               }
             `}</style>
           </>

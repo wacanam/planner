@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
-import { HeadingFilter, getTiltCompensatedHeading, compassAccuracy } from '@/lib/heading-filter';
+import { HeadingFilter, getTiltCompensatedHeading, getCompassAccuracy } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -503,39 +503,62 @@ export default function TerritoryMap({
     };
     geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
 
-    // ── Flashlight cone — attached to user location dot ───────────────────
+    // ── Flashlight cone — Kalman filter with gyro predict + mag update ────
     import('maplibre-gl').then((mgl) => {
-      // ── Position state ────────────────────────────────────────────────────
+      // Position state
       let userLng = 0, userLat = 0;
-      let dispLng = 0, dispLat = 0;   // smoothed display position (lerped)
+      let dispLng = 0, dispLat = 0;
       let hasPos  = false;
-      const POS_ALPHA = 0.15;          // lerp factor — lower = smoother GPS jumps
+      const POS_ALPHA = 0.15;
 
-      // ── Kalman heading filter ─────────────────────────────────────────────
-      // Q=0.5: heading can change ~0.5 deg/step
-      // R=8: magnetometer noise ≈ 8 deg RMS (conservative)
-      // Higher R = smoother/less reactive; lower R = faster but noisier
-      const headingKalman = new HeadingFilter({ Q: 0.5, R: 8 });
+      // Kalman filter: Q=0.3 (gyro noise), R=3 (mag noise)
+      const kf = new HeadingFilter(0.3, 3);
 
-      // Calibration tracking
-      let orientCount = 0, badAccCount = 0, needsCalib = false;
-      const CALIB_DELAY = 10, CALIB_THRESHOLD = 8;
+      // Gyro state
+      let gyroRate = 0;
+      let lastMotionTime = 0;
+      const GYRO_THRESHOLD = 0.3; // deg/s deadband
 
+      const onMotion = (e: DeviceMotionEvent) => {
+        const rate = e.rotationRate?.alpha ?? 0;
+        gyroRate = Math.abs(rate) > GYRO_THRESHOLD ? rate : 0;
+        lastMotionTime = performance.now();
+      };
+      window.addEventListener('devicemotion', onMotion as EventListener, true);
+
+      // Calibration state — based on actual accuracy, not timer
+      let badAccCount = 0, needsCalib = false;
+      const CALIB_THRESHOLD = 10;
+      let lastCalibCheck = 0;
+
+      let lastOrientTime = 0;
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
-        orientCount++;
+        const now = performance.now();
+        const dt  = lastOrientTime ? Math.min((now - lastOrientTime) / 1000, 0.1) : 0;
+        lastOrientTime = now;
+
         const raw = getTiltCompensatedHeading(e);
         if (raw === null) return;
 
-        // Feed into Kalman filter
-        headingKalman.update(raw);
+        // Predict with gyro if fresh (< 200ms old)
+        const gyroAge = now - lastMotionTime;
+        if (kf.isReady && dt > 0 && gyroAge < 200) {
+          kf.predict(gyroRate, dt);
+        }
 
-        // Calibration check (iOS only via webkitCompassAccuracy)
-        if (orientCount > CALIB_DELAY) {
-          const acc = compassAccuracy(e);
-          if (acc === 'poor') {
+        // Update with magnetometer
+        kf.update(raw);
+
+        // Real calibration check — only on iOS where we have accuracy data
+        if (now - lastCalibCheck > 2000) { // check every 2s
+          lastCalibCheck = now;
+          const acc = getCompassAccuracy(e);
+          if (acc === 'poor' || acc === 'uncalibrated') {
             badAccCount++;
-            needsCalib = badAccCount >= CALIB_THRESHOLD;
-          } else if (acc === 'good') {
+            if (badAccCount >= CALIB_THRESHOLD) {
+              needsCalib = true;
+            }
+          } else if (acc === 'good' || acc === 'ok') {
             badAccCount = 0;
             needsCalib = false;
           }
@@ -552,9 +575,8 @@ export default function TerritoryMap({
         DOE.requestPermission().catch(() => {});
       }
 
+      // Cone element
       let rafId = 0;
-
-      // ── Cone element ──────────────────────────────────────────────────────
       const cone = document.createElement('div');
       cone.style.cssText = [
         'position:absolute;',
@@ -574,35 +596,28 @@ export default function TerritoryMap({
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
 
-      // ── rAF render loop ───────────────────────────────────────────────────
       function render() {
-        if (headingKalman.isReady && hasPos) {
-          // Calibration state
+        if (kf.isReady && hasPos) {
           setNeedsCalibration(needsCalib);
           onCalibrationNeeded?.(needsCalib);
 
-          // Smooth position lerp
           dispLng += POS_ALPHA * (userLng - dispLng);
           dispLat += POS_ALPHA * (userLat - dispLat);
           coneMarker.setLngLat([dispLng, dispLat]);
 
-          // Map-relative cone angle
           const mapBearing    = mapInstance.current?.getBearing() ?? 0;
-          const relativeAngle = (headingKalman.current - mapBearing + 360) % 360;
+          const relativeAngle = (kf.current - mapBearing + 360) % 360;
           cone.style.transform = `rotate(${relativeAngle}deg)`;
         }
         rafId = requestAnimationFrame(render);
       }
       rafId = requestAnimationFrame(render);
 
-      // Sync cone position with GPS dot
       const onGeolocate = (e: { coords: GeolocationCoordinates }) => {
         userLng = e.coords.longitude;
         userLat = e.coords.latitude;
         if (!hasPos) {
-          // First fix: snap to position immediately, no lerp
-          dispLng = userLng;
-          dispLat = userLat;
+          dispLng = userLng; dispLat = userLat;
           coneMarker.setLngLat([dispLng, dispLat]).addTo(mapInstance.current!);
         }
         hasPos = true;
@@ -612,7 +627,9 @@ export default function TerritoryMap({
       headingCleanupRef.current = () => {
         cancelAnimationFrame(rafId);
         coneMarker.remove();
+        kf.reset();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
+        window.removeEventListener('devicemotion', onMotion as EventListener, true);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
       };

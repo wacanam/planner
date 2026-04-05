@@ -1,73 +1,66 @@
 /**
- * HeadingFilter — accurate compass heading with zero jitter
+ * HeadingFilter — Kalman filter with gyroscope prediction
  *
- * Algorithm: 1D Kalman filter
+ * State: heading angle (degrees)
+ * Predict: advance using gyroscope rate × dt
+ * Update:  correct using tilt-compensated magnetometer reading
  *
- * Two noise sources:
- *   - Process noise (Q): how much the heading actually changes per second
- *   - Measurement noise (R): how noisy the magnetometer is
- *
- * The Kalman gain K = P / (P + R) automatically balances:
- *   - High uncertainty → trust measurement more
- *   - Low uncertainty  → trust prediction more
- *
- * Result: optimal estimate that's smooth when stationary,
- *         responsive when turning, and never oscillates.
+ * This is the same algorithm used in professional navigation:
+ * gyro = smooth fast response, mag = absolute reference drift correction
  */
 export class HeadingFilter {
-  private angle   = 0;     // current estimate (degrees)
-  private P       = 1;     // error covariance
-  private ready   = false;
+  private angle = 0;
+  private P     = 999;   // start with high uncertainty so first reading snaps
+  private ready = false;
 
-  // Tuning constants
-  private readonly Q: number; // process noise variance (deg²/s)
-  private readonly R: number; // measurement noise variance (deg²)
+  // Q: gyro process noise (deg²/s) — how much heading can change per second
+  // R: magnetometer noise (deg²) — sensor noise floor
+  private readonly Q: number;
+  private readonly R: number;
 
-  constructor(options?: { Q?: number; R?: number }) {
-    // Q: how fast heading really changes (lower = smoother but slower)
-    // R: magnetometer noise level (higher = smoother but less responsive)
-    this.Q = options?.Q ?? 0.1;
-    this.R = options?.R ?? 5.0;
+  constructor(Q = 0.3, R = 3) {
+    this.Q = Q;
+    this.R = R;
   }
 
   /**
-   * Feed a new magnetometer reading (degrees, 0-360).
+   * Predict step — call with gyro yaw rate (deg/s) and dt (seconds).
+   * Call even with rate=0 to grow uncertainty over time.
+   */
+  predict(rate: number, dt: number) {
+    if (!this.ready) return;
+    this.angle = (this.angle + rate * dt + 360) % 360;
+    this.P += this.Q * dt;
+  }
+
+  /**
+   * Update step — call with magnetometer heading (degrees).
    * Returns the filtered heading.
    */
   update(measurement: number): number {
     if (!this.ready) {
       this.angle = measurement;
+      this.P     = 1;
       this.ready = true;
       return this.angle;
     }
 
-    // ── Predict ────────────────────────────────────────────────────────────
-    // No gyro input here — prediction = same as last estimate
-    // P grows by Q each step (we're less certain over time)
-    this.P += this.Q;
-
-    // ── Update ────────────────────────────────────────────────────────────
-    // Innovation: shortest-path difference between measurement and estimate
+    // Innovation: shortest path difference
     const innovation = shortestAngle(measurement, this.angle);
 
-    // Kalman gain: how much to trust the measurement vs prediction
+    // Kalman gain
     const K = this.P / (this.P + this.R);
 
-    // Update estimate
+    // Update state and covariance
     this.angle = (this.angle + K * innovation + 360) % 360;
-
-    // Update covariance
-    this.P = (1 - K) * this.P;
+    this.P     = (1 - K) * this.P;
 
     return this.angle;
   }
 
-  /**
-   * Reset filter (e.g. when location toggled off)
-   */
   reset() {
     this.ready = false;
-    this.P = 1;
+    this.P     = 999;
   }
 
   get current() { return this.angle; }
@@ -76,21 +69,18 @@ export class HeadingFilter {
 
 /**
  * Tilt-compensated heading from DeviceOrientationEvent.
- *
- * On iOS: returns webkitCompassHeading directly (already tilt-compensated by OS).
- * On Android: applies rotation matrix to correct for pitch/roll tilt.
- *
- * Returns null if insufficient data.
+ * iOS: returns webkitCompassHeading (OS-level sensor fusion, best quality).
+ * Android: rotation matrix projection of alpha/beta/gamma.
+ * Returns null if data is insufficient.
  */
 export function getTiltCompensatedHeading(
   e: DeviceOrientationEvent & { webkitCompassHeading?: number }
 ): number | null {
-  // iOS — OS already handles tilt compensation
-  if (e.webkitCompassHeading !== undefined) {
+  // iOS — fully tilt-compensated and Kalman-filtered by the OS
+  if (typeof e.webkitCompassHeading === 'number') {
     return e.webkitCompassHeading;
   }
 
-  // Need all three angles for tilt compensation
   if (e.alpha === null || e.beta === null || e.gamma === null) return null;
 
   const toRad = Math.PI / 180;
@@ -98,36 +88,36 @@ export function getTiltCompensatedHeading(
   const β = e.beta  * toRad;
   const γ = e.gamma * toRad;
 
-  // Standard tilt-compensation rotation matrix projection
-  // Projects the gravity-corrected magnetic field onto the horizontal plane
   const x = Math.cos(α) * Math.sin(β) * Math.sin(γ) - Math.sin(α) * Math.cos(γ);
   const y = Math.sin(α) * Math.sin(β) * Math.sin(γ) + Math.cos(α) * Math.cos(γ);
 
-  let heading = Math.atan2(x, y) * (180 / Math.PI);
-  if (heading < 0) heading += 360;
+  let h = Math.atan2(x, y) * (180 / Math.PI);
+  if (h < 0) h += 360;
 
-  // deviceorientationabsolute = true north; relative needs inversion
-  const isAbsolute = (e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true;
-  return isAbsolute ? heading : (360 - heading) % 360;
+  // deviceorientationabsolute gives true north directly
+  const isAbs = (e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true;
+  return isAbs ? h : (360 - h) % 360;
 }
 
 /**
- * Shortest signed angle difference: result in (-180, 180].
- * Handles the 359° → 1° wrap-around correctly.
+ * Shortest signed difference between two angles, result in (-180, 180].
  */
 export function shortestAngle(target: number, current: number): number {
   return ((target - current + 540) % 360) - 180;
 }
 
 /**
- * Compass accuracy level from iOS webkitCompassAccuracy.
- * Returns 'good' | 'poor' | 'unknown'
+ * iOS compass accuracy from webkitCompassAccuracy (degrees of error).
+ * -1 = uncalibrated, 0-10 = good, 11-25 = ok, >25 = poor
  */
-export function compassAccuracy(
+export type CompassAccuracy = 'good' | 'ok' | 'poor' | 'uncalibrated' | 'unknown';
+export function getCompassAccuracy(
   e: DeviceOrientationEvent & { webkitCompassAccuracy?: number }
-): 'good' | 'poor' | 'unknown' {
-  const acc = e.webkitCompassAccuracy;
-  if (acc === undefined) return 'unknown';
-  if (acc < 0 || acc > 25) return 'poor';
-  return 'good';
+): CompassAccuracy {
+  const a = e.webkitCompassAccuracy;
+  if (a === undefined) return 'unknown';
+  if (a < 0)  return 'uncalibrated';
+  if (a <= 10) return 'good';
+  if (a <= 25) return 'ok';
+  return 'poor';
 }
