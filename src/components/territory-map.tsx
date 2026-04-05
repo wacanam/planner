@@ -411,7 +411,7 @@ export default function TerritoryMap({
             'left:-50px;',               // center horizontally on anchor
             'bottom:0;',                 // base at anchor (dot center)
             'background:linear-gradient(to top, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0) 100%);',
-            'clip-path:polygon(50% 100%, 5% 0%, 95% 0%);', // triangle: tip at bottom-center, wide at top
+            'clip-path:polygon(50% 100%, 20% 0%, 80% 0%);',, // triangle: tip at bottom-center, wide at top
             'pointer-events:none;',
           ].join('');
 
