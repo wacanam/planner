@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
-import { HeadingFilter, getTiltCompensatedHeading, getCompassAccuracy } from '@/lib/heading-filter';
+import { HeadingFilter, getTiltCompensatedHeading, getCompassAccuracy, getHeadingFromQuaternion } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -543,6 +543,24 @@ export default function TerritoryMap({
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
 
+      // Android: try AbsoluteOrientationSensor (quaternion-based, most accurate)
+      // Falls back to deviceorientationabsolute if unavailable
+      type AOS = { new(opts: { frequency: number }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
+      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOS | undefined;
+      let aosSensor: ReturnType<AOS['prototype']['constructor']> | null = null;
+      if (AOS) {
+        try {
+          aosSensor = new AOS({ frequency: 60 });
+          aosSensor.onreading = () => {
+            if (!aosSensor) return;
+            const h = getHeadingFromQuaternion(aosSensor.quaternion);
+            hf.update(h);
+          };
+          aosSensor.onerror = () => { aosSensor = null; }; // fall back to deviceorientation
+          aosSensor.start();
+        } catch { aosSensor = null; }
+      }
+
       // iOS 13+ permission
       type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
       const DOE = DeviceOrientationEvent as DOE;
@@ -603,6 +621,7 @@ export default function TerritoryMap({
         cancelAnimationFrame(rafId);
         coneMarker.remove();
         hf.reset();
+        aosSensor?.stop();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
