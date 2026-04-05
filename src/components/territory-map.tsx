@@ -378,14 +378,13 @@ export default function TerritoryMap({
 
         const createConeMarker = () => {
           if (coneMkr) return coneMkr;
-          // Cone element: dot-sized base (15px), short beam ~60px
           const el = document.createElement('div');
           el.style.cssText = 'position:relative;width:0;height:0;overflow:visible;pointer-events:none;';
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:60px;height:60px;',   // short beam
-            'left:-30px;bottom:0;',       // base centered at marker anchor
+            'width:60px;height:60px;',
+            'left:-30px;bottom:0;',
             'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.65) 0%, rgba(59,130,246,0.3) 45%, rgba(59,130,246,0) 75%);',
             'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
             'pointer-events:none;',
@@ -393,7 +392,16 @@ export default function TerritoryMap({
           ].join('');
           el.appendChild(cone);
           coneEl = el;
-          coneMkr = new mgl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'map' });
+          // z-index 1 so cone renders below the dot (dot marker has higher z by default)
+          const mkr = new mgl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'map' });
+          (mkr.getElement() as HTMLElement).style.zIndex = '1';
+          // Dot marker gets higher z so it renders on top
+          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker } | null;
+          const dotEl = ctrl?._userLocationDotMarker?.getElement() as HTMLElement | undefined;
+          if (dotEl) dotEl.style.zIndex = '3';
+          coneMkr = mkr;
+          return coneMkr;
+        };
           return coneMkr;
         };
 
@@ -408,9 +416,8 @@ export default function TerritoryMap({
         let aosSensor: InstanceType<AOSType> | null = null;
 
         const renderHeading = () => {
-          if (hasHeading && hasPos) {
-            const mkr = createConeMarker();
-            mkr.setLngLat([userLng, userLat]).addTo(map);
+          // Only rotate — never add/remove marker in rAF loop
+          if (hasHeading && hasPos && coneMkr) {
             const bearing = map.getBearing();
             const angle   = (headingAngle - bearing + 360) % 360;
             if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
@@ -421,11 +428,19 @@ export default function TerritoryMap({
           headingRafId = requestAnimationFrame(renderHeading);
         };
 
-        // Sync cone marker position with GPS
+        // Create + add cone marker only on first GPS fix, then just update position
         geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
           userLng = e.coords.longitude;
           userLat = e.coords.latitude;
-          hasPos = true;
+          if (!hasPos) {
+            // First fix: create marker and add to map
+            const mkr = createConeMarker();
+            mkr.setLngLat([userLng, userLat]).addTo(map);
+            hasPos = true;
+          } else {
+            // Subsequent fixes: just move it
+            coneMkr?.setLngLat([userLng, userLat]);
+          }
         });
 
         const startHeading = () => {
