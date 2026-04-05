@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
+import { HeadingFilter, getTiltCompensatedHeading, compassAccuracy } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -504,90 +505,43 @@ export default function TerritoryMap({
 
     // ── Flashlight cone — attached to user location dot ───────────────────
     import('maplibre-gl').then((mgl) => {
-      let userLng   = 0;
-      let userLat   = 0;
-      // Smoothed display position — interpolated in rAF for smooth movement
-      let dispLng   = 0;
-      let dispLat   = 0;
-      let hasPos    = false;
-      const POS_ALPHA = 0.15; // position lerp factor — lower = smoother drift
+      // ── Position state ────────────────────────────────────────────────────
+      let userLng = 0, userLat = 0;
+      let dispLng = 0, dispLat = 0;   // smoothed display position (lerped)
+      let hasPos  = false;
+      const POS_ALPHA = 0.15;          // lerp factor — lower = smoother GPS jumps
 
-      // Smoothing state
-      // ── Complementary filter ─────────────────────────────────────────────
-      // Gyroscope: fast, smooth, no noise — but drifts over time (no absolute ref)
-      // Magnetometer: absolute but slow and noisy
-      // Complementary filter = gyro for fast changes + magnetometer for drift correction
-      //   angle = (1 - α) × (angle + gyro_rate × dt) + α × magnetometer
-      // α = 0.02 means 98% gyro, 2% magnetometer correction per tick → very smooth
+      // ── Kalman heading filter ─────────────────────────────────────────────
+      // Q=0.5: heading can change ~0.5 deg/step
+      // R=8: magnetometer noise ≈ 8 deg RMS (conservative)
+      // Higher R = smoother/less reactive; lower R = faster but noisier
+      const headingKalman = new HeadingFilter({ Q: 0.5, R: 8 });
 
-      let compAngle = 0;        // complementary filter output
-      let hasAngle  = false;
-      let lastTime  = 0;
-
-      // Gyro rates from DeviceMotionEvent (deg/s around Z axis = yaw)
-      let gyroRateZ = 0;
-      const GYRO_DEADBAND = 0.5; // deg/s — ignore micro-vibration / sensor bias
-      const onMotion = (e: DeviceMotionEvent) => {
-        const raw = e.rotationRate?.alpha ?? 0;
-        // Zero out tiny rates — they're just bias noise, not real rotation
-        gyroRateZ = Math.abs(raw) > GYRO_DEADBAND ? raw : 0;
-      };
-      window.addEventListener('devicemotion', onMotion as EventListener, true);
-
-      // Magnetometer angle from DeviceOrientationEvent
-      let magAngle  = 0;
-      let hasMag    = false;
-      let needsCalib    = false;
-      let orientCount   = 0;
-      let badAccCount   = 0;          // consecutive bad accuracy readings
-      const CALIB_DELAY   = 10;       // readings before checking
-      const CALIB_THRESHOLD = 8;      // consecutive bad readings needed to show prompt
+      // Calibration tracking
+      let orientCount = 0, badAccCount = 0, needsCalib = false;
+      const CALIB_DELAY = 10, CALIB_THRESHOLD = 8;
 
       const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
         orientCount++;
+        const raw = getTiltCompensatedHeading(e);
+        if (raw === null) return;
 
-        // iOS: webkitCompassHeading is already tilt-compensated by the OS
-        if (e.webkitCompassHeading !== undefined) {
-          const acc = e.webkitCompassAccuracy ?? -1;
-          if (orientCount > CALIB_DELAY) {
-            if (acc < 0 || acc > 25) {
-              badAccCount++;
-              needsCalib = badAccCount >= CALIB_THRESHOLD;
-            } else {
-              badAccCount = 0;
-              needsCalib = false;
-            }
+        // Feed into Kalman filter
+        headingKalman.update(raw);
+
+        // Calibration check (iOS only via webkitCompassAccuracy)
+        if (orientCount > CALIB_DELAY) {
+          const acc = compassAccuracy(e);
+          if (acc === 'poor') {
+            badAccCount++;
+            needsCalib = badAccCount >= CALIB_THRESHOLD;
+          } else if (acc === 'good') {
+            badAccCount = 0;
+            needsCalib = false;
           }
-          magAngle = e.webkitCompassHeading;
-          hasMag = true;
-          return;
-        }
-
-        // Android: alpha is NOT tilt-compensated — apply tilt compensation
-        // using beta (pitch) and gamma (roll) to get true horizontal heading
-        if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
-          const alpha = e.alpha * (Math.PI / 180);
-          const beta  = e.beta  * (Math.PI / 180);
-          const gamma = e.gamma * (Math.PI / 180);
-
-          // Tilt-compensated heading using rotation matrix projection
-          // (standard algorithm for phone-held-at-angle compass)
-          const x = Math.cos(alpha) * Math.sin(beta) * Math.sin(gamma)
-                  - Math.sin(alpha) * Math.cos(gamma);
-          const y = Math.sin(alpha) * Math.sin(beta) * Math.sin(gamma)
-                  + Math.cos(alpha) * Math.cos(gamma);
-
-          let heading = Math.atan2(x, y) * (180 / Math.PI);
-          if (heading < 0) heading += 360;
-
-          // For deviceorientationabsolute, heading is clockwise from true north
-          magAngle = ((e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true)
-            ? heading
-            : (360 - heading) % 360;
-          hasMag = true;
-          needsCalib = false;
         }
       };
+
       window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.addEventListener('deviceorientation', onOrientation as EventListener, true);
 
@@ -600,74 +554,41 @@ export default function TerritoryMap({
 
       let rafId = 0;
 
-      // Cone: beam pointing UP from origin (0,0). Rotation pivot = base = center of dot.
-      // Wrapper is 0×0 so MapLibre anchor='center' puts it exactly on the GPS coord.
+      // ── Cone element ──────────────────────────────────────────────────────
       const cone = document.createElement('div');
       cone.style.cssText = [
         'position:absolute;',
         'width:36px;height:48px;',
-        'bottom:0;',               // base sits at wrapper origin (dot center)
-        'left:-18px;',             // center horizontally
+        'bottom:0;left:-18px;',
         'background:linear-gradient(to top, rgba(59,130,246,0.4) 0%, rgba(59,130,246,0) 100%);',
         'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
-        'transform-origin:50% 100%;', // pivot at base center
+        'transform-origin:50% 100%;',
         'will-change:transform;',
         'pointer-events:none;',
       ].join('');
 
       const wrapper = document.createElement('div');
-      // Zero-size wrapper — MapLibre anchor='center' places (0,0) exactly at lngLat
       wrapper.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
+      wrapper.classList.add('loc-cone-wrapper');
       wrapper.appendChild(cone);
 
       const coneMarker = new mgl.Marker({ element: wrapper, anchor: 'center' });
-      // Marker renders in MapLibre's marker container — use class to control stacking
-      wrapper.classList.add('loc-cone-wrapper');
-      wrapper.style.position = 'relative';
 
-      // rAF loop — apply smoothed angle to cone rotation
-      function render(timestamp: number) {
-        if (hasMag && hasPos) {
-          // Update calibration warning
+      // ── rAF render loop ───────────────────────────────────────────────────
+      function render() {
+        if (headingKalman.isReady && hasPos) {
+          // Calibration state
           setNeedsCalibration(needsCalib);
           onCalibrationNeeded?.(needsCalib);
-          const dt = lastTime ? Math.min((timestamp - lastTime) / 1000, 0.1) : 0;
-          lastTime = timestamp;
 
-          // ── Smooth heading ──────────────────────────────────────────────
-          if (!hasAngle) {
-            compAngle = magAngle;
-            hasAngle = true;
-          } else {
-            const gyroAdvance = gyroRateZ * dt;
-            const magDiff = ((magAngle - compAngle + 540) % 360) - 180;
-            const absDiff = Math.abs(magDiff);
-
-            // When stationary (gyro = 0), increase mag pull to correct drift faster
-            // When moving, use adaptive pull based on disagreement size
-            const isStationary = gyroRateZ === 0;
-            let magPull: number;
-            if (isStationary) {
-              // Stationary: mag drives correction — but still gentle to avoid noise
-              magPull = absDiff < 3 ? 0.01 : 0.05;
-            } else if (absDiff < 5) {
-              magPull = 0.005;  // noise gate
-            } else if (absDiff < 30) {
-              magPull = 0.005 + (absDiff - 5) * (0.035 / 25);
-            } else {
-              magPull = 0.08;   // large real turn
-            }
-
-            compAngle = (compAngle + gyroAdvance + magPull * magDiff + 360) % 360;
-          }
-
-          // ── Smooth position lerp — eliminates GPS jump artifacts ────────
+          // Smooth position lerp
           dispLng += POS_ALPHA * (userLng - dispLng);
           dispLat += POS_ALPHA * (userLat - dispLat);
           coneMarker.setLngLat([dispLng, dispLat]);
 
-          const mapBearing = mapInstance.current?.getBearing() ?? 0;
-          const relativeAngle = (compAngle - mapBearing + 360) % 360;
+          // Map-relative cone angle
+          const mapBearing    = mapInstance.current?.getBearing() ?? 0;
+          const relativeAngle = (headingKalman.current - mapBearing + 360) % 360;
           cone.style.transform = `rotate(${relativeAngle}deg)`;
         }
         rafId = requestAnimationFrame(render);
@@ -692,7 +613,6 @@ export default function TerritoryMap({
         cancelAnimationFrame(rafId);
         coneMarker.remove();
         geolocate.off('geolocate', onGeolocate as Parameters<typeof geolocate.on>[1]);
-        window.removeEventListener('devicemotion', onMotion as EventListener, true);
         window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
         window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
       };
