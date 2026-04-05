@@ -157,6 +157,7 @@ export default function TerritoryMap({
   const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
   const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const headingCleanupRef = useRef<(() => void) | null>(null);
+  const watchIdRef        = useRef<number | null>(null);
   const headingAngleRef   = useRef<number>(0);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
@@ -314,30 +315,31 @@ export default function TerritoryMap({
         }
 
         // ── GeolocateControl (built-in location + heading) ───────────────
-        const geolocate = new mgl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-          trackUserLocation: true,
-          showAccuracyCircle: true,
-          fitBoundsOptions: { zoom: 16 },
-        });
-        // Add control off-screen — we use our own toggle button
-        map.addControl(geolocate);
-        geolocateRef.current = geolocate;
-        // Expose trigger fn to parent for synchronous gesture invocation (Safari)
-        onGeolocateReady?.(() => geolocate.trigger());
+        // Own location dot — pure watchPosition, no GeolocateControl state machine
+        // Accuracy circle element
+        const accuracyEl = document.createElement('div');
+        accuracyEl.className = 'loc-accuracy-circle';
+        accuracyEl.style.cssText = [
+          'position:absolute;border-radius:50%;',
+          'background:rgba(59,130,246,0.08);',
+          'border:1.5px solid rgba(59,130,246,0.3);',
+          'transform:translate(-50%,-50%);',
+          'pointer-events:none;display:none;',
+        ].join('');
 
-        // Tap on location dot → trigger calibration
-        geolocate.on('geolocate', () => {
-          // Dot renders after first fix — attach click once
-          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
-          if (dot && !dot.getAttribute('data-calib-listener')) {
-            dot.setAttribute('data-calib-listener', '1');
-            dot.addEventListener('click', (e) => {
-              e.stopPropagation();
-              onLocationDotClick?.();
-            });
-          }
-        });
+        // User dot element
+        const dotEl = document.createElement('div');
+        dotEl.className = 'maplibregl-user-location-dot loc-user-dot';
+        dotEl.style.cssText = 'cursor:pointer;display:none;';
+        dotEl.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
+
+        const accuracyMarker = new mgl.Marker({ element: accuracyEl, anchor: 'center' });
+        const dotMarker      = new mgl.Marker({ element: dotEl,      anchor: 'center' });
+
+        geolocateRef.current = { _dotElement: dotEl, _accuracyEl: accuracyEl, _dotMarker: dotMarker, _accuracyMarker: accuracyMarker } as unknown as import('maplibre-gl').GeolocateControl;
+
+        // Expose a noop trigger since we use watchPosition directly
+        onGeolocateReady?.(() => {});
 
         setMapReady(true);
       });
@@ -360,12 +362,7 @@ export default function TerritoryMap({
     if (!map || !mapReady) return;
     const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
     map.setStyle(style.url);
-    // After style reload, re-trigger location if it was active
-    map.once('styledata', () => {
-      if (locationOn && geolocateRef.current) {
-        setTimeout(() => geolocateRef.current?.trigger(), 300);
-      }
-    });
+    // watchPosition continues after style change — markers re-added on next GPS fix
   }, [mapStyle, mapReady]);
 
   // ── Household markers effect ──────────────────────────────────────────────
@@ -483,186 +480,163 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
-  // ── Location toggle — GeolocateControl + DeviceOrientation heading ──────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
+  // ── Location: pure watchPosition — stable on all browsers ──────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
   useEffect(() => {
-    const geolocate = geolocateRef.current;
     const map = mapInstance.current;
-    if (!geolocate || !map || !mapReady) return;
+    if (!map || !mapReady) return;
+
+    const refs = geolocateRef.current as unknown as {
+      _dotElement: HTMLElement;
+      _accuracyEl: HTMLElement;
+      _dotMarker: import('maplibre-gl').Marker;
+      _accuracyMarker: import('maplibre-gl').Marker;
+    } | null;
+    if (!refs) return;
 
     if (!locationOn) {
-      // Clean up heading
-      if (headingCleanupRef.current) {
-        headingCleanupRef.current();
-        headingCleanupRef.current = null;
+      // Clean stop
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
+      refs._dotElement.style.display = 'none';
+      refs._accuracyEl.style.display = 'none';
+      refs._dotMarker.remove();
+      refs._accuracyMarker.remove();
+      if (headingCleanupRef.current) { headingCleanupRef.current(); headingCleanupRef.current = null; }
       setNeedsCalibration(false);
-      // Stop GeolocateControl — trigger() cycles it back to OFF state
-      // and removes the dot + accuracy circle
-      const g = geolocateRef.current;
-      if (g) {
-        // GeolocateControl with trackUserLocation cycles: OFF→WAITING→ACTIVE→OFF
-        // When active, one trigger() call cycles back to OFF
-        const state = (g as unknown as { _watchState?: string })._watchState;
-        if (state && state !== 'OFF') {
-          g.trigger(); // cycles to OFF, removes dot
-        }
-      }
       return;
     }
 
-    // Activate location dot with retry
-    let attempts = 0;
-    const attempt = () => {
-      const g = geolocateRef.current;
-      if (!g) return;
-      const ok = g.trigger();
-      if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
-    };
-    attempt();
+    // Start watching
+    let firstFix = true;
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { longitude, latitude, accuracy } = pos.coords;
+        refs._dotElement.style.display = '';
+        refs._accuracyEl.style.display = '';
+        refs._dotMarker.setLngLat([longitude, latitude]).addTo(map);
+        refs._accuracyMarker.setLngLat([longitude, latitude]).addTo(map);
 
-    // Fly to user on first GPS fix (fires as soon as location is available)
-    const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
-      mapInstance.current?.flyTo({
-        center: [e.coords.longitude, e.coords.latitude],
-        zoom: Math.max(mapInstance.current.getZoom(), 17),
-        duration: 600,
-        essential: true,
-      });
-      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
-    };
-    geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+        // Size accuracy circle
+        const center = map.project([longitude, latitude]);
+        const edge   = map.project([longitude + (accuracy / 111320), latitude]);
+        const r      = Math.max(10, Math.abs(edge.x - center.x));
+        refs._accuracyEl.style.width  = `${r * 2}px`;
+        refs._accuracyEl.style.height = `${r * 2}px`;
 
-    // ── Heading: rotate native GeolocateControl dot ─────────────────────
-    // _dotElement is MapLibre's own location dot — we inject a heading arrow
-    // as a CSS ::before element and rotate it directly. No custom markers.
-    import('maplibre-gl').then(() => {
-      const geolocate = geolocateRef.current;
-      if (!geolocate) return;
-
-      let heading    = 0;
-      let hasHeading = false;
-      let usingAOS   = false;
-
-      // Calibration
-      let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
-
-      // Build a rotating child inside _dotElement — never touch the parent's
-      // transform (MapLibre uses it for positioning). Instead we insert a
-      // zero-size wrapper that covers the dot's center and rotates a cone.
-      const getDot = () => (geolocate as unknown as { _dotElement?: HTMLElement })._dotElement;
-
-      // Create cone child — injected once after first GPS fix
-      let coneChild: HTMLElement | null = null;
-      const getCone = () => {
-        if (coneChild) return coneChild;
-        const dot = getDot();
-        if (!dot) return null;
-        // Wrapper: same size as dot (12px), overflow visible
-        const w = document.createElement('div');
-        w.style.cssText = [
-          'position:absolute;inset:0;',
-          'pointer-events:none;',
-          'transform-origin:center center;',
-          'will-change:transform;',
-        ].join('');
-        // Cone: sits above center of dot
-        const cone = document.createElement('div');
-        cone.style.cssText = [
-          'position:absolute;',
-          'left:50%;bottom:100%;',
-          'transform:translateX(-50%);',
-          'width:0;height:0;',
-          'border-left:5px solid transparent;',
-          'border-right:5px solid transparent;',
-          'border-bottom:16px solid rgba(59,130,246,0.85);',
-          'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
-          'margin-bottom:2px;',
-        ].join('');
-        w.appendChild(cone);
-        dot.style.overflow = 'visible';
-        dot.appendChild(w);
-        coneChild = w;
-        return w;
-      };
-
-      let rafId = 0;
-      let lastAngle = -1;
-
-      function render() {
-        if (hasHeading) {
-          setNeedsCalibration(needsCalib);
-          onCalibrationNeeded?.(needsCalib);
-          const w = getCone();
-          if (w) {
-            const mapBearing = mapInstance.current?.getBearing() ?? 0;
-            const angle = (heading - mapBearing + 360) % 360;
-            if (Math.abs(angle - lastAngle) > 0.5) {
-              w.style.transform = `rotate(${angle}deg)`;
-              lastAngle = angle;
-            }
-          }
+        if (firstFix) {
+          firstFix = false;
+          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 17), duration: 600 });
         }
-        rafId = requestAnimationFrame(render);
+      },
+      () => { /* ignore errors — dot just won't show */ },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+
+    // Start map zoom listener to keep accuracy circle sized correctly
+    const onZoom = () => refs._accuracyMarker && refs._accuracyMarker.getLngLat && (() => {
+      const ll = refs._dotMarker.getLngLat();
+      if (!ll) return;
+      const center = map.project(ll);
+      const edge   = map.project([ll.lng + (10 / 111320), ll.lat]);
+      const r = Math.max(10, Math.abs(edge.x - center.x));
+      refs._accuracyEl.style.width  = `${r * 2}px`;
+      refs._accuracyEl.style.height = `${r * 2}px`;
+    })();
+    map.on('zoom', onZoom);
+
+    return () => { map.off('zoom', onZoom); };
+  }, [locationOn, mapReady]);
+
+  // ── Heading: rotate dot child on compass update ────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
+  useEffect(() => {
+    if (!locationOn || !mapReady) return;
+
+    const refs = geolocateRef.current as unknown as { _dotElement: HTMLElement } | null;
+    if (!refs) return;
+
+    let coneChild: HTMLElement | null = null;
+    const getCone = () => {
+      if (coneChild) return coneChild;
+      const dot = refs._dotElement;
+      if (!dot) return null;
+      const w = document.createElement('div');
+      w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
+      const cone = document.createElement('div');
+      cone.style.cssText = [
+        'position:absolute;left:50%;bottom:100%;',
+        'transform:translateX(-50%);margin-bottom:2px;',
+        'width:0;height:0;',
+        'border-left:5px solid transparent;',
+        'border-right:5px solid transparent;',
+        'border-bottom:16px solid rgba(59,130,246,0.85);',
+        'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+      ].join('');
+      w.appendChild(cone);
+      dot.style.overflow = 'visible';
+      dot.appendChild(w);
+      coneChild = w;
+      return w;
+    };
+
+    let heading = 0, hasHeading = false, usingAOS = false;
+    let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
+    let rafId = 0, lastAngle = -1;
+
+    function render() {
+      if (hasHeading) {
+        setNeedsCalibration(needsCalib);
+        onCalibrationNeeded?.(needsCalib);
+        const w = getCone();
+        if (w) {
+          const mapBearing = mapInstance.current?.getBearing() ?? 0;
+          const angle = (heading - mapBearing + 360) % 360;
+          if (Math.abs(angle - lastAngle) > 0.5) { w.style.transform = `rotate(${angle}deg)`; lastAngle = angle; }
+        }
       }
       rafId = requestAnimationFrame(render);
+    }
+    rafId = requestAnimationFrame(render);
 
-      // deviceorientation fallback
-      const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
-        if (usingAOS) return;
-        const raw = getTiltCompensatedHeading(e);
-        if (raw === null) return;
-        heading    = raw;
-        hasHeading = true;
-        const now  = performance.now();
-        if (now - lastCalibCheck > 2000) {
-          lastCalibCheck = now;
-          const acc = getCompassAccuracy(e);
-          if (acc === 'poor' || acc === 'uncalibrated') {
-            if (++badAccCount >= 8) needsCalib = true;
-          } else if (acc === 'good' || acc === 'ok') {
-            badAccCount = 0; needsCalib = false;
-          }
-        }
-      };
-      window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-      window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
-
-      // AbsoluteOrientationSensor (Android best)
-      type AOSType = {
-        new(opts: { frequency: number; referenceFrame?: string }): {
-          start(): void; stop(): void;
-          onreading: (() => void) | null;
-          onerror:   ((e: unknown) => void) | null;
-          quaternion: readonly [number, number, number, number];
-        };
-      };
-      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
-      let aosSensor: InstanceType<AOSType> | null = null;
-      if (AOS) {
-        try {
-          aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
-          aosSensor.onreading = () => {
-            if (!aosSensor) return;
-            heading = getHeadingFromQuaternion(aosSensor.quaternion);
-            hasHeading = true; usingAOS = true;
-          };
-          aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
-          aosSensor.start();
-        } catch { aosSensor = null; }
+    const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number }) => {
+      if (usingAOS) return;
+      const raw = getTiltCompensatedHeading(e);
+      if (raw === null) return;
+      heading = raw; hasHeading = true;
+      const now = performance.now();
+      if (now - lastCalibCheck > 2000) {
+        lastCalibCheck = now;
+        const acc = getCompassAccuracy(e);
+        if (acc === 'poor' || acc === 'uncalibrated') { if (++badAccCount >= 8) needsCalib = true; }
+        else if (acc === 'good' || acc === 'ok') { badAccCount = 0; needsCalib = false; }
       }
+    };
+    window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+    window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
 
-      // iOS 13+ DeviceOrientation permission is requested in the button onClick
-      // (user gesture context). No need to request it here.
+    type AOSType = { new(opts: { frequency: number; referenceFrame?: string }): { start(): void; stop(): void; onreading: (() => void) | null; onerror: ((e: unknown) => void) | null; quaternion: readonly [number, number, number, number] } };
+    const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as AOSType | undefined;
+    let aosSensor: InstanceType<AOSType> | null = null;
+    if (AOS) {
+      try {
+        aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+        aosSensor.onreading = () => { if (!aosSensor) return; heading = getHeadingFromQuaternion(aosSensor.quaternion); hasHeading = true; usingAOS = true; };
+        aosSensor.onerror = () => { usingAOS = false; aosSensor = null; };
+        aosSensor.start();
+      } catch { aosSensor = null; }
+    }
 
-      headingCleanupRef.current = () => {
-        cancelAnimationFrame(rafId);
-        if (coneChild) { coneChild.remove(); coneChild = null; }
-        aosSensor?.stop();
-        window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-        window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
-      };
-    });
+    // iOS 13+ permission already requested in onClick gesture
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (coneChild) { coneChild.remove(); coneChild = null; }
+      aosSensor?.stop();
+      window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+      window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
+    };
   }, [locationOn, mapReady]);
 
   return (
