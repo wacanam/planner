@@ -187,7 +187,7 @@ export default function TerritoryMap({
       const validPts = households.filter((h) => h.latitude && h.longitude);
       let lng = center?.[1] ?? 124.85;
       let lat = center?.[0] ?? 8.37;
-      let zoom = 14;
+      const zoom = 14;
 
       // Center on boundary if available
       if (boundary) {
@@ -228,7 +228,7 @@ export default function TerritoryMap({
         showUserLocation: true,
         fitBoundsOptions: { zoom: 16 },
       });
-      map.addControl(geolocate, 'top-right');
+      map.addControl(geolocate, 'bottom-left');
       geolocateRef.current = geolocate;
       onGeolocateReady?.(() => {
         // Click the native button — same as user gesture, works on all browsers
@@ -627,8 +627,20 @@ export default function TerritoryMap({
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
-        /* Built-in geolocate button — visible for testing */
-        /* .maplibregl-ctrl-geolocate { display: none !important; } */
+        /* Style built-in geolocate button to match our UI */
+        .maplibregl-ctrl-geolocate {
+          background: rgba(255,255,255,0.1) !important;
+          border: none !important;
+          border-radius: 9999px !important;
+          width: 36px !important;
+          height: 36px !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+          backdrop-filter: blur(2px) !important;
+        }
+        .maplibregl-ctrl-geolocate:hover { background: rgba(255,255,255,0.2) !important; }
+        .maplibregl-ctrl-geolocate.maplibregl-ctrl-geolocate-active { background: #3b82f6 !important; }
+        .maplibregl-ctrl-geolocate .maplibregl-ctrl-icon { filter: none !important; }
+        .maplibregl-ctrl-bottom-left .maplibregl-ctrl { margin: 0 0 12px 12px !important; }
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }

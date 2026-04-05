@@ -187,9 +187,7 @@ export default function TerritoryDetailView() {
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
   const [showStylePicker, setShowStylePicker] = useState(false);
-  const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
-  const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -252,10 +250,8 @@ export default function TerritoryDetailView() {
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
                     mapStyle={mapStyle}
-                    locationOn={locationOn}
                     onCalibrationNeeded={(needed: boolean) => { if (needed) setShowCalibPrompt(true); }}
                     onLocationDotClick={() => setShowCalibPrompt(true)}
-                    onGeolocateReady={(fn: () => void) => { geolocateTriggerRef.current = fn; }}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -321,40 +317,6 @@ export default function TerritoryDetailView() {
               );
             })()}
           </div>{/* end flex-1 map wrapper */}
-
-          {/* Location toggle — fixed bottom-left */}
-          <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
-            {/* Location toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                  // geolocateTriggerRef clicks the native _geolocateButton directly
-                  geolocateTriggerRef.current?.();
-                  setLocationOn((p) => !p);
-
-                  // DeviceOrientation permission (iOS 13+)
-                  type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-                  const DOE = DeviceOrientationEvent as DOE;
-                  if (typeof DOE.requestPermission === 'function') {
-                    DOE.requestPermission().catch(() => {});
-                  }
-                }}
-              title={locationOn ? 'Hide my location' : 'Show my location'}
-              className={[
-                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                locationOn ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
-              ].join(' ')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-              </svg>
-            </button>
-          </div>
-
-          {/* Manual calibration overlay */}
-          {locationOn && showCalibPrompt && (
-            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
-          )}
 
           {/* Map style switcher — fixed, shifts up when assignment strip expands */}
           <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
