@@ -383,12 +383,12 @@ export default function TerritoryMap({
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;left:50%;bottom:100%;',
-            'transform:translateX(-50%);margin-bottom:2px;',
-            'width:0;height:0;',
-            'border-left:5px solid transparent;',
-            'border-right:5px solid transparent;',
-            'border-bottom:16px solid rgba(59,130,246,0.85);',
-            'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+            'transform:translateX(-50%);margin-bottom:1px;',
+            'width:40px;height:52px;',
+            'margin-left:-20px;',
+            'background:linear-gradient(to top, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0) 100%);',
+            'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
+            'pointer-events:none;',
           ].join('');
           w.appendChild(cone);
           dot.style.overflow = 'visible';
