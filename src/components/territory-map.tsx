@@ -157,7 +157,6 @@ export default function TerritoryMap({
   const markersRef        = useRef<import('maplibre-gl').Marker[]>([]);
   const geolocateRef      = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const headingCleanupRef = useRef<(() => void) | null>(null);
-  const watchIdRef        = useRef<number | null>(null);
   const headingAngleRef   = useRef<number>(0);
   const onClickRef        = useRef(onHouseholdClick);
   onClickRef.current      = onHouseholdClick;
@@ -315,31 +314,26 @@ export default function TerritoryMap({
         }
 
         // ── GeolocateControl (built-in location + heading) ───────────────
-        // Own location dot — pure watchPosition, no GeolocateControl state machine
-        // Accuracy circle element
-        const accuracyEl = document.createElement('div');
-        accuracyEl.className = 'loc-accuracy-circle';
-        accuracyEl.style.cssText = [
-          'position:absolute;border-radius:50%;',
-          'background:rgba(59,130,246,0.08);',
-          'border:1.5px solid rgba(59,130,246,0.3);',
-          'transform:translate(-50%,-50%);',
-          'pointer-events:none;display:none;',
-        ].join('');
+        // Built-in GeolocateControl — held via ref, triggered by our button
+        const geolocate = new mgl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showAccuracyCircle: true,
+          showUserLocation: true,
+          fitBoundsOptions: { zoom: 16 },
+        });
+        map.addControl(geolocate);
+        geolocateRef.current = geolocate;
+        onGeolocateReady?.(() => geolocate.trigger());
 
-        // User dot element
-        const dotEl = document.createElement('div');
-        dotEl.className = 'maplibregl-user-location-dot loc-user-dot';
-        dotEl.style.cssText = 'cursor:pointer;display:none;';
-        dotEl.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
-
-        const accuracyMarker = new mgl.Marker({ element: accuracyEl, anchor: 'center' });
-        const dotMarker      = new mgl.Marker({ element: dotEl,      anchor: 'center' });
-
-        geolocateRef.current = { _dotElement: dotEl, _accuracyEl: accuracyEl, _dotMarker: dotMarker, _accuracyMarker: accuracyMarker } as unknown as import('maplibre-gl').GeolocateControl;
-
-        // Expose a noop trigger since we use watchPosition directly
-        onGeolocateReady?.(() => {});
+        // Tap dot → calibration
+        geolocate.on('geolocate', () => {
+          const dot = map.getContainer().querySelector('.maplibregl-user-location-dot');
+          if (dot && !dot.getAttribute('data-calib-listener')) {
+            dot.setAttribute('data-calib-listener', '1');
+            dot.addEventListener('click', (e) => { e.stopPropagation(); onLocationDotClick?.(); });
+          }
+        });
 
         setMapReady(true);
       });
@@ -480,74 +474,44 @@ export default function TerritoryMap({
     });
   }, [households, mapReady, isDark]);
 
-  // ── Location: pure watchPosition — stable on all browsers ──────────────
+  // ── Location toggle — GeolocateControl via ref ────────────────────────
   // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
   useEffect(() => {
-    const map = mapInstance.current;
-    if (!map || !mapReady) return;
-
-    const refs = geolocateRef.current as unknown as {
-      _dotElement: HTMLElement;
-      _accuracyEl: HTMLElement;
-      _dotMarker: import('maplibre-gl').Marker;
-      _accuracyMarker: import('maplibre-gl').Marker;
-    } | null;
-    if (!refs) return;
+    const geolocate = geolocateRef.current;
+    if (!geolocate || !mapReady) return;
 
     if (!locationOn) {
-      // Clean stop
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      refs._dotElement.style.display = 'none';
-      refs._accuracyEl.style.display = 'none';
-      refs._dotMarker.remove();
-      refs._accuracyMarker.remove();
+      // Cycle back to OFF if currently active
+      const state = (geolocate as unknown as { _watchState?: string })._watchState;
+      if (state && state !== 'OFF') geolocate.trigger();
       if (headingCleanupRef.current) { headingCleanupRef.current(); headingCleanupRef.current = null; }
       setNeedsCalibration(false);
       return;
     }
 
-    // Start watching
-    let firstFix = true;
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { longitude, latitude, accuracy } = pos.coords;
-        refs._dotElement.style.display = '';
-        refs._accuracyEl.style.display = '';
-        refs._dotMarker.setLngLat([longitude, latitude]).addTo(map);
-        refs._accuracyMarker.setLngLat([longitude, latitude]).addTo(map);
+    // Trigger with retry until control is ready
+    let attempts = 0;
+    const attempt = () => {
+      if (!geolocateRef.current) return;
+      const ok = geolocateRef.current.trigger();
+      if (!ok && attempts < 15) { attempts++; setTimeout(attempt, 200); }
+    };
+    attempt();
 
-        // Size accuracy circle
-        const center = map.project([longitude, latitude]);
-        const edge   = map.project([longitude + (accuracy / 111320), latitude]);
-        const r      = Math.max(10, Math.abs(edge.x - center.x));
-        refs._accuracyEl.style.width  = `${r * 2}px`;
-        refs._accuracyEl.style.height = `${r * 2}px`;
+    // Fly on first fix
+    const onFirstFix = (e: { coords: GeolocationCoordinates }) => {
+      mapInstance.current?.flyTo({
+        center: [e.coords.longitude, e.coords.latitude],
+        zoom: Math.max(mapInstance.current.getZoom(), 17),
+        duration: 600, essential: true,
+      });
+      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+    };
+    geolocate.on('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
 
-        if (firstFix) {
-          firstFix = false;
-          map.flyTo({ center: [longitude, latitude], zoom: Math.max(map.getZoom(), 17), duration: 600 });
-        }
-      },
-      () => { /* ignore errors — dot just won't show */ },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
-    );
-
-    // Start map zoom listener to keep accuracy circle sized correctly
-    const onZoom = () => refs._accuracyMarker && refs._accuracyMarker.getLngLat && (() => {
-      const ll = refs._dotMarker.getLngLat();
-      if (!ll) return;
-      const center = map.project(ll);
-      const edge   = map.project([ll.lng + (10 / 111320), ll.lat]);
-      const r = Math.max(10, Math.abs(edge.x - center.x));
-      refs._accuracyEl.style.width  = `${r * 2}px`;
-      refs._accuracyEl.style.height = `${r * 2}px`;
-    })();
-    map.on('zoom', onZoom);
-
-    return () => { map.off('zoom', onZoom); };
+    return () => {
+      geolocate.off('geolocate', onFirstFix as Parameters<typeof geolocate.on>[1]);
+    };
   }, [locationOn, mapReady]);
 
   // ── Heading: rotate dot child on compass update ────────────────────────
