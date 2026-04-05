@@ -72,10 +72,10 @@ export function getTiltCompensatedHeading(
   let h = Math.atan2(x, y) * (180 / Math.PI);
   if (h < 0) h += 360;
 
-  const abs = (e as DeviceOrientationEvent & { absolute?: boolean }).absolute === true;
-  // deviceorientationabsolute: alpha increases counter-clockwise, invert to clockwise
-  // relative deviceorientation: (360 - h) already handles the inversion
-  return abs ? (360 - h) % 360 : (360 - h) % 360;
+  // Both absolute and relative need (360-h) because atan2(x,y) with this
+  // rotation matrix gives a counter-clockwise angle from the reference frame.
+  // Inverting gives clockwise compass bearing (0°=N, 90°=E, 180°=S, 270°=W).
+  return (360 - h) % 360;
 }
 
 /**
