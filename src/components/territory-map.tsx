@@ -403,15 +403,16 @@ export default function TerritoryMap({
             'z-index:-1;',
           ].join('');
 
-          // Beam: wide fan shape, no visible base (starts thin at 0,0 = dot center)
+          // Beam: Google Maps style — radial gradient cone, tip at dot, fans upward
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:80px;height:70px;',
-            'left:-40px;',               // center horizontally on anchor
-            'bottom:0;',                 // base at anchor (dot center)
-            'background:linear-gradient(to top, rgba(59,130,246,0.5) 0%, rgba(59,130,246,0) 100%);',
-            'clip-path:polygon(50% 100%, 10% 0%, 80% 0%);',, // triangle: tip at bottom-center, wide at top
+            'width:120px;height:100px;',
+            'left:-60px;',
+            'bottom:0;',
+            // Radial gradient from center-bottom — bright at tip, fades outward
+            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0.25) 40%, rgba(59,130,246,0) 70%);',
+            'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
             'pointer-events:none;',
           ].join('');
 
