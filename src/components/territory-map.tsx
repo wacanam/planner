@@ -329,6 +329,73 @@ export default function TerritoryMap({
         }
 
         setMapReady(true);
+
+        // ── Heading cone — auto-attaches when GeolocateControl activates ──
+        // No custom toggle needed — fires on trackuserlocationstart/end
+        let coneEl: HTMLElement | null = null;
+        let headingRafId = 0;
+        let currentHeading = 0;
+        let lastConeAngle = -1;
+
+        const attachCone = () => {
+          const dot = map.getContainer().querySelector<HTMLElement>('.maplibregl-user-location-dot');
+          if (!dot || coneEl) return;
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center;will-change:transform;';
+          const cone = document.createElement('div');
+          cone.style.cssText = [
+            'position:absolute;left:50%;bottom:100%;margin-bottom:2px;',
+            'transform:translateX(-50%);',
+            'width:0;height:0;',
+            'border-left:5px solid transparent;',
+            'border-right:5px solid transparent;',
+            'border-bottom:16px solid rgba(59,130,246,0.85);',
+            'filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));',
+          ].join('');
+          wrapper.appendChild(cone);
+          dot.style.overflow = 'visible';
+          dot.appendChild(wrapper);
+          coneEl = wrapper;
+        };
+
+        const renderCone = () => {
+          if (coneEl) {
+            const bearing = map.getBearing();
+            const angle = (currentHeading - bearing + 360) % 360;
+            if (Math.abs(angle - lastConeAngle) > 0.5) {
+              coneEl.style.transform = `rotate(${angle}deg)`;
+              lastConeAngle = angle;
+            }
+          }
+          headingRafId = requestAnimationFrame(renderCone);
+        };
+
+        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+          const raw = getTiltCompensatedHeading(e);
+          if (raw !== null) currentHeading = raw;
+        };
+
+        const startHeading = () => {
+          // Poll until dot appears (first GPS fix)
+          const poll = setInterval(() => { attachCone(); if (coneEl) clearInterval(poll); }, 300);
+          headingRafId = requestAnimationFrame(renderCone);
+          window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+          window.addEventListener('deviceorientation',         onOrientation as EventListener, true);
+          // iOS 13+ permission
+          type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+          const DOE = DeviceOrientationEvent as DOE;
+          if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
+        };
+
+        const stopHeading = () => {
+          cancelAnimationFrame(headingRafId);
+          if (coneEl) { coneEl.remove(); coneEl = null; lastConeAngle = -1; }
+          window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
+          window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
+        };
+
+        geolocate.on('trackuserlocationstart', startHeading);
+        geolocate.on('trackuserlocationend',   stopHeading);
       });
     });
 
