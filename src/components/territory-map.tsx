@@ -365,7 +365,7 @@ export default function TerritoryMap({
         // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
         // Proper Marker so it tilts natively with map pitch (no CSS hacks)
         let coneMkr: import('maplibre-gl').Marker | null = null;
-        let coneEl: HTMLElement | null = null;
+        let innerCone: HTMLElement | null = null; // rotated element (not the marker root)
         let headingRafId = 0;
         let headingAngle = 0;
         let hasHeading = false;
@@ -388,7 +388,7 @@ export default function TerritoryMap({
             'will-change:transform;',
           ].join('');
           el.appendChild(cone);
-          coneEl = el;
+          innerCone = cone; // rotate this, not el (el has MapLibre's positioning transform)
           // z-index 1 so cone renders below the dot (dot marker has higher z by default)
           const mkr = new mgl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'map' });
           (mkr.getElement() as HTMLElement).style.zIndex = '1';
@@ -431,8 +431,9 @@ export default function TerritoryMap({
         if (hasHeading && hasPos && coneMkr) {
           const bearing = map.getBearing();
           const angle = (headingAngle - bearing + 360) % 360;
-          if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
-            coneEl.style.transform = `rotate(${angle}deg)`;
+          if (innerCone && Math.abs(angle - lastHeadingAngle) > 0.5) {
+            innerCone.style.transformOrigin = '50% 100%';
+              innerCone.style.transform = `rotate(${angle}deg)`;
             lastHeadingAngle = angle;
           }
         }
@@ -493,7 +494,7 @@ export default function TerritoryMap({
         cancelAnimationFrame(headingRafId);
         coneMkr?.remove();
         coneMkr = null;
-        coneEl = null;
+        innerCone = null;
         lastHeadingAngle = -1;
         hasHeading = false;
         usingAOS = false;
