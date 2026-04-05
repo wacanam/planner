@@ -474,13 +474,18 @@ export default function TerritoryMap({
           window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
         };
 
-        geolocate.on('trackuserlocationstart', startHeading);
+        geolocate.on('trackuserlocationstart', () => {
+          map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
+          startHeading();
+        });
         // userlocationlostfocus = map panned (background state) — keep cone
         // trackuserlocationend = user explicitly turned off — remove cone
         geolocate.on('trackuserlocationend', () => {
-          // Only stop if fully OFF (button toggled off), not just panned away
           const state = (geolocate as unknown as { _watchState?: string })._watchState;
-          if (!state || state === 'OFF') stopHeading();
+          if (!state || state === 'OFF') {
+            map.easeTo({ pitch: 0, duration: 400 });
+            stopHeading();
+          }
         });
       });
     });
@@ -694,7 +699,12 @@ export default function TerritoryMap({
         /* Cone marker behind the location dot */
         .loc-cone-wrapper { z-index: 1 !important; }
         .maplibregl-user-location-dot { z-index: 2 !important; }
-        .maplibregl-user-location-accuracy-circle { z-index: 0 !important; }
+        /* Accuracy circle — Google Maps style: large soft blue, very transparent */
+        .maplibregl-user-location-accuracy-circle {
+          background: rgba(59,130,246,0.08) !important;
+          border: 1.5px solid rgba(59,130,246,0.2) !important;
+          z-index: 0 !important;
+        }
         @keyframes location-pulse {
           0%   { transform: scale(1);   opacity: 0.7; }
           70%  { transform: scale(2.2); opacity: 0;   }
