@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -189,6 +189,7 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
+  const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -254,6 +255,7 @@ export default function TerritoryDetailView() {
                     locationOn={locationOn}
                     onCalibrationNeeded={(needed: boolean) => { if (needed) setShowCalibPrompt(true); }}
                     onLocationDotClick={() => setShowCalibPrompt(true)}
+                    onGeolocateReady={(fn: () => void) => { geolocateTriggerRef.current = fn; }}
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
@@ -327,19 +329,26 @@ export default function TerritoryDetailView() {
               type="button"
               onClick={() => {
                   if (!locationOn) {
-                    // Both GPS + DeviceOrientation permissions must be requested
-                    // synchronously inside the user gesture (iOS Safari/Chrome requirement)
+                    // All permission requests + GeolocateControl.trigger() must
+                    // happen synchronously in the user gesture (Safari requirement)
+
+                    // 1. GPS permission
                     navigator.geolocation.getCurrentPosition(
                       () => setLocationOn(true),
                       () => setLocationOn(true),
                       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
-                    // Request DeviceOrientation permission on iOS 13+ in same gesture
+                    // 2. DeviceOrientation permission (iOS 13+)
                     type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
                     const DOE = DeviceOrientationEvent as DOE;
                     if (typeof DOE.requestPermission === 'function') {
-                      DOE.requestPermission().catch(() => {});
+                      DOE.requestPermission().then(() => {
+                        // After permission granted, trigger location dot
+                        geolocateTriggerRef.current?.();
+                      }).catch(() => {});
                     }
+                    // 3. Trigger GeolocateControl immediately (for non-iOS / already permitted)
+                    geolocateTriggerRef.current?.();
                   } else {
                     setLocationOn(false);
                   }

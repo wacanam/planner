@@ -41,6 +41,8 @@ export interface TerritoryMapProps {
   locationOn?: boolean;
   onCalibrationNeeded?: (needed: boolean) => void;
   onLocationDotClick?: () => void;
+  /** Called once map is ready — parent can call trigger() synchronously from a gesture */
+  onGeolocateReady?: (trigger: () => void) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -148,6 +150,7 @@ export default function TerritoryMap({
   locationOn = false,
   onCalibrationNeeded,
   onLocationDotClick,
+  onGeolocateReady,
 }: TerritoryMapProps) {
   const mapRef            = useRef<HTMLDivElement>(null);
   const mapInstance       = useRef<import('maplibre-gl').Map | null>(null);
@@ -320,6 +323,8 @@ export default function TerritoryMap({
         // Add control off-screen — we use our own toggle button
         map.addControl(geolocate);
         geolocateRef.current = geolocate;
+        // Expose trigger fn to parent for synchronous gesture invocation (Safari)
+        onGeolocateReady?.(() => geolocate.trigger());
 
         // Tap on location dot → trigger calibration
         geolocate.on('geolocate', () => {
