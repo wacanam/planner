@@ -365,62 +365,36 @@ export default function TerritoryMap({
 
         setMapReady(true);
 
-        // ── Heading cone — child of _dotElement (exact copy of working main formula) ──
-        let headingConeChild: HTMLElement | null = null;
+        // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
+        // Proper Marker so it tilts natively with map pitch (no CSS hacks)
+        let coneMkr: import('maplibre-gl').Marker | null = null;
+        let coneEl: HTMLElement | null = null;
         let headingRafId = 0;
         let headingAngle = 0;
         let hasHeading = false;
         let lastHeadingAngle = -1;
         let usingAOS = false;
+        let userLng = 0, userLat = 0, hasPos = false;
 
-        const getHeadingCone = () => {
-          if (headingConeChild) return headingConeChild;
-          const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
-          const dot = ctrl?._dotElement;
-          if (!dot) return null;
-
-          // Make dot solid so beam base isn't visible through it
-          dot.style.background = '#3b82f6';
-          dot.style.boxShadow = '0 0 0 3px white, 0 0 0 4px rgba(59,130,246,0.4)';
-
-          // Make all parent containers overflow-visible so beam shows during pan
-          let el: HTMLElement | null = dot;
-          while (el && el !== document.body) {
-            el.style.overflow = 'visible';
-            el = el.parentElement;
-          }
-
-          // Wrapper: zero-size at dot center, overflow visible, behind dot
-          const w = document.createElement('div');
-          w.style.cssText = [
-            'position:absolute;',
-            'top:50%;left:50%;',         // anchor at dot center
-            'width:0;height:0;',          // zero-size so it doesn't affect layout
-            'overflow:visible;',
-            'pointer-events:none;',
-            'transform-origin:0 0;',     // rotate around dot center
-            'will-change:transform;',
-            'z-index:-1;',
-          ].join('');
-
-          // Beam: Google Maps style — radial gradient cone, tip at dot, fans upward
+        const createConeMarker = () => {
+          if (coneMkr) return coneMkr;
+          // Cone element: dot-sized base (15px), short beam ~60px
+          const el = document.createElement('div');
+          el.style.cssText = 'position:relative;width:0;height:0;overflow:visible;pointer-events:none;';
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:180px;height:180px;',
-            'left:-90px;',
-            'bottom:0;',
-            // Radial gradient from center-bottom — bright at tip, fades outward
-            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.7) 0%, rgba(59,130,246,0.35) 45%, rgba(59,130,246,0) 75%);',
+            'width:60px;height:60px;',   // short beam
+            'left:-30px;bottom:0;',       // base centered at marker anchor
+            'background:radial-gradient(ellipse 60% 100% at 50% 100%, rgba(59,130,246,0.65) 0%, rgba(59,130,246,0.3) 45%, rgba(59,130,246,0) 75%);',
             'clip-path:polygon(50% 100%, 8% 0%, 92% 0%);',
             'pointer-events:none;',
+            'will-change:transform;',
           ].join('');
-
-          w.appendChild(cone);
-          dot.style.position = 'relative';
-          dot.appendChild(w);
-          headingConeChild = w;
-          return w;
+          el.appendChild(cone);
+          coneEl = el;
+          coneMkr = new mgl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'map' });
+          return coneMkr;
         };
 
         const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
@@ -434,17 +408,25 @@ export default function TerritoryMap({
         let aosSensor: InstanceType<AOSType> | null = null;
 
         const renderHeading = () => {
-          if (hasHeading) {
-            const w = getHeadingCone();
-            if (w) {
-              const bearing = map.getBearing();
-              const angle   = (headingAngle - bearing + 360) % 360;
-              w.style.transform = `rotate(${angle}deg)`;
+          if (hasHeading && hasPos) {
+            const mkr = createConeMarker();
+            mkr.setLngLat([userLng, userLat]).addTo(map);
+            const bearing = map.getBearing();
+            const angle   = (headingAngle - bearing + 360) % 360;
+            if (coneEl && Math.abs(angle - lastHeadingAngle) > 0.5) {
+              coneEl.style.transform = `rotate(${angle}deg)`;
               lastHeadingAngle = angle;
             }
           }
           headingRafId = requestAnimationFrame(renderHeading);
         };
+
+        // Sync cone marker position with GPS
+        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
+          userLng = e.coords.longitude;
+          userLat = e.coords.latitude;
+          hasPos = true;
+        });
 
         const startHeading = () => {
           headingRafId = requestAnimationFrame(renderHeading);
@@ -469,9 +451,8 @@ export default function TerritoryMap({
 
         const stopHeading = () => {
           cancelAnimationFrame(headingRafId);
-          if (headingConeChild) { headingConeChild.remove(); headingConeChild = null; lastHeadingAngle = -1; }
-          hasHeading = false; usingAOS = false;
-          // Reset dot marker pitch alignment
+          coneMkr?.remove(); coneMkr = null; coneEl = null; lastHeadingAngle = -1;
+          hasHeading = false; usingAOS = false; hasPos = false;
           const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker; _accuracyCircleMarker?: import('maplibre-gl').Marker } | null;
           ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
           ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
