@@ -407,7 +407,7 @@ export default function TerritoryMap({
           const cone = document.createElement('div');
           cone.style.cssText = [
             'position:absolute;',
-            'width:120px;height:100px;',
+            'width:120px;height:130px;',
             'left:-60px;',
             'bottom:0;',
             // Radial gradient from center-bottom — bright at tip, fades outward
@@ -438,11 +438,13 @@ export default function TerritoryMap({
             const w = getHeadingCone();
             if (w) {
               const bearing = map.getBearing();
-              const angle = (headingAngle - bearing + 360) % 360;
-              if (Math.abs(angle - lastHeadingAngle) > 0.5) {
-                w.style.transform = `rotate(${angle}deg)`;
-                lastHeadingAngle = angle;
-              }
+              const pitch   = map.getPitch();
+              const angle   = (headingAngle - bearing + 360) % 360;
+              // Apply pitch as rotateX perspective so cone tilts forward in 3D
+              // perspective() gives depth, rotateX() tilts the cone to match map pitch
+              const perspectivePx = 200;
+              w.style.transform = `perspective(${perspectivePx}px) rotateX(${pitch * 0.5}deg) rotate(${angle}deg)`;
+              lastHeadingAngle = angle;
             }
           }
           headingRafId = requestAnimationFrame(renderHeading);
