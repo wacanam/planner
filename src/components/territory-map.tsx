@@ -516,15 +516,20 @@ export default function TerritoryMap({
   // ── Heading: rotate dot child on compass update ────────────────────────
   // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady trigger
   useEffect(() => {
-    if (!locationOn || !mapReady) return;
+    if (!locationOn) return; // heading needs locationOn, not necessarily mapReady
 
-    const refs = geolocateRef.current as unknown as { _dotElement: HTMLElement } | null;
-    if (!refs) return;
-
+    // _dotElement is created by GeolocateControl on first GPS fix — poll for it
+    let dotPollId: ReturnType<typeof setInterval> | null = null;
     let coneChild: HTMLElement | null = null;
+    let rafId = 0;
+    let heading = 0, hasHeading = false, usingAOS = false;
+    let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
+    let lastAngle = -1;
+
     const getCone = () => {
       if (coneChild) return coneChild;
-      const dot = refs._dotElement;
+      const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
+      const dot = ctrl?._dotElement;
       if (!dot) return null;
       const w = document.createElement('div');
       w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
@@ -542,12 +547,12 @@ export default function TerritoryMap({
       dot.style.overflow = 'visible';
       dot.appendChild(w);
       coneChild = w;
+      if (dotPollId) { clearInterval(dotPollId); dotPollId = null; }
       return w;
     };
 
-    let heading = 0, hasHeading = false, usingAOS = false;
-    let badAccCount = 0, needsCalib = false, lastCalibCheck = 0;
-    let rafId = 0, lastAngle = -1;
+    // Poll until dot exists (created on first GPS fix)
+    dotPollId = setInterval(() => { getCone(); }, 300);
 
     function render() {
       if (hasHeading) {
@@ -592,15 +597,16 @@ export default function TerritoryMap({
       } catch { aosSensor = null; }
     }
 
-    // iOS 13+ permission already requested in onClick gesture
     return () => {
       cancelAnimationFrame(rafId);
+      if (dotPollId) clearInterval(dotPollId);
       if (coneChild) { coneChild.remove(); coneChild = null; }
       aosSensor?.stop();
       window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
       window.removeEventListener('deviceorientation',         onOrientation as EventListener, true);
     };
-  }, [locationOn, mapReady]);
+  }, [locationOn]);
+
 
   return (
     <div className={`relative ${className}`}>
