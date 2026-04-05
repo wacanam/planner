@@ -34,6 +34,89 @@ function getAssigneeDisplayName(a: LocalAssignment): string {
   return a.assigneeName ?? a.groupName ?? 'Unknown';
 }
 
+// ─── Calibration overlay ──────────────────────────────────────────────────────
+function CalibrationOverlay({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = React.useState<'guide' | 'done'>('guide');
+
+  // Auto-advance to "done" after 6s (time to do a few figure-8s)
+  React.useEffect(() => {
+    const t = setTimeout(() => setPhase('done'), 6000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
+      <div className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-[260px] w-full mx-4 space-y-4">
+        {phase === 'guide' ? (
+          <>
+            {/* Animated figure-8 SVG */}
+            <div className="flex justify-center">
+              <svg width="80" height="50" viewBox="0 0 80 50" fill="none" aria-label="Figure 8 animation">
+                <style>{`
+                  @keyframes fig8 {
+                    0%   { offset-distance: 0%; }
+                    100% { offset-distance: 100%; }
+                  }
+                  .fig8-dot {
+                    offset-path: path('M40,25 C40,10 65,10 65,25 C65,40 40,40 40,25 C40,10 15,10 15,25 C15,40 40,40 40,25');
+                    animation: fig8 2s linear infinite;
+                  }
+                `}</style>
+                {/* Figure-8 path outline */}
+                <path
+                  d="M40,25 C40,10 65,10 65,25 C65,40 40,40 40,25 C40,10 15,10 15,25 C15,40 40,40 40,25"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                {/* Animated dot */}
+                <circle className="fig8-dot" r="5" fill="#3b82f6" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold">Calibrating compass</p>
+            <p className="text-xs text-white/60 leading-snug">
+              Slowly tilt and rotate your device in a figure-8 pattern
+            </p>
+            {/* Progress bar */}
+            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full"
+                style={{ animation: 'calib-progress 6s linear forwards' }}
+              />
+            </div>
+            <style>{`
+              @keyframes calib-progress {
+                from { width: 0%; }
+                to   { width: 100%; }
+              }
+            `}</style>
+          </>
+        ) : (
+          <>
+            {/* Done state */}
+            <div className="flex justify-center">
+              <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-green-400">Calibration complete</p>
+            <p className="text-xs text-white/60">Compass accuracy improved</p>
+            <button
+              type="button"
+              onClick={onDone}
+              className="w-full py-2 bg-blue-500 hover:bg-blue-600 rounded-xl text-sm font-semibold transition-colors"
+            >
+              Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TerritoryDetailView() {
   const { id: congregationId, territoryId } = useParams<{
     id: string;
@@ -237,19 +320,7 @@ export default function TerritoryDetailView() {
 
           {/* Manual calibration overlay */}
           {locationOn && showCalibPrompt && (
-            <div
-              className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto"
-              onClick={() => setShowCalibPrompt(false)}
-            >
-              <div className="bg-black/75 text-white text-center px-6 py-5 rounded-2xl max-w-[220px] space-y-2">
-                <div className="text-4xl">∞</div>
-                <p className="text-sm font-semibold">Calibrate compass</p>
-                <p className="text-xs text-white/70 leading-snug">
-                  Slowly move your device in a figure-8 pattern until the heading stabilizes
-                </p>
-                <p className="text-[10px] text-white/40 mt-2">Tap anywhere to dismiss</p>
-              </div>
-            </div>
+            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
           )}
 
           {/* Map style switcher — fixed, shifts up when assignment strip expands */}
