@@ -378,23 +378,36 @@ export default function TerritoryMap({
           const ctrl = geolocateRef.current as unknown as { _dotElement?: HTMLElement } | null;
           const dot = ctrl?._dotElement;
           if (!dot) return null;
+
+          // Wrapper: same size as dot, overflow visible so beam extends beyond bounds
+          // z-index -1 so beam sits BEHIND the dot (looks like one element)
           const w = document.createElement('div');
-          w.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:center center;will-change:transform;';
+          w.style.cssText = [
+            'position:absolute;inset:0;',
+            'pointer-events:none;',
+            'transform-origin:center center;',
+            'will-change:transform;',
+            'z-index:-1;',               // behind the dot
+            'overflow:visible;',         // beam extends past dot bounds
+          ].join('');
+
           const cone = document.createElement('div');
           cone.style.cssText = [
-            // Position base at center of wrapper (= center of dot)
             'position:absolute;',
             'left:50%;',
-            'bottom:50%;',                    // start from center of dot
-            'transform:translateX(-50%);',    // center horizontally
-            'width:40px;height:52px;',
-            'margin-left:0;',
-            'background:linear-gradient(to top, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0) 100%);',
-            'clip-path:polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);',
+            'bottom:50%;',               // base anchored at dot center
+            'transform:translateX(-50%);',
+            'width:56px;height:60px;',   // wider + taller beam
+            'background:linear-gradient(to top, rgba(59,130,246,0.6) 0%, rgba(59,130,246,0) 100%);',
+            'clip-path:polygon(25% 100%, 75% 100%, 100% 0%, 0% 0%);',
             'pointer-events:none;',
           ].join('');
-          w.appendChild(cone);
+
+          // Ensure the dot itself allows overflow and stacks above beam
           dot.style.overflow = 'visible';
+          dot.style.position = 'relative';
+          dot.style.zIndex = '1';
+          w.appendChild(cone);
           dot.appendChild(w);
           headingConeChild = w;
           return w;
