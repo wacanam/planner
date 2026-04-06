@@ -184,7 +184,9 @@ export default function TerritoryMap({
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
   onLocationDotClick,
-}: TerritoryMapProps) {
+  onGeolocateReady,
+  onCalibrationNeeded,
+}: TerritoryMapProps & { onGeolocateReady?: (fn: () => void) => void; onCalibrationNeeded?: (needed: boolean) => void }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
   const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
@@ -252,7 +254,7 @@ export default function TerritoryMap({
 
       map.addControl(new mgl.AttributionControl({ compact: true }), 'bottom-left');
 
-      // GeolocateControl added before load — ref available immediately on first tap
+      // GeolocateControl added before load — ref available immediately
       const geolocate = new mgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
@@ -262,6 +264,81 @@ export default function TerritoryMap({
       });
       map.addControl(geolocate, 'top-right');
       geolocateRef.current = geolocate;
+
+      // Expose a small helper to trigger geolocation from the parent (used by TerritoryDetailView)
+      if (typeof onGeolocateReady === 'function') {
+        onGeolocateReady(() => {
+          try {
+            // Prefer public trigger() if available
+            const g = geolocateRef.current as any;
+            if (g && typeof g.trigger === 'function') {
+              g.trigger();
+            } else {
+              // Fallback: click the control button if present
+              const container = (g && g._container) || null;
+              const btn = container?.querySelector('button');
+              if (btn) (btn as HTMLElement).click();
+            }
+          } catch (err) {
+            /* ignore */
+          }
+        });
+      }
+
+      // Ensure the user-location dot can be clicked immediately (attach listener as soon as element exists)
+      const tryAttachDotListener = () => {
+        try {
+          const ctrl = geolocateRef.current as unknown as {
+            _userLocationDotMarker?: import('maplibre-gl').Marker;
+          } | null;
+          const dotEl = ctrl?._userLocationDotMarker?.getElement() as HTMLElement | undefined;
+          if (dotEl && !dotEl.getAttribute('data-calib-click')) {
+            dotEl.setAttribute('data-calib-click', '1');
+            dotEl.style.cursor = 'pointer';
+            dotEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+
+              // Call DeviceOrientation permission directly from the user gesture
+              type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+              const DOE = DeviceOrientationEvent as DOE;
+              if (typeof DOE.requestPermission === 'function') {
+                // Call requestPermission synchronously from the gesture — don't await before calling
+                DOE.requestPermission()
+                  .then(() => {
+                    try { onLocationDotClick?.(); } catch {}
+                    try { (geolocateRef.current as any)?.trigger?.(); } catch {}
+                    try { onCalibrationNeeded?.(true); } catch {}
+                  })
+                  .catch(() => {
+                    try { onLocationDotClick?.(); } catch {}
+                    try { (geolocateRef.current as any)?.trigger?.(); } catch {}
+                    try { onCalibrationNeeded?.(true); } catch {}
+                  });
+              } else {
+                // No permission API — proceed
+                try { onLocationDotClick?.(); } catch {}
+                try { (geolocateRef.current as any)?.trigger?.(); } catch {}
+                try { onCalibrationNeeded?.(true); } catch {}
+              }
+            });
+            return true;
+          }
+        } catch (err) {
+          // ignore
+        }
+        return false;
+      };
+
+      // Poll briefly for the user-location dot element (it may be created by the control after a GPS fix or internal init)
+      let attachAttempts = 0;
+      const attachInterval = setInterval(() => {
+        attachAttempts++;
+        const ok = tryAttachDotListener();
+        if (ok || attachAttempts > 20) clearInterval(attachInterval);
+      }, 200);
+
+      // Also try once on load immediately
+      tryAttachDotListener();
 
       mapInstance.current = map;
 
