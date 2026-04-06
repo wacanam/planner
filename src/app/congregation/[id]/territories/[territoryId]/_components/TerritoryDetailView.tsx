@@ -68,8 +68,14 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
   }, [phase]);
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
-      <div className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-[260px] w-full mx-4 space-y-4">
+    <div
+      className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm"
+      onClick={onDone}
+    >
+      <div
+        className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-[260px] w-full mx-4 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {phase === 'guide' ? (
           <>
             {/* Animated figure-8 SVG */}
