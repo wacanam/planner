@@ -122,7 +122,7 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
                 to   { width: 60%; margin-left: 40%; }
               }
             `}</style>
-            {/* Manual Done for Android (no webkitCompassAccuracy) */}
+            {/* Skip for Android — accuracy unknown */}
             {accuracy === null && (
               <button
                 type="button"
