@@ -67,6 +67,24 @@ const MAP_STYLES = [
     label: 'Dark',
     url: 'https://tiles.openfreemap.org/styles/dark',
   },
+  {
+    id: 'satellite',
+    label: 'Satellite',
+    // Inline MapLibre style spec using ESRI World Imagery (no API key)
+    url: JSON.stringify({
+      version: 8,
+      sources: {
+        esri: {
+          type: 'raster',
+          tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+          tileSize: 256,
+          attribution: 'Tiles © Esri',
+          maxzoom: 19,
+        },
+      },
+      layers: [{ id: 'esri-satellite', type: 'raster', source: 'esri' }],
+    }),
+  },
 ] as const;
 
 type StyleId = (typeof MAP_STYLES)[number]['id'];
@@ -226,7 +244,7 @@ export default function TerritoryMap({
 
       const map = new mgl.Map({
         container: mapRef.current as HTMLElement,
-        style: style.url,
+        style: style.url.startsWith('{') ? JSON.parse(style.url) : style.url,
         center: [lng, lat],
         zoom,
         attributionControl: false,
@@ -562,7 +580,7 @@ useEffect(() => {
   const map = mapInstance.current;
   if (!map || !mapReady) return;
   const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
-  map.setStyle(style.url);
+  map.setStyle(style.url.startsWith('{') ? JSON.parse(style.url) : style.url);
   // watchPosition continues after style change — markers re-added on next GPS fix
 }, [mapStyle, mapReady]);
 
