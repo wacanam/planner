@@ -6,6 +6,55 @@ import type { DataSource } from '@/lib/offline-store';
 import type { SWRConfiguration } from 'swr';
 import type { Visit, Household } from '@/types/api';
 
+// ── useMyVisits — GET /api/visits (current user's visits, filterable) ────────
+export function useMyVisits(
+  filters?: { householdId?: string; assignmentId?: string },
+  options?: SWRConfiguration
+) {
+  const [dataSource, setDataSource] = useState<DataSource>('loading');
+
+  const params = new URLSearchParams();
+  if (filters?.householdId) params.set('householdId', filters.householdId);
+  if (filters?.assignmentId) params.set('assignmentId', filters.assignmentId);
+  const qs = params.toString();
+  const key = `/api/visits${qs ? `?${qs}` : ''}`;
+
+  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
+    key,
+    withOfflineCache(
+      'visits-cache',
+      `my-visits-${qs}`,
+      (url) => apiClient.get<Visit[]>(url),
+      setDataSource
+    ),
+    options
+  );
+
+  return {
+    visits: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+    dataSource: isLoading ? ('loading' as DataSource) : dataSource,
+  };
+}
+
+// ── useHouseholdVisits — GET /api/households/:id/visits ───────────────────────
+export function useHouseholdVisits(householdId: string | null, options?: SWRConfiguration) {
+  const { data, error, isLoading, mutate } = useSWR<(Visit & { publisherName?: string })[]>(
+    householdId ? `/api/households/${householdId}/visits` : null,
+    (url: string) => apiClient.get<(Visit & { publisherName?: string })[]>(url),
+    options
+  );
+
+  return {
+    visits: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+  };
+}
+
 export function useTerritoryVisits(territoryId: string | null, options?: SWRConfiguration) {
   const [dataSource, setDataSource] = useState<DataSource>('loading');
 
