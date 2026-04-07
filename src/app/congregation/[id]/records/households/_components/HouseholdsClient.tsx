@@ -277,7 +277,7 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Log Visit</DialogTitle>
           {household && (
@@ -287,7 +287,7 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4">
           {/* Outcome */}
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Outcome *</span>
@@ -402,13 +402,13 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Household</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">Create a new address record</p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4">
           <FormField label="Address *" id="address" error={errors.address?.message}
             {...register('address')} />
           <FormField label="House Number" id="houseNumber" error={errors.houseNumber?.message}
