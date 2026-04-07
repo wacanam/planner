@@ -308,6 +308,52 @@ async function syncVisitsAndHouseholds() {
       }
     }
   }
+
+  // ────── After all syncs complete, refresh the read caches from API ────────────
+  try {
+    console.log('[SW] Syncs complete, refreshing caches from API...');
+    
+    // Refresh households cache
+    try {
+      const householdsRes = await fetch('/api/households', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (householdsRes.ok) {
+        const households = await householdsRes.json();
+        // Store in IDB cache
+        const tx = db.transaction('households-cache', 'readwrite');
+        await tx.store.put({ data: households, cachedAt: Date.now() }, 'all');
+        console.log('[SW] Updated households-cache with', households.length, 'households');
+      }
+    } catch (err) {
+      console.warn('[SW] Failed to refresh households cache:', err.message);
+    }
+
+    // Refresh visits cache
+    try {
+      const visitsRes = await fetch('/api/visits', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (visitsRes.ok) {
+        const visits = await visitsRes.json();
+        // Store in IDB cache
+        const tx = db.transaction('visits-cache', 'readwrite');
+        await tx.store.put({ data: visits, cachedAt: Date.now() }, 'my-visits');
+        console.log('[SW] Updated visits-cache with', visits.length, 'visits');
+      }
+    } catch (err) {
+      console.warn('[SW] Failed to refresh visits cache:', err.message);
+    }
+
+    // Notify all clients that caches were updated
+    const allClients = await self.clients.matchAll({ type: 'window' });
+    for (const client of allClients) {
+      client.postMessage({ type: 'CACHE_UPDATED' });
+    }
+    console.log('[SW] Notified', allClients.length, 'clients of cache update');
+  } catch (err) {
+    console.error('[SW] Error refreshing caches:', err);
+  }
 }
 
 // ─── Minimal IDB helper ───────────────────────────────────────────────────────
