@@ -885,13 +885,13 @@ export default function VisitsClient() {
   const {
     households: serverHouseholds,
     isLoading: householdsLoading,
-    mutate: mutateHouseholds,
+    error: householdsError,
+    dataSource,
     dataSource: householdsSource,
   } = useHouseholds();
   const {
     visits: serverVisits,
     isLoading: visitsLoading,
-    mutate: mutateVisits,
     dataSource: visitsSource,
   } = useTerritoryVisits(territoryId ?? null);
 
@@ -931,7 +931,6 @@ export default function VisitsClient() {
             s.delete(pendingId);
             return s;
           });
-          void mutateVisits();
         }, 2000);
       }
       if (type === 'HOUSEHOLD_SYNCED' && pendingId) {
@@ -944,13 +943,12 @@ export default function VisitsClient() {
             s.delete(pendingId);
             return s;
           });
-          void mutateHouseholds();
         }, 2000);
       }
     };
     navigator.serviceWorker.addEventListener('message', handler);
     return () => navigator.serviceWorker.removeEventListener('message', handler);
-  }, [mutateVisits, mutateHouseholds]);
+  });
 
   const activeAssignmentId = territory?.publisherId ?? '';
 
@@ -982,8 +980,8 @@ export default function VisitsClient() {
         lwpNotes: null,
         createdById: null,
         updatedById: null,
-        createdAt: ph.createdAt,
-        updatedAt: ph.createdAt,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         pending: true,
       }));
     return [...unsyncedPending, ...serverHouseholds];
