@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Home, Plus, Search, Clock, X, ChevronDown, ChevronUp, BookOpen, FileText, User } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,10 +23,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';
-import { logVisitSchema, type LogVisitFormData } from '@/schemas/visit';
+import { logVisitSchema, addHouseholdSchema, type LogVisitFormData, type AddHouseholdFormData } from '@/schemas/visit';
 import {
   queueVisit,
-  clearPendingVisit,
+  queueHousehold,
   registerVisitSync,
 } from '@/lib/visits-store';
 import { timeAgo } from '@/lib/time-ago';
@@ -87,10 +87,10 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
   if (!household) return null;
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss on click
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss via click
     // biome-ignore lint/a11y/useKeyWithClickEvents: intentional overlay dismiss
     <div className="fixed inset-0 z-50 flex justify-end" role="presentation" onClick={onClose}>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss on click */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
       <div
         className="relative w-full max-w-md h-full bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden"
@@ -267,7 +267,8 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
       nextVisitNotes: values.nextVisitNotes,
     };
     const pendingId = await queueVisit(payload);
-    await registerVisitSync();
+    // Don't await sync — resolve form immediately, SW syncs in background
+    void registerVisitSync().catch(() => {});
     onSaved(pendingId);
     reset();
   };
@@ -369,6 +370,92 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
   );
 }
 
+// ─── Add Household Dialog ───────────────────────────────────────────────────────
+
+interface AddHouseholdDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSaved: (pendingId: string) => void;
+}
+
+function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps) {
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<AddHouseholdFormData>({
+    resolver: zodResolver(addHouseholdSchema),
+  });
+
+  const onSubmit = async (values: AddHouseholdFormData) => {
+    const pendingId = await queueHousehold(values as Record<string, unknown>);
+    // Don't await sync — resolve form immediately, SW syncs in background
+    void registerVisitSync().catch(() => {});
+    onSaved(pendingId);
+    reset();
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Household</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">Create a new address record</p>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <FormField label="Address *" id="address" error={errors.address?.message}
+            {...register('address')} />
+          <FormField label="House Number" id="houseNumber" error={errors.houseNumber?.message}
+            {...register('houseNumber')} />
+          <FormField label="Unit/Apt Number" id="unitNumber" error={errors.unitNumber?.message}
+            {...register('unitNumber')} />
+          <FormField label="Street Name *" id="streetName" error={errors.streetName?.message}
+            {...register('streetName')} />
+          <FormField label="City *" id="city" error={errors.city?.message}
+            {...register('city')} />
+          <FormField label="Postal Code" id="postalCode" error={errors.postalCode?.message}
+            {...register('postalCode')} />
+          <FormField label="Country" id="country" error={errors.country?.message}
+            {...register('country')} />
+
+          <div className="space-y-1.5">
+            <span className="text-sm font-medium">Type</span>
+            <Controller
+              name="type"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value ?? 'house'} onValueChange={field.onChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['house', 'apartment', 'condo', 'townhouse', 'mobile_home', 'business', 'other'].map((t) => (
+                      <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
+          <FormField label="Notes" id="notes" multiline rows={2} error={errors.notes?.message}
+            {...register('notes')} />
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving…' : 'Add Household'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export default function HouseholdsClient() {
@@ -376,14 +463,15 @@ export default function HouseholdsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
+  const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
+
   const { households, isLoading, dataSource, mutate } = useHouseholds();
 
-  // Listen for SW sync messages — revalidate household list on sync
+  // Listen for SW sync messages — revalidate list on sync
   useEffect(() => {
     const handler = (e: MessageEvent) => {
-      const { type, pendingId } = (e.data ?? {}) as { type?: string; pendingId?: string };
-      if ((type === 'VISIT_SYNCED' || type === 'HOUSEHOLD_SYNCED') && pendingId) {
-        void clearPendingVisit(pendingId).catch(console.error);
+      const { type } = (e.data ?? {}) as { type?: string };
+      if (type === 'VISIT_SYNCED' || type === 'HOUSEHOLD_SYNCED') {
         void mutate();
       }
     };
@@ -406,18 +494,13 @@ export default function HouseholdsClient() {
     return list;
   }, [households, search, statusFilter]);
 
-  const handleLogVisitSaved = useCallback((_pendingId: string) => {
-    setLogVisitHousehold(null);
-    void mutate();
-  }, [mutate]);
-
   return (
     <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold text-foreground">My Households</h1>
-          <Button size="sm" onClick={() => {}}>
+          <Button size="sm" onClick={() => setAddHouseholdOpen(true)}>
             <Plus size={14} />
             Add Household
           </Button>
@@ -469,10 +552,7 @@ export default function HouseholdsClient() {
         ) : (
           <div className="space-y-3">
             {filtered.map((h) => (
-              <div
-                key={h.id}
-                className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
-              >
+              <div key={h.id} className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3">
                 <button
                   type="button"
                   className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
@@ -533,7 +613,20 @@ export default function HouseholdsClient() {
         open={!!logVisitHousehold}
         household={logVisitHousehold}
         onClose={() => setLogVisitHousehold(null)}
-        onSaved={handleLogVisitSaved}
+        onSaved={() => {
+          setLogVisitHousehold(null);
+          void mutate();
+        }}
+      />
+
+      {/* Add household dialog */}
+      <AddHouseholdDialog
+        open={addHouseholdOpen}
+        onClose={() => setAddHouseholdOpen(false)}
+        onSaved={() => {
+          setAddHouseholdOpen(false);
+          void mutate();
+        }}
       />
     </>
   );
