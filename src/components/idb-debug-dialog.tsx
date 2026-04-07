@@ -97,12 +97,12 @@ export function IDBDebugDialog() {
 
   return (
     <>
-      {/* Debug button (bottom-right, hidden by default, shows on Ctrl+Shift+D) */}
+      {/* Debug button (always visible) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 flex items-center justify-center text-xs font-bold"
-        title="IDB Debug (Ctrl+Shift+D)"
+        className="fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full bg-purple-600 text-white shadow-lg hover:bg-purple-700 active:bg-purple-800 flex items-center justify-center text-lg font-bold transition-colors"
+        title="IDB Debug Console"
       >
         🐛
       </button>
@@ -257,14 +257,12 @@ export function IDBDebugDialog() {
                 </div>
               </div>
 
-              {/* Hint */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <p className="text-xs text-blue-700 dark:text-blue-400">
-                  <strong>Keyboard:</strong> Ctrl+Shift+D to toggle this dialog
+                  <strong>Access:</strong> Tap the 🐛 button in bottom-right corner, or press Ctrl+Shift+D
                 </p>
                 <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                  <strong>Pending items</strong> are queued for sync. Check "SW Active"
-                  to see if Service Worker is running.
+                  <strong>Pending items</strong> = data queued for sync. Check "SW Active" to see if Service Worker is running.
                 </p>
               </div>
             </div>
