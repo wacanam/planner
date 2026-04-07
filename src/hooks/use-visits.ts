@@ -1,130 +1,236 @@
 import { useState, useEffect } from 'react';
-import useSWR from 'swr';
-import { apiClient } from '@/lib/api-client';
-import { withOfflineCache } from '@/lib/offline-store';
+import { getCachedData, cacheData, getDB } from '@/lib/offline-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
-import type { DataSource } from '@/lib/offline-store';
-import type { SWRConfiguration } from 'swr';
+import { apiClient } from '@/lib/api-client';
 import type { Visit, Household } from '@/types/api';
 
-// ── useMyVisits — GET /api/visits (current user's visits, filterable) ────────
+/**
+ * Read visits from IDB cache. Refresh from API only after SW sync completes.
+ * Never calls API directly for UI rendering.
+ */
 export function useMyVisits(
-  filters?: { householdId?: string; assignmentId?: string },
-  options?: SWRConfiguration
+  filters?: { householdId?: string; assignmentId?: string }
 ) {
-  const [dataSource, setDataSource] = useState<DataSource>('loading');
-  const [mergedVisits, setMergedVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const params = new URLSearchParams();
-  if (filters?.householdId) params.set('householdId', filters.householdId);
-  if (filters?.assignmentId) params.set('assignmentId', filters.assignmentId);
-  const qs = params.toString();
-  const key = `/api/visits${qs ? `?${qs}` : ''}`;
-
-  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
-    key,
-    withOfflineCache(
-      'visits-cache',
-      `my-visits-${qs}`,
-      (url) => apiClient.get<Visit[]>(url),
-      setDataSource
-    ),
-    options
-  );
-
-  // Merge pending items
-  useEffect(() => {
-    if (data) {
-      mergePendingVisits(data).then(setMergedVisits);
+  const loadFromCache = async () => {
+    try {
+      const cached = await getCachedData<Visit[]>('visits-cache', 'my-visits');
+      const merged = await mergePendingVisits(cached ?? []);
+      setVisits(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to load visits from cache:', err);
     }
-  }, [data]);
+  };
+
+  const refreshFromAPI = async () => {
+    try {
+      const fresh = await apiClient.get<Visit[]>('/api/visits');
+      await cacheData('visits-cache', 'my-visits', fresh);
+      const merged = await mergePendingVisits(fresh);
+      setVisits(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to refresh visits from API:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    // Load from cache immediately
+    loadFromCache().then(() => setIsLoading(false));
+
+    // Listen for SW sync messages to refresh from API
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'VISIT_SYNCED' || e.data?.type === 'HOUSEHOLD_SYNCED') {
+        refreshFromAPI();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, []);
 
   return {
-    visits: mergedVisits,
+    visits,
     isLoading,
-    error: error?.message ?? null,
-    mutate,
-    dataSource: isLoading ? ('loading' as DataSource) : dataSource,
+    error,
+    mutate: refreshFromAPI,
+    dataSource: ('cache' as 'server' | 'cache'),
   };
 }
 
-// ── useHouseholdVisits — GET /api/households/:id/visits ───────────────────────
-export function useHouseholdVisits(householdId: string | null, options?: SWRConfiguration) {
-  const [mergedVisits, setMergedVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
+/**
+ * Read household visits from IDB cache. Refresh from API only after SW sync.
+ */
+export function useHouseholdVisits(householdId: string | null) {
+  const [visits, setVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data, error, isLoading, mutate } = useSWR<(Visit & { publisherName?: string })[]>(
-    householdId ? `/api/households/${householdId}/visits` : null,
-    (url: string) => apiClient.get<(Visit & { publisherName?: string })[]>(url),
-    options
-  );
-
-  // Merge pending items
-  useEffect(() => {
-    if (data) {
-      mergePendingVisits(data as Visit[]).then((merged) =>
-        setMergedVisits(merged as (Visit & { publisherName?: string; _pending?: boolean })[])
-      );
+  const loadFromCache = async () => {
+    if (!householdId) {
+      setVisits([]);
+      setIsLoading(false);
+      return;
     }
-  }, [data]);
+    try {
+      const cached = await getCachedData<Visit[]>('visits-cache', `household-${householdId}`);
+      const merged = await mergePendingVisits(cached ?? []);
+      setVisits(merged as (Visit & { publisherName?: string; _pending?: boolean })[]);
+    } catch (err) {
+      console.error('[Hook] Failed to load household visits from cache:', err);
+    }
+  };
+
+  const refreshFromAPI = async () => {
+    if (!householdId) return;
+    try {
+      const fresh = await apiClient.get<Visit[]>(`/api/households/${householdId}/visits`);
+      await cacheData('visits-cache', `household-${householdId}`, fresh);
+      const merged = await mergePendingVisits(fresh);
+      setVisits(merged as (Visit & { publisherName?: string; _pending?: boolean })[]);
+    } catch (err) {
+      console.error('[Hook] Failed to refresh household visits from API:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    loadFromCache().then(() => setIsLoading(false));
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'VISIT_SYNCED') {
+        refreshFromAPI();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, [householdId]);
 
   return {
-    visits: mergedVisits,
+    visits,
     isLoading,
-    error: error?.message ?? null,
-    mutate,
+    error,
+    mutate: refreshFromAPI,
   };
 }
 
-export function useTerritoryVisits(territoryId: string | null, options?: SWRConfiguration) {
-  const [dataSource, setDataSource] = useState<DataSource>('loading');
+/**
+ * Read territory visits from IDB cache. Refresh from API only after SW sync.
+ */
+export function useTerritoryVisits(territoryId: string | null) {
+  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
-    territoryId ? `/api/territories/${territoryId}/visits` : null,
-    withOfflineCache(
-      'visits-cache',
-      territoryId ?? '',
-      (url) => apiClient.get<Visit[]>(url),
-      setDataSource
-    ),
-    options
-  );
+  const loadFromCache = async () => {
+    if (!territoryId) {
+      setVisits([]);
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const cached = await getCachedData<Visit[]>('visits-cache', `territory-${territoryId}`);
+      const merged = await mergePendingVisits(cached ?? []);
+      setVisits(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to load territory visits from cache:', err);
+    }
+  };
+
+  const refreshFromAPI = async () => {
+    if (!territoryId) return;
+    try {
+      const fresh = await apiClient.get<Visit[]>(`/api/territories/${territoryId}/visits`);
+      await cacheData('visits-cache', `territory-${territoryId}`, fresh);
+      const merged = await mergePendingVisits(fresh);
+      setVisits(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to refresh territory visits from API:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    loadFromCache().then(() => setIsLoading(false));
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'VISIT_SYNCED' || e.data?.type === 'TERRITORY_SYNCED') {
+        refreshFromAPI();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, [territoryId]);
 
   return {
-    visits: data ?? [],
+    visits,
     isLoading,
-    error: error?.message ?? null,
-    mutate,
-    dataSource: isLoading ? ('loading' as DataSource) : dataSource,
+    error,
+    mutate: refreshFromAPI,
+    dataSource: ('cache' as 'server' | 'cache'),
   };
 }
 
-export function useHouseholds(options?: SWRConfiguration) {
-  const [dataSource, setDataSource] = useState<DataSource>('loading');
-  const [mergedHouseholds, setMergedHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
+/**
+ * Read households from IDB cache. Refresh from API only after SW sync.
+ * This is the critical hook: shows pending households + synced households.
+ */
+export function useHouseholds() {
+  const [households, setHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data, error, isLoading, mutate } = useSWR<Household[]>(
-    '/api/households',
-    withOfflineCache(
-      'households-cache',
-      'all',
-      (url) => apiClient.get<Household[]>(url),
-      setDataSource
-    ),
-    options
-  );
-
-  // Merge pending items
-  useEffect(() => {
-    if (data) {
-      mergePendingHouseholds(data).then(setMergedHouseholds);
+  const loadFromCache = async () => {
+    try {
+      const cached = await getCachedData<Household[]>('households-cache', 'all');
+      const merged = await mergePendingHouseholds(cached ?? []);
+      setHouseholds(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to load households from cache:', err);
     }
-  }, [data]);
+  };
+
+  const refreshFromAPI = async () => {
+    try {
+      const fresh = await apiClient.get<Household[]>('/api/households');
+      await cacheData('households-cache', 'all', fresh);
+      const merged = await mergePendingHouseholds(fresh);
+      setHouseholds(merged);
+    } catch (err) {
+      console.error('[Hook] Failed to refresh households from API:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    // Load from cache immediately (shows pending items right away)
+    loadFromCache().then(() => setIsLoading(false));
+
+    // Listen for SW sync messages to refresh from API
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'HOUSEHOLD_SYNCED') {
+        refreshFromAPI();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleMessage);
+  }, []);
 
   return {
-    households: mergedHouseholds,
+    households,
     isLoading,
-    error: error?.message ?? null,
-    mutate,
-    dataSource: isLoading ? ('loading' as DataSource) : dataSource,
+    error,
+    mutate: refreshFromAPI,
+    dataSource: ('cache' as 'server' | 'cache'),
   };
 }
