@@ -387,6 +387,7 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
     formState: { errors, isSubmitting },
   } = useForm<AddHouseholdFormData>({
     resolver: zodResolver(addHouseholdSchema),
+    defaultValues: { type: 'house' },
   });
 
   const onSubmit = async (values: AddHouseholdFormData) => {

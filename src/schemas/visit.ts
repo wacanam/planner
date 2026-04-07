@@ -9,8 +9,7 @@ export const addHouseholdSchema = z.object({
   postalCode: z.string().max(20).optional(),
   country: z.string().max(100).optional(),
   type: z
-    .enum(['house', 'apartment', 'condo', 'townhouse', 'mobile_home', 'business', 'other'] as const)
-    .default('house'),
+    .enum(['house', 'apartment', 'condo', 'townhouse', 'mobile_home', 'business', 'other'] as const),
   floor: z.number().int().optional(),
   notes: z.string().max(500).optional(),
   latitude: z.string().optional(),
