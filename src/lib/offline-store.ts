@@ -108,18 +108,31 @@ export function withOfflineCache<T>(
   onSource?: (source: 'server' | 'cache') => void
 ): (url: string) => Promise<T> {
   return async (url: string): Promise<T> => {
+    // 1. Try IDB cache first — return immediately if found (stale-while-revalidate)
+    try {
+      const cached = await getCachedData<T>(cacheStore, cacheKey);
+      if (cached !== null) {
+        onSource?.('cache');
+        // Fire-and-forget: refresh cache in background
+        fetcher(url)
+          .then((fresh) => cacheData(cacheStore, cacheKey, fresh))
+          .catch(() => {}); // Silent failure on offline/API errors
+        return cached;
+      }
+    } catch (err) {
+      console.warn(`[Offline] Failed to read IDB cache ${cacheStore}:${cacheKey}:`, err);
+    }
+
+    // 2. No cache — try API (will throw if offline)
     try {
       const result = await fetcher(url);
       await cacheData(cacheStore, cacheKey, result);
       onSource?.('server');
       return result;
-    } catch {
-      const cached = await getCachedData<T>(cacheStore, cacheKey);
-      if (cached !== null) {
-        onSource?.('cache');
-        return cached;
-      }
-      throw new Error('You are offline and no cached data is available.');
+    } catch (err) {
+      // 3. API failed and no cache — throw error
+      console.error(`[Offline] API fetch failed and no cache for ${cacheStore}:${cacheKey}:`, err);
+      throw err;
     }
   };
 }
@@ -159,9 +172,20 @@ export async function clearPendingWrite(store: StoreName, id: string): Promise<v
 export async function registerSync(tag: string): Promise<void> {
   try {
     const reg = await navigator.serviceWorker.ready;
+    if (!reg) {
+      console.warn('[Offline] No SW registration found');
+      return;
+    }
     // @ts-expect-error — BackgroundSync not in all TS type definitions yet
-    if (reg.sync) await reg.sync.register(tag);
-  } catch {
+    if (!reg.sync) {
+      console.warn('[Offline] Background Sync not available in this SW');
+      return;
+    }
+    // @ts-expect-error
+    await reg.sync.register(tag);
+    console.log(`[Offline] Registered sync tag: ${tag}`);
+  } catch (err) {
+    console.error(`[Offline] Failed to register sync: ${tag}`, err);
     // Not supported — SW will retry on 'online' event instead
   }
 }
