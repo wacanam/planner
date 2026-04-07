@@ -3,21 +3,31 @@ import { useEffect } from 'react';
 
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator)) {
+      console.warn('[SW] Service Workers not supported');
+      return;
+    }
 
     // Register SW
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker?.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[SW] New version available');
-          }
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        console.log('[SW] Registered successfully', reg);
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[SW] New version available');
+            }
+          });
         });
+      })
+      .catch((err) => {
+        console.error('[SW] Registration failed:', err);
       });
-    });
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      console.log('[SW] Controller changed, reloading...');
       window.location.reload();
     });
 

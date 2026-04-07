@@ -159,9 +159,20 @@ export async function clearPendingWrite(store: StoreName, id: string): Promise<v
 export async function registerSync(tag: string): Promise<void> {
   try {
     const reg = await navigator.serviceWorker.ready;
+    if (!reg) {
+      console.warn('[Offline] No SW registration found');
+      return;
+    }
     // @ts-expect-error — BackgroundSync not in all TS type definitions yet
-    if (reg.sync) await reg.sync.register(tag);
-  } catch {
+    if (!reg.sync) {
+      console.warn('[Offline] Background Sync not available in this SW');
+      return;
+    }
+    // @ts-expect-error
+    await reg.sync.register(tag);
+    console.log(`[Offline] Registered sync tag: ${tag}`);
+  } catch (err) {
+    console.error(`[Offline] Failed to register sync: ${tag}`, err);
     // Not supported — SW will retry on 'online' event instead
   }
 }

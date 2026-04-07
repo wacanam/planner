@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { withOfflineCache } from '@/lib/offline-store';
+import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
 import type { DataSource } from '@/lib/offline-store';
 import type { SWRConfiguration } from 'swr';
 import type { Visit, Household } from '@/types/api';
@@ -12,6 +13,7 @@ export function useMyVisits(
   options?: SWRConfiguration
 ) {
   const [dataSource, setDataSource] = useState<DataSource>('loading');
+  const [mergedVisits, setMergedVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
 
   const params = new URLSearchParams();
   if (filters?.householdId) params.set('householdId', filters.householdId);
@@ -30,8 +32,15 @@ export function useMyVisits(
     options
   );
 
+  // Merge pending items
+  useEffect(() => {
+    if (data) {
+      mergePendingVisits(data).then(setMergedVisits);
+    }
+  }, [data]);
+
   return {
-    visits: data ?? [],
+    visits: mergedVisits,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -41,14 +50,25 @@ export function useMyVisits(
 
 // ── useHouseholdVisits — GET /api/households/:id/visits ───────────────────────
 export function useHouseholdVisits(householdId: string | null, options?: SWRConfiguration) {
+  const [mergedVisits, setMergedVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
+
   const { data, error, isLoading, mutate } = useSWR<(Visit & { publisherName?: string })[]>(
     householdId ? `/api/households/${householdId}/visits` : null,
     (url: string) => apiClient.get<(Visit & { publisherName?: string })[]>(url),
     options
   );
 
+  // Merge pending items
+  useEffect(() => {
+    if (data) {
+      mergePendingVisits(data as Visit[]).then((merged) =>
+        setMergedVisits(merged as (Visit & { publisherName?: string; _pending?: boolean })[])
+      );
+    }
+  }, [data]);
+
   return {
-    visits: data ?? [],
+    visits: mergedVisits,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -80,6 +100,7 @@ export function useTerritoryVisits(territoryId: string | null, options?: SWRConf
 
 export function useHouseholds(options?: SWRConfiguration) {
   const [dataSource, setDataSource] = useState<DataSource>('loading');
+  const [mergedHouseholds, setMergedHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
 
   const { data, error, isLoading, mutate } = useSWR<Household[]>(
     '/api/households',
@@ -92,8 +113,15 @@ export function useHouseholds(options?: SWRConfiguration) {
     options
   );
 
+  // Merge pending items
+  useEffect(() => {
+    if (data) {
+      mergePendingHouseholds(data).then(setMergedHouseholds);
+    }
+  }, [data]);
+
   return {
-    households: data ?? [],
+    households: mergedHouseholds,
     isLoading,
     error: error?.message ?? null,
     mutate,
