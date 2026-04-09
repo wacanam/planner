@@ -2,6 +2,7 @@
 
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useMyEncounters } from '@/hooks';
 import type { Encounter } from '@/types/api';
 
 const responseColors: Record<string, string> = {
@@ -23,13 +24,17 @@ const responseLabels: Record<string, string> = {
 };
 
 export default function EncountersClient() {
-  // Placeholder — will connect to useMyEncounters hook when implemented
-  const encounters: Encounter[] = [];
-  const isLoading = false;
+  const { encounters, isLoading, error } = useMyEncounters();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
       <h1 className="text-xl font-bold text-foreground">My Encounters</h1>
+
+      {error && (
+        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -37,7 +42,7 @@ export default function EncountersClient() {
             <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
-      ) : encounters.length === 0 ? (
+      ) : (encounters as Encounter[]).length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Users size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No encounters logged yet.</p>
@@ -45,18 +50,28 @@ export default function EncountersClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {encounters.map((e) => (
+          {(encounters as Encounter[]).map((e) => (
             <div
               key={e.id}
               className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{e.name ?? 'Unknown person'}</p>
+                <p className="text-sm font-medium">
+                  {e.name ?? 'Unknown person'}
+                  {e.householdAddress && (
+                    <span className="text-muted-foreground font-normal">
+                      {' '}· {e.householdAddress}
+                      {e.householdCity ? `, ${e.householdCity}` : ''}
+                    </span>
+                  )}
+                </p>
                 {e.topicDiscussed && (
                   <p className="text-xs text-muted-foreground mt-0.5">{e.topicDiscussed}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(e.createdAt).toLocaleDateString()}
+                  {e.visitDate
+                    ? new Date(e.visitDate).toLocaleDateString()
+                    : new Date(e.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <Badge variant="outline" className={responseColors[e.response] ?? ''}>

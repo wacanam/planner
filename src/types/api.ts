@@ -317,4 +317,9 @@ export interface Encounter {
   syncedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Joined fields — present when fetched via /api/profile/encounters */
+  householdAddress?: string | null;
+  householdCity?: string | null;
+  visitDate?: string | null;
+  visitOutcome?: string | null;
 }
