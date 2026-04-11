@@ -2,7 +2,7 @@
 
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { Encounter } from '@/types/api';
+import { useMyEncounters } from '@/hooks';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20',
@@ -23,13 +23,17 @@ const responseLabels: Record<string, string> = {
 };
 
 export default function EncountersClient() {
-  // Placeholder — will connect to useMyEncounters hook when implemented
-  const encounters: Encounter[] = [];
-  const isLoading = false;
+  const { encounters, isLoading, error } = useMyEncounters();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
       <h1 className="text-xl font-bold text-foreground">My Encounters</h1>
+
+      {error && (
+        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -51,12 +55,22 @@ export default function EncountersClient() {
               className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{e.name ?? 'Unknown person'}</p>
+                <p className="text-sm font-medium">
+                  {e.name ?? 'Unknown person'}
+                  {e.householdAddress && (
+                    <span className="text-muted-foreground font-normal">
+                      {' '}· {e.householdAddress}
+                      {e.householdCity ? `, ${e.householdCity}` : ''}
+                    </span>
+                  )}
+                </p>
                 {e.topicDiscussed && (
                   <p className="text-xs text-muted-foreground mt-0.5">{e.topicDiscussed}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(e.createdAt).toLocaleDateString()}
+                  {e.visitDate
+                    ? new Date(e.visitDate).toLocaleDateString()
+                    : new Date(e.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <Badge variant="outline" className={responseColors[e.response] ?? ''}>

@@ -51,3 +51,33 @@ export function useHouseholds(options?: SWRConfiguration) {
     dataSource: isLoading ? ('loading' as DataSource) : dataSource,
   };
 }
+
+export function useMyVisits(options?: SWRConfiguration) {
+  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
+    '/api/profile/visits',
+    (url: string) => apiClient.get<Visit[]>(url),
+    options
+  );
+
+  return {
+    visits: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+  };
+}
+
+export function useHouseholdVisits(householdId: string | null, options?: SWRConfiguration) {
+  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
+    householdId ? `/api/households/${householdId}/visits` : null,
+    (url: string) => apiClient.get<Visit[]>(url),
+    options
+  );
+
+  return {
+    visits: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+  };
+}
