@@ -3,7 +3,6 @@
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useMyEncounters } from '@/hooks';
-import type { Encounter } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20',
@@ -42,7 +41,7 @@ export default function EncountersClient() {
             <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
-      ) : (encounters as Encounter[]).length === 0 ? (
+      ) : encounters.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Users size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No encounters logged yet.</p>
@@ -50,7 +49,7 @@ export default function EncountersClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {(encounters as Encounter[]).map((e) => (
+          {encounters.map((e) => (
             <div
               key={e.id}
               className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"

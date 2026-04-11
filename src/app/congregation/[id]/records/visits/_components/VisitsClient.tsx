@@ -3,7 +3,6 @@
 import { Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useMyVisits } from '@/hooks';
-import type { Visit } from '@/types/api';
 
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -42,7 +41,7 @@ export default function VisitsClient() {
             <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
-      ) : (visits as Visit[]).length === 0 ? (
+      ) : visits.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Clock size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No visits logged yet.</p>
@@ -50,7 +49,7 @@ export default function VisitsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {(visits as Visit[]).map((v) => (
+          {visits.map((v) => (
             <div key={v.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium truncate">
@@ -74,3 +73,4 @@ export default function VisitsClient() {
     </div>
   );
 }
+

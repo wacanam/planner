@@ -1,9 +1,11 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql } from 'drizzle-orm';
-import { db, households, visits } from '@/db';
+import { eq } from 'drizzle-orm';
+import { db, households, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
+
+const PRIVILEGED_ROLES: string[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -44,13 +46,17 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     const { id } = await ctx.params;
 
     const [existing] = await db
-      .select({ id: households.id })
+      .select({ id: households.id, createdById: households.createdById })
       .from(households)
       .where(eq(households.id, id))
       .limit(1);
 
     if (!existing) {
       return ApiErrors.notFound('Household', requestId);
+    }
+
+    if (existing.createdById !== user.userId && !PRIVILEGED_ROLES.includes(user.role)) {
+      return ApiErrors.forbidden('You do not have permission to update this household', requestId);
     }
 
     const body = (await req.json()) as {
@@ -112,18 +118,23 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
 
   try {
     const { id } = await ctx.params;
 
     const [existing] = await db
-      .select({ id: households.id })
+      .select({ id: households.id, createdById: households.createdById })
       .from(households)
       .where(eq(households.id, id))
       .limit(1);
 
     if (!existing) {
       return ApiErrors.notFound('Household', requestId);
+    }
+
+    if (existing.createdById !== user.userId && !PRIVILEGED_ROLES.includes(user.role)) {
+      return ApiErrors.forbidden('You do not have permission to delete this household', requestId);
     }
 
     await db.delete(households).where(eq(households.id, id));
@@ -134,3 +145,4 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
     return ApiErrors.internalError(undefined, requestId);
   }
 }
+
