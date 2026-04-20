@@ -41,6 +41,18 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  // Drawing mode
+  isDrawing?: boolean;
+  onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
+  onDrawingStateChange?: (rings: number, activePoints: number) => void;
+  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void }) => void;
+  // Pre-seed drawing with existing boundary rings for editing
+  initialDrawingRings?: [number, number][][];
+  // Location / calibration (kept for callers)
+  onLocationDotClick?: () => void;
+  onCalibrationNeeded?: (needed: boolean) => void;
+  onGeolocateReady?: (fn: () => void) => void;
+  locationOn?: boolean;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -164,6 +176,11 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  isDrawing = false,
+  onDrawingComplete,
+  onDrawingStateChange,
+  onDrawingActions,
+  initialDrawingRings,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -172,7 +189,41 @@ export default function TerritoryMap({
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
 
+  // ── Drawing state ─────────────────────────────────────────────────────────
+  type LngLat = [number, number];
+  const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
+  const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  // Refs so imperative callbacks always see current state
+  const drawRingsRef  = useRef<LngLat[][]>([]);
+  const activeRingRef = useRef<LngLat[]>([]);
+  drawRingsRef.current  = drawRings;
+  activeRingRef.current = activeRing;
+  const drawLastClick = useRef<number>(0);
+  const onDrawingCompleteRef = useRef(onDrawingComplete);
+  onDrawingCompleteRef.current = onDrawingComplete;
+  const onDrawingStateChangeRef = useRef(onDrawingStateChange);
+  onDrawingStateChangeRef.current = onDrawingStateChange;
+  const onDrawingActionsRef = useRef(onDrawingActions);
+  onDrawingActionsRef.current = onDrawingActions;
+
+  // Expose imperative drawing actions to parent
+  useEffect(() => {
+    if (!isDrawing) return;
+    onDrawingActionsRef.current?.({
+      closeRing: () => {
+        const ring = activeRingRef.current;
+        if (ring.length < 3) return;
+        setDrawRings((prev) => [...prev, ring]);
+        setActiveRing([]);
+      },
+      undoPoint: () => {
+        setActiveRing((prev) => prev.slice(0, -1));
+      },
+    });
+  }, [isDrawing]);
+
   const [mapReady, setMapReady] = useState(false);
+  const [styleSeq, setStyleSeq] = useState(0); // increments on each styledata event
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -280,87 +331,52 @@ export default function TerritoryMap({
           );
         }
 
-        // ── Context territory polygons ───────────────────────────────────────
-        for (const tb of allBoundaries) {
-          try {
-            const geo = JSON.parse(tb.boundary);
-            const sourceId = `boundary-${tb.id}`;
-            map.addSource(sourceId, { type: 'geojson', data: geo });
-            map.addLayer({
-              id: `boundary-fill-${tb.id}`,
-              type: 'fill',
-              source: sourceId,
-              paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 },
-            });
-            map.addLayer({
-              id: `boundary-line-${tb.id}`,
-              type: 'line',
-              source: sourceId,
-              paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
-            });
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Context + active boundary: handled by reactive useEffect ─────
 
-        // ── Active territory spotlight ───────────────────────────────────────
-        if (boundary) {
-          try {
-            const geo = JSON.parse(boundary);
-            const outerRing: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
-            if (outerRing.length) {
-              const worldOuter: [number, number][] = [
-                [-180, -90],
-                [180, -90],
-                [180, 90],
-                [-180, 90],
-                [-180, -90],
-              ];
-              const maskGeo = {
-                type: 'Feature',
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [worldOuter, outerRing],
-                },
-              };
-              map.addSource('spotlight-mask', {
-                type: 'geojson',
-                data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D }
-                  ? D
-                  : never,
-              });
-              map.addLayer({
-                id: 'spotlight-fill',
-                type: 'fill',
-                source: 'spotlight-mask',
-                paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-              });
-              // Border
-              map.addSource('active-boundary', { type: 'geojson', data: geo });
-              map.addLayer({
-                id: 'active-boundary-line',
-                type: 'line',
-                source: 'active-boundary',
-                paint: { 'line-color': '#6B9ECC', 'line-width': 2.5 },
-              });
-
-              // Fit map to territory
-              const lngs = outerRing.map(([x]) => x);
-              const lats = outerRing.map(([, y]) => y);
-              map.fitBounds(
-                [
-                  [Math.min(...lngs), Math.min(...lats)],
-                  [Math.max(...lngs), Math.max(...lats)],
-                ],
-                { padding: 60, duration: 0 }
-              );
-            }
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Boundary/spotlight handled by reactive useEffect ─────────────────
 
         setMapReady(true);
+
+        // ── Drawing layers helper — re-run after every style change ────────
+        const addDrawingLayers = (m: import('maplibre-gl').Map) => {
+          if (!m.getSource('draw-polygons')) {
+            m.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-active')) {
+            m.addSource('draw-active', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-points')) {
+            m.addSource('draw-points', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getLayer('draw-polygons-fill'))
+            m.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
+              paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+          if (!m.getLayer('draw-polygons-line'))
+            m.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
+              paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+          if (!m.getLayer('draw-active-line'))
+            m.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
+              paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+          if (!m.getLayer('draw-points-circle'))
+            m.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
+              filter: ['!=', ['get', 'first'], true],
+              paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          if (!m.getLayer('draw-points-first'))
+            m.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
+              filter: ['==', ['get', 'first'], true],
+              paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+        };
+
+        // Add initially
+        addDrawingLayers(map);
+
+        // Re-add after every style change (setStyle wipes all sources+layers)
+        map.on('styledata', () => {
+          addDrawingLayers(map);
+          setStyleSeq((n) => n + 1);
+        });
 
         // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
         // Proper Marker so it tilts natively with map pitch (no CSS hacks)
@@ -557,6 +573,96 @@ useEffect(() => {
   // watchPosition continues after style change — markers re-added on next GPS fix
 }, [mapStyle, mapReady]);
 
+// ── Reactive boundary rendering ───────────────────────────────────────────
+// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady+styleSeq triggers
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+
+  // Helper: upsert a geojson source
+  const upsertSource = (id: string, data: object) => {
+    const src = map.getSource(id) as import('maplibre-gl').GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data as any);
+    } else {
+      map.addSource(id, { type: 'geojson', data: data as any });
+    }
+  };
+
+  // ── Active territory boundary fill + line ─────────────────────────────
+  if (boundary) {
+    try {
+      const geo = JSON.parse(boundary);
+
+      // Build mask for spotlight (world minus territory)
+      const coords = geo?.geometry?.coordinates ?? geo?.coordinates;
+      const outerRing: [number, number][] = Array.isArray(coords?.[0]?.[0])
+        ? coords[0]
+        : coords?.[0] ?? [];
+
+      if (outerRing.length >= 3) {
+        const worldOuter: [number, number][] = [
+          [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
+        ];
+        const maskGeo = {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [worldOuter, outerRing] },
+          properties: {},
+        };
+        upsertSource('spotlight-mask', maskGeo);
+        if (!map.getLayer('spotlight-fill')) {
+          map.addLayer({
+            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
+            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+          });
+        }
+      }
+
+      // Active boundary line
+      const geoData = geo?.geometry ?? geo;
+      upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer('active-boundary-fill')) {
+        map.addLayer({
+          id: 'active-boundary-fill', type: 'fill', source: 'active-boundary',
+          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+        });
+      }
+      if (!map.getLayer('active-boundary-line')) {
+        map.addLayer({
+          id: 'active-boundary-line', type: 'line', source: 'active-boundary',
+          paint: { 'line-color': '#3b82f6', 'line-width': 2.5 },
+        });
+      }
+    } catch {
+      // ignore malformed boundary
+    }
+  } else {
+    // No boundary — remove layers if they exist
+    for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    for (const id of ['spotlight-mask', 'active-boundary']) {
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  }
+
+  // ── Context (other territory) boundaries ─────────────────────────
+  for (const tb of allBoundaries) {
+    try {
+      const geo = JSON.parse(tb.boundary);
+      const geoData = geo?.geometry ?? geo;
+      const srcId = `ctx-boundary-${tb.id}`;
+      upsertSource(srcId, { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer(`${srcId}-fill`))
+        map.addLayer({ id: `${srcId}-fill`, type: 'fill', source: srcId,
+          paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 } });
+      if (!map.getLayer(`${srcId}-line`))
+        map.addLayer({ id: `${srcId}-line`, type: 'line', source: srcId,
+          paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] } });
+    } catch { /* skip */ }
+  }
+}, [boundary, allBoundaries, mapReady, styleSeq]);
+
 // ── Household markers effect ──────────────────────────────────────────────
 // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
 useEffect(() => {
@@ -716,9 +822,133 @@ useEffect(() => {
   });
 }, [households, mapReady, isDark]);
 
-return (
+  // ─── Drawing: sync layers whenever rings/activeRing change ───────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    const setData = (src: string, data: GeoJSON.FeatureCollection) => {
+      const s = map.getSource(src) as import('maplibre-gl').GeoJSONSource | undefined;
+      s?.setData(data);
+    };
+
+    setData('draw-polygons', {
+      type: 'FeatureCollection',
+      features: drawRings.map((ring) => ({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
+        properties: {},
+      })),
+    });
+
+    setData('draw-active', {
+      type: 'FeatureCollection',
+      features: activeRing.length >= 2 ? [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: activeRing },
+        properties: {},
+      }] : [],
+    });
+
+    setData('draw-points', {
+      type: 'FeatureCollection',
+      features: activeRing.map((pt, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: pt },
+        properties: { first: i === 0 },
+      })),
+    });
+  }, [drawRings, activeRing, mapReady, styleSeq]);
+
+  // Fire state change so parent toolbar can reflect ring/point counts
+  useEffect(() => {
+    onDrawingStateChangeRef.current?.(drawRings.length, activeRing.length);
+  }, [drawRings.length, activeRing.length]);
+
+  // ─── Drawing: attach/detach map click handler ────────────────────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    if (isDrawing) {
+      map.getCanvas().style.cursor = 'crosshair';
+      // Disable zoom on double-tap/click so every tap adds a point
+      map.doubleClickZoom.disable();
+      // Seed rings from existing boundary for editing
+      if (initialDrawingRings && initialDrawingRings.length > 0) {
+        setDrawRings(initialDrawingRings);
+      }
+    } else {
+      map.getCanvas().style.cursor = '';
+      map.doubleClickZoom.enable();
+      setDrawRings([]);
+      setActiveRing([]);
+    }
+
+    if (!isDrawing) return;
+
+    const addPoint = (lngLat: { lng: number; lat: number }) => {
+      const pt: [number, number] = [lngLat.lng, lngLat.lat];
+      setActiveRing((prev) => [...prev, pt]);
+    };
+
+    // Desktop: map click event
+    const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
+      // Ignore if this is a touch event (handled by touchend instead)
+      if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      addPoint(e.lngLat);
+    };
+
+    // Mobile: touchend on the canvas for instant response
+    const canvas = map.getCanvas();
+    let touchStartX = 0, touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      const dx = Math.abs(t.clientX - touchStartX);
+      const dy = Math.abs(t.clientY - touchStartY);
+      // Only treat as a tap (not a drag/pan)
+      if (dx > 10 || dy > 10) return;
+      e.preventDefault();
+      // Convert touch position to map LngLat
+      const rect = canvas.getBoundingClientRect();
+      const x = t.clientX - rect.left;
+      const y = t.clientY - rect.top;
+      const lngLat = map.unproject([x, y]);
+      addPoint(lngLat);
+    };
+
+    map.on('click', onDesktopClick);
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+
+    return () => {
+      map.off('click', onDesktopClick);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isDrawing, mapReady]);
+
+  // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
+  const prevIsDrawing = useRef(isDrawing);
+  useEffect(() => {
+    if (prevIsDrawing.current && !isDrawing) {
+      const rings = drawRingsRef.current;
+      if (rings.length > 0) {
+        const geojson = rings.length === 1
+          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+        onDrawingCompleteRef.current?.(geojson);
+      }
+    }
+    prevIsDrawing.current = isDrawing;
+  }, [isDrawing]);
+
+  return (
     <div className={`relative ${className}`}>
-      {/* MapLibre GL CSS */}
       <link
         rel="stylesheet"
         href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css"

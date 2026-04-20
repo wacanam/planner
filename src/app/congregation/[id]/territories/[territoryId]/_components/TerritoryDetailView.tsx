@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 
-import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, Pentagon, Undo2, Check, Save } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
@@ -14,6 +14,7 @@ import { apiClient } from '@/lib/api-client';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 
+import { useTerritoryBoundary } from '@/hooks/use-territory-boundary';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -148,6 +149,7 @@ export default function TerritoryDetailView() {
     territory: territoryResponse,
     isLoading: territoryLoading,
     error: territoryError,
+    mutate: mutateTerritory,
   } = useTerritoryDetail(territoryId ?? null);
 
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
@@ -189,6 +191,13 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
+  const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
+  const [drawRingCount, setDrawRingCount] = useState(0);
+  const [drawActivePoints, setDrawActivePoints] = useState(0);
+  const { saveBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
+  // Exposed callbacks from map for closing ring and undoing
+  const mapCloseRingRef = useRef<(() => void) | null>(null);
+  const mapUndoPointRef = useRef<(() => void) | null>(null);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
@@ -259,8 +268,107 @@ export default function TerritoryDetailView() {
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
+                    isDrawing={isDrawingBoundary}
+                    initialDrawingRings={(() => {
+                      if (!territory.boundary) return undefined;
+                      try {
+                        const geo = JSON.parse(territory.boundary);
+                        const coords = geo?.coordinates;
+                        if (!coords) return undefined;
+                        if (geo.type === 'Polygon') {
+                          // Remove closing point
+                          const ring = coords[0] as [number, number][];
+                          return [ring.slice(0, -1)];
+                        }
+                        if (geo.type === 'MultiPolygon') {
+                          return (coords as [number, number][][][]).map((p) => p[0].slice(0, -1));
+                        }
+                      } catch { /* ignore */ }
+                      return undefined;
+                    })()}
+                    onDrawingStateChange={(rings: number, pts: number) => {
+                      setDrawRingCount(rings);
+                      setDrawActivePoints(pts);
+                    }}
+                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void }) => {
+                      mapCloseRingRef.current = actions.closeRing;
+                      mapUndoPointRef.current = actions.undoPoint;
+                    }}
+                    onDrawingComplete={async (geojson: { type: string; coordinates: unknown }) => {
+                      try {
+                        await saveBoundary(territoryId, geojson as any);
+                        await mutateTerritory(); // refresh territory.boundary
+                        setIsDrawingBoundary(false);
+                      } catch {
+                        // error handled by hook
+                      }
+                    }}
                     className="h-full"
                   />
+
+                  {/* Drawing mode toolbar — mobile-friendly, no keyboard shortcuts */}
+                  {isDrawingBoundary && (
+                    <>
+                      {/* Top status bar */}
+                      <div className="absolute top-0 inset-x-0 z-[1100] flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white pointer-events-auto">
+                        <span className="text-xs font-semibold truncate">
+                          {drawActivePoints > 0
+                            ? `📍 ${drawActivePoints} pts — tap ✓ to close`
+                            : drawRingCount > 0
+                            ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — tap Save`
+                            : '✏️ Tap on map to add points'}
+                        </span>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          {isSavingBoundary ? (
+                            <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
+                          ) : (
+                            drawRingCount > 0 && drawActivePoints === 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setIsDrawingBoundary(false)}
+                                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
+                              >
+                                <Save className="w-3 h-3" /> Save
+                              </button>
+                            )
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setIsDrawingBoundary(false)}
+                            className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right-side floating action buttons */}
+                      <div className="absolute right-3 top-16 z-[1100] flex flex-col gap-2 pointer-events-auto">
+                        {/* Close current ring */}
+                        {drawActivePoints >= 3 && (
+                          <button
+                            type="button"
+                            onClick={() => (mapCloseRingRef.current?.())}
+                            className="flex items-center justify-center w-9 h-9 bg-blue-500 text-white rounded-full shadow-md"
+                            title="Close polygon"
+                          >
+                            <Check className="w-5 h-5" />
+                          </button>
+                        )}
+                        {/* Undo last point */}
+                        {drawActivePoints > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => (mapUndoPointRef.current?.())}
+                            className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-md border border-gray-200"
+                            title="Undo last point"
+                          >
+                            <Undo2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
 
                   {/* Fullscreen toggle — right center */}
                   <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[1001] p-2 pointer-events-auto">
@@ -292,6 +400,8 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
+                  {/* Draw Boundary button — inline map control, right side */}
+                  {/* Rendered in the fixed bottom-left cluster below */}
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
                     <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">
@@ -324,6 +434,18 @@ export default function TerritoryDetailView() {
 
           {/* Location toggle — fixed bottom-left */}
           <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            {/* Draw boundary button — beside geolocation */}
+            <button
+              type="button"
+              onClick={() => setIsDrawingBoundary(!isDrawingBoundary)}
+              title={isDrawingBoundary ? "Stop drawing" : "Draw territory boundary"}
+              className={[
+                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all mb-2',
+                isDrawingBoundary ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
+              ].join(' ')}
+            >
+              <Pentagon className="w-4 h-4" />
+            </button>
             {/* Location toggle */}
             <button
               type="button"
