@@ -46,12 +46,12 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     const { boundary } = body;
 
     if (!boundary) {
-      return ApiErrors.badRequest('boundary (GeoJSON) is required', requestId);
+      return ApiErrors.badRequest('boundary (GeoJSON) is required', undefined, requestId);
     }
 
     // Validate GeoJSON (basic check)
     if (typeof boundary !== 'object' || !boundary.type) {
-      return ApiErrors.badRequest('boundary must be valid GeoJSON', requestId);
+      return ApiErrors.badRequest('boundary must be valid GeoJSON', undefined, requestId);
     }
 
     // Save boundary

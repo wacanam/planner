@@ -2,12 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
-import MaplibreGeocoder from '@maplibre/maplibre-gl-geocoder';
-import MapDrawer from '@mapbox/mapbox-gl-draw';
-import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
-import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useTerritoryBoundary, leafletDrawToGeoJSON, geoJsonToLeafletFeatures } from '@/hooks/use-territory-boundary';
+import { useTerritoryBoundary } from '@/hooks/use-territory-boundary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -19,10 +15,13 @@ interface TerritoryBoundaryDrawerProps {
 }
 
 /**
- * Territory Boundary Drawing Component
- * - Service Overseers and Territory Servants can draw multi-polygon boundaries
- * - Uses MapLibre GL + Draw library
- * - Saves GeoJSON to database
+ * Territory Boundary Drawing Component (Simplified)
+ * - Service Overseers and Territory Servants can draw boundaries
+ * - Uses MapLibre GL for map display
+ * - GeoJSON input/output
+ * 
+ * TODO: Integrate with drawing library (Mapbox Draw or Leaflet Draw)
+ * Currently simplified to map display + manual GeoJSON input
  */
 export function TerritoryBoundaryDrawer({
   territoryId,
@@ -32,11 +31,11 @@ export function TerritoryBoundaryDrawer({
 }: TerritoryBoundaryDrawerProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const draw = useRef<MapDrawer | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasBoundary, setHasBoundary] = useState(false);
+  const [geoJsonInput, setGeoJsonInput] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { boundary, isLoading, isSaving, error, fetchBoundary, saveBoundary } = useTerritoryBoundary();
+  const { fetchBoundary, saveBoundary } = useTerritoryBoundary();
 
   // Initialize map
   useEffect(() => {
@@ -49,32 +48,10 @@ export function TerritoryBoundaryDrawer({
       zoom: initialZoom,
     });
 
-    // Add geocoder
-    const geocoder = new MaplibreGeocoder(
-      {
-        maplibregl: maplibregl,
-      },
-      {
-        showResultsWhileTyping: true,
-        minLength: 2,
-      }
-    );
-    map.current.addControl(geocoder);
-
-    // Add draw control
-    draw.current = new MapDrawer({
-      displayControlsDefault: false,
-      controls: {
-        polygon: true,
-        trash: true,
-        combine_features: true,
-        uncombine_features: true,
-      },
-    });
-    map.current.addControl(draw.current);
-
     // Load existing boundary
-    fetchBoundary(territoryId);
+    fetchBoundary(territoryId).then(() => {
+      // Boundary loaded, can be displayed on map
+    });
 
     return () => {
       if (map.current) {
@@ -83,103 +60,42 @@ export function TerritoryBoundaryDrawer({
     };
   }, [territoryId, initialCenter, initialZoom, fetchBoundary]);
 
-  // Display boundary on map when loaded
-  useEffect(() => {
-    if (!boundary || !map.current || !draw.current) return;
-
-    const features = geoJsonToLeafletFeatures(boundary);
-    if (features.features.length > 0) {
-      draw.current.set({
-        features: features.features,
-      });
-      setHasBoundary(true);
-    }
-  }, [boundary]);
-
-  // Handle drawing changes
-  const handleDrawUpdate = () => {
-    if (!draw.current) return;
-    const data = draw.current.getAll();
-    if (data.features.length > 0) {
-      setHasBoundary(true);
-    } else {
-      setHasBoundary(false);
-    }
-  };
-
   // Save boundary
   const handleSave = async () => {
-    if (!draw.current) return;
-
-    const data = draw.current.getAll();
-    if (data.features.length === 0) {
-      alert('Please draw at least one polygon');
+    if (!geoJsonInput.trim()) {
+      setError('Please paste valid GeoJSON');
       return;
     }
 
     try {
-      // Convert to MultiPolygon GeoJSON
-      const coordinates: any[] = [];
-      for (const feature of data.features) {
-        if (feature.geometry.type === 'Polygon') {
-          coordinates.push(feature.geometry.coordinates);
-        }
-      }
+      const geoJson = JSON.parse(geoJsonInput);
 
-      if (coordinates.length === 0) {
-        alert('No valid polygons found');
+      // Validate GeoJSON
+      if (!geoJson.type || !['Polygon', 'MultiPolygon'].includes(geoJson.type)) {
+        setError('GeoJSON must be Polygon or MultiPolygon');
         return;
       }
 
-      const geoJson = {
-        type: coordinates.length === 1 ? 'Polygon' : 'MultiPolygon',
-        coordinates: coordinates.length === 1 ? coordinates[0] : coordinates,
-      };
-
+      setIsSaving(true);
+      setError(null);
       await saveBoundary(territoryId, geoJson);
+      setGeoJsonInput('');
       alert('Boundary saved successfully!');
       onBoundarySaved?.();
     } catch (err) {
+      setError(String(err));
       console.error('Failed to save boundary:', err);
+    } finally {
+      setIsSaving(false);
     }
-  };
-
-  // Clear drawing
-  const handleClear = () => {
-    if (!draw.current) return;
-    draw.current.deleteAll();
-    setHasBoundary(false);
   };
 
   return (
     <Card className="w-full h-full flex flex-col">
-      <div className="p-4 border-b flex justify-between items-center">
+      <div className="p-4 border-b">
         <div>
           <h3 className="font-semibold">Territory Boundary Editor</h3>
-          <p className="text-sm text-gray-600">Draw multi-polygon boundaries for this territory</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setIsDrawing(!isDrawing)}
-            variant={isDrawing ? 'default' : 'outline'}
-            disabled={isSaving}
-          >
-            {isDrawing ? 'Drawing...' : 'Draw'}
-          </Button>
-          <Button
-            onClick={handleClear}
-            variant="outline"
-            disabled={!hasBoundary || isSaving}
-          >
-            Clear
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!hasBoundary || isSaving}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isSaving ? 'Saving...' : 'Save Boundary'}
-          </Button>
+          <p className="text-sm text-gray-600">Paste GeoJSON multi-polygon boundary</p>
         </div>
       </div>
 
@@ -189,27 +105,53 @@ export function TerritoryBoundaryDrawer({
         </div>
       )}
 
-      {isLoading && (
-        <div className="p-4 text-center text-gray-500">
-          Loading boundary...
+      <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto">
+        {/* Map display */}
+        <div className="h-48 bg-gray-100 rounded border">
+          <div
+            ref={mapContainer}
+            className="w-full h-full"
+          />
         </div>
-      )}
 
-      <div
-        ref={mapContainer}
-        className="flex-1 bg-gray-100"
-        onMouseEnter={() => handleDrawUpdate()}
-      />
+        {/* GeoJSON input */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">GeoJSON Boundary</label>
+          <textarea
+            value={geoJsonInput}
+            onChange={(e) => setGeoJsonInput(e.target.value)}
+            placeholder='{"type":"MultiPolygon","coordinates":[...]}'
+            className="w-full h-32 p-3 border rounded font-mono text-xs"
+          />
+        </div>
 
-      <div className="p-4 border-t text-sm text-gray-600 bg-gray-50">
-        <p>💡 <strong>Instructions:</strong></p>
-        <ul className="list-disc list-inside mt-2 space-y-1">
-          <li>Click the <strong>Draw</strong> button to start drawing polygons</li>
-          <li>Click on the map to create polygon points</li>
-          <li>Double-click to finish a polygon</li>
-          <li>Draw multiple polygons for multi-territory coverage</li>
-          <li>Click <strong>Save Boundary</strong> to store your work</li>
-        </ul>
+        {/* Instructions */}
+        <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded">
+          <p className="font-semibold mb-1">📝 Instructions:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Paste valid GeoJSON (Polygon or MultiPolygon)</li>
+            <li>Use tools like <a href="https://geojson.io" className="underline text-blue-600">geojson.io</a> to draw boundaries</li>
+            <li>Copy GeoJSON and paste above</li>
+            <li>Click Save to store</li>
+          </ul>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || !geoJsonInput.trim()}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {isSaving ? 'Saving...' : 'Save Boundary'}
+          </Button>
+          <Button
+            onClick={() => setGeoJsonInput('')}
+            variant="outline"
+          >
+            Clear
+          </Button>
+        </div>
       </div>
     </Card>
   );

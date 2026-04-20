@@ -36,6 +36,7 @@ export function addBoundaryToMap(
             {
               type: 'Feature',
               geometry: geojson,
+              properties: {},
             },
           ],
         },
