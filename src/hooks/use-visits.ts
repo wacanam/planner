@@ -12,8 +12,6 @@ export function useMyVisits(
 ) {
   const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>('visits-cache', 'my-visits', []);
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
-  const householdId = filters?.householdId;
-  const assignmentId = filters?.assignmentId;
 
   // Merge pending items whenever cache updates
   useEffect(() => {
@@ -21,14 +19,14 @@ export function useMyVisits(
       if (cachedVisits) {
         const merged = await mergePendingVisits(cachedVisits);
         const filtered = merged.filter((visit) => {
-          if (householdId && visit.householdId !== householdId) return false;
-          if (assignmentId && visit.assignmentId !== assignmentId) return false;
+          if (filters?.householdId && visit.householdId !== filters.householdId) return false;
+          if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
           return true;
         });
         setVisits(filtered);
       }
     })();
-  }, [assignmentId, cachedVisits, householdId]);
+  }, [cachedVisits, filters?.assignmentId, filters?.householdId]);
 
   return {
     visits,
