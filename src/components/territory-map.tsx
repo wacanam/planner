@@ -46,6 +46,8 @@ export interface TerritoryMapProps {
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
   onDrawingStateChange?: (rings: number, activePoints: number) => void;
   onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void }) => void;
+  // Pre-seed drawing with existing boundary rings for editing
+  initialDrawingRings?: [number, number][][];
   // Location / calibration (kept for callers)
   onLocationDotClick?: () => void;
   onCalibrationNeeded?: (needed: boolean) => void;
@@ -178,6 +180,7 @@ export default function TerritoryMap({
   onDrawingComplete,
   onDrawingStateChange,
   onDrawingActions,
+  initialDrawingRings,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -328,85 +331,9 @@ export default function TerritoryMap({
           );
         }
 
-        // ── Context territory polygons ───────────────────────────────────────
-        for (const tb of allBoundaries) {
-          try {
-            const geo = JSON.parse(tb.boundary);
-            const sourceId = `boundary-${tb.id}`;
-            map.addSource(sourceId, { type: 'geojson', data: geo });
-            map.addLayer({
-              id: `boundary-fill-${tb.id}`,
-              type: 'fill',
-              source: sourceId,
-              paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 },
-            });
-            map.addLayer({
-              id: `boundary-line-${tb.id}`,
-              type: 'line',
-              source: sourceId,
-              paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
-            });
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Context + active boundary: handled by reactive useEffect ─────
 
-        // ── Active territory spotlight ───────────────────────────────────────
-        if (boundary) {
-          try {
-            const geo = JSON.parse(boundary);
-            const outerRing: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
-            if (outerRing.length) {
-              const worldOuter: [number, number][] = [
-                [-180, -90],
-                [180, -90],
-                [180, 90],
-                [-180, 90],
-                [-180, -90],
-              ];
-              const maskGeo = {
-                type: 'Feature',
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [worldOuter, outerRing],
-                },
-              };
-              map.addSource('spotlight-mask', {
-                type: 'geojson',
-                data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D }
-                  ? D
-                  : never,
-              });
-              map.addLayer({
-                id: 'spotlight-fill',
-                type: 'fill',
-                source: 'spotlight-mask',
-                paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-              });
-              // Border
-              map.addSource('active-boundary', { type: 'geojson', data: geo });
-              map.addLayer({
-                id: 'active-boundary-line',
-                type: 'line',
-                source: 'active-boundary',
-                paint: { 'line-color': '#6B9ECC', 'line-width': 2.5 },
-              });
-
-              // Fit map to territory
-              const lngs = outerRing.map(([x]) => x);
-              const lats = outerRing.map(([, y]) => y);
-              map.fitBounds(
-                [
-                  [Math.min(...lngs), Math.min(...lats)],
-                  [Math.max(...lngs), Math.max(...lats)],
-                ],
-                { padding: 60, duration: 0 }
-              );
-            }
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Boundary/spotlight handled by reactive useEffect ─────────────────
 
         setMapReady(true);
 
@@ -947,6 +874,10 @@ useEffect(() => {
       map.getCanvas().style.cursor = 'crosshair';
       // Disable zoom on double-tap/click so every tap adds a point
       map.doubleClickZoom.disable();
+      // Seed rings from existing boundary for editing
+      if (initialDrawingRings && initialDrawingRings.length > 0) {
+        setDrawRings(initialDrawingRings);
+      }
     } else {
       map.getCanvas().style.cursor = '';
       map.doubleClickZoom.enable();

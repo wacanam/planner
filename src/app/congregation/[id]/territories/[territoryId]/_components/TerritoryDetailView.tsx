@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 
-import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, PenLine, Undo2, Check } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, Pentagon, Undo2, Check, Save } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
@@ -149,6 +149,7 @@ export default function TerritoryDetailView() {
     territory: territoryResponse,
     isLoading: territoryLoading,
     error: territoryError,
+    mutate: mutateTerritory,
   } = useTerritoryDetail(territoryId ?? null);
 
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
@@ -268,6 +269,23 @@ export default function TerritoryDetailView() {
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
+                    initialDrawingRings={(() => {
+                      if (!territory.boundary) return undefined;
+                      try {
+                        const geo = JSON.parse(territory.boundary);
+                        const coords = geo?.coordinates;
+                        if (!coords) return undefined;
+                        if (geo.type === 'Polygon') {
+                          // Remove closing point
+                          const ring = coords[0] as [number, number][];
+                          return [ring.slice(0, -1)];
+                        }
+                        if (geo.type === 'MultiPolygon') {
+                          return (coords as [number, number][][][]).map((p) => p[0].slice(0, -1));
+                        }
+                      } catch { /* ignore */ }
+                      return undefined;
+                    })()}
                     onDrawingStateChange={(rings: number, pts: number) => {
                       setDrawRingCount(rings);
                       setDrawActivePoints(pts);
@@ -279,6 +297,7 @@ export default function TerritoryDetailView() {
                     onDrawingComplete={async (geojson: { type: string; coordinates: unknown }) => {
                       try {
                         await saveBoundary(territoryId, geojson as any);
+                        await mutateTerritory(); // refresh territory.boundary
                         setIsDrawingBoundary(false);
                       } catch {
                         // error handled by hook
@@ -307,9 +326,9 @@ export default function TerritoryDetailView() {
                               <button
                                 type="button"
                                 onClick={() => setIsDrawingBoundary(false)}
-                                className="text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
+                                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
                               >
-                                💾 Save
+                                <Save className="w-3 h-3" /> Save
                               </button>
                             )
                           )}
@@ -425,7 +444,7 @@ export default function TerritoryDetailView() {
                 isDrawingBoundary ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
               ].join(' ')}
             >
-              <PenLine className="w-4 h-4" />
+              <Pentagon className="w-4 h-4" />
             </button>
             {/* Location toggle */}
             <button
