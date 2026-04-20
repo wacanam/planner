@@ -41,6 +41,12 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  isDrawing?: boolean;
+  onDrawingModeChanged?: (drawing: boolean) => void;
+  onLocationDotClick?: () => void;
+  onCalibrationNeeded?: (needed: boolean) => void;
+  onGeolocateReady?: (fn: () => void) => void;
+  locationOn?: boolean;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
