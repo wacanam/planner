@@ -1,48 +1,26 @@
 import type { NextRequest } from 'next/server';
-import { and, desc, eq } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
-import { db, visits, households, users, UserRole } from '@/db';
+import { eq, desc, sql } from 'drizzle-orm';
+import { db, visits, households } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER, UserRole.TERRITORY_SERVANT];
-
-// GET /api/households/:id/visits
-export async function GET(req: NextRequest, ctx: RouteContext) {
+// GET /api/profile/visits  — returns the current user's full visit history
+export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
 
   try {
-    const { id: householdId } = await ctx.params;
     const { searchParams } = new URL(req.url);
     const limit = Math.min(200, Math.max(1, Number(searchParams.get('limit') ?? 50)));
     const page = Math.max(1, Number(searchParams.get('page') ?? 1));
-
-    const [household] = await db
-      .select({ id: households.id, address: households.address, city: households.city })
-      .from(households)
-      .where(eq(households.id, householdId))
-      .limit(1);
-
-    if (!household) {
-      return ApiErrors.notFound('Household', requestId);
-    }
-
-    const { user } = authResult;
-    const isPrivileged = (ADMIN_ROLES as string[]).includes(user.role);
-    const whereClause = isPrivileged
-      ? eq(visits.householdId, householdId)
-      : and(eq(visits.householdId, householdId), eq(visits.userId, user.userId));
 
     const results = await db
       .select({
         id: visits.id,
         userId: visits.userId,
-        publisherName: users.name,
         householdId: visits.householdId,
         assignmentId: visits.assignmentId,
         householdStatusBefore: visits.householdStatusBefore,
@@ -66,16 +44,15 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         encounterCount: sql<number>`(select count(*) from encounters where encounters."visitId" = ${visits.id})::int`,
       })
       .from(visits)
-      .innerJoin(households, eq(visits.householdId, households.id))
-      .innerJoin(users, eq(visits.userId, users.id))
-      .where(whereClause)
+      .leftJoin(households, eq(visits.householdId, households.id))
+      .where(eq(visits.userId, user.userId))
       .orderBy(desc(visits.visitDate))
       .limit(limit)
       .offset((page - 1) * limit);
 
     return successResponse(results, undefined, 200, requestId);
   } catch (err) {
-    console.error('[GET /api/households/:id/visits]', err);
+    console.error('[GET /api/profile/visits]', err);
     return ApiErrors.internalError(undefined, requestId);
   }
 }

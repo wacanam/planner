@@ -117,7 +117,7 @@ function VisitCard({ visit }: { visit: Visit & { householdAddress?: string; hous
 }
 
 export default function VisitsClient() {
-  const { visits, isLoading, dataSource } = useMyVisits();
+  const { visits, isLoading, error, dataSource } = useMyVisits();
   const [outcomeFilter, setOutcomeFilter] = useState('all');
 
   const filtered = outcomeFilter === 'all'
@@ -156,6 +156,12 @@ export default function VisitsClient() {
         </div>
       )}
 
+      {error && (
+        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -166,7 +172,7 @@ export default function VisitsClient() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Clock size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No visits logged yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Log visits from your Households tab.</p>
+          <p className="text-xs text-muted-foreground mt-1">Log visits from your Assignments tab.</p>
         </div>
       ) : (
         <div className="space-y-3">

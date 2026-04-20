@@ -23,6 +23,21 @@ export function useVisitEncounters(visitId: string | null, options?: SWRConfigur
   };
 }
 
+export function useMyEncounters(options?: SWRConfiguration) {
+  const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
+    '/api/profile/encounters',
+    (url: string) => apiClient.get<Encounter[]>(url),
+    options
+  );
+
+  return {
+    encounters: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+  };
+}
+
 export function useAddEncounter() {
   const addEncounter = async (visitId: string, data: Record<string, unknown>) => {
     const payload = { ...data, visitId };

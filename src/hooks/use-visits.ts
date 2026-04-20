@@ -1,4 +1,4 @@
-import { useIDBStore, getPendingWrites } from '@/lib/idb-store';
+import { useIDBStore } from '@/lib/idb-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
 import { useEffect, useState } from 'react';
 import type { Visit, Household } from '@/types/api';
@@ -12,16 +12,23 @@ export function useMyVisits(
 ) {
   const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>('visits-cache', 'my-visits', []);
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const householdId = filters?.householdId;
+  const assignmentId = filters?.assignmentId;
 
   // Merge pending items whenever cache updates
   useEffect(() => {
     (async () => {
       if (cachedVisits) {
         const merged = await mergePendingVisits(cachedVisits);
-        setVisits(merged);
+        const filtered = merged.filter((visit) => {
+          if (householdId && visit.householdId !== householdId) return false;
+          if (assignmentId && visit.assignmentId !== assignmentId) return false;
+          return true;
+        });
+        setVisits(filtered);
       }
     })();
-  }, [cachedVisits]);
+  }, [assignmentId, cachedVisits, householdId]);
 
   return {
     visits,
