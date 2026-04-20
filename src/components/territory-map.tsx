@@ -646,6 +646,96 @@ useEffect(() => {
   // watchPosition continues after style change — markers re-added on next GPS fix
 }, [mapStyle, mapReady]);
 
+// ── Reactive boundary rendering ───────────────────────────────────────────
+// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady+styleSeq triggers
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+
+  // Helper: upsert a geojson source
+  const upsertSource = (id: string, data: object) => {
+    const src = map.getSource(id) as import('maplibre-gl').GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data as any);
+    } else {
+      map.addSource(id, { type: 'geojson', data: data as any });
+    }
+  };
+
+  // ── Active territory boundary fill + line ─────────────────────────────
+  if (boundary) {
+    try {
+      const geo = JSON.parse(boundary);
+
+      // Build mask for spotlight (world minus territory)
+      const coords = geo?.geometry?.coordinates ?? geo?.coordinates;
+      const outerRing: [number, number][] = Array.isArray(coords?.[0]?.[0])
+        ? coords[0]
+        : coords?.[0] ?? [];
+
+      if (outerRing.length >= 3) {
+        const worldOuter: [number, number][] = [
+          [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
+        ];
+        const maskGeo = {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [worldOuter, outerRing] },
+          properties: {},
+        };
+        upsertSource('spotlight-mask', maskGeo);
+        if (!map.getLayer('spotlight-fill')) {
+          map.addLayer({
+            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
+            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+          });
+        }
+      }
+
+      // Active boundary line
+      const geoData = geo?.geometry ?? geo;
+      upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer('active-boundary-fill')) {
+        map.addLayer({
+          id: 'active-boundary-fill', type: 'fill', source: 'active-boundary',
+          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+        });
+      }
+      if (!map.getLayer('active-boundary-line')) {
+        map.addLayer({
+          id: 'active-boundary-line', type: 'line', source: 'active-boundary',
+          paint: { 'line-color': '#3b82f6', 'line-width': 2.5 },
+        });
+      }
+    } catch {
+      // ignore malformed boundary
+    }
+  } else {
+    // No boundary — remove layers if they exist
+    for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    for (const id of ['spotlight-mask', 'active-boundary']) {
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  }
+
+  // ── Context (other territory) boundaries ─────────────────────────
+  for (const tb of allBoundaries) {
+    try {
+      const geo = JSON.parse(tb.boundary);
+      const geoData = geo?.geometry ?? geo;
+      const srcId = `ctx-boundary-${tb.id}`;
+      upsertSource(srcId, { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer(`${srcId}-fill`))
+        map.addLayer({ id: `${srcId}-fill`, type: 'fill', source: srcId,
+          paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 } });
+      if (!map.getLayer(`${srcId}-line`))
+        map.addLayer({ id: `${srcId}-line`, type: 'line', source: srcId,
+          paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] } });
+    } catch { /* skip */ }
+  }
+}, [boundary, allBoundaries, mapReady, styleSeq]);
+
 // ── Household markers effect ──────────────────────────────────────────────
 // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
 useEffect(() => {

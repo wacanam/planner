@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 
-import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, PenLine, Undo2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
@@ -333,9 +333,7 @@ export default function TerritoryDetailView() {
                             className="flex items-center justify-center w-9 h-9 bg-blue-500 text-white rounded-full shadow-md"
                             title="Close polygon"
                           >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
+                            <Check className="w-5 h-5" />
                           </button>
                         )}
                         {/* Undo last point */}
@@ -346,10 +344,7 @@ export default function TerritoryDetailView() {
                             className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-md border border-gray-200"
                             title="Undo last point"
                           >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M9 14 4 9l5-5"/>
-                              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
-                            </svg>
+                            <Undo2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
@@ -430,11 +425,7 @@ export default function TerritoryDetailView() {
                 isDrawingBoundary ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
               ].join(' ')}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <polygon points="3,17 6,3 13,12 9,12 16,21"/>
-                <line x1="18" y1="3" x2="18" y2="21"/>
-                <line x1="15" y1="6" x2="21" y2="6"/>
-              </svg>
+              <PenLine className="w-4 h-4" />
             </button>
             {/* Location toggle */}
             <button
