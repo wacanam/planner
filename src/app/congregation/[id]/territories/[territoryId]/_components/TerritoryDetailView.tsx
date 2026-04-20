@@ -293,6 +293,15 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
+                  {/* Edit Boundary Button */}
+                  <div className="absolute top-0 right-0 z-[1001] p-3 pointer-events-auto">
+                    <Button asChild size="sm" variant="outline" className="text-xs h-7">
+                      <Link href={`/congregation/${congregationId}/territories/${territoryId}/boundary`}>
+                        <MapPin className="h-3.5 w-3.5 mr-1.5" />
+                        Edit Boundary
+                      </Link>
+                    </Button>
+                  </div>
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
                     <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">

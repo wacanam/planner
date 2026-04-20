@@ -9,6 +9,7 @@ import { ChevronUp, ChevronDown, MapPin } from 'lucide-react';
 interface TerritoryBoundaryEditorProps {
   territoryId: string;
   initialCenter?: [number, number];
+  onBoundarySaved?: () => void;
 }
 
 /**
@@ -19,6 +20,7 @@ interface TerritoryBoundaryEditorProps {
 export function TerritoryBoundaryEditor({
   territoryId,
   initialCenter = [0, 0],
+  onBoundarySaved,
 }: TerritoryBoundaryEditorProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -46,9 +48,7 @@ export function TerritoryBoundaryEditor({
               territoryId={territoryId}
               initialCenter={initialCenter}
               initialZoom={13}
-              onBoundarySaved={() => {
-                console.log('Boundary saved successfully');
-              }}
+              onBoundarySaved={onBoundarySaved}
             />
           </div>
         </div>
