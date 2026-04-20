@@ -13,6 +13,7 @@ const DASHBOARD_PREFIXES = [
   '/admin',
   '/congregation',
   '/dashboard',
+  '/records',
   '/profile',
   '/notifications',
   '/onboarding',

@@ -124,15 +124,15 @@ export default function CongregationDashboardPage() {
             <h1 className="text-2xl font-bold text-foreground">
               {congregation?.name ?? 'Congregation'} Dashboard
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {loading || myRole === null ? (
-                <Skeleton className="h-4 w-48 rounded-md mt-1" />
-              ) : isOverseer ? (
-                'Congregation overview and quick actions'
-              ) : (
-                'Your ministry overview'
-              )}
-            </p>
+            {loading || myRole === null ? (
+              <Skeleton className="mt-1 h-4 w-48 rounded-md" />
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isOverseer
+                  ? 'Congregation overview and quick actions'
+                  : 'Your ministry overview'}
+              </p>
+            )}
           </div>
           {loading || myRole === null ? (
             <div className="flex gap-2">

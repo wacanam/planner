@@ -8,8 +8,15 @@ export const addHouseholdSchema = z.object({
   city: z.string().min(1, 'City is required').max(255),
   postalCode: z.string().max(20).optional(),
   country: z.string().max(100).optional(),
-  type: z
-    .enum(['house', 'apartment', 'condo', 'townhouse', 'mobile_home', 'business', 'other'] as const),
+  type: z.enum([
+    'house',
+    'apartment',
+    'condo',
+    'townhouse',
+    'mobile_home',
+    'business',
+    'other',
+  ] as const),
   floor: z.number().int().optional(),
   notes: z.string().max(500).optional(),
   latitude: z.string().optional(),
@@ -69,3 +76,9 @@ export const addEncounterSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 export type AddEncounterFormData = z.infer<typeof addEncounterSchema>;
+
+export const recordEncounterSchema = addEncounterSchema.extend({
+  householdId: z.string().uuid().optional().or(z.literal('')),
+  encounterDate: z.string().optional(),
+});
+export type RecordEncounterFormData = z.infer<typeof recordEncounterSchema>;

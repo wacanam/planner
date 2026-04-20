@@ -1,29 +1,21 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  ArrowLeft,
-  Plus,
-  MapPin,
-  ClipboardList,
-  ChevronDown,
-  ChevronUp,
-  User,
-} from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
+import { ArrowLeft, ChevronDown, ChevronUp, ClipboardList, MapPin, Plus, User } from 'lucide-react';
+import Link from 'next/link';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { FormField } from '@/components/ui/form-field';
 import {
@@ -33,28 +25,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ProtectedPage } from '@/components/protected-page';
-import { useTerritoryVisits, useHouseholds, useTerritoryDetail } from '@/hooks';
+import { useHouseholds, useTerritoryDetail, useTerritoryVisits } from '@/hooks';
+import { apiClient } from '@/lib/api-client';
 import {
-  logVisitSchema,
-  addHouseholdSchema,
-  addEncounterSchema,
-  type LogVisitFormData,
-  type AddHouseholdFormData,
-  type AddEncounterFormData,
-} from '@/schemas/visit';
-import {
-  queueVisit,
-  queueHousehold,
-  queueEncounter,
-  getPendingVisits,
-  getPendingHouseholds,
-  clearPendingVisit,
   clearPendingHousehold,
-  registerVisitSync,
+  clearPendingVisit,
+  getPendingHouseholds,
+  getPendingVisits,
   type PendingWrite,
+  queueEncounter,
+  queueHousehold,
+  queueVisit,
+  registerVisitSync,
 } from '@/lib/visits-store';
-import type { Household, Visit, Encounter } from '@/types/api';
+import {
+  type AddEncounterFormData,
+  type AddHouseholdFormData,
+  addEncounterSchema,
+  addHouseholdSchema,
+  type LogVisitFormData,
+  logVisitSchema,
+} from '@/schemas/visit';
+import type { Encounter, Household, Visit } from '@/types/api';
 
 // ─── Outcome labels ────────────────────────────────────────────────────────────
 
@@ -123,9 +115,19 @@ function AddEncounterDialog({ open, visitId, onClose, onSaved }: AddEncounterDia
 
   const onSubmit = async (values: AddEncounterFormData) => {
     if (!visitId) return;
-    const payload: Record<string, unknown> = { visitId, ...values };
-    await queueEncounter(payload);
-    await registerVisitSync();
+    const pendingVisits = await getPendingVisits();
+    const visitIsPending = pendingVisits.some((pending) => pending.id === visitId);
+
+    if (navigator.onLine && !visitIsPending) {
+      await apiClient.post<Encounter, AddEncounterFormData>(
+        `/api/visits/${visitId}/encounters`,
+        values
+      );
+    } else {
+      const payload: Record<string, unknown> = { visitId, ...values };
+      await queueEncounter(payload);
+      await registerVisitSync();
+    }
     onSaved();
     reset();
   };
@@ -322,6 +324,7 @@ interface LogVisitDialogProps {
 
 function LogVisitDialog({ open, household, assignmentId, onClose, onSaved }: LogVisitDialogProps) {
   const [savedVisitId, setSavedVisitId] = useState<string | null>(null);
+  const [encounterVisitId, setEncounterVisitId] = useState<string | null>(null);
   const [showEncounterDialog, setShowEncounterDialog] = useState(false);
 
   const {
@@ -356,12 +359,14 @@ function LogVisitDialog({ open, household, assignmentId, onClose, onSaved }: Log
     const pending = await queueVisit(payload);
     await registerVisitSync();
     setSavedVisitId(pending);
+    setEncounterVisitId(pending);
     onSaved(pending, household.id);
     reset();
   };
 
   const handleClose = () => {
     setSavedVisitId(null);
+    setEncounterVisitId(null);
     onClose();
   };
 
@@ -531,6 +536,7 @@ function LogVisitDialog({ open, household, assignmentId, onClose, onSaved }: Log
             </Button>
             <Button
               onClick={() => {
+                setEncounterVisitId(savedVisitId);
                 setShowEncounterDialog(true);
                 setSavedVisitId(null);
               }}
@@ -543,7 +549,7 @@ function LogVisitDialog({ open, household, assignmentId, onClose, onSaved }: Log
 
       <AddEncounterDialog
         open={showEncounterDialog}
-        visitId={savedVisitId}
+        visitId={encounterVisitId}
         onClose={() => {
           setShowEncounterDialog(false);
           handleClose();
@@ -885,8 +891,6 @@ export default function VisitsClient() {
   const {
     households: serverHouseholds,
     isLoading: householdsLoading,
-    error: householdsError,
-    dataSource,
     dataSource: householdsSource,
   } = useHouseholds();
   const {
@@ -950,7 +954,7 @@ export default function VisitsClient() {
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   });
 
-  const activeAssignmentId = territory?.publisherId ?? '';
+  const activeAssignmentId = assignmentId ?? '';
 
   const allHouseholds = useMemo<Array<Household & { pending?: boolean }>>(() => {
     const serverIds = new Set(serverHouseholds.map((h) => h.id));

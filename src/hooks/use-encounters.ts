@@ -1,12 +1,14 @@
+import { useEffect, useState } from 'react';
 import useSWR, { type SWRConfiguration } from 'swr';
 import { apiClient } from '@/lib/api-client';
 import {
-  queueEncounter,
-  getPendingEncounters,
   clearPendingEncounter,
+  getPendingEncounters,
+  queueEncounter,
   registerVisitSync,
 } from '@/lib/visits-store';
 import type { Encounter } from '@/types/api';
+import { mergePendingEncounters } from './use-pending-merge';
 
 export function useVisitEncounters(visitId: string | null, options?: SWRConfiguration) {
   const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
@@ -29,9 +31,17 @@ export function useMyEncounters(options?: SWRConfiguration) {
     (url: string) => apiClient.get<Encounter[]>(url),
     options
   );
+  const [encounters, setEncounters] = useState<(Encounter & { _pending?: boolean })[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const merged = await mergePendingEncounters(data ?? []);
+      setEncounters(merged);
+    })();
+  }, [data]);
 
   return {
-    encounters: data ?? [],
+    encounters,
     isLoading,
     error: error?.message ?? null,
     mutate,
@@ -39,8 +49,8 @@ export function useMyEncounters(options?: SWRConfiguration) {
 }
 
 export function useAddEncounter() {
-  const addEncounter = async (visitId: string, data: Record<string, unknown>) => {
-    const payload = { ...data, visitId };
+  const addEncounter = async (data: Record<string, unknown>, visitId?: string | null) => {
+    const payload = visitId ? { ...data, visitId } : data;
     const pendingId = await queueEncounter(payload);
     await registerVisitSync();
     return pendingId;

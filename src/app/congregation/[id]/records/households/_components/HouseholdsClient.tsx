@@ -618,7 +618,11 @@ export default function HouseholdsClient() {
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       const { type } = (e.data ?? {}) as { type?: string };
-      if (type === 'VISIT_SYNCED' || type === 'HOUSEHOLD_SYNCED') {
+      if (
+        type === 'VISIT_SYNCED' ||
+        type === 'HOUSEHOLD_SYNCED' ||
+        type === 'CACHE_UPDATED'
+      ) {
         void mutate();
       }
     };

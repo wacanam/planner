@@ -1,9 +1,10 @@
+import { desc, eq, sql } from 'drizzle-orm';
 import type { NextRequest } from 'next/server';
-import { eq, desc } from 'drizzle-orm';
-import { db, encounters, visits } from '@/db';
-import { withAuth } from '@/lib/auth-middleware';
-import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
+import { db, encounters, visits } from '@/db';
+import { ApiErrors, generateRequestId, successResponse } from '@/lib/api-helpers';
+import { withAuth } from '@/lib/auth-middleware';
+import { buildLegacyEncounterDescription, mapLegacyEncounterRow } from '@/lib/encounters';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -17,12 +18,27 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     const { id: visitId } = await ctx.params;
 
     const results = await db
-      .select()
+      .select({
+        id: encounters.id,
+        visitId: sql<string | null>`"encounters"."visitId"`,
+        householdId: sql<string | null>`"encounters"."householdId"`,
+        userId: sql<string>`"encounters"."userId"`,
+        type: sql<string>`"encounters"."type"`,
+        personSpoken: sql<string | null>`"encounters"."personSpoken"`,
+        description: sql<string | null>`"encounters"."description"`,
+        date: sql<Date | string | null>`"encounters"."date"`,
+        followUp: sql<boolean | null>`"encounters"."followUp"`,
+        followUpNotes: sql<string | null>`"encounters"."followUpNotes"`,
+        offlineCreated: encounters.offlineCreated,
+        syncedAt: encounters.syncedAt,
+        createdAt: encounters.createdAt,
+        updatedAt: encounters.updatedAt,
+      })
       .from(encounters)
       .where(eq(encounters.visitId, visitId))
       .orderBy(desc(encounters.createdAt));
 
-    return successResponse(results, undefined, 200, requestId);
+    return successResponse(results.map(mapLegacyEncounterRow), undefined, 200, requestId);
   } catch (err) {
     console.error('[GET /api/visits/:id/encounters]', err);
     return ApiErrors.internalError(undefined, requestId);
@@ -51,6 +67,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     }
 
     const body = (await req.json()) as {
+      encounterDate?: string;
       name?: string;
       gender?: string;
       ageGroup?: string;
@@ -69,30 +86,77 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       return ApiErrors.badRequest('response is required', undefined, requestId);
     }
 
-    const [newEncounter] = await db
-      .insert(encounters)
-      .values({
-        visitId,
-        householdId: visit.householdId,
-        userId: user.userId,
-        name: body.name ?? null,
-        gender: body.gender ?? 'unknown',
-        ageGroup: body.ageGroup ?? null,
-        role: body.role ?? 'unknown',
-        response: body.response,
-        languageSpoken: body.languageSpoken ?? null,
-        topicDiscussed: body.topicDiscussed ?? null,
-        literatureAccepted: body.literatureAccepted ?? null,
-        bibleStudyInterest: body.bibleStudyInterest ?? false,
-        returnVisitRequested: body.returnVisitRequested ?? false,
-        nextVisitNotes: body.nextVisitNotes ?? null,
-        notes: body.notes ?? null,
-        syncStatus: 'synced',
-        offlineCreated: false,
-      })
-      .returning();
+    const now = new Date();
+    const encounterDate = body.encounterDate ? new Date(body.encounterDate) : now;
+    const result = await db.execute<{
+      id: string;
+      visitId: string | null;
+      householdId: string | null;
+      userId: string;
+      type: string;
+      personSpoken: string | null;
+      description: string | null;
+      date: Date | string | null;
+      followUp: boolean | null;
+      followUpNotes: string | null;
+      syncedAt: Date | string | null;
+      offlineCreated: boolean | null;
+      createdAt: Date | string | null;
+      updatedAt: Date | string | null;
+    }>(sql`
+      insert into "encounters" (
+        "visitId",
+        "householdId",
+        "userId",
+        "type",
+        "description",
+        "personSpoken",
+        "date",
+        "followUp",
+        "followUpNotes",
+        "offlineCreated",
+        "syncedAt",
+        "createdAt",
+        "updatedAt"
+      )
+      values (
+        ${visitId},
+        ${visit.householdId},
+        ${user.userId},
+        ${body.response},
+        ${buildLegacyEncounterDescription(body)},
+        ${body.name ?? null},
+        ${encounterDate},
+        ${body.returnVisitRequested ?? false},
+        ${body.nextVisitNotes ?? body.notes ?? null},
+        ${false},
+        ${now},
+        ${now},
+        ${now}
+      )
+      returning
+        "id",
+        "visitId",
+        "householdId",
+        "userId",
+        "type",
+        "description",
+        "personSpoken",
+        "date",
+        "followUp",
+        "followUpNotes",
+        "offlineCreated",
+        "syncedAt",
+        "createdAt",
+        "updatedAt"
+    `);
 
-    return successResponse(newEncounter, undefined, 201, requestId);
+    const newEncounter = result.rows[0];
+    if (!newEncounter) {
+      return ApiErrors.internalError('Encounter was not created', requestId);
+    }
+
+    return successResponse(mapLegacyEncounterRow(newEncounter), undefined, 201, requestId);
   } catch (err) {
     console.error('[POST /api/visits/:id/encounters]', err);
     return ApiErrors.internalError(undefined, requestId);

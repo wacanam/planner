@@ -1,7 +1,20 @@
-import { useIDBStore } from '@/lib/idb-store';
+import { readFromIDB, useIDBStore } from '@/lib/idb-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
 import { useEffect, useState } from 'react';
 import type { Visit, Household } from '@/types/api';
+
+function ensureArrayData<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value;
+  if (
+    value &&
+    typeof value === 'object' &&
+    'data' in value &&
+    Array.isArray((value as { data?: unknown }).data)
+  ) {
+    return (value as { data: T[] }).data;
+  }
+  return [];
+}
 
 /**
  * Read visits ONLY from IDB cache.
@@ -16,14 +29,17 @@ export function useMyVisits(
   // Merge pending items whenever cache updates
   useEffect(() => {
     (async () => {
-      if (cachedVisits) {
-        const merged = await mergePendingVisits(cachedVisits);
+      const visits = ensureArrayData<Visit>(cachedVisits);
+      if (visits.length > 0) {
+        const merged = await mergePendingVisits(visits);
         const filtered = merged.filter((visit) => {
           if (filters?.householdId && visit.householdId !== filters.householdId) return false;
           if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
           return true;
         });
         setVisits(filtered);
+      } else {
+        setVisits([]);
       }
     })();
   }, [cachedVisits, filters?.assignmentId, filters?.householdId]);
@@ -41,10 +57,9 @@ export function useMyVisits(
  * Reactive: updates when IDB changes.
  */
 export function useHouseholdVisits(householdId: string | null) {
-  const cacheKey = householdId ? `household-${householdId}` : 'household-null';
   const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>(
     'visits-cache',
-    cacheKey,
+    'my-visits',
     []
   );
   const [visits, setVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
@@ -52,9 +67,11 @@ export function useHouseholdVisits(householdId: string | null) {
   // Merge pending items
   useEffect(() => {
     (async () => {
-      if (cachedVisits && householdId) {
-        const merged = await mergePendingVisits(cachedVisits);
-        setVisits(merged as (Visit & { publisherName?: string; _pending?: boolean })[]);
+      const visits = ensureArrayData<Visit>(cachedVisits);
+      if (householdId) {
+        const merged = await mergePendingVisits(visits);
+        const filtered = merged.filter((visit) => visit.householdId === householdId);
+        setVisits(filtered as (Visit & { publisherName?: string; _pending?: boolean })[]);
       } else {
         setVisits([]);
       }
@@ -83,8 +100,9 @@ export function useTerritoryVisits(territoryId: string | null) {
 
   useEffect(() => {
     (async () => {
-      if (cachedVisits && territoryId) {
-        const merged = await mergePendingVisits(cachedVisits);
+      const visits = ensureArrayData<Visit>(cachedVisits);
+      if (visits.length > 0 && territoryId) {
+        const merged = await mergePendingVisits(visits);
         setVisits(merged);
       } else {
         setVisits([]);
@@ -116,9 +134,12 @@ export function useHouseholds() {
   // Merge pending items whenever cache updates
   useEffect(() => {
     (async () => {
-      if (cachedHouseholds) {
-        const merged = await mergePendingHouseholds(cachedHouseholds);
+      const households = ensureArrayData<Household>(cachedHouseholds);
+      if (households.length > 0) {
+        const merged = await mergePendingHouseholds(households);
         setHouseholds(merged);
+      } else {
+        setHouseholds([]);
       }
     })();
   }, [cachedHouseholds]);
@@ -128,7 +149,10 @@ export function useHouseholds() {
     isLoading,
     error,
     dataSource: ('cache' as 'server' | 'cache'),
-    /** No-op: data refreshes automatically via IDB subscriptions. */
-    mutate: () => Promise.resolve(),
+    mutate: async () => {
+      const fresh = await readFromIDB<Household[]>('households-cache', 'all');
+      const merged = await mergePendingHouseholds(ensureArrayData<Household>(fresh));
+      setHouseholds(merged);
+    },
   };
 }

@@ -1,9 +1,9 @@
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { NextRequest } from 'next/server';
-import { eq, sql, desc, and } from 'drizzle-orm';
-import { db, visits, households, territories } from '@/db';
-import { withAuth } from '@/lib/auth-middleware';
-import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
+import { db, households, territories, visits } from '@/db';
+import { ApiErrors, generateRequestId, successResponse } from '@/lib/api-helpers';
+import { withAuth } from '@/lib/auth-middleware';
 
 // GET /api/visits
 // ?householdId=<uuid>   — filter by household
@@ -107,16 +107,32 @@ export async function POST(req: NextRequest) {
       .where(eq(households.id, householdId))
       .limit(1);
 
+    if (!household) {
+      return ApiErrors.notFound('Household', requestId);
+    }
+
+    let assignmentIdToPersist: string | null = null;
+    if (assignmentId) {
+      const [assignment] = await db
+        .select({ id: sql<string>`ta."id"` })
+        .from(sql`territory_assignments ta`)
+        .where(sql`ta.id = ${assignmentId}`)
+        .limit(1);
+
+      assignmentIdToPersist = assignment?.id ?? null;
+    }
+
     const [newVisit] = await db
       .insert(visits)
       .values({
         userId: user.userId,
         householdId,
-        assignmentId: assignmentId ?? null,
+        assignmentId: assignmentIdToPersist,
         outcome,
-        householdStatusBefore: household?.status ?? null,
+        householdStatusBefore: household.status ?? null,
         householdStatusAfter: householdStatusAfter ?? null,
         duration: duration ?? null,
+        visitedByIds: [user.userId],
         literatureLeft: literatureLeft ?? null,
         bibleTopicDiscussed: bibleTopicDiscussed ?? null,
         returnVisitPlanned: returnVisitPlanned ?? false,
@@ -146,17 +162,20 @@ export async function POST(req: NextRequest) {
     // spatially within the territory boundary / total households in territory.
     // We use the territory linked via assignmentId (if provided) or fall back
     // to looking up by the assignment on the household's congregation.
-    if (assignmentId) {
+    if (assignmentIdToPersist) {
       try {
         const [assignment] = await db
           .select({ territoryId: sql<string>`ta."territoryId"` })
           .from(sql`territory_assignments ta`)
-          .where(sql`ta.id = ${assignmentId}`)
+          .where(sql`ta.id = ${assignmentIdToPersist}`)
           .limit(1);
 
         if (assignment?.territoryId) {
           const [territory] = await db
-            .select({ boundary: territories.boundary, householdsCount: territories.householdsCount })
+            .select({
+              boundary: territories.boundary,
+              householdsCount: territories.householdsCount,
+            })
             .from(territories)
             .where(eq(territories.id, assignment.territoryId))
             .limit(1);
@@ -171,14 +190,12 @@ export async function POST(req: NextRequest) {
               const [{ workedCount, totalCount }] = await db
                 .select({
                   workedCount: sql<number>`COUNT(*) FILTER (WHERE ${households.status} IN ('visited','return_visit','do_not_visit','moved','inactive'))::int`,
-                  totalCount:  sql<number>`COUNT(*)::int`,
+                  totalCount: sql<number>`COUNT(*)::int`,
                 })
                 .from(households)
                 .where(sql`ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))`);
 
-              const coverage = totalCount > 0
-                ? ((workedCount / totalCount) * 100).toFixed(2)
-                : '0';
+              const coverage = totalCount > 0 ? ((workedCount / totalCount) * 100).toFixed(2) : '0';
 
               await db
                 .update(territories)

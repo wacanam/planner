@@ -297,13 +297,13 @@ export interface Household {
 
 export interface Encounter {
   id: string;
-  visitId: string;
-  householdId: string;
+  visitId: string | null;
+  householdId: string | null;
   userId: string;
   name?: string | null;
-  gender: string;
+  gender?: string | null;
   ageGroup?: string | null;
-  role: string;
+  role?: string | null;
   response: string;
   languageSpoken?: string | null;
   topicDiscussed?: string | null;

@@ -10,6 +10,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UserRole } from '@/db';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
+import { SyncNowButton } from '@/components/sync-now-button';
 
 function _roleLabel(role: UserRole): string {
   switch (role) {
@@ -88,7 +89,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
       navLinks = [
         { href: `/congregation/${id}/dashboard`, label: 'Home' },
         { href: `/congregation/${id}/my-assignments`, label: 'My Assignments' },
-        { href: `/congregation/${id}/records`, label: 'Records' },
+        { href: '/records', label: 'Records' },
         { href: `/congregation/${id}/territories`, label: 'Territories' },
       ];
     }
@@ -144,6 +145,7 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            <SyncNowButton />
             <NotificationBell />
             <ThemeToggle />
 

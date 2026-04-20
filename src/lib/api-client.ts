@@ -51,8 +51,17 @@ _axiosInstance.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const body = error.response?.data as { error?: string } | undefined;
-      const msg = body?.error ?? `HTTP ${status ?? 'unknown'}`;
+      const body = error.response?.data as
+        | { error?: string | { message?: string }; message?: string }
+        | undefined;
+      const msg =
+        typeof body?.error === 'string'
+          ? body.error
+          : typeof body?.error === 'object' && typeof body.error?.message === 'string'
+            ? body.error.message
+            : typeof body?.message === 'string'
+              ? body.message
+              : `HTTP ${status ?? 'unknown'}`;
       if (status === 401) {
         clearTokenCache();
         throw new Error('Authentication failed — please refresh the page');

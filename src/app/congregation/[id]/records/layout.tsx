@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Home, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -12,18 +12,16 @@ const tabs = [
 ] as const;
 
 export default function RecordsLayout({ children }: { children: React.ReactNode }) {
-  const params = useParams();
   const pathname = usePathname();
-  const id = params?.id as string;
 
   return (
     <div className="flex flex-col h-full">
       {/* Tab header */}
       <div className="border-b border-border bg-background sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-0 overflow-x-auto">
-            {tabs.map(({ href, label, icon: Icon }) => {
-              const full = `/congregation/${id}/records/${href}`;
+            <nav className="flex gap-0 overflow-x-auto">
+              {tabs.map(({ href, label, icon: Icon }) => {
+              const full = `/records/${href}`;
               const active = pathname.startsWith(full);
               return (
                 <Link

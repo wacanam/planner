@@ -22,6 +22,7 @@ export const visits = pgTable('visits', {
 
   // ── What was done ─────────────────────────────────────────────────────────
   duration: integer('duration'), // minutes spent
+  visitedByIds: uuid('visitedByIds').array().notNull(), // publishers who worked the visit
   literatureLeft: text('literatureLeft'), // what was placed/given
   bibleTopicDiscussed: varchar('bibleTopicDiscussed', { length: 255 }),
 

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { X, RefreshCw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshCw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +12,17 @@ interface DBState {
   stores: Record<string, unknown[]>;
   swRegistered: boolean;
   swReady: boolean;
+  swControlled: boolean;
+  swScriptUrl?: string;
   error: string | null;
   lastSync?: Date;
+}
+
+interface SWDebugEntry {
+  id: number;
+  at: string;
+  message: string;
+  data: unknown;
 }
 
 export function IDBDebugDialog() {
@@ -21,6 +30,11 @@ export function IDBDebugDialog() {
   const [dbState, setDbState] = useState<DBState | null>(null);
   const [expandedStore, setExpandedStore] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncDetails, setSyncDetails] = useState<string | null>(null);
+  const [swDebugEnabled, setSwDebugEnabled] = useState(false);
+  const [swDebugLogs, setSwDebugLogs] = useState<SWDebugEntry[]>([]);
+  const [swVersion, setSwVersion] = useState<string | null>(null);
 
   // Open with Ctrl+Shift+D
   useEffect(() => {
@@ -34,7 +48,7 @@ export function IDBDebugDialog() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const refreshState = async () => {
+  const refreshState = useCallback(async () => {
     setLoading(true);
     try {
       const db = await getDB();
@@ -63,12 +77,15 @@ export function IDBDebugDialog() {
 
       const swReg = await navigator.serviceWorker?.getRegistrations?.();
       const swReady = (swReg?.length ?? 0) > 0;
+      const controller = navigator.serviceWorker?.controller ?? null;
 
       setDbState({
         dbVersion: 4, // From offline-store.ts DB_VERSION
         stores,
         swRegistered: swReg?.length !== undefined,
         swReady,
+        swControlled: Boolean(controller),
+        swScriptUrl: controller?.scriptURL,
         error: null,
         lastSync: new Date(),
       });
@@ -78,18 +95,116 @@ export function IDBDebugDialog() {
         stores: {},
         swRegistered: false,
         swReady: false,
+        swControlled: false,
         error: String(err),
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const postToServiceWorker = useCallback(async (message: Record<string, unknown>) => {
+    if (!navigator.serviceWorker) return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    const target =
+      navigator.serviceWorker.controller ?? reg.active ?? reg.waiting ?? reg.installing ?? null;
+
+    if (!target) return false;
+
+    target.postMessage(message);
+    return true;
+  }, []);
 
   useEffect(() => {
     if (open) {
       refreshState();
     }
-  }, [open]);
+  }, [open, refreshState]);
+
+  useEffect(() => {
+    if (!open || !navigator.serviceWorker) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      const type = event.data?.type;
+      if (type === 'MANUAL_SYNC_COMPLETE') {
+        setSyncMessage('Manual sync completed.');
+        setSyncDetails(null);
+      }
+      if (type === 'MANUAL_SYNC_ERROR') {
+        setSyncMessage(`Manual sync failed: ${String(event.data?.error ?? 'Unknown error')}`);
+      }
+      if (type === 'HOUSEHOLD_SYNC_ERROR') {
+        setSyncMessage(`Household sync failed for ${String(event.data?.pendingId ?? 'unknown item')}.`);
+        setSyncDetails(JSON.stringify(
+          {
+            error: event.data?.error,
+            payload: event.data?.payload,
+          },
+          null,
+          2
+        ));
+      }
+      if (type === 'VISIT_SYNC_ERROR') {
+        setSyncMessage(`Visit sync failed for ${String(event.data?.pendingId ?? 'unknown item')}.`);
+        setSyncDetails(JSON.stringify(
+          {
+            error: event.data?.error,
+            payload: event.data?.payload,
+          },
+          null,
+          2
+        ));
+      }
+      if (type === 'ENCOUNTER_SYNC_ERROR') {
+        setSyncMessage(`Encounter sync failed for ${String(event.data?.pendingId ?? 'unknown item')}.`);
+        setSyncDetails(JSON.stringify(
+          {
+            error: event.data?.error,
+            payload: event.data?.payload,
+          },
+          null,
+          2
+        ));
+      }
+      if (type === 'SW_DEBUG_STATE') {
+        setSwDebugEnabled(Boolean(event.data?.enabled));
+        setSwVersion(String(event.data?.version ?? 'unknown'));
+      }
+      if (type === 'SW_PONG') {
+        setSyncMessage('Service Worker responded to ping.');
+        setSwDebugEnabled(Boolean(event.data?.enabled));
+        setSwVersion(String(event.data?.version ?? 'unknown'));
+      }
+      if (type === 'SW_DEBUG_LOG' && event.data?.entry) {
+        setSwDebugLogs((current) => {
+          const next = [...current, event.data.entry as SWDebugEntry];
+          return next.slice(-100);
+        });
+      }
+      if (
+        type === 'MANUAL_SYNC_COMPLETE' ||
+        type === 'MANUAL_SYNC_ERROR' ||
+        type === 'HOUSEHOLD_SYNC_ERROR' ||
+        type === 'VISIT_SYNC_ERROR' ||
+        type === 'ENCOUNTER_SYNC_ERROR' ||
+        type === 'HOUSEHOLD_SYNCED' ||
+        type === 'VISIT_SYNCED' ||
+        type === 'ENCOUNTER_SYNCED' ||
+        type === 'AVATAR_SYNCED'
+      ) {
+        void refreshState();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [open, refreshState]);
+
+  useEffect(() => {
+    if (!open || !navigator.serviceWorker) return;
+    void postToServiceWorker({ type: 'GET_SW_DEBUG_STATE' });
+  }, [open, postToServiceWorker]);
 
   const pendingItemsCount = Object.entries(dbState?.stores ?? {})
     .filter(([k]) => k.startsWith('pending-'))
@@ -152,11 +267,24 @@ export function IDBDebugDialog() {
                   </Badge>
                 </div>
                 <div className="bg-card border border-border rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground">SW Controls Page</p>
+                  <Badge
+                    variant={dbState.swControlled ? 'default' : 'secondary'}
+                    className="justify-center w-full"
+                  >
+                    {dbState.swControlled ? '✓' : '✗'}
+                  </Badge>
+                </div>
+                <div className="bg-card border border-border rounded-lg p-3 text-center">
                   <p className="text-xs text-muted-foreground">Last Sync</p>
                   <p className="text-xs">
                     {dbState.lastSync ? dbState.lastSync.toLocaleTimeString() : 'Never'}
                   </p>
                 </div>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                <p>SW Version: {swVersion ?? 'Unknown'}</p>
+                <p>Controller Script: {dbState.swScriptUrl ?? 'None'}</p>
               </div>
 
               {/* Stores */}
@@ -165,7 +293,6 @@ export function IDBDebugDialog() {
                 {Object.entries(dbState.stores).map(([storeName, items]) => {
                   const isExpanded = expandedStore === storeName;
                   const isPending = storeName.startsWith('pending-');
-                  const isCache = storeName.includes('cache');
 
                   return (
                     <div
@@ -224,6 +351,29 @@ export function IDBDebugDialog() {
                     size="sm"
                     variant="outline"
                     onClick={async () => {
+                      if (!('serviceWorker' in navigator)) {
+                        setSyncMessage('Service Workers are not supported in this browser.');
+                        return;
+                      }
+
+                      setSyncMessage('Resetting Service Worker registrations...');
+                      setSyncDetails(null);
+
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      await Promise.all(registrations.map((registration) => registration.unregister()));
+
+                      setSwDebugEnabled(false);
+                      setSwVersion(null);
+                      setSwDebugLogs([]);
+                      window.location.reload();
+                    }}
+                  >
+                    Reset SW
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
                       const db = await getDB();
                       const pending = [
                         'pending-visits',
@@ -245,15 +395,98 @@ export function IDBDebugDialog() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      navigator.serviceWorker?.controller?.postMessage({
+                    onClick={async () => {
+                      const next = !swDebugEnabled;
+                      setSwDebugEnabled(next);
+                      if (next) {
+                        setSwDebugLogs([]);
+                        setSyncMessage('Verbose SW debug enabled.');
+                      } else {
+                        setSyncMessage('Verbose SW debug disabled.');
+                        setSyncDetails(null);
+                      }
+                      const sent = await postToServiceWorker({
+                        type: 'SET_SW_DEBUG',
+                        enabled: next,
+                      });
+                      if (!sent) {
+                        setSyncMessage('No Service Worker target was available.');
+                      }
+                    }}
+                  >
+                    {swDebugEnabled ? 'SW Debug On' : 'SW Debug Off'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      setSyncMessage('Pinging Service Worker...');
+                      const sent = await postToServiceWorker({ type: 'PING_SW' });
+                      if (!sent) {
+                        setSyncMessage('No Service Worker target was available.');
+                      }
+                    }}
+                  >
+                    Ping SW
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      setSyncMessage('Manual sync requested...');
+                      setSyncDetails(null);
+                      const sent = await postToServiceWorker({
                         type: 'MANUAL_SYNC',
                       });
+                      if (!sent) {
+                        setSyncMessage('No Service Worker target was available.');
+                      }
                     }}
                   >
                     <RefreshCw size={14} />
                     Force Sync (SW)
                   </Button>
+                </div>
+                {syncMessage && (
+                  <p className="text-xs text-muted-foreground">{syncMessage}</p>
+                )}
+                {syncDetails && (
+                  <pre className="max-h-40 overflow-auto rounded border border-border bg-muted/30 p-2 text-[11px] whitespace-pre-wrap break-words">
+                    {syncDetails}
+                  </pre>
+                )}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      Service Worker Log
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSwDebugLogs([])}
+                    >
+                      Clear Log
+                    </Button>
+                  </div>
+                  <div className="max-h-56 overflow-auto rounded border border-border bg-muted/20 p-2">
+                    {swDebugLogs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {swDebugEnabled
+                          ? 'Waiting for Service Worker events...'
+                          : 'Enable SW debug to stream worker logs here.'}
+                      </p>
+                    ) : (
+                      <pre className="text-[11px] whitespace-pre-wrap break-words">
+                        {swDebugLogs
+                          .map((entry) =>
+                            `[${entry.at}] ${entry.message}${
+                              entry.data ? `\n${JSON.stringify(entry.data, null, 2)}` : ''
+                            }`
+                          )
+                          .join('\n\n')}
+                      </pre>
+                    )}
+                  </div>
                 </div>
               </div>
 

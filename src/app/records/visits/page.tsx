@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import VisitsClient from '../../congregation/[id]/records/visits/_components/VisitsClient';
+
 export const metadata: Metadata = { title: 'My Visits | Ministry Planner' };
+
 export default function VisitsPage() {
-  redirect('/records/visits');
+  return <VisitsClient />;
 }
