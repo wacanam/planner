@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql, and } from 'drizzle-orm';
-import { db, visits, territories, households, UserRole } from '@/db';
+import { eq, desc, sql, and, or } from 'drizzle-orm';
+import { db, visits, territories, households, UserRole, territoryAssignments } from '@/db';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
@@ -10,8 +10,11 @@ type RouteContext = { params: Promise<{ id: string }> };
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
 // GET /api/territories/:id/visits
-// Admins/SO see all visits; regular publishers see only their own.
-// Visits are scoped to households spatially within the territory (via the existing publisherId link).
+// Returns all visits for households assigned to this territory
+// RBAC:
+// - SUPER_ADMIN / ADMIN: see all visits
+// - SERVICE_OVERSEER: see all visits if territory is assigned to them (direct or via service group)
+// - PUBLISHER: see only their own visits to households in territory
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -23,7 +26,6 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     const [territory] = await db
       .select({
-        publisherId: territories.publisherId,
         congregationId: territories.congregationId,
       })
       .from(territories)
@@ -39,18 +41,39 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
-    // Scope: admins see all; publishers see only their own visits
-    const whereConditions = [];
-    if (!isAdmin) {
-      whereConditions.push(eq(visits.userId, user.userId));
-    } else if (territory.publisherId) {
-      whereConditions.push(eq(visits.userId, territory.publisherId));
+    // Determine if user can see all visits or only their own
+    let canSeeAllVisits = isAdmin;
+
+    // Service Overseers can see all visits if territory is assigned to them
+    if (user.role === UserRole.SERVICE_OVERSEER && !canSeeAllVisits) {
+      // Check if user has this territory assigned (directly or via service group)
+      const assignmentCheck = await db
+        .select({ id: territoryAssignments.id })
+        .from(territoryAssignments)
+        .where(
+          and(
+            eq(territoryAssignments.territoryId, territoryId),
+            or(
+              // Direct assignment
+              eq(territoryAssignments.userId, user.userId),
+              // Assignment via service group
+              sql`${territoryAssignments.serviceGroupId} IN (
+                SELECT id FROM service_groups 
+                WHERE "congregationId" = ${territory.congregationId}
+                AND id IN (
+                  SELECT "groupId" FROM group_members 
+                  WHERE "userId" = ${user.userId}
+                )
+              )`
+            )
+          )
+        )
+        .limit(1);
+
+      canSeeAllVisits = assignmentCheck.length > 0;
     }
 
-    // Filter to visits that belong to households in this territory
-    // We use assignmentId link as the primary scope if available, then fall back to publisherId filter
-    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-
+    // Get visits for households in this territory
     const results = await db
       .select({
         id: visits.id,
@@ -79,7 +102,17 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       })
       .from(visits)
       .innerJoin(households, eq(visits.householdId, households.id))
-      .where(baseWhere)
+      .where(
+        and(
+          // Filter to households in this territory via territory_assignments
+          sql`${visits.householdId} IN (
+            SELECT "householdId" FROM territory_assignments 
+            WHERE "territoryId" = ${territoryId}
+          )`,
+          // RBAC: restrict by visibility
+          !canSeeAllVisits ? eq(visits.userId, user.userId) : undefined
+        )
+      )
       .orderBy(desc(visits.visitDate));
 
     return successResponse(results, undefined, 200, requestId);
