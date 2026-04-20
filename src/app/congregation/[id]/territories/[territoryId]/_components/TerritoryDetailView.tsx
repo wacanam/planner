@@ -1,3 +1,4 @@
+import { DrawingToolbar } from '@/components/drawing-toolbar';
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
