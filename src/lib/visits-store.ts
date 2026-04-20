@@ -1,31 +1,28 @@
 /**
- * Visit-specific offline store helpers.
- * Delegates to the universal offline-store foundation.
+ * Visit-specific store helpers.
+ * Thin wrapper around idb-store for domain-specific operations.
  */
 
-import {
-  queueWrite,
-  getPendingWrites,
-  clearPendingWrite,
-  cacheData,
-  getCachedData,
-  withOfflineCache,
-  registerSync,
-  hasPendingFlag,
-  setPendingFlag,
-  type PendingWrite,
-} from './offline-store';
-import type { Visit, Household } from '@/types/api';
+import { queueWrite, getPendingWrites, clearPendingWrite, registerSync } from './offline-store';
 
-export type { PendingWrite };
-
-// ─── Write queue ──────────────────────────────────────────────────────────────
-
-export async function queueVisit(data: Record<string, unknown>): Promise<string> {
-  return queueWrite('pending-visits', data);
+// Type exports
+export interface PendingWrite<T = unknown> {
+  id: string;
+  data: T;
+  createdAt: string;
 }
 
-export async function getPendingVisits(): Promise<PendingWrite[]> {
+// ─── Queue pending visits ─────────────────────────────────────────────────────
+
+export async function queueVisit(data: Record<string, unknown>): Promise<string> {
+  const id = crypto.randomUUID();
+  await queueWrite('pending-visits', data);
+  // Trigger SW sync in background
+  await registerSync('visits-sync');
+  return id;
+}
+
+export async function getPendingVisits(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-visits');
 }
 
@@ -33,11 +30,17 @@ export async function clearPendingVisit(id: string): Promise<void> {
   return clearPendingWrite('pending-visits', id);
 }
 
+// ─── Queue pending households ─────────────────────────────────────────────────
+
 export async function queueHousehold(data: Record<string, unknown>): Promise<string> {
-  return queueWrite('pending-households', data);
+  const id = crypto.randomUUID();
+  await queueWrite('pending-households', data);
+  // Trigger SW sync in background
+  await registerSync('visits-sync');
+  return id;
 }
 
-export async function getPendingHouseholds(): Promise<PendingWrite[]> {
+export async function getPendingHouseholds(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-households');
 }
 
@@ -45,45 +48,22 @@ export async function clearPendingHousehold(id: string): Promise<void> {
   return clearPendingWrite('pending-households', id);
 }
 
-// ─── Read cache ───────────────────────────────────────────────────────────────
+// ─── Register background sync ─────────────────────────────────────────────────
 
-export async function cacheVisits(territoryId: string, data: Visit[]): Promise<void> {
-  return cacheData('visits-cache', territoryId, data);
+export async function registerVisitSync(): Promise<void> {
+  return registerSync('visits-sync');
 }
 
-export async function getCachedVisits(territoryId: string): Promise<Visit[] | null> {
-  return getCachedData<Visit[]>('visits-cache', territoryId);
-}
-
-export async function cacheHouseholds(territoryId: string, data: Household[]): Promise<void> {
-  return cacheData('households-cache', territoryId, data);
-}
-
-export async function getCachedHouseholds(territoryId: string): Promise<Household[] | null> {
-  return getCachedData<Household[]>('households-cache', territoryId);
-}
-
-// ─── SWR fetcher wrappers (online + IDB fallback) ─────────────────────────────
-
-export function visitsOfflineFetcher(
-  territoryId: string,
-  fetcher: (url: string) => Promise<Visit[]>
-) {
-  return withOfflineCache<Visit[]>('visits-cache', territoryId, fetcher);
-}
-
-export function householdsOfflineFetcher(
-  territoryId: string,
-  fetcher: (url: string) => Promise<Household[]>
-) {
-  return withOfflineCache<Household[]>('households-cache', territoryId, fetcher);
-}
+// ─── Queue pending encounters ─────────────────────────────────────────────────
 
 export async function queueEncounter(data: Record<string, unknown>): Promise<string> {
-  return queueWrite('pending-encounters', data);
+  const id = crypto.randomUUID();
+  await queueWrite('pending-encounters', data);
+  await registerSync('visits-sync');
+  return id;
 }
 
-export async function getPendingEncounters(): Promise<PendingWrite[]> {
+export async function getPendingEncounters(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-encounters');
 }
 
@@ -91,16 +71,17 @@ export async function clearPendingEncounter(id: string): Promise<void> {
   return clearPendingWrite('pending-encounters', id);
 }
 
-// ─── Sync ─────────────────────────────────────────────────────────────────────
-
-export async function registerVisitSync(): Promise<void> {
-  return registerSync('visits-sync');
-}
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 export function hasPendingVisitsFlag(): boolean {
-  return hasPendingFlag('visits');
+  // Simple check: return true if localStorage has flag
+  return localStorage.getItem('pending-visits-flag') === 'true';
 }
 
 export function setPendingVisitsFlag(value: boolean): void {
-  setPendingFlag('visits', value);
+  if (value) {
+    localStorage.setItem('pending-visits-flag', 'true');
+  } else {
+    localStorage.removeItem('pending-visits-flag');
+  }
 }

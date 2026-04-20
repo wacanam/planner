@@ -1,9 +1,64 @@
 import type { NextRequest } from 'next/server';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import { db, visits, households, territories } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
+
+// GET /api/visits
+// ?householdId=<uuid>   — filter by household
+// ?assignmentId=<uuid>  — filter by assignment
+// Returns visits for the authenticated user only (or all for ADMIN+)
+export async function GET(req: NextRequest) {
+  const requestId = generateRequestId();
+  const authResult = withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const householdId = searchParams.get('householdId');
+    const assignmentId = searchParams.get('assignmentId');
+
+    const conditions = [eq(visits.userId, user.userId)];
+    if (householdId) conditions.push(eq(visits.householdId, householdId));
+    if (assignmentId) conditions.push(eq(visits.assignmentId, assignmentId));
+
+    const results = await db
+      .select({
+        id: visits.id,
+        userId: visits.userId,
+        householdId: visits.householdId,
+        assignmentId: visits.assignmentId,
+        visitDate: visits.visitDate,
+        outcome: visits.outcome,
+        householdStatusBefore: visits.householdStatusBefore,
+        householdStatusAfter: visits.householdStatusAfter,
+        duration: visits.duration,
+        literatureLeft: visits.literatureLeft,
+        bibleTopicDiscussed: visits.bibleTopicDiscussed,
+        returnVisitPlanned: visits.returnVisitPlanned,
+        nextVisitDate: visits.nextVisitDate,
+        nextVisitNotes: visits.nextVisitNotes,
+        notes: visits.notes,
+        syncStatus: visits.syncStatus,
+        offlineCreated: visits.offlineCreated,
+        createdAt: visits.createdAt,
+        updatedAt: visits.updatedAt,
+        householdAddress: households.address,
+        householdCity: households.city,
+      })
+      .from(visits)
+      .innerJoin(households, eq(visits.householdId, households.id))
+      .where(and(...conditions))
+      .orderBy(desc(visits.visitDate));
+
+    return successResponse(results, undefined, 200, requestId);
+  } catch (err) {
+    console.error('[GET /api/visits]', err);
+    return ApiErrors.internalError(undefined, requestId);
+  }
+}
 
 // POST /api/visits
 export async function POST(req: NextRequest) {

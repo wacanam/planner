@@ -145,4 +145,3 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
     return ApiErrors.internalError(undefined, requestId);
   }
 }
-

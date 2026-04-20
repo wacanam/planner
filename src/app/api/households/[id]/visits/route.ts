@@ -1,11 +1,13 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql } from 'drizzle-orm';
-import { db, visits, households } from '@/db';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { db, visits, households, users, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER, UserRole.TERRITORY_SERVANT];
 
 // GET /api/households/:id/visits
 export async function GET(req: NextRequest, ctx: RouteContext) {
@@ -29,10 +31,17 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       return ApiErrors.notFound('Household', requestId);
     }
 
+    const { user } = authResult;
+    const isPrivileged = (ADMIN_ROLES as string[]).includes(user.role);
+    const whereClause = isPrivileged
+      ? eq(visits.householdId, householdId)
+      : and(eq(visits.householdId, householdId), eq(visits.userId, user.userId));
+
     const results = await db
       .select({
         id: visits.id,
         userId: visits.userId,
+        publisherName: users.name,
         householdId: visits.householdId,
         assignmentId: visits.assignmentId,
         householdStatusBefore: visits.householdStatusBefore,
@@ -56,8 +65,9 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         encounterCount: sql<number>`(select count(*) from encounters where encounters."visitId" = ${visits.id})::int`,
       })
       .from(visits)
-      .innerJoin(households, eq(visits.householdId, households.id))
-      .where(eq(visits.householdId, householdId))
+      .leftJoin(households, eq(visits.householdId, households.id))
+      .innerJoin(users, eq(visits.userId, users.id))
+      .where(whereClause)
       .orderBy(desc(visits.visitDate))
       .limit(limit)
       .offset((page - 1) * limit);
