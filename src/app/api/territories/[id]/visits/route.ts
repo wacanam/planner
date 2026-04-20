@@ -10,8 +10,8 @@ type RouteContext = { params: Promise<{ id: string }> };
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
 // GET /api/territories/:id/visits
-// Admins/SO see all visits; regular publishers see only their own.
-// Visits are scoped to households spatially within the territory (via the existing publisherId link).
+// Returns all visits for households assigned to this territory
+// Admins see all visits; regular publishers see only their own.
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -23,7 +23,6 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     const [territory] = await db
       .select({
-        publisherId: territories.publisherId,
         congregationId: territories.congregationId,
       })
       .from(territories)
@@ -39,18 +38,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
-    // Scope: admins see all; publishers see only their own visits
-    const whereConditions = [];
-    if (!isAdmin) {
-      whereConditions.push(eq(visits.userId, user.userId));
-    } else if (territory.publisherId) {
-      whereConditions.push(eq(visits.userId, territory.publisherId));
-    }
-
-    // Filter to visits that belong to households in this territory
-    // We use assignmentId link as the primary scope if available, then fall back to publisherId filter
-    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-
+    // Get visits for households in this territory
+    // Join through territory_assignments table to find households, then get their visits
     const results = await db
       .select({
         id: visits.id,
@@ -79,7 +68,17 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       })
       .from(visits)
       .innerJoin(households, eq(visits.householdId, households.id))
-      .where(baseWhere)
+      .where(
+        and(
+          // Filter to households in this territory via territory_assignments
+          sql`${visits.householdId} IN (
+            SELECT "householdId" FROM territory_assignments 
+            WHERE "territoryId" = ${territoryId}
+          )`,
+          // Scope: regular users see only their own visits
+          !isAdmin ? eq(visits.userId, user.userId) : undefined
+        )
+      )
       .orderBy(desc(visits.visitDate));
 
     return successResponse(results, undefined, 200, requestId);

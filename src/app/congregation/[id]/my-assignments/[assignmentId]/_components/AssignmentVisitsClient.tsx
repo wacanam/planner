@@ -1009,7 +1009,7 @@ export default function VisitsClient() {
         householdStatusBefore: null,
         householdStatusAfter:
           ((pv.data as Record<string, unknown>).householdStatusAfter as string) ?? null,
-        visitDate: pv.createdAt,
+        visitDate: new Date().toISOString(),
         duration: ((pv.data as Record<string, unknown>).duration as number) ?? null,
         outcome: ((pv.data as Record<string, unknown>).outcome as string) ?? '',
         literatureLeft: null,
@@ -1022,8 +1022,8 @@ export default function VisitsClient() {
         syncStatus: 'pending',
         offlineCreated: true,
         syncedAt: null,
-        createdAt: pv.createdAt,
-        updatedAt: pv.createdAt,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         pending: true,
       }));
     return [...unsyncedPending, ...serverVisits].sort(
