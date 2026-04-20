@@ -11,7 +11,7 @@
  * Everything else goes through this library.
  */
 
-import { openDB, type IDBPDatabase } from 'idb';
+import { type IDBPDatabase, openDB } from 'idb';
 
 import React from 'react';
 
@@ -62,30 +62,34 @@ async function getDB(): Promise<IDBPDatabase> {
 
 // ─── Subscribers (reactive) ───────────────────────────────────────────────────
 
-const subscribers = new Map<string, Set<Listener<any>>>();
+const subscribers = new Map<string, Set<Listener<unknown>>>();
 
 function getSubscriberKey(store: StoreName, key: string): string {
   return `${store}:${key}`;
 }
 
-function subscribe<T>(
-  store: StoreName,
-  key: string,
-  listener: Listener<T>
-): () => void {
+function subscribe<T>(store: StoreName, key: string, listener: Listener<T>): () => void {
   const subKey = getSubscriberKey(store, key);
   if (!subscribers.has(subKey)) {
     subscribers.set(subKey, new Set());
   }
-  subscribers.get(subKey)!.add(listener);
+  const listenerSet = subscribers.get(subKey);
+  if (listenerSet) {
+    listenerSet.add(listener as Listener<unknown>);
+  }
 
   // Return unsubscribe function
   return () => {
-    subscribers.get(subKey)?.delete(listener);
+    subscribers.get(subKey)?.delete(listener as Listener<unknown>);
   };
 }
 
-function notifySubscribers<T>(store: StoreName, key: string, data: T | null, source: 'idb' | 'sw' | 'ui') {
+function notifySubscribers<T>(
+  store: StoreName,
+  key: string,
+  data: T | null,
+  source: 'idb' | 'sw' | 'ui'
+) {
   const subKey = getSubscriberKey(store, key);
   const listeners = subscribers.get(subKey);
   if (listeners) {
@@ -135,7 +139,9 @@ export async function deleteFromIDB(store: StoreName, key: string): Promise<void
 /**
  * Batch read all entries from a store.
  */
-export async function readAllFromIDB<T>(store: StoreName): Promise<Array<{ key: string; data: T }>> {
+export async function readAllFromIDB<T>(
+  store: StoreName
+): Promise<Array<{ key: string; data: T }>> {
   const db = await getDB();
   const allKeys = await db.getAllKeys(store);
   const results: Array<{ key: string; data: T }> = [];
