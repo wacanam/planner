@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { and, desc, eq } from 'drizzle-orm';
-import { sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, visits, households, users, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
