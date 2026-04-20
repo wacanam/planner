@@ -466,7 +466,7 @@ export default function HouseholdsClient() {
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
 
-  const { households, isLoading, dataSource, mutate } = useHouseholds();
+  const { households, isLoading, dataSource } = useHouseholds();
 
   // Listen for SW sync messages — revalidate list on sync
   useEffect(() => {

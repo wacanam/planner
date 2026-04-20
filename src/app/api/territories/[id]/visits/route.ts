@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql, and } from 'drizzle-orm';
-import { db, visits, territories, households, UserRole } from '@/db';
+import { eq, desc, sql, and, or } from 'drizzle-orm';
+import { db, visits, territories, households, UserRole, territoryAssignments } from '@/db';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
@@ -11,7 +11,10 @@ const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVER
 
 // GET /api/territories/:id/visits
 // Returns all visits for households assigned to this territory
-// Admins see all visits; regular publishers see only their own.
+// RBAC:
+// - SUPER_ADMIN / ADMIN: see all visits
+// - SERVICE_OVERSEER: see all visits if territory is assigned to them (direct or via service group)
+// - PUBLISHER: see only their own visits to households in territory
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -38,8 +41,39 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
+    // Determine if user can see all visits or only their own
+    let canSeeAllVisits = isAdmin;
+
+    // Service Overseers can see all visits if territory is assigned to them
+    if (user.role === UserRole.SERVICE_OVERSEER && !canSeeAllVisits) {
+      // Check if user has this territory assigned (directly or via service group)
+      const assignmentCheck = await db
+        .select({ id: territoryAssignments.id })
+        .from(territoryAssignments)
+        .where(
+          and(
+            eq(territoryAssignments.territoryId, territoryId),
+            or(
+              // Direct assignment
+              eq(territoryAssignments.userId, user.userId),
+              // Assignment via service group
+              sql`${territoryAssignments.serviceGroupId} IN (
+                SELECT id FROM service_groups 
+                WHERE "congregationId" = ${territory.congregationId}
+                AND id IN (
+                  SELECT "groupId" FROM group_members 
+                  WHERE "userId" = ${user.userId}
+                )
+              )`
+            )
+          )
+        )
+        .limit(1);
+
+      canSeeAllVisits = assignmentCheck.length > 0;
+    }
+
     // Get visits for households in this territory
-    // Join through territory_assignments table to find households, then get their visits
     const results = await db
       .select({
         id: visits.id,
@@ -75,8 +109,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
             SELECT "householdId" FROM territory_assignments 
             WHERE "territoryId" = ${territoryId}
           )`,
-          // Scope: regular users see only their own visits
-          !isAdmin ? eq(visits.userId, user.userId) : undefined
+          // RBAC: restrict by visibility
+          !canSeeAllVisits ? eq(visits.userId, user.userId) : undefined
         )
       )
       .orderBy(desc(visits.visitDate));
