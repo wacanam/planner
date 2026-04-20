@@ -41,8 +41,10 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  // Drawing mode
   isDrawing?: boolean;
-  onDrawingModeChanged?: (drawing: boolean) => void;
+  onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
+  // Location / calibration (kept for callers)
   onLocationDotClick?: () => void;
   onCalibrationNeeded?: (needed: boolean) => void;
   onGeolocateReady?: (fn: () => void) => void;
@@ -170,6 +172,8 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  isDrawing = false,
+  onDrawingComplete,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -177,6 +181,14 @@ export default function TerritoryMap({
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
+
+  // ── Drawing state ─────────────────────────────────────────────────────────
+  type LngLat = [number, number];
+  const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
+  const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  const drawLastClick = useRef<number>(0);
+  const onDrawingCompleteRef = useRef(onDrawingComplete);
+  onDrawingCompleteRef.current = onDrawingComplete;
 
   const [mapReady, setMapReady] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -367,6 +379,26 @@ export default function TerritoryMap({
         }
 
         setMapReady(true);
+
+        // ── Drawing layers (added once, updated via setData) ──────────────
+        map.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addSource('draw-active',   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addSource('draw-points',   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+        map.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
+          paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+        map.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
+          paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+        map.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
+          paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+        map.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
+          filter: ['!=', ['get', 'first'], true],
+          paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
+                   'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+        map.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
+          filter: ['==', ['get', 'first'], true],
+          paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
+                   'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
 
         // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
         // Proper Marker so it tilts natively with map pitch (no CSS hacks)
@@ -722,9 +754,94 @@ useEffect(() => {
   });
 }, [households, mapReady, isDark]);
 
-return (
+  // ─── Drawing: sync layers whenever rings/activeRing change ───────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    const setData = (src: string, data: GeoJSON.FeatureCollection) => {
+      const s = map.getSource(src) as import('maplibre-gl').GeoJSONSource | undefined;
+      s?.setData(data);
+    };
+
+    setData('draw-polygons', {
+      type: 'FeatureCollection',
+      features: drawRings.map((ring) => ({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
+        properties: {},
+      })),
+    });
+
+    setData('draw-active', {
+      type: 'FeatureCollection',
+      features: activeRing.length >= 2 ? [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: activeRing },
+        properties: {},
+      }] : [],
+    });
+
+    setData('draw-points', {
+      type: 'FeatureCollection',
+      features: activeRing.map((pt, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: pt },
+        properties: { first: i === 0 },
+      })),
+    });
+  }, [drawRings, activeRing, mapReady]);
+
+  // ─── Drawing: attach/detach map click handler ────────────────────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    if (isDrawing) {
+      map.getCanvas().style.cursor = 'crosshair';
+    } else {
+      map.getCanvas().style.cursor = '';
+      setDrawRings([]);
+      setActiveRing([]);
+    }
+
+    if (!isDrawing) return;
+
+    const onClick = (e: import('maplibre-gl').MapMouseEvent) => {
+      const now = Date.now();
+      const isDbl = now - drawLastClick.current < 300;
+      drawLastClick.current = now;
+      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+
+      if (isDbl) {
+        setActiveRing((prev) => {
+          if (prev.length < 3) return prev;
+          setDrawRings((r) => [...r, prev]);
+          return [];
+        });
+      } else {
+        setActiveRing((prev) => [...prev, pt]);
+      }
+    };
+
+    map.on('click', onClick);
+    return () => { map.off('click', onClick); };
+  }, [isDrawing, mapReady]);
+
+  // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
+  const prevIsDrawing = useRef(isDrawing);
+  useEffect(() => {
+    if (prevIsDrawing.current && !isDrawing && drawRings.length > 0) {
+      const geojson = drawRings.length === 1
+        ? { type: 'Polygon', coordinates: [[...drawRings[0], drawRings[0][0]]] }
+        : { type: 'MultiPolygon', coordinates: drawRings.map((r) => [[...r, r[0]]]) };
+      onDrawingCompleteRef.current?.(geojson);
+    }
+    prevIsDrawing.current = isDrawing;
+  }, [isDrawing, drawRings]);
+
+  return (
     <div className={`relative ${className}`}>
-      {/* MapLibre GL CSS */}
       <link
         rel="stylesheet"
         href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css"

@@ -14,7 +14,7 @@ import { apiClient } from '@/lib/api-client';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 
-import { TerritoryBoundaryDrawer } from '@/components/territory-boundary-drawer';
+import { useTerritoryBoundary } from '@/hooks/use-territory-boundary';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -190,7 +190,8 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
-  const [showBoundaryDrawer, setShowBoundaryDrawer] = useState(false);
+  const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
+  const { saveBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
@@ -261,8 +262,40 @@ export default function TerritoryDetailView() {
                     allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
+                    isDrawing={isDrawingBoundary}
+                    onDrawingComplete={async (geojson: { type: string; coordinates: unknown }) => {
+                      try {
+                        await saveBoundary(territoryId, geojson as any);
+                        setIsDrawingBoundary(false);
+                      } catch {
+                        // error handled by hook
+                      }
+                    }}
                     className="h-full"
                   />
+
+                  {/* Drawing mode top banner */}
+                  {isDrawingBoundary && (
+                    <div className="absolute top-0 inset-x-0 z-[1100] flex items-center justify-between px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white pointer-events-auto">
+                      <span className="text-xs font-semibold">
+                        ✏️ Tap map to draw · Double-tap to close polygon
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsDrawingBoundary(false)}
+                          className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
+                        >
+                          Cancel
+                        </button>
+                        {isSavingBoundary && (
+                          <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">
+                            Saving…
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Fullscreen toggle — right center */}
                   <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[1001] p-2 pointer-events-auto">
@@ -331,11 +364,11 @@ export default function TerritoryDetailView() {
             {/* Draw boundary button — beside geolocation */}
             <button
               type="button"
-              onClick={() => setShowBoundaryDrawer(true)}
-              title="Draw territory boundary"
+              onClick={() => setIsDrawingBoundary(!isDrawingBoundary)}
+              title={isDrawingBoundary ? "Stop drawing" : "Draw territory boundary"}
               className={[
                 'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all mb-2',
-                'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
+                isDrawingBoundary ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
               ].join(' ')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -379,17 +412,6 @@ export default function TerritoryDetailView() {
               </svg>
             </button>
           </div>
-
-          {/* Territory Boundary Drawer overlay */}
-          {showBoundaryDrawer && (
-            <TerritoryBoundaryDrawer
-              territoryId={territoryId}
-              initialCenter={[0, 0]}
-              initialZoom={14}
-              onClose={() => setShowBoundaryDrawer(false)}
-              onBoundarySaved={() => setShowBoundaryDrawer(false)}
-            />
-          )}
 
           {/* Manual calibration overlay */}
           {locationOn && showCalibPrompt && (
