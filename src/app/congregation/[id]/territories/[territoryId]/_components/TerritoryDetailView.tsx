@@ -1,4 +1,3 @@
-import { DrawingToolbar } from '@/components/drawing-toolbar';
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
@@ -191,7 +190,6 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
@@ -295,23 +293,14 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                  {/* Drawing Controls — right side, beside compass */}
-                  <div className="absolute top-32 right-3 z-[1001] flex flex-col gap-1 pointer-events-auto">
-                    <button
-                      type="button"
-                      onClick={() => setIsDrawing(!isDrawing)}
-                      className={[
-                        'flex items-center justify-center w-9 h-9 rounded-lg shadow-sm transition-all',
-                        isDrawing
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white/5 dark:bg-gray-900/10 text-foreground hover:bg-white',
-                      ].join(' ')}
-                      title={isDrawing ? 'Stop drawing' : 'Start drawing boundary'}
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3-8c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/>
-                      </svg>
-                    </button>
+                  {/* Edit Boundary Button — left side, below title */}
+                  <div className="absolute top-14 left-3 z-[1001] pointer-events-auto">
+                    <Button asChild size="sm" variant="default" className="text-xs h-8 bg-blue-600 hover:bg-blue-700">
+                      <Link href={`/congregation/${congregationId}/territories/${territoryId}/boundary`}>
+                        <MapPin className="h-4 w-4 mr-1.5" />
+                        Draw Boundary
+                      </Link>
+                    </Button>
                   </div>
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
