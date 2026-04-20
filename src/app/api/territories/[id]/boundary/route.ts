@@ -21,8 +21,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   try {
     const { id: territoryId } = await ctx.params;
 
-    // Check permission
-    if (!ALLOWED_ROLES.includes(user.role)) {
+    // Check permission - only specific roles allowed
+    if (!ALLOWED_ROLES.includes(user.role as any)) {
       return ApiErrors.forbidden('Only admins and territory managers can edit boundaries', requestId);
     }
 
