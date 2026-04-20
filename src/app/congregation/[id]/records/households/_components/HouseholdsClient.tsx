@@ -1,7 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Home, Plus, Search, Clock, X, ChevronDown, ChevronUp, BookOpen, FileText, User } from 'lucide-react';
+import {
+  Home,
+  Plus,
+  Search,
+  Clock,
+  X,
+  ChevronDown,
+  ChevronUp,
+  BookOpen,
+  FileText,
+  User,
+} from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useHouseholds, useHouseholdVisits } from '@/hooks';
@@ -23,12 +34,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';
-import { logVisitSchema, addHouseholdSchema, type LogVisitFormData, type AddHouseholdFormData } from '@/schemas/visit';
 import {
-  queueVisit,
-  queueHousehold,
-  registerVisitSync,
-} from '@/lib/visits-store';
+  logVisitSchema,
+  addHouseholdSchema,
+  type LogVisitFormData,
+  type AddHouseholdFormData,
+} from '@/schemas/visit';
+import { queueVisit, queueHousehold, registerVisitSync } from '@/lib/visits-store';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -37,8 +49,10 @@ import type { Household, Visit } from '@/types/api';
 const statusColors: Record<string, string> = {
   new: 'text-muted-foreground border-border bg-muted/30',
   active: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
-  not_home: 'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
-  return_visit: 'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
+  not_home:
+    'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
+  return_visit:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   inactive: 'text-muted-foreground border-border bg-muted/30',
@@ -56,8 +70,10 @@ const statusLabels: Record<string, string> = {
 
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  not_home: 'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
-  return_visit: 'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
+  not_home:
+    'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
+  return_visit:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   other: 'text-muted-foreground border-border bg-muted/30',
@@ -100,7 +116,8 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
         <div className="flex items-start justify-between gap-3 p-4 border-b border-border">
           <div className="min-w-0 flex-1">
             <h2 className="font-semibold text-sm truncate">
-              {household.houseNumber ? `${household.houseNumber} ` : ''}{household.address}
+              {household.houseNumber ? `${household.houseNumber} ` : ''}
+              {household.address}
             </h2>
             <p className="text-xs text-muted-foreground">
               {household.streetName}, {household.city}
@@ -140,7 +157,9 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
 
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />)}
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
+              ))}
             </div>
           ) : visits.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -150,7 +169,12 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
           ) : (
             visits.map((v) => {
               const isExpanded = expandedId === v.id;
-              const hasDetails = v.notes || v.literatureLeft || v.bibleTopicDiscussed || v.returnVisitPlanned || v.nextVisitDate;
+              const hasDetails =
+                v.notes ||
+                v.literatureLeft ||
+                v.bibleTopicDiscussed ||
+                v.returnVisitPlanned ||
+                v.nextVisitDate;
               return (
                 <div key={v.id} className="rounded-xl border border-border bg-card p-3 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
@@ -161,15 +185,22 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">{timeAgo(v.visitDate)}</p>
-                      {v.duration && <p className="text-xs text-muted-foreground">{v.duration} min</p>}
+                      {v.duration && (
+                        <p className="text-xs text-muted-foreground">{v.duration} min</p>
+                      )}
                     </div>
-                    <Badge variant="outline" className={`shrink-0 text-xs ${outcomeColors[v.outcome] ?? ''}`}>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 text-xs ${outcomeColors[v.outcome] ?? ''}`}
+                    >
                       {outcomeLabels[v.outcome] ?? v.outcome}
                     </Badge>
                   </div>
 
                   {v.returnVisitPlanned && (
-                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">↩ Return visit planned</p>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                      ↩ Return visit planned
+                    </p>
                   )}
                   {v.syncStatus === 'pending' && (
                     <p className="text-xs text-amber-600">⏳ Pending sync</p>
@@ -189,20 +220,33 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                         <div className="space-y-1.5 pt-1 border-t border-border">
                           {v.notes && (
                             <div className="flex gap-2 text-xs">
-                              <FileText size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
+                              <FileText
+                                size={11}
+                                className="mt-0.5 shrink-0 text-muted-foreground"
+                              />
                               <span className="text-muted-foreground">{v.notes}</span>
                             </div>
                           )}
                           {v.literatureLeft && (
                             <div className="flex gap-2 text-xs">
-                              <BookOpen size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
-                              <span className="text-muted-foreground">Literature: {v.literatureLeft}</span>
+                              <BookOpen
+                                size={11}
+                                className="mt-0.5 shrink-0 text-muted-foreground"
+                              />
+                              <span className="text-muted-foreground">
+                                Literature: {v.literatureLeft}
+                              </span>
                             </div>
                           )}
                           {v.bibleTopicDiscussed && (
                             <div className="flex gap-2 text-xs">
-                              <BookOpen size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
-                              <span className="text-muted-foreground">Topic: {v.bibleTopicDiscussed}</span>
+                              <BookOpen
+                                size={11}
+                                className="mt-0.5 shrink-0 text-muted-foreground"
+                              />
+                              <span className="text-muted-foreground">
+                                Topic: {v.bibleTopicDiscussed}
+                              </span>
                             </div>
                           )}
                           {v.nextVisitDate && (
@@ -273,7 +317,10 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
     reset();
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -287,7 +334,10 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
           )}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4">
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
+        >
           {/* Outcome */}
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Outcome *</span>
@@ -301,7 +351,9 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(outcomeLabels).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -317,13 +369,18 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
               name="householdStatusAfter"
               control={control}
               render={({ field }) => (
-                <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || undefined)}>
+                <Select
+                  value={field.value ?? ''}
+                  onValueChange={(v) => field.onChange(v || undefined)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Keep current status" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(statusLabels).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -331,35 +388,75 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
             />
           </div>
 
-          <FormField label="Duration (minutes)" id="duration" type="number" min={1} max={300}
-            error={errors.duration?.message} {...register('duration', { valueAsNumber: true })} />
+          <FormField
+            label="Duration (minutes)"
+            id="duration"
+            type="number"
+            min={1}
+            max={300}
+            error={errors.duration?.message}
+            {...register('duration', { valueAsNumber: true })}
+          />
 
-          <FormField label="Literature Left" id="literatureLeft"
-            error={errors.literatureLeft?.message} {...register('literatureLeft')} />
+          <FormField
+            label="Literature Left"
+            id="literatureLeft"
+            error={errors.literatureLeft?.message}
+            {...register('literatureLeft')}
+          />
 
-          <FormField label="Bible Topic Discussed" id="bibleTopicDiscussed"
-            error={errors.bibleTopicDiscussed?.message} {...register('bibleTopicDiscussed')} />
+          <FormField
+            label="Bible Topic Discussed"
+            id="bibleTopicDiscussed"
+            error={errors.bibleTopicDiscussed?.message}
+            {...register('bibleTopicDiscussed')}
+          />
 
-          <FormField label="Notes" id="notes" multiline rows={3}
-            error={errors.notes?.message} {...register('notes')} />
+          <FormField
+            label="Notes"
+            id="notes"
+            multiline
+            rows={3}
+            error={errors.notes?.message}
+            {...register('notes')}
+          />
 
           <div className="flex items-center gap-2">
-            <input type="checkbox" id="returnVisitPlanned" className="h-4 w-4 rounded border"
-              {...register('returnVisitPlanned')} />
-            <label htmlFor="returnVisitPlanned" className="text-sm font-medium">Return visit planned</label>
+            <input
+              type="checkbox"
+              id="returnVisitPlanned"
+              className="h-4 w-4 rounded border"
+              {...register('returnVisitPlanned')}
+            />
+            <label htmlFor="returnVisitPlanned" className="text-sm font-medium">
+              Return visit planned
+            </label>
           </div>
 
           {returnVisitPlanned && (
             <>
-              <FormField label="Next visit date" id="nextVisitDate" type="date"
-                error={errors.nextVisitDate?.message} {...register('nextVisitDate')} />
-              <FormField label="Next visit notes" id="nextVisitNotes" multiline rows={2}
-                error={errors.nextVisitNotes?.message} {...register('nextVisitNotes')} />
+              <FormField
+                label="Next visit date"
+                id="nextVisitDate"
+                type="date"
+                error={errors.nextVisitDate?.message}
+                {...register('nextVisitDate')}
+              />
+              <FormField
+                label="Next visit notes"
+                id="nextVisitNotes"
+                multiline
+                rows={2}
+                error={errors.nextVisitNotes?.message}
+                {...register('nextVisitNotes')}
+              />
             </>
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Saving…' : 'Save Visit'}
             </Button>
@@ -398,7 +495,10 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
     reset();
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
@@ -408,21 +508,47 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
           <p className="text-sm text-muted-foreground mt-1">Create a new address record</p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4">
-          <FormField label="Address *" id="address" error={errors.address?.message}
-            {...register('address')} />
-          <FormField label="House Number" id="houseNumber" error={errors.houseNumber?.message}
-            {...register('houseNumber')} />
-          <FormField label="Unit/Apt Number" id="unitNumber" error={errors.unitNumber?.message}
-            {...register('unitNumber')} />
-          <FormField label="Street Name *" id="streetName" error={errors.streetName?.message}
-            {...register('streetName')} />
-          <FormField label="City *" id="city" error={errors.city?.message}
-            {...register('city')} />
-          <FormField label="Postal Code" id="postalCode" error={errors.postalCode?.message}
-            {...register('postalCode')} />
-          <FormField label="Country" id="country" error={errors.country?.message}
-            {...register('country')} />
+        <form
+          onSubmit={handleSubmit(onSubmit)}
+          className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
+        >
+          <FormField
+            label="Address *"
+            id="address"
+            error={errors.address?.message}
+            {...register('address')}
+          />
+          <FormField
+            label="House Number"
+            id="houseNumber"
+            error={errors.houseNumber?.message}
+            {...register('houseNumber')}
+          />
+          <FormField
+            label="Unit/Apt Number"
+            id="unitNumber"
+            error={errors.unitNumber?.message}
+            {...register('unitNumber')}
+          />
+          <FormField
+            label="Street Name *"
+            id="streetName"
+            error={errors.streetName?.message}
+            {...register('streetName')}
+          />
+          <FormField label="City *" id="city" error={errors.city?.message} {...register('city')} />
+          <FormField
+            label="Postal Code"
+            id="postalCode"
+            error={errors.postalCode?.message}
+            {...register('postalCode')}
+          />
+          <FormField
+            label="Country"
+            id="country"
+            error={errors.country?.message}
+            {...register('country')}
+          />
 
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Type</span>
@@ -431,10 +557,22 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
               control={control}
               render={({ field }) => (
                 <Select value={field.value ?? 'house'} onValueChange={field.onChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {['house', 'apartment', 'condo', 'townhouse', 'mobile_home', 'business', 'other'].map((t) => (
-                      <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>
+                    {[
+                      'house',
+                      'apartment',
+                      'condo',
+                      'townhouse',
+                      'mobile_home',
+                      'business',
+                      'other',
+                    ].map((t) => (
+                      <SelectItem key={t} value={t} className="capitalize">
+                        {t.replace('_', ' ')}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -442,11 +580,19 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
             />
           </div>
 
-          <FormField label="Notes" id="notes" multiline rows={2} error={errors.notes?.message}
-            {...register('notes')} />
+          <FormField
+            label="Notes"
+            id="notes"
+            multiline
+            rows={2}
+            error={errors.notes?.message}
+            {...register('notes')}
+          />
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Saving…' : 'Add Household'}
             </Button>
@@ -518,7 +664,10 @@ export default function HouseholdsClient() {
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <Input
               placeholder="Search by address…"
               value={search}
@@ -533,7 +682,9 @@ export default function HouseholdsClient() {
           >
             <option value="all">All statuses</option>
             {Object.entries(statusLabels).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+              <option key={v} value={v}>
+                {l}
+              </option>
             ))}
           </select>
         </div>
@@ -553,17 +704,22 @@ export default function HouseholdsClient() {
         ) : (
           <div className="space-y-3">
             {filtered.map((h) => (
-              <div key={h.id} className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3">
+              <div
+                key={h.id}
+                className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
+              >
                 <button
                   type="button"
                   className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
                   onClick={() => setSelectedHousehold(h)}
                 >
                   <p className="font-medium text-sm truncate">
-                    {h.houseNumber ? `${h.houseNumber} ` : ''}{h.address}, {h.streetName}
+                    {h.houseNumber ? `${h.houseNumber} ` : ''}
+                    {h.address}, {h.streetName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {h.city}{h.postalCode ? `, ${h.postalCode}` : ''}
+                    {h.city}
+                    {h.postalCode ? `, ${h.postalCode}` : ''}
                   </p>
                   <div className="flex gap-2 mt-2 flex-wrap">
                     <Badge variant="outline" className={statusColors[h.status] ?? ''}>
