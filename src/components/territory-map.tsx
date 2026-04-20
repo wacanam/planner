@@ -214,6 +214,7 @@ export default function TerritoryMap({
   }, [isDrawing]);
 
   const [mapReady, setMapReady] = useState(false);
+  const [styleSeq, setStyleSeq] = useState(0); // increments on each styledata event
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -403,25 +404,46 @@ export default function TerritoryMap({
 
         setMapReady(true);
 
-        // ── Drawing layers (added once, updated via setData) ──────────────
-        map.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-        map.addSource('draw-active',   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-        map.addSource('draw-points',   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        // ── Drawing layers helper — re-run after every style change ────────
+        const addDrawingLayers = (m: import('maplibre-gl').Map) => {
+          if (!m.getSource('draw-polygons')) {
+            m.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-active')) {
+            m.addSource('draw-active', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-points')) {
+            m.addSource('draw-points', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getLayer('draw-polygons-fill'))
+            m.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
+              paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+          if (!m.getLayer('draw-polygons-line'))
+            m.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
+              paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+          if (!m.getLayer('draw-active-line'))
+            m.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
+              paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+          if (!m.getLayer('draw-points-circle'))
+            m.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
+              filter: ['!=', ['get', 'first'], true],
+              paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          if (!m.getLayer('draw-points-first'))
+            m.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
+              filter: ['==', ['get', 'first'], true],
+              paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+        };
 
-        map.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
-          paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
-        map.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
-          paint: { 'line-color': '#059669', 'line-width': 2.5 } });
-        map.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
-          paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
-        map.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
-          filter: ['!=', ['get', 'first'], true],
-          paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
-                   'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
-        map.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
-          filter: ['==', ['get', 'first'], true],
-          paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
-                   'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+        // Add initially
+        addDrawingLayers(map);
+
+        // Re-add after every style change (setStyle wipes all sources+layers)
+        map.on('styledata', () => {
+          addDrawingLayers(map);
+          setStyleSeq((n) => n + 1);
+        });
 
         // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
         // Proper Marker so it tilts natively with map pitch (no CSS hacks)
@@ -813,7 +835,7 @@ useEffect(() => {
         properties: { first: i === 0 },
       })),
     });
-  }, [drawRings, activeRing, mapReady]);
+  }, [drawRings, activeRing, mapReady, styleSeq]);
 
   // Fire state change so parent toolbar can reflect ring/point counts
   useEffect(() => {
