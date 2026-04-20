@@ -190,6 +190,11 @@ export default function TerritoryMap({
   type LngLat = [number, number];
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  // Refs so imperative callbacks always see current state
+  const drawRingsRef  = useRef<LngLat[][]>([]);
+  const activeRingRef = useRef<LngLat[]>([]);
+  drawRingsRef.current  = drawRings;
+  activeRingRef.current = activeRing;
   const drawLastClick = useRef<number>(0);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
   onDrawingCompleteRef.current = onDrawingComplete;
@@ -203,13 +208,14 @@ export default function TerritoryMap({
     if (!isDrawing) return;
     onDrawingActionsRef.current?.({
       closeRing: () => {
-        setActiveRing((prev) => {
-          if (prev.length < 3) return prev;
-          setDrawRings((r) => [...r, prev]);
-          return [];
-        });
+        const ring = activeRingRef.current;
+        if (ring.length < 3) return;
+        setDrawRings((prev) => [...prev, ring]);
+        setActiveRing([]);
       },
-      undoPoint: () => setActiveRing((prev) => prev.slice(0, -1)),
+      undoPoint: () => {
+        setActiveRing((prev) => prev.slice(0, -1));
+      },
     });
   }, [isDrawing]);
 
@@ -908,14 +914,17 @@ useEffect(() => {
   // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
   const prevIsDrawing = useRef(isDrawing);
   useEffect(() => {
-    if (prevIsDrawing.current && !isDrawing && drawRings.length > 0) {
-      const geojson = drawRings.length === 1
-        ? { type: 'Polygon', coordinates: [[...drawRings[0], drawRings[0][0]]] }
-        : { type: 'MultiPolygon', coordinates: drawRings.map((r) => [[...r, r[0]]]) };
-      onDrawingCompleteRef.current?.(geojson);
+    if (prevIsDrawing.current && !isDrawing) {
+      const rings = drawRingsRef.current;
+      if (rings.length > 0) {
+        const geojson = rings.length === 1
+          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+        onDrawingCompleteRef.current?.(geojson);
+      }
     }
     prevIsDrawing.current = isDrawing;
-  }, [isDrawing, drawRings]);
+  }, [isDrawing]);
 
   return (
     <div className={`relative ${className}`}>
