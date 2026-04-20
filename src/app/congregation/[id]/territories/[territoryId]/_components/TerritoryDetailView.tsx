@@ -191,7 +191,12 @@ export default function TerritoryDetailView() {
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
   const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
+  const [drawRingCount, setDrawRingCount] = useState(0);
+  const [drawActivePoints, setDrawActivePoints] = useState(0);
   const { saveBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
+  // Exposed callbacks from map for closing ring and undoing
+  const mapCloseRingRef = useRef<(() => void) | null>(null);
+  const mapUndoPointRef = useRef<(() => void) | null>(null);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
@@ -263,6 +268,14 @@ export default function TerritoryDetailView() {
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
+                    onDrawingStateChange={(rings: number, pts: number) => {
+                      setDrawRingCount(rings);
+                      setDrawActivePoints(pts);
+                    }}
+                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void }) => {
+                      mapCloseRingRef.current = actions.closeRing;
+                      mapUndoPointRef.current = actions.undoPoint;
+                    }}
                     onDrawingComplete={async (geojson: { type: string; coordinates: unknown }) => {
                       try {
                         await saveBoundary(territoryId, geojson as any);
@@ -274,27 +287,68 @@ export default function TerritoryDetailView() {
                     className="h-full"
                   />
 
-                  {/* Drawing mode top banner */}
+                  {/* Drawing mode toolbar — mobile-friendly, no keyboard shortcuts */}
                   {isDrawingBoundary && (
-                    <div className="absolute top-0 inset-x-0 z-[1100] flex items-center justify-between px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white pointer-events-auto">
-                      <span className="text-xs font-semibold">
-                        ✏️ Tap map to draw · Double-tap to close polygon
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsDrawingBoundary(false)}
-                          className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
-                        >
-                          Cancel
-                        </button>
-                        {isSavingBoundary && (
-                          <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">
-                            Saving…
-                          </span>
+                    <>
+                      {/* Top status bar */}
+                      <div className="absolute top-0 inset-x-0 z-[1100] flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white pointer-events-auto">
+                        <span className="text-xs font-semibold truncate">
+                          {drawActivePoints > 0
+                            ? `📍 ${drawActivePoints} pts — tap ✓ to close`
+                            : drawRingCount > 0
+                            ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — tap Save`
+                            : '✏️ Tap on map to add points'}
+                        </span>
+                        <div className="flex gap-1.5 flex-shrink-0">
+                          {isSavingBoundary ? (
+                            <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
+                          ) : (
+                            drawRingCount > 0 && drawActivePoints === 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setIsDrawingBoundary(false)}
+                                className="text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
+                              >
+                                💾 Save
+                              </button>
+                            )
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setIsDrawingBoundary(false)}
+                            className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right-side floating action buttons */}
+                      <div className="absolute right-3 top-16 z-[1100] flex flex-col gap-2 pointer-events-auto">
+                        {/* Close current ring */}
+                        {drawActivePoints >= 3 && (
+                          <button
+                            type="button"
+                            onClick={() => (mapCloseRingRef.current?.())}
+                            className="flex items-center justify-center w-9 h-9 bg-blue-500 text-white rounded-full shadow-md text-lg font-bold"
+                            title="Close polygon"
+                          >
+                            ✓
+                          </button>
+                        )}
+                        {/* Undo last point */}
+                        {drawActivePoints > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => (mapUndoPointRef.current?.())}
+                            className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-md text-base border border-gray-200"
+                            title="Undo last point"
+                          >
+                            ↩
+                          </button>
                         )}
                       </div>
-                    </div>
+                    </>
                   )}
 
                   {/* Fullscreen toggle — right center */}

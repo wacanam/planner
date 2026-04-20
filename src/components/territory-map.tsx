@@ -44,6 +44,8 @@ export interface TerritoryMapProps {
   // Drawing mode
   isDrawing?: boolean;
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
+  onDrawingStateChange?: (rings: number, activePoints: number) => void;
+  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void }) => void;
   // Location / calibration (kept for callers)
   onLocationDotClick?: () => void;
   onCalibrationNeeded?: (needed: boolean) => void;
@@ -174,6 +176,8 @@ export default function TerritoryMap({
   mapStyle = DEFAULT_STYLE,
   isDrawing = false,
   onDrawingComplete,
+  onDrawingStateChange,
+  onDrawingActions,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -189,6 +193,25 @@ export default function TerritoryMap({
   const drawLastClick = useRef<number>(0);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
   onDrawingCompleteRef.current = onDrawingComplete;
+  const onDrawingStateChangeRef = useRef(onDrawingStateChange);
+  onDrawingStateChangeRef.current = onDrawingStateChange;
+  const onDrawingActionsRef = useRef(onDrawingActions);
+  onDrawingActionsRef.current = onDrawingActions;
+
+  // Expose imperative drawing actions to parent
+  useEffect(() => {
+    if (!isDrawing) return;
+    onDrawingActionsRef.current?.({
+      closeRing: () => {
+        setActiveRing((prev) => {
+          if (prev.length < 3) return prev;
+          setDrawRings((r) => [...r, prev]);
+          return [];
+        });
+      },
+      undoPoint: () => setActiveRing((prev) => prev.slice(0, -1)),
+    });
+  }, [isDrawing]);
 
   const [mapReady, setMapReady] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -792,6 +815,11 @@ useEffect(() => {
     });
   }, [drawRings, activeRing, mapReady]);
 
+  // Fire state change so parent toolbar can reflect ring/point counts
+  useEffect(() => {
+    onDrawingStateChangeRef.current?.(drawRings.length, activeRing.length);
+  }, [drawRings.length, activeRing.length]);
+
   // ─── Drawing: attach/detach map click handler ────────────────────────────
   useEffect(() => {
     const map = mapInstance.current;
@@ -799,33 +827,60 @@ useEffect(() => {
 
     if (isDrawing) {
       map.getCanvas().style.cursor = 'crosshair';
+      // Disable zoom on double-tap/click so every tap adds a point
+      map.doubleClickZoom.disable();
     } else {
       map.getCanvas().style.cursor = '';
+      map.doubleClickZoom.enable();
       setDrawRings([]);
       setActiveRing([]);
     }
 
     if (!isDrawing) return;
 
-    const onClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      const now = Date.now();
-      const isDbl = now - drawLastClick.current < 300;
-      drawLastClick.current = now;
-      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-
-      if (isDbl) {
-        setActiveRing((prev) => {
-          if (prev.length < 3) return prev;
-          setDrawRings((r) => [...r, prev]);
-          return [];
-        });
-      } else {
-        setActiveRing((prev) => [...prev, pt]);
-      }
+    const addPoint = (lngLat: { lng: number; lat: number }) => {
+      const pt: [number, number] = [lngLat.lng, lngLat.lat];
+      setActiveRing((prev) => [...prev, pt]);
     };
 
-    map.on('click', onClick);
-    return () => { map.off('click', onClick); };
+    // Desktop: map click event
+    const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
+      // Ignore if this is a touch event (handled by touchend instead)
+      if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      addPoint(e.lngLat);
+    };
+
+    // Mobile: touchend on the canvas for instant response
+    const canvas = map.getCanvas();
+    let touchStartX = 0, touchStartY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      const dx = Math.abs(t.clientX - touchStartX);
+      const dy = Math.abs(t.clientY - touchStartY);
+      // Only treat as a tap (not a drag/pan)
+      if (dx > 10 || dy > 10) return;
+      e.preventDefault();
+      // Convert touch position to map LngLat
+      const rect = canvas.getBoundingClientRect();
+      const x = t.clientX - rect.left;
+      const y = t.clientY - rect.top;
+      const lngLat = map.unproject([x, y]);
+      addPoint(lngLat);
+    };
+
+    map.on('click', onDesktopClick);
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+
+    return () => {
+      map.off('click', onDesktopClick);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchend', onTouchEnd);
+    };
   }, [isDrawing, mapReady]);
 
   // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
