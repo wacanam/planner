@@ -65,7 +65,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         encounterCount: sql<number>`(select count(*) from encounters where encounters."visitId" = ${visits.id})::int`,
       })
       .from(visits)
-      .innerJoin(households, eq(visits.householdId, households.id))
+      .leftJoin(households, eq(visits.householdId, households.id))
       .innerJoin(users, eq(visits.userId, users.id))
       .where(whereClause)
       .orderBy(desc(visits.visitDate))
