@@ -295,10 +295,10 @@ export default function TerritoryDetailView() {
 
                   {/* Edit Boundary Button */}
                   <div className="absolute top-0 right-0 z-[1001] p-3 pointer-events-auto">
-                    <Button asChild size="sm" variant="outline" className="text-xs h-7">
+                    <Button asChild size="sm" variant="default" className="text-xs h-8 bg-blue-600 hover:bg-blue-700">
                       <Link href={`/congregation/${congregationId}/territories/${territoryId}/boundary`}>
-                        <MapPin className="h-3.5 w-3.5 mr-1.5" />
-                        Edit Boundary
+                        <MapPin className="h-4 w-4 mr-1.5" />
+                        Boundary
                       </Link>
                     </Button>
                   </div>
