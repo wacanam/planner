@@ -4,26 +4,25 @@
  */
 
 import { queueWrite, getPendingWrites, clearPendingWrite, registerSync } from './offline-store';
-import { v4 as uuidv4 } from 'crypto';
-import type { Visit, Household } from '@/types/api';
 
 // Type exports
 export interface PendingWrite<T = unknown> {
   id: string;
   data: T;
+  createdAt: string;
 }
 
 // ─── Queue pending visits ─────────────────────────────────────────────────────
 
 export async function queueVisit(data: Record<string, unknown>): Promise<string> {
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   await queueWrite('pending-visits', data);
   // Trigger SW sync in background
   await registerSync('visits-sync');
   return id;
 }
 
-export async function getPendingVisits(): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+export async function getPendingVisits(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-visits');
 }
 
@@ -34,14 +33,14 @@ export async function clearPendingVisit(id: string): Promise<void> {
 // ─── Queue pending households ─────────────────────────────────────────────────
 
 export async function queueHousehold(data: Record<string, unknown>): Promise<string> {
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   await queueWrite('pending-households', data);
   // Trigger SW sync in background
   await registerSync('visits-sync');
   return id;
 }
 
-export async function getPendingHouseholds(): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+export async function getPendingHouseholds(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-households');
 }
 
@@ -58,13 +57,13 @@ export async function registerVisitSync(): Promise<void> {
 // ─── Queue pending encounters ─────────────────────────────────────────────────
 
 export async function queueEncounter(data: Record<string, unknown>): Promise<string> {
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   await queueWrite('pending-encounters', data);
   await registerSync('visits-sync');
   return id;
 }
 
-export async function getPendingEncounters(): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+export async function getPendingEncounters(): Promise<PendingWrite<Record<string, unknown>>[]> {
   return getPendingWrites('pending-encounters');
 }
 

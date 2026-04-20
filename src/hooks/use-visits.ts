@@ -128,5 +128,7 @@ export function useHouseholds() {
     isLoading,
     error,
     dataSource: ('cache' as 'server' | 'cache'),
+    /** No-op: data refreshes automatically via IDB subscriptions. */
+    mutate: () => Promise.resolve(),
   };
 }
