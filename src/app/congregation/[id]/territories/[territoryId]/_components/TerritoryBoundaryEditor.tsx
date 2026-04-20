@@ -48,6 +48,7 @@ export function TerritoryBoundaryEditor({
               territoryId={territoryId}
               initialCenter={initialCenter}
               initialZoom={13}
+              onClose={() => setIsExpanded(false)}
               onBoundarySaved={onBoundarySaved}
             />
           </div>

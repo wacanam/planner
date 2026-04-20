@@ -3,497 +3,450 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useTerritoryBoundary } from '@/hooks/use-territory-boundary';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Trash2, Save, MapPin, AlertCircle } from 'lucide-react';
+import { type GeoJSONGeometry, useTerritoryBoundary, validateGeoJSON } from '@/hooks/use-territory-boundary';
+import { X, Trash2, Save, Undo2, CheckCircle2, Info } from 'lucide-react';
 
-interface TerritoryBoundaryDrawerProps {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface TerritoryBoundaryDrawerProps {
   territoryId: string;
   initialCenter?: [number, number];
   initialZoom?: number;
-  onBoundarySaved?: () => void;
+  onClose: () => void;
+  onBoundarySaved?: (boundary: GeoJSONGeometry) => void;
 }
 
-type DrawPoint = [number, number];
-type DrawPolygon = DrawPoint[];
+type LngLat = [number, number];
+type Ring = LngLat[];
 
-const MIN_POINTS_PER_POLYGON = 3;
-const DOUBLE_CLICK_THRESHOLD = 300;
-const MAP_LAYER_IDS = {
-  drawingPoints: 'drawing-points',
-  drawingLines: 'drawing-lines',
-  completedPolygons: 'completed-polygons',
-  pointsSource: 'drawing-points-source',
-  linesSource: 'drawing-lines-source',
-  polygonsSource: 'completed-polygons-source',
-};
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DBL_CLICK_MS = 300;
+const MIN_RING_POINTS = 3;
+
+const SRC = {
+  polygons: 'boundary-polygons',
+  active:   'boundary-active',
+  points:   'boundary-points',
+  preview:  'boundary-preview',
+} as const;
+
+const LAYER = {
+  polygonsFill:    'boundary-polygons-fill',
+  polygonsLine:    'boundary-polygons-line',
+  activeLine:      'boundary-active-line',
+  activeClosingLine: 'boundary-active-closing',
+  points:          'boundary-points-circle',
+  pointsFirst:     'boundary-points-first',
+} as const;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function ringsToFeatureCollection(rings: Ring[]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: rings.map((ring) => ({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
+      properties: {},
+    })),
+  };
+}
+
+function activeRingToFeatureCollection(ring: LngLat[]): GeoJSON.FeatureCollection {
+  if (ring.length < 2) return { type: 'FeatureCollection', features: [] };
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: ring },
+        properties: {},
+      },
+      // Closing line back to first point (preview)
+      ...(ring.length >= 3 ? [{
+        type: 'Feature' as const,
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: [ring[ring.length - 1], ring[0]],
+        },
+        properties: {},
+      }] : []),
+    ],
+  };
+}
+
+function pointsToFeatureCollection(ring: LngLat[]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: ring.map((pt, i) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: pt },
+      properties: { index: i, isFirst: i === 0 },
+    })),
+  };
+}
+
+function ringsToGeoJSON(rings: Ring[]): GeoJSONGeometry {
+  if (rings.length === 1) {
+    return {
+      type: 'Polygon',
+      coordinates: [[...rings[0], rings[0][0]]],
+    };
+  }
+  return {
+    type: 'MultiPolygon',
+    coordinates: rings.map((ring) => [[...ring, ring[0]]]),
+  };
+}
+
+function setSource(map: maplibregl.Map, id: string, data: GeoJSON.FeatureCollection) {
+  const src = map.getSource(id) as maplibregl.GeoJSONSource | undefined;
+  if (src) src.setData(data);
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 /**
- * Territory Boundary Drawing Component
- * 
- * Features:
- * - Interactive point-based polygon drawing
- * - Live preview on MapLibre GL
- * - Multi-polygon support
- * - Keyboard shortcuts (Escape to cancel, Enter to finish)
- * - Touch-friendly with visual feedback
- * - Comprehensive error handling
- * 
- * Interaction Model:
- * - Click to add points
- * - Double-click to finish polygon (min 3 points)
- * - Escape key to clear current polygon
- * - Draw multiple polygons for multi-territory coverage
+ * Territory Boundary Drawer
+ *
+ * Full-screen overlay that renders a MapLibre map with interactive polygon
+ * drawing. Designed to overlay the existing territory map without navigation.
+ *
+ * Interactions:
+ *  - Click        → add point to current ring
+ *  - Double-click → close and commit current ring (≥ 3 pts)
+ *  - Escape       → cancel current ring
+ *  - Z / Ctrl+Z   → undo last point
+ *  - Enter        → commit ring if ≥ 3 pts
  */
 export function TerritoryBoundaryDrawer({
   territoryId,
   initialCenter = [0, 0],
-  initialZoom = 13,
+  initialZoom = 14,
+  onClose,
   onBoundarySaved,
 }: TerritoryBoundaryDrawerProps) {
-  // DOM references
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef       = useRef<maplibregl.Map | null>(null);
+  const lastClickRef = useRef<number>(0);
 
-  // Drawing state
-  const [polygons, setPolygons] = useState<DrawPolygon[]>([]);
-  const [currentPoints, setCurrentPoints] = useState<DrawPoint[]>([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  const [rings, setRings]             = useState<Ring[]>([]);
+  const [activeRing, setActiveRing]   = useState<LngLat[]>([]);
+  const [mapReady, setMapReady]       = useState(false);
+  const [isSaving, setIsSaving]       = useState(false);
+  const [saved, setSaved]             = useState(false);
+  const [notice, setNotice]           = useState<string | null>(null);
 
-  // Interaction state
-  const lastClickTimeRef = useRef<number>(0);
-  const { fetchBoundary, saveBoundary } = useTerritoryBoundary();
+  const { boundary, isLoading, saveBoundary, fetchBoundary } = useTerritoryBoundary();
 
-  /**
-   * Initialize MapLibre and drawing layers
-   */
+  // ── Map init ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!containerRef.current || mapRef.current) return;
 
-    try {
-      map.current = new maplibregl.Map({
-        container: mapContainer.current,
-        style: 'https://demotiles.maplibre.org/style.json',
-        center: initialCenter,
-        zoom: initialZoom,
+    const m = new maplibregl.Map({
+      container: containerRef.current,
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: initialCenter,
+      zoom: initialZoom,
+    });
+
+    m.once('load', () => {
+      // ── Sources ──────────────────────────────────────────────────────────
+      m.addSource(SRC.polygons, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      m.addSource(SRC.active,   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      m.addSource(SRC.points,   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+      // ── Completed polygon layers ──────────────────────────────────────────
+      m.addLayer({ id: LAYER.polygonsFill, type: 'fill', source: SRC.polygons,
+        paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+      m.addLayer({ id: LAYER.polygonsLine, type: 'line', source: SRC.polygons,
+        paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+
+      // ── Active ring layer ─────────────────────────────────────────────────
+      m.addLayer({ id: LAYER.activeLine, type: 'line', source: SRC.active,
+        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 1] } });
+
+      // ── Points layer ──────────────────────────────────────────────────────
+      m.addLayer({ id: LAYER.points, type: 'circle', source: SRC.points,
+        filter: ['==', ['get', 'isFirst'], false],
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#3b82f6',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#fff',
+        },
+      });
+      // First point highlighted differently
+      m.addLayer({ id: LAYER.pointsFirst, type: 'circle', source: SRC.points,
+        filter: ['==', ['get', 'isFirst'], true],
+        paint: {
+          'circle-radius': 7,
+          'circle-color': '#f59e0b',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#fff',
+        },
       });
 
-      map.current.once('load', () => {
-        if (!map.current) return;
-        setupDrawingLayers();
-        setMapReady(true);
-        fetchBoundary(territoryId);
-      });
-
-      map.current.once('error', (e) => {
-        console.error('[TerritoryBoundaryDrawer] Map error:', e);
-        setError('Failed to load map. Please refresh.');
-      });
-    } catch (err) {
-      console.error('[TerritoryBoundaryDrawer] Init error:', err);
-      setError('Failed to initialize map');
-    }
+      mapRef.current = m;
+      setMapReady(true);
+      fetchBoundary(territoryId);
+    });
 
     return () => {
-      if (map.current) {
-        map.current.off('click', handleMapClick);
-        map.current.remove();
-        map.current = null;
-      }
+      m.remove();
+      mapRef.current = null;
     };
   }, [territoryId, initialCenter, initialZoom, fetchBoundary]);
 
-  /**
-   * Setup all drawing layers and sources
-   */
-  const setupDrawingLayers = useCallback(() => {
-    if (!map.current) return;
+  // ── Load existing boundary into rings ────────────────────────────────────
+  useEffect(() => {
+    if (!boundary || !mapReady) return;
+    try {
+      const loaded: Ring[] = [];
+      if (boundary.type === 'Polygon') {
+        loaded.push(boundary.coordinates[0].slice(0, -1) as LngLat[]);
+      } else if (boundary.type === 'MultiPolygon') {
+        for (const poly of boundary.coordinates) {
+          loaded.push((poly as number[][][])[0].slice(0, -1) as LngLat[]);
+        }
+      }
+      if (loaded.length > 0) setRings(loaded);
+    } catch {
+      // ignore parse errors
+    }
+  }, [boundary, mapReady]);
 
-    // Completed polygons (fill + outline)
-    map.current.addSource(MAP_LAYER_IDS.polygonsSource, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
+  // ── Sync map sources ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !mapReady) return;
+    setSource(m, SRC.polygons, ringsToFeatureCollection(rings));
+    setSource(m, SRC.active,   activeRingToFeatureCollection(activeRing));
+    setSource(m, SRC.points,   pointsToFeatureCollection(activeRing));
+  }, [rings, activeRing, mapReady]);
 
-    map.current.addLayer({
-      id: `${MAP_LAYER_IDS.completedPolygons}-fill`,
-      type: 'fill',
-      source: MAP_LAYER_IDS.polygonsSource,
-      paint: {
-        'fill-color': '#10b981',
-        'fill-opacity': 0.3,
-      },
-    });
+  // ── Map click handler ────────────────────────────────────────────────────
+  const handleClick = useCallback((e: maplibregl.MapMouseEvent) => {
+    const now = Date.now();
+    const isDbl = now - lastClickRef.current < DBL_CLICK_MS;
+    lastClickRef.current = now;
 
-    map.current.addLayer({
-      id: `${MAP_LAYER_IDS.completedPolygons}-outline`,
-      type: 'line',
-      source: MAP_LAYER_IDS.polygonsSource,
-      paint: {
-        'line-color': '#059669',
-        'line-width': 2.5,
-      },
-    });
+    const pt: LngLat = [e.lngLat.lng, e.lngLat.lat];
 
-    // Current polygon lines
-    map.current.addSource(MAP_LAYER_IDS.linesSource, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-
-    map.current.addLayer({
-      id: MAP_LAYER_IDS.drawingLines,
-      type: 'line',
-      source: MAP_LAYER_IDS.linesSource,
-      paint: {
-        'line-color': '#3b82f6',
-        'line-width': 2,
-        'line-opacity': 0.8,
-      },
-    });
-
-    // Current points
-    map.current.addSource(MAP_LAYER_IDS.pointsSource, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] },
-    });
-
-    map.current.addLayer({
-      id: MAP_LAYER_IDS.drawingPoints,
-      type: 'circle',
-      source: MAP_LAYER_IDS.pointsSource,
-      paint: {
-        'circle-radius': 6,
-        'circle-color': '#3b82f6',
-        'circle-opacity': 0.9,
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#fff',
-      },
-    });
-
-    // Change cursor on hover
-    map.current.on('mouseenter', MAP_LAYER_IDS.drawingPoints, () => {
-      if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-    });
-    map.current.on('mouseleave', MAP_LAYER_IDS.drawingPoints, () => {
-      if (map.current) map.current.getCanvas().style.cursor = '';
-    });
-
-    // Add click handler
-    map.current.on('click', handleMapClick);
+    if (isDbl) {
+      // Commit ring on double-click
+      setActiveRing((prev) => {
+        const ring = [...prev, pt];
+        if (ring.length < MIN_RING_POINTS) {
+          setNotice(`Need at least ${MIN_RING_POINTS} points to close a polygon`);
+          return prev;
+        }
+        setRings((r) => [...r, ring]);
+        return [];
+      });
+    } else {
+      setActiveRing((prev) => [...prev, pt]);
+    }
   }, []);
 
-  /**
-   * Handle map clicks for drawing points
-   */
-  const handleMapClick = (e: maplibregl.MapMouseEvent) => {
-    if (!isDrawing || !map.current) return;
-
-    const now = Date.now();
-    const isDoubleClick = now - lastClickTimeRef.current < DOUBLE_CLICK_THRESHOLD;
-    lastClickTimeRef.current = now;
-
-    try {
-      const [lng, lat] = [e.lngLat.lng, e.lngLat.lat];
-      const newPoint: DrawPoint = [lng, lat];
-
-      setCurrentPoints((prev) => {
-        const updated = [...prev, newPoint];
-
-        if (isDoubleClick && updated.length >= MIN_POINTS_PER_POLYGON) {
-          finishPolygon(updated);
-          return [];
-        }
-
-        return updated;
-      });
-    } catch (err) {
-      console.error('[TerritoryBoundaryDrawer] Click handling error:', err);
-      setError('Error adding point. Please try again.');
-    }
-  };
-
-  /**
-   * Finish and save current polygon
-   */
-  const finishPolygon = (points: DrawPoint[]) => {
-    if (points.length < MIN_POINTS_PER_POLYGON) {
-      setError(`Polygon must have at least ${MIN_POINTS_PER_POLYGON} points`);
-      return;
-    }
-
-    setPolygons((prev) => [...prev, points]);
-    setCurrentPoints([]);
-    setError(null);
-  };
-
-  /**
-   * Update map visualization when polygons or points change
-   */
   useEffect(() => {
-    if (!map.current || !mapReady) return;
+    const m = mapRef.current;
+    if (!m || !mapReady) return;
+    m.on('click', handleClick);
+    m.getCanvas().style.cursor = 'crosshair';
+    return () => {
+      m.off('click', handleClick);
+      m.getCanvas().style.cursor = '';
+    };
+  }, [mapReady, handleClick]);
 
-    try {
-      // Update completed polygons
-      const completedFeatures = polygons.map((polygon) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[...polygon, polygon[0]]],
-        },
-        properties: { filled: true },
-      }));
-
-      const source = map.current.getSource(MAP_LAYER_IDS.polygonsSource) as any;
-      if (source?.setData) {
-        source.setData({
-          type: 'FeatureCollection',
-          features: completedFeatures,
-        });
-      }
-
-      // Update current points
-      const pointFeatures = currentPoints.map((point) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: point,
-        },
-        properties: { index: currentPoints.indexOf(point) },
-      }));
-
-      const pointSource = map.current.getSource(MAP_LAYER_IDS.pointsSource) as any;
-      if (pointSource?.setData) {
-        pointSource.setData({
-          type: 'FeatureCollection',
-          features: pointFeatures,
-        });
-      }
-
-      // Update current lines
-      if (currentPoints.length > 1) {
-        const lineFeatures = [
-          {
-            type: 'Feature' as const,
-            geometry: {
-              type: 'LineString' as const,
-              coordinates: currentPoints,
-            },
-            properties: {},
-          },
-        ];
-
-        const lineSource = map.current.getSource(MAP_LAYER_IDS.linesSource) as any;
-        if (lineSource?.setData) {
-          lineSource.setData({
-            type: 'FeatureCollection',
-            features: lineFeatures,
-          });
-        }
-      }
-    } catch (err) {
-      console.error('[TerritoryBoundaryDrawer] Visualization update error:', err);
-    }
-  }, [polygons, currentPoints, mapReady]);
-
-  /**
-   * Handle keyboard shortcuts
-   */
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (!isDrawing) return;
-
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setCurrentPoints([]);
-        setError(null);
-      } else if (e.key === 'Enter' && currentPoints.length >= MIN_POINTS_PER_POLYGON) {
-        finishPolygon(currentPoints);
+        setActiveRing([]);
+        setNotice(null);
+      } else if (e.key === 'Enter') {
+        setActiveRing((prev) => {
+          if (prev.length < MIN_RING_POINTS) {
+            setNotice(`Need at least ${MIN_RING_POINTS} points`);
+            return prev;
+          }
+          setRings((r) => [...r, prev]);
+          return [];
+        });
+      } else if (e.key === 'z' && (e.metaKey || e.ctrlKey || e.key === 'z')) {
+        setActiveRing((prev) => prev.slice(0, -1));
       }
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-    window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
-  }, [isDrawing, currentPoints]);
+  // ── Auto-dismiss notice ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
-  /**
-   * Save boundary to database
-   */
-  const handleSave = async () => {
-    if (polygons.length === 0) {
-      setError('Please draw at least one polygon');
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const undoPoint = () => setActiveRing((p) => p.slice(0, -1));
+  const cancelRing = () => setActiveRing([]);
+  const removeLastRing = () => setRings((p) => p.slice(0, -1));
+  const clearAll = () => { setRings([]); setActiveRing([]); };
+
+  const commitCurrentRing = () => {
+    if (activeRing.length < MIN_RING_POINTS) {
+      setNotice(`Need at least ${MIN_RING_POINTS} points to close a polygon`);
       return;
     }
+    setRings((r) => [...r, activeRing]);
+    setActiveRing([]);
+  };
 
+  const handleSave = async () => {
+    if (rings.length === 0) {
+      setNotice('Draw at least one polygon first');
+      return;
+    }
+    setIsSaving(true);
     try {
-      setIsSaving(true);
-      setError(null);
-
-      const geoJson =
-        polygons.length === 1
-          ? {
-              type: 'Polygon' as const,
-              coordinates: [
-                [...polygons[0], polygons[0][0]], // Close ring
-              ],
-            }
-          : {
-              type: 'MultiPolygon' as const,
-              coordinates: polygons.map((polygon) => [
-                [...polygon, polygon[0]], // Close each ring
-              ]),
-            };
-
-      await saveBoundary(territoryId, geoJson);
-      setPolygons([]);
-      setCurrentPoints([]);
-      onBoundarySaved?.();
+      const geojson = ringsToGeoJSON(rings);
+      await saveBoundary(territoryId, geojson);
+      setSaved(true);
+      onBoundarySaved?.(geojson);
+      setTimeout(onClose, 1500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      setError(`Failed to save: ${message}`);
-      console.error('[TerritoryBoundaryDrawer] Save error:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setNotice(`Save failed: ${msg}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  /**
-   * Clear current polygon
-   */
-  const handleClearCurrent = () => {
-    setCurrentPoints([]);
-    setError(null);
-  };
-
-  /**
-   * Clear all polygons
-   */
-  const handleClearAll = () => {
-    setPolygons([]);
-    setCurrentPoints([]);
-    setError(null);
-  };
-
-  /**
-   * Toggle drawing mode
-   */
-  const handleToggleDrawing = () => {
-    setIsDrawing(!isDrawing);
-    if (isDrawing) {
-      handleClearAll();
-    }
-  };
+  // ── Render ────────────────────────────────────────────────────────────────
+  const totalPoints = rings.reduce((n, r) => n + r.length, 0) + activeRing.length;
+  const canSave     = rings.length > 0 && activeRing.length === 0;
 
   return (
-    <Card className="w-full h-full flex flex-col bg-white dark:bg-gray-950">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-        <h3 className="font-semibold flex items-center gap-2 text-gray-900 dark:text-white">
-          <MapPin className="w-4 h-4 text-blue-600" />
-          Draw Territory Boundary
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          {isDrawing
-            ? currentPoints.length === 0
-              ? '👆 Click on map to add points'
-              : `📍 ${currentPoints.length} points • 🖱️ Double-click to finish`
-            : '⏸️ Click "Start Drawing" to begin'}
-        </p>
-      </div>
+    <div className="fixed inset-0 z-[2500] flex flex-col bg-black/10">
+      {/* Map */}
+      <div ref={containerRef} className="absolute inset-0" />
 
-      {/* Error Alert */}
-      {error && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900 flex gap-3">
-          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+      {/* Top bar */}
+      <div className="relative z-10 flex items-center gap-3 px-4 py-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          title="Close without saving"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">
+            Draw Territory Boundary
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+            {activeRing.length > 0
+              ? `${activeRing.length} pts — double-click or press Enter to close`
+              : rings.length > 0
+              ? `${rings.length} polygon${rings.length > 1 ? 's' : ''} · ${totalPoints} pts total`
+              : 'Click on the map to start drawing'}
+          </p>
         </div>
-      )}
 
-      {/* Map Container */}
-      <div className="flex-1 min-h-0 relative bg-gray-100 dark:bg-gray-900">
-        <div ref={mapContainer} className="w-full h-full" />
-
-        {/* Drawing Status Overlay */}
-        {isDrawing && (
-          <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 max-w-xs">
-            <div className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-              Drawing Mode
-            </div>
-            <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
-              <div className="flex justify-between">
-                <span>✏️ Polygons:</span>
-                <span className="font-semibold">{polygons.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>📍 Points:</span>
-                <span className="font-semibold">{currentPoints.length}</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Button
-                onClick={handleClearCurrent}
-                disabled={currentPoints.length === 0}
-                size="sm"
-                variant="outline"
-                className="w-full"
-              >
-                Clear Current
-              </Button>
-              <Button
-                onClick={handleClearAll}
-                disabled={polygons.length === 0 && currentPoints.length === 0}
-                size="sm"
-                variant="destructive"
-                className="w-full"
-              >
-                <Trash2 className="w-3 h-3 mr-2" />
-                Clear All
-              </Button>
-            </div>
+        {saved ? (
+          <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+            <CheckCircle2 className="w-4 h-4" />
+            Saved!
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!canSave || isSaving}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {isSaving ? 'Saving…' : 'Save'}
+          </button>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-4 flex gap-2">
-        <Button
-          onClick={handleToggleDrawing}
-          disabled={!mapReady}
-          variant={isDrawing ? 'destructive' : 'default'}
-          className="flex-1"
-        >
-          {isDrawing ? '⏹️ Stop Drawing' : '▶️ Start Drawing'}
-        </Button>
-        <Button
-          onClick={handleSave}
-          disabled={polygons.length === 0 || isSaving || !mapReady}
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {isSaving ? 'Saving...' : 'Save Boundary'}
-        </Button>
-      </div>
-
-      {/* Instructions */}
-      {!isDrawing && mapReady && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border-t border-blue-200 dark:border-blue-900 text-sm text-blue-900 dark:text-blue-100 space-y-2">
-          <div className="font-semibold">📍 How to Draw:</div>
-          <ol className="list-decimal list-inside space-y-1 text-xs">
-            <li>Click <strong>"Start Drawing"</strong> button</li>
-            <li>Click on the map to add boundary points</li>
-            <li><strong>Double-click</strong> to finish polygon (min 3 points)</li>
-            <li>Or press <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Enter</kbd> to finish</li>
-            <li>Draw multiple polygons for multi-territory coverage</li>
-            <li>Press <kbd className="px-1 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Esc</kbd> to cancel current</li>
-          </ol>
-          <p className="text-xs mt-3 opacity-75">
-            💡 <strong>Tip:</strong> Completed polygons appear in green. Current points in blue.
-          </p>
+      {/* Notice toast */}
+      {notice && (
+        <div className="relative z-10 mx-auto mt-3 max-w-sm px-4 py-2 bg-amber-50 dark:bg-amber-900/80 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-100 text-xs rounded-lg shadow-md flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 flex-shrink-0" />
+          {notice}
         </div>
       )}
-    </Card>
+
+      {/* Right-side floating controls (styled like map controls) */}
+      <div className="absolute right-3 top-20 z-10 flex flex-col gap-1.5">
+        {/* Undo point */}
+        <button
+          type="button"
+          onClick={undoPoint}
+          disabled={activeRing.length === 0}
+          title="Undo last point (Ctrl+Z)"
+          className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <Undo2 className="w-4 h-4" />
+        </button>
+
+        {/* Commit ring */}
+        {activeRing.length >= MIN_RING_POINTS && (
+          <button
+            type="button"
+            onClick={commitCurrentRing}
+            title="Close polygon (Enter)"
+            className="flex items-center justify-center w-9 h-9 bg-blue-600 text-white shadow rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <CheckCircle2 className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Cancel current ring */}
+        {activeRing.length > 0 && (
+          <button
+            type="button"
+            onClick={cancelRing}
+            title="Cancel current ring (Esc)"
+            className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+          >
+            <X className="w-4 h-4 text-red-500" />
+          </button>
+        )}
+
+        {/* Remove last polygon */}
+        {rings.length > 0 && activeRing.length === 0 && (
+          <button
+            type="button"
+            onClick={removeLastRing}
+            title="Remove last polygon"
+            className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </button>
+        )}
+      </div>
+
+      {/* Bottom instructions bar */}
+      <div className="absolute bottom-0 inset-x-0 z-10">
+        <div className="mx-auto max-w-md mb-4 px-4 py-2.5 bg-white/90 dark:bg-gray-900/90 backdrop-blur rounded-xl shadow border border-gray-200 dark:border-gray-700 flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+          <span>Click → add point</span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span>Dbl-click → close ring</span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span>Esc → cancel</span>
+          <span className="text-gray-300 dark:text-gray-600">·</span>
+          <span>⌘Z → undo</span>
+        </div>
+      </div>
+    </div>
   );
 }

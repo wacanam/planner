@@ -14,7 +14,7 @@ import { apiClient } from '@/lib/api-client';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 
-import { TerritoryBoundaryEditor } from './TerritoryBoundaryEditor';
+import { TerritoryBoundaryDrawer } from '@/components/territory-boundary-drawer';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -190,6 +190,7 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
+  const [showBoundaryDrawer, setShowBoundaryDrawer] = useState(false);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   // Auto-switch map style when dark mode toggles
@@ -293,15 +294,8 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                  {/* Edit Boundary Button — left side, below title */}
-                  <div className="absolute top-14 left-3 z-[1001] pointer-events-auto">
-                    <Button asChild size="sm" variant="default" className="text-xs h-8 bg-blue-600 hover:bg-blue-700">
-                      <Link href={`/congregation/${congregationId}/territories/${territoryId}/boundary`}>
-                        <MapPin className="h-4 w-4 mr-1.5" />
-                        Draw Boundary
-                      </Link>
-                    </Button>
-                  </div>
+                  {/* Draw Boundary button — inline map control, right side */}
+                  {/* Rendered in the fixed bottom-left cluster below */}
                   {/* Top HUD — stats + coverage bar (below back button) */}
                   <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
                     <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">
@@ -334,6 +328,22 @@ export default function TerritoryDetailView() {
 
           {/* Location toggle — fixed bottom-left */}
           <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+            {/* Draw boundary button — beside geolocation */}
+            <button
+              type="button"
+              onClick={() => setShowBoundaryDrawer(true)}
+              title="Draw territory boundary"
+              className={[
+                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all mb-2',
+                'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
+              ].join(' ')}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <polygon points="3,17 6,3 13,12 9,12 16,21"/>
+                <line x1="18" y1="3" x2="18" y2="21"/>
+                <line x1="15" y1="6" x2="21" y2="6"/>
+              </svg>
+            </button>
             {/* Location toggle */}
             <button
               type="button"
@@ -369,6 +379,17 @@ export default function TerritoryDetailView() {
               </svg>
             </button>
           </div>
+
+          {/* Territory Boundary Drawer overlay */}
+          {showBoundaryDrawer && (
+            <TerritoryBoundaryDrawer
+              territoryId={territoryId}
+              initialCenter={[0, 0]}
+              initialZoom={14}
+              onClose={() => setShowBoundaryDrawer(false)}
+              onBoundarySaved={() => setShowBoundaryDrawer(false)}
+            />
+          )}
 
           {/* Manual calibration overlay */}
           {locationOn && showCalibPrompt && (
