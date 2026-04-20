@@ -2,7 +2,7 @@
 
 import { Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { Visit } from '@/types/api';
+import { useMyVisits } from '@/hooks';
 
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -23,13 +23,17 @@ const outcomeLabels: Record<string, string> = {
 };
 
 export default function VisitsClient() {
-  // Placeholder — will connect to useMyVisits hook when implemented
-  const visits: Visit[] = [];
-  const isLoading = false;
+  const { visits, isLoading, error } = useMyVisits();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
       <h1 className="text-xl font-bold text-foreground">My Visits</h1>
+
+      {error && (
+        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm">
+          {error}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">
@@ -41,14 +45,17 @@ export default function VisitsClient() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Clock size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No visits logged yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Log visits from your Households tab.</p>
+          <p className="text-xs text-muted-foreground mt-1">Log visits from your Assignments tab.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {visits.map((v) => (
             <div key={v.id} className="rounded-2xl border border-border bg-card p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{v.householdAddress}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium truncate">
+                  {v.householdAddress ?? v.householdId}
+                  {v.householdCity ? `, ${v.householdCity}` : ''}
+                </p>
                 <Badge variant="outline" className={outcomeColors[v.outcome] ?? ''}>
                   {outcomeLabels[v.outcome] ?? v.outcome}
                 </Badge>
@@ -56,6 +63,7 @@ export default function VisitsClient() {
               <p className="text-xs text-muted-foreground">
                 {new Date(v.visitDate).toLocaleString()}
                 {v.duration ? ` · ${v.duration} min` : ''}
+                {v.encounterCount ? ` · ${v.encounterCount} encounter${v.encounterCount !== 1 ? 's' : ''}` : ''}
               </p>
               {v.notes && <p className="text-xs text-muted-foreground line-clamp-2">{v.notes}</p>}
             </div>
@@ -65,3 +73,4 @@ export default function VisitsClient() {
     </div>
   );
 }
+
