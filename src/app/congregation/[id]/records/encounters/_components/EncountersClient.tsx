@@ -299,7 +299,14 @@ function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children 
           onClick={onDelete}
           className="flex flex-col items-center justify-center w-full bg-destructive text-destructive-foreground rounded-r-2xl text-xs font-medium gap-1 disabled:opacity-50"
         >
-          {deleting ? <span>…</span> : <><Trash2 size={16} /><span>Delete</span></>}
+          {deleting ? (
+            <span>…</span>
+          ) : (
+            <>
+              <Trash2 size={16} />
+              <span>Delete</span>
+            </>
+          )}
         </button>
       </div>
       <div
