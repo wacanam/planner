@@ -833,7 +833,7 @@ useEffect(() => {
         const props = feature.properties as Record<string, unknown>;
 
         const el = document.createElement('div');
-        el.style.cssText = 'cursor:pointer;';
+        el.style.cssText = 'cursor:pointer;touch-action:manipulation;';
 
         if (props.cluster) {
           const count = props.point_count as number;
@@ -846,12 +846,35 @@ useEffect(() => {
           const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
           const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
           el.innerHTML = makePinHtml(color, icon, label, count, isDark);
-          el.addEventListener('click', () => {
+          const flyToCluster = () => {
             m.flyTo({
               center: [lng, lat],
               zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
               duration: 400,
             });
+          };
+          // Listen for both click (desktop) and touchend (mobile) to handle
+          // cases where MapLibre's touch handlers call e.preventDefault(),
+          // which blocks the browser's synthesized click from touch.
+          // Guard flag prevents double-firing on devices that fire both events.
+          let clusterTouchStartX = 0, clusterTouchStartY = 0;
+          let clusterTouchHandled = false;
+          el.addEventListener('touchstart', (e) => {
+            clusterTouchStartX = e.changedTouches[0].clientX;
+            clusterTouchStartY = e.changedTouches[0].clientY;
+            clusterTouchHandled = false;
+          }, { passive: true });
+          el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches[0];
+            if (Math.abs(t.clientX - clusterTouchStartX) < 10 && Math.abs(t.clientY - clusterTouchStartY) < 10) {
+              clusterTouchHandled = true;
+              flyToCluster();
+              requestAnimationFrame(() => requestAnimationFrame(() => { clusterTouchHandled = false; }));
+            }
+          }, { passive: true });
+          el.addEventListener('click', () => {
+            if (clusterTouchHandled) return;
+            flyToCluster();
           });
         } else {
           const {
@@ -868,7 +891,7 @@ useEffect(() => {
           const label = address.split(' ').slice(0, 3).join(' ');
           el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
 
-          el.addEventListener('click', () => {
+          const showPopup = () => {
             const onHClick = onClickRef.current;
             const fmtEnum = (s: string) => s.replace(/_/g, ' ');
             // Format last visit date
@@ -888,12 +911,14 @@ useEffect(() => {
               : '';
             const trimmedNotes = notes?.trim() ?? '';
             const notesSnippet = trimmedNotes.length > 60 ? trimmedNotes.slice(0, 60) + '\u2026' : trimmedNotes;
-            // Show popup
+            // Show popup — closeOnClick:false prevents the map's click handler
+            // from immediately closing it after the marker tap is processed.
             const popup = new mgl.Popup({
               closeButton: true,
+              closeOnClick: false,
               className: 'territory-popup',
-              offset: [0, -30],
-              maxWidth: '220px',
+              offset: [0, -38],
+              maxWidth: '240px',
             })
               .setHTML(
                 [
@@ -950,6 +975,33 @@ useEffect(() => {
                 onHClick(hId, hAddr);
               };
             }
+          };
+
+          // Listen for both click (desktop) and touchend (mobile) because
+          // MapLibre's internal touch handlers may call e.preventDefault() on
+          // the map canvas touchend, preventing the browser from synthesising a
+          // click event for touch taps on HTML marker overlays.
+          // The touchHandled flag prevents double-firing when the browser also
+          // fires a synthesised click after the touchend.
+          let touchStartX = 0, touchStartY = 0;
+          let touchHandled = false;
+          el.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].clientX;
+            touchStartY = e.changedTouches[0].clientY;
+            touchHandled = false;
+          }, { passive: true });
+          el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches[0];
+            if (Math.abs(t.clientX - touchStartX) < 10 && Math.abs(t.clientY - touchStartY) < 10) {
+              touchHandled = true;
+              showPopup();
+              // Reset after click fires (two rAFs so the click handler can check)
+              requestAnimationFrame(() => requestAnimationFrame(() => { touchHandled = false; }));
+            }
+          }, { passive: true });
+          el.addEventListener('click', () => {
+            if (touchHandled) return; // already handled by touchend above
+            showPopup();
           });
         }
 
