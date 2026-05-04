@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, ChevronDown, ChevronUp, ClipboardList, MapPin, Plus } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ChevronDown, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -10,6 +11,138 @@ import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
+import useSWR from 'swr';
+import { apiClient } from '@/lib/api-client';
+import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
+import type { Territory } from '@/types/api';
+
+// biome-ignore lint/suspicious/noExplicitAny: dynamic import
+const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
+
+interface InlineMapViewProps {
+  territory: Territory;
+  congregationId: string;
+  onClose: () => void;
+}
+
+function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProps) {
+  const [pinMode, setPinMode] = useState(false);
+  const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedHousehold, setSelectedHousehold] = useState<{
+    id: string;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null>(null);
+
+  const { data: householdsData } = useSWR(
+    territory.id ? `/api/households?territoryId=${territory.id}` : null,
+    (url: string) => apiClient.get<{ data?: unknown }>(url).then((r) => r.data),
+  );
+  const households = (householdsData as Array<{
+    id: string;
+    address?: string | null;
+    streetName?: string | null;
+    city?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }>) ?? [];
+
+  return (
+    <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
+        <div className="min-w-0">
+          <p className="text-xs text-primary font-medium uppercase tracking-wide">Territory Map</p>
+          <p className="text-base font-bold text-foreground leading-tight truncate">
+            #{territory.number} {territory.name}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!pinMode && (
+            <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPinMode(true)}>
+              <Plus size={12} />
+              Add HH
+            </Button>
+          )}
+          {pinMode && (
+            <Button size="sm" variant="destructive" className="text-xs" onClick={() => setPinMode(false)}>
+              Cancel
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-muted"
+            aria-label="Close map"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 relative">
+        <TerritoryMap
+          boundary={territory.boundary}
+          households={households}
+          pinHouseholdMode={pinMode}
+          onHouseholdPinPlaced={(lat: number, lng: number) => {
+            setPendingPin({ lat, lng });
+            setPinMode(false);
+          }}
+          onHouseholdClick={(hh: { id: string }) => {
+            const found = households.find((h) => h.id === hh.id);
+            if (found) setSelectedHousehold(found);
+          }}
+          className="w-full h-full"
+        />
+      </div>
+
+      {pendingPin && (
+        <AddHouseholdSheet
+          lat={pendingPin.lat}
+          lng={pendingPin.lng}
+          territoryId={territory.id}
+          congregationId={congregationId}
+          onClose={() => setPendingPin(null)}
+          onSuccess={() => setPendingPin(null)}
+        />
+      )}
+
+      {selectedHousehold && (
+        <div className="fixed bottom-0 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-foreground">
+                {selectedHousehold.address ?? 'Household'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedHousehold(null)}
+              className="p-1.5 rounded-full hover:bg-muted shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild size="sm" className="flex-1">
+              <Link
+                href={`/congregation/${congregationId}/my-assignments/${territory.id}?householdId=${selectedHousehold.id}`}
+              >
+                <ClipboardList size={12} />
+                Log Visit
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="flex-1">
+              <Link href={`/congregation/${congregationId}/records/households/${selectedHousehold.id}`}>
+                View Records
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MyAssignmentsClient() {
   const params = useParams();
@@ -17,6 +150,7 @@ export default function MyAssignmentsClient() {
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string; name?: string } | undefined;
   const [showPast, setShowPast] = useState(false);
+  const [mapOpenTerritoryId, setMapOpenTerritoryId] = useState<string | null>(null);
 
   const {
     data: territoriesData,
@@ -52,6 +186,7 @@ export default function MyAssignmentsClient() {
   }
 
   const firstName = sessionUser?.name?.split(' ')[0] ?? 'Publisher';
+  const mapOpenTerritory = mapOpenTerritoryId ? territories.find((t) => t.id === mapOpenTerritoryId) ?? null : null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -124,11 +259,14 @@ export default function MyAssignmentsClient() {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline" className="flex-1 bg-background/80">
-                    <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                      View Map
-                      <ArrowRight size={12} />
-                    </Link>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 bg-background/80"
+                    onClick={() => setMapOpenTerritoryId(t.id)}
+                  >
+                    <MapPin size={12} />
+                    View Map
                   </Button>
                   <Button asChild size="sm" className="flex-1">
                     <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
@@ -209,6 +347,16 @@ export default function MyAssignmentsClient() {
           </div>
         )}
       </div>
+
+      {/* Inline map overlay — full screen */}
+      {mapOpenTerritory && (
+        <InlineMapView
+          territory={mapOpenTerritory}
+          congregationId={congregationId}
+          onClose={() => setMapOpenTerritoryId(null)}
+        />
+      )}
     </ProtectedPage>
   );
 }
+

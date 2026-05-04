@@ -17,6 +17,7 @@ import type { StyleId } from '@/components/territory-map';
 import { CongregationRole, UserRole } from '@/db';
 
 import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
+import { AddHouseholdSheet } from './AddHouseholdSheet';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -228,6 +229,8 @@ export default function TerritoryDetailView() {
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
   const [clearConfirmPending, setClearConfirmPending] = useState(false);
+  const [pinHouseholdMode, setPinHouseholdMode] = useState(false);
+  const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -340,6 +343,11 @@ export default function TerritoryDetailView() {
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
                     drawMode={drawMode ?? 'add'}
+                    pinHouseholdMode={pinHouseholdMode}
+                    onHouseholdPinPlaced={(lat: number, lng: number) => {
+                      setPendingPinCoords({ lat, lng });
+                      setPinHouseholdMode(false);
+                    }}
                     initialDrawingRings={(() => {
                       // Both 'add' and 'edit' mode start with the existing boundary rings.
                       // In 'add' mode the user draws new polygons which are appended to the seeded set.
@@ -599,6 +607,44 @@ export default function TerritoryDetailView() {
               </svg>
             </button>
           </div>
+
+          {/* Add Household FAB — only when not drawing and not in pin mode */}
+          {!isDrawingBoundary && !pinHouseholdMode && (
+            <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-44' : 'bottom-28'}`}>
+              <button
+                type="button"
+                onClick={() => setPinHouseholdMode(true)}
+                title="Add a household to the map"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-full shadow-lg bg-primary text-primary-foreground text-xs font-semibold"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Household
+              </button>
+            </div>
+          )}
+          {pinHouseholdMode && (
+            <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-44' : 'bottom-28'}`}>
+              <button
+                type="button"
+                onClick={() => setPinHouseholdMode(false)}
+                className="px-3 py-2 rounded-full shadow-lg bg-destructive text-destructive-foreground text-xs font-semibold"
+              >
+                Cancel Pin
+              </button>
+            </div>
+          )}
+
+          {/* AddHouseholdSheet — opens when a pin is confirmed */}
+          {pendingPinCoords && (
+            <AddHouseholdSheet
+              lat={pendingPinCoords.lat}
+              lng={pendingPinCoords.lng}
+              territoryId={territoryId}
+              congregationId={congregationId}
+              onClose={() => setPendingPinCoords(null)}
+              onSuccess={() => setPendingPinCoords(null)}
+            />
+          )}
 
           {/* Manual calibration overlay */}
           {locationOn && showCalibPrompt && (
