@@ -616,6 +616,8 @@ export default function HouseholdsClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const { households, isLoading, dataSource, mutate } = useHouseholds();
 
   // Listen for SW sync messages — revalidate list on sync
@@ -636,12 +638,13 @@ export default function HouseholdsClient() {
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
+    setDeleteError(null);
     try {
       await apiClient.delete(`/api/households/${id}`);
       setDeleteConfirmId(null);
       void mutate();
     } catch {
-      // silently fail — user can retry
+      setDeleteError('Failed to delete. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -770,22 +773,27 @@ export default function HouseholdsClient() {
                     Log Visit
                   </Button>
                   {deleteConfirmId === h.id ? (
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); void handleDelete(h.id); }}
-                        disabled={deletingId === h.id}
-                        className="flex-1 text-xs px-2 py-1 rounded-lg bg-destructive text-destructive-foreground font-medium disabled:opacity-50"
-                      >
-                        {deletingId === h.id ? '…' : 'Delete'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                        className="flex-1 text-xs px-2 py-1 rounded-lg border border-border text-muted-foreground"
-                      >
-                        Cancel
-                      </button>
+                    <div className="flex flex-col gap-1">
+                      {deleteError && deleteConfirmId === h.id && (
+                        <p className="text-xs text-destructive">{deleteError}</p>
+                      )}
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); void handleDelete(h.id); }}
+                          disabled={deletingId === h.id}
+                          className="flex-1 text-xs px-2 py-1 rounded-lg bg-destructive text-destructive-foreground font-medium disabled:opacity-50"
+                        >
+                          {deletingId === h.id ? '…' : 'Delete'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); setDeleteError(null); }}
+                          className="flex-1 text-xs px-2 py-1 rounded-lg border border-border text-muted-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button

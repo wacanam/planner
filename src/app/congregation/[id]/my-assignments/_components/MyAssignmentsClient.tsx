@@ -40,6 +40,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
   const [deletingHouseholdId, setDeletingHouseholdId] = useState<string | null>(null);
+  const [deleteHouseholdError, setDeleteHouseholdError] = useState(false);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
   const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
@@ -78,6 +79,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
 
   const handleDeleteHousehold = async (id: string) => {
     setDeletingHouseholdId(id);
+    setDeleteHouseholdError(false);
     try {
       await apiClient.delete(`/api/households/${id}`);
       setSelectedHousehold(null);
@@ -85,7 +87,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
       void mutate(householdsKey);
       if (showAllPins) void mutate(allPinsKey);
     } catch {
-      // silently fail
+      setDeleteHouseholdError(true);
     } finally {
       setDeletingHouseholdId(null);
     }
@@ -171,7 +173,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             </div>
             <button
               type="button"
-              onClick={() => setSelectedHousehold(null)}
+              onClick={() => { setSelectedHousehold(null); setDeleteHouseholdError(false); }}
               className="p-1.5 rounded-full hover:bg-muted shrink-0"
             >
               <X size={16} />
@@ -199,6 +201,9 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
               <Trash2 size={16} />
             </button>
           </div>
+          {deleteHouseholdError && (
+            <p className="text-xs text-destructive">Failed to delete. Please try again.</p>
+          )}
         </div>
       )}
 
