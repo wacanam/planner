@@ -17,6 +17,7 @@ import type { StyleId } from '@/components/territory-map';
 import { CongregationRole, UserRole } from '@/db';
 
 import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
+import { AddHouseholdSheet } from './AddHouseholdSheet';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -228,6 +229,7 @@ export default function TerritoryDetailView() {
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
   const [clearConfirmPending, setClearConfirmPending] = useState(false);
+  const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -340,6 +342,10 @@ export default function TerritoryDetailView() {
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
                     drawMode={drawMode ?? 'add'}
+                    pinHouseholdMode={!isDrawingBoundary}
+                    onHouseholdPinPlaced={(lat: number, lng: number) => {
+                      setPendingPinCoords({ lat, lng });
+                    }}
                     initialDrawingRings={(() => {
                       // Both 'add' and 'edit' mode start with the existing boundary rings.
                       // In 'add' mode the user draws new polygons which are appended to the seeded set.
@@ -599,6 +605,19 @@ export default function TerritoryDetailView() {
               </svg>
             </button>
           </div>
+
+
+          {/* AddHouseholdSheet — opens when a long-press pin is confirmed */}
+          {pendingPinCoords && (
+            <AddHouseholdSheet
+              lat={pendingPinCoords.lat}
+              lng={pendingPinCoords.lng}
+              territoryId={territoryId}
+              congregationId={congregationId}
+              onClose={() => setPendingPinCoords(null)}
+              onSuccess={() => setPendingPinCoords(null)}
+            />
+          )}
 
           {/* Manual calibration overlay */}
           {locationOn && showCalibPrompt && (

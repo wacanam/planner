@@ -1,15 +1,186 @@
 'use client';
 
-import { ArrowRight, ChevronDown, ChevronUp, ClipboardList, MapPin, Plus } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
+import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
+import useSWR from 'swr';
+import { apiClient } from '@/lib/api-client';
+import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
+import type { Territory } from '@/types/api';
+
+// biome-ignore lint/suspicious/noExplicitAny: dynamic import
+const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
+
+interface HouseholdMapItem {
+  id: string;
+  address?: string | null;
+  streetName?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+interface InlineMapViewProps {
+  territory: Territory;
+  congregationId: string;
+  onClose: () => void;
+}
+
+function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProps) {
+  const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
+  const [showAllPins, setShowAllPins] = useState(false);
+
+  // Load the FULL territory detail to get the boundary (the list API omits it)
+  const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
+
+  // Build boundary-filtered households API key (same pattern as TerritoryDetailView)
+  const boundaryStr = fullTerritory?.boundary ?? null;
+  const householdsKey = useMemo(() => {
+    if (!boundaryStr) return null;
+    try {
+      const geo = JSON.parse(boundaryStr);
+      const geoData = geo?.geometry ?? geo;
+      if (!geoData?.type || !geoData?.coordinates) return null;
+      return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}`;
+    } catch { return null; }
+  }, [boundaryStr]);
+
+  // All-pins fetch (no boundary filter) — only activate when toggle is on
+  const allPinsKey = showAllPins ? '/api/households' : null;
+
+  const { data: boundaryHouseholdsData } = useSWR(
+    householdsKey,
+    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
+    { revalidateOnFocus: false }
+  );
+  const { data: allPinsData } = useSWR(
+    allPinsKey,
+    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
+    { revalidateOnFocus: false }
+  );
+
+  const households: HouseholdMapItem[] = showAllPins
+    ? (allPinsData ?? boundaryHouseholdsData ?? [])
+    : (boundaryHouseholdsData ?? []);
+
+  const householdsUrl = `/congregation/${congregationId}/records/households`;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9000] bg-background flex flex-col">
+      {/* Simplified header — title + close only */}
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
+        <div className="min-w-0">
+          <p className="text-xs text-primary font-medium uppercase tracking-wide">Territory Map</p>
+          <p className="text-base font-bold text-foreground leading-tight truncate">
+            #{territory.number} {territory.name}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2 rounded-full hover:bg-muted ml-2"
+          aria-label="Close map"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="flex-1 relative">
+        {territoryLoading ? (
+          <div className="w-full h-full bg-muted animate-pulse flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Loading map…</p>
+          </div>
+        ) : (
+          <TerritoryMap
+            boundary={fullTerritory?.boundary ?? territory.boundary}
+            households={households}
+            pinHouseholdMode={true}
+            onHouseholdPinPlaced={(lat: number, lng: number) => {
+              setPendingPin({ lat, lng });
+            }}
+            onHouseholdClick={(hh: { id: string }) => {
+              const found = households.find((h) => h.id === hh.id);
+              if (found) setSelectedHousehold(found);
+            }}
+            className="w-full h-full"
+          />
+        )}
+
+        {/* Show all Household — checkbox overlay (bottom-left) */}
+        <label htmlFor="show-all-pins" className="absolute bottom-4 left-4 z-10 flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none">
+          <input
+            id="show-all-pins"
+            type="checkbox"
+            checked={showAllPins}
+            onChange={(e) => setShowAllPins(e.target.checked)}
+            className="w-3.5 h-3.5 rounded accent-primary"
+          />
+          Show all Households
+        </label>
+      </div>
+
+      {pendingPin && (
+        <AddHouseholdSheet
+          lat={pendingPin.lat}
+          lng={pendingPin.lng}
+          territoryId={territory.id}
+          congregationId={congregationId}
+          onClose={() => setPendingPin(null)}
+          onSuccess={() => setPendingPin(null)}
+        />
+      )}
+
+      {selectedHousehold && (
+        <div className="fixed bottom-4 inset-x-0 z-[9100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm text-foreground">
+                {selectedHousehold.address ?? 'Unnamed household'}
+              </p>
+              {(selectedHousehold.streetName || selectedHousehold.city) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {[selectedHousehold.streetName, selectedHousehold.city].filter(Boolean).join(', ')}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedHousehold(null)}
+              className="p-1.5 rounded-full hover:bg-muted shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild size="sm" className="flex-1">
+              <Link href={householdsUrl}>
+                <ClipboardList size={12} />
+                Log Visit
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline" className="flex-1">
+              <Link href={householdsUrl}>
+                View Details
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+    </div>,
+    document.body
+  );
+}
 
 export default function MyAssignmentsClient() {
   const params = useParams();
@@ -17,6 +188,7 @@ export default function MyAssignmentsClient() {
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string; name?: string } | undefined;
   const [showPast, setShowPast] = useState(false);
+  const [mapOpenTerritoryId, setMapOpenTerritoryId] = useState<string | null>(null);
 
   const {
     data: territoriesData,
@@ -52,6 +224,7 @@ export default function MyAssignmentsClient() {
   }
 
   const firstName = sessionUser?.name?.split(' ')[0] ?? 'Publisher';
+  const mapOpenTerritory = mapOpenTerritoryId ? territories.find((t) => t.id === mapOpenTerritoryId) ?? null : null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -100,9 +273,12 @@ export default function MyAssignmentsClient() {
         ) : (
           <div className="space-y-3">
             {myActive.map((t) => (
-              <div
+              <button
                 key={t.id}
-                className="rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-4"
+                type="button"
+                aria-label={`View map for Territory #${t.number} ${t.name}`}
+                className="w-full text-left rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-3 active:scale-[0.98] transition-transform"
+                onClick={() => setMapOpenTerritoryId(t.id)}
               >
                 {/* Territory identity */}
                 <div className="flex items-start justify-between gap-2">
@@ -114,7 +290,7 @@ export default function MyAssignmentsClient() {
                       #{t.number} {t.name}
                     </p>
                     {t.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{t.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.notes}</p>
                     )}
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -122,22 +298,13 @@ export default function MyAssignmentsClient() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline" className="flex-1 bg-background/80">
-                    <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                      View Map
-                      <ArrowRight size={12} />
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" className="flex-1">
-                    <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
-                      <ClipboardList size={12} />
-                      Log Visits
-                    </Link>
-                  </Button>
+                {/* View map hint */}
+                <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                  <MapPin size={12} />
+                  <span>View Map</span>
+                  <ChevronRight size={12} className="ml-auto text-muted-foreground" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -209,6 +376,16 @@ export default function MyAssignmentsClient() {
           </div>
         )}
       </div>
+
+      {/* Inline map overlay — full screen */}
+      {mapOpenTerritory && (
+        <InlineMapView
+          territory={mapOpenTerritory}
+          congregationId={congregationId}
+          onClose={() => setMapOpenTerritoryId(null)}
+        />
+      )}
     </ProtectedPage>
   );
 }
+

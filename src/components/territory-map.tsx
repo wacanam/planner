@@ -58,6 +58,9 @@ export interface TerritoryMapProps {
   onCalibrationNeeded?: (needed: boolean) => void;
   onGeolocateReady?: (fn: () => void) => void;
   locationOn?: boolean;
+  // Pin household mode
+  pinHouseholdMode?: boolean;
+  onHouseholdPinPlaced?: (lat: number, lng: number) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -198,6 +201,8 @@ export default function TerritoryMap({
   onDrawingStateChange,
   onDrawingActions,
   initialDrawingRings,
+  pinHouseholdMode = false,
+  onHouseholdPinPlaced,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -207,6 +212,11 @@ export default function TerritoryMap({
   onClickRef.current = onHouseholdClick;
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
+  // Pin household mode
+  const [pendingPin, setPendingPin] = useState<[number, number] | null>(null);
+  const pinMarkerRef = useRef<import('maplibre-gl').Marker | null>(null);
+  const onHouseholdPinPlacedRef = useRef(onHouseholdPinPlaced);
+  onHouseholdPinPlacedRef.current = onHouseholdPinPlaced;
 
   // ── Drawing state ─────────────────────────────────────────────────────────
   type LngLat = [number, number];
@@ -1401,6 +1411,120 @@ useEffect(() => {
     prevIsDrawing.current = isDrawing;
   }, [isDrawing]);
 
+  // ─── Pin household mode: long-press map to drop a pin ────────────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    if (!pinHouseholdMode || isDrawing) {
+      pinMarkerRef.current?.remove();
+      pinMarkerRef.current = null;
+      setPendingPin(null);
+      if (!isDrawing) map.getCanvas().style.cursor = '';
+      return;
+    }
+
+    const LONG_PRESS_DURATION_MS = 600;
+    const PRESS_MOVEMENT_THRESHOLD = 10;
+
+    const canvas = map.getCanvas();
+
+    const placePinAt = (lat: number, lng: number) => {
+      setPendingPin([lat, lng]);
+      if (pinMarkerRef.current) {
+        pinMarkerRef.current.setLngLat([lng, lat]);
+      } else {
+        import('maplibre-gl').then((mgl) => {
+          if (!mapInstance.current) return;
+          const ns = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(ns, 'svg');
+          svg.setAttribute('width', '28');
+          svg.setAttribute('height', '36');
+          svg.setAttribute('viewBox', '0 0 26 34');
+          svg.style.filter = 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))';
+          const body = document.createElementNS(ns, 'path');
+          body.setAttribute(
+            'd',
+            'M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z',
+          );
+          body.setAttribute('fill', '#ef4444');
+          const dot = document.createElementNS(ns, 'circle');
+          dot.setAttribute('cx', '13');
+          dot.setAttribute('cy', '13');
+          dot.setAttribute('r', '5');
+          dot.setAttribute('fill', 'white');
+          svg.appendChild(body);
+          svg.appendChild(dot);
+          const el = document.createElement('div');
+          el.appendChild(svg);
+          const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([lng, lat])
+            .addTo(mapInstance.current);
+          pinMarkerRef.current = marker;
+        });
+      }
+    };
+
+    // ── Long-press to drop a pin ───────────────────────────────────────────
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let pressStartX = 0;
+    let pressStartY = 0;
+
+    const cancelPress = () => {
+      if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+
+    const startPress = (clientX: number, clientY: number) => {
+      pressStartX = clientX;
+      pressStartY = clientY;
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        const rect = canvas.getBoundingClientRect();
+        const lngLat = map.unproject([pressStartX - rect.left, pressStartY - rect.top]);
+        placePinAt(lngLat.lat, lngLat.lng);
+      }, LONG_PRESS_DURATION_MS);
+    };
+
+    // Touch (mobile)
+    const handleTouchStart = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      startPress(t.clientX, t.clientY);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (Math.abs(t.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(t.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
+    };
+    const handleTouchEnd = () => cancelPress();
+
+    // Mouse (desktop)
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      startPress(e.clientX, e.clientY);
+    };
+    const handleMouseUp = () => cancelPress();
+    const handleMouseMove = (e: MouseEvent) => {
+      if (Math.abs(e.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(e.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
+    };
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      cancelPress();
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      map.getCanvas().style.cursor = '';
+    };
+  }, [pinHouseholdMode, mapReady, isDrawing]);
+
   return (
     <div className={`relative ${className}`}>
       <link
@@ -1457,6 +1581,32 @@ useEffect(() => {
           <p className="text-[11px] text-muted-foreground/70 mt-0.5">
             Add a boundary or household coordinates
           </p>
+        </div>
+      )}
+
+      {pinHouseholdMode && !pendingPin && !isDrawing && (
+        <div className="absolute bottom-6 inset-x-0 flex justify-center z-[100] pointer-events-none">
+          <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
+            Hold map to add a household
+          </div>
+        </div>
+      )}
+
+      {pinHouseholdMode && pendingPin && (
+        <div className="absolute bottom-6 inset-x-0 flex justify-center z-[100]">
+          <button
+            type="button"
+            onClick={() => {
+              const [lat, lng] = pendingPin;
+              onHouseholdPinPlacedRef.current?.(lat, lng);
+              setPendingPin(null);
+              pinMarkerRef.current?.remove();
+              pinMarkerRef.current = null;
+            }}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-full font-semibold text-sm shadow-lg"
+          >
+            ✓ Confirm Pin
+          </button>
         </div>
       )}
     </div>
