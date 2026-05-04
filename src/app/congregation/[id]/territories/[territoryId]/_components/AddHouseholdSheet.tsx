@@ -151,33 +151,6 @@ export function AddHouseholdSheet({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground" htmlFor="add-hh-lat">
-                  Latitude
-                </label>
-                <input
-                  id="add-hh-lat"
-                  type="text"
-                  value={lat.toFixed(6)}
-                  readOnly
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted text-muted-foreground"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground" htmlFor="add-hh-lng">
-                  Longitude
-                </label>
-                <input
-                  id="add-hh-lng"
-                  type="text"
-                  value={lng.toFixed(6)}
-                  readOnly
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted text-muted-foreground"
-                />
-              </div>
-            </div>
-
             <div className="space-y-1">
               <label className="text-xs font-medium text-foreground" htmlFor="add-hh-type">
                 Type

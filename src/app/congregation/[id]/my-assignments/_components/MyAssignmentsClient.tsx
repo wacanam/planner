@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -77,6 +77,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
 
   return (
     <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
+      {/* Simplified header — title + close only */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
         <div className="min-w-0">
           <p className="text-xs text-primary font-medium uppercase tracking-wide">Territory Map</p>
@@ -84,40 +85,14 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             #{territory.number} {territory.name}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Show all pins toggle */}
-          <button
-            type="button"
-            onClick={() => setShowAllPins((v) => !v)}
-            className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
-              showAllPins
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'text-muted-foreground border-border hover:border-primary/50'
-            }`}
-            title={showAllPins ? 'Showing all pins' : 'Showing pins in territory only'}
-          >
-            {showAllPins ? '📍 All' : '📍 In bounds'}
-          </button>
-          {!pinMode && (
-            <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPinMode(true)}>
-              <Plus size={12} />
-              Add HH
-            </Button>
-          )}
-          {pinMode && (
-            <Button size="sm" variant="destructive" className="text-xs" onClick={() => setPinMode(false)}>
-              Cancel
-            </Button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-muted"
-            aria-label="Close map"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2 rounded-full hover:bg-muted ml-2"
+          aria-label="Close map"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       <div className="flex-1 relative">
@@ -140,6 +115,39 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             }}
             className="w-full h-full"
           />
+        )}
+
+        {/* Show all pins — checkbox overlay (bottom-left) */}
+        <label htmlFor="show-all-pins" className="absolute bottom-4 left-4 z-10 flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none">
+          <input
+            id="show-all-pins"
+            type="checkbox"
+            checked={showAllPins}
+            onChange={(e) => setShowAllPins(e.target.checked)}
+            className="w-3.5 h-3.5 rounded accent-primary"
+          />
+          Show all pins
+        </label>
+
+        {/* Add HH / Cancel pin mode — FAB (bottom-right) */}
+        {!pinMode ? (
+          <button
+            type="button"
+            onClick={() => setPinMode(true)}
+            className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold"
+          >
+            <Plus size={16} />
+            Add HH
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPinMode(false)}
+            className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-destructive text-destructive-foreground rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold"
+          >
+            <X size={16} />
+            Cancel
+          </button>
         )}
       </div>
 
@@ -286,9 +294,12 @@ export default function MyAssignmentsClient() {
         ) : (
           <div className="space-y-3">
             {myActive.map((t) => (
-              <div
+              <button
                 key={t.id}
-                className="rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-4"
+                type="button"
+                aria-label={`View map for Territory #${t.number} ${t.name}`}
+                className="w-full text-left rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-3 active:scale-[0.98] transition-transform"
+                onClick={() => setMapOpenTerritoryId(t.id)}
               >
                 {/* Territory identity */}
                 <div className="flex items-start justify-between gap-2">
@@ -300,7 +311,7 @@ export default function MyAssignmentsClient() {
                       #{t.number} {t.name}
                     </p>
                     {t.notes && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{t.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.notes}</p>
                     )}
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -308,19 +319,13 @@ export default function MyAssignmentsClient() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 bg-background/80"
-                    onClick={() => setMapOpenTerritoryId(t.id)}
-                  >
-                    <MapPin size={12} />
-                    View Map
-                  </Button>
+                {/* View map hint */}
+                <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                  <MapPin size={12} />
+                  <span>View Map</span>
+                  <ChevronRight size={12} className="ml-auto text-muted-foreground" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
