@@ -28,6 +28,9 @@ export interface HouseholdPoint {
   longitude?: string | null;
   status?: string | null;
   type?: string | null;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
+  notes?: string | null;
 }
 
 export type { StyleId };
@@ -41,6 +44,20 @@ export interface TerritoryMapProps {
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  // Drawing mode
+  isDrawing?: boolean;
+  /** 'add' = tap-to-add-points + vertex drag; 'edit' = vertex drag only */
+  drawMode?: 'add' | 'edit';
+  onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
+  onDrawingStateChange?: (rings: number, activePoints: number) => void;
+  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null; clearRings: () => void }) => void;
+  // Pre-seed drawing with existing boundary rings for editing
+  initialDrawingRings?: [number, number][][];
+  // Location / calibration (kept for callers)
+  onLocationDotClick?: () => void;
+  onCalibrationNeeded?: (needed: boolean) => void;
+  onGeolocateReady?: (fn: () => void) => void;
+  locationOn?: boolean;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -100,6 +117,17 @@ const TYPE_SVG: Record<string, string> = {
 };
 const DEFAULT_SVG = TYPE_SVG.house;
 
+// ─── HTML escaping ────────────────────────────────────────────────────────────
+
+function escHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Pin HTML builder ─────────────────────────────────────────────────────────
 
 function makePinHtml(
@@ -148,7 +176,7 @@ function makePinHtml(
     '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
     'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
     '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
-    truncated,
+    escHtml(truncated),
     '</div>',
     '</div>',
   ].join('');
@@ -164,6 +192,12 @@ export default function TerritoryMap({
   className = '',
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
+  isDrawing = false,
+  drawMode = 'add',
+  onDrawingComplete,
+  onDrawingStateChange,
+  onDrawingActions,
+  initialDrawingRings,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -171,8 +205,65 @@ export default function TerritoryMap({
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
+  // Track the currently open household popup so only one is shown at a time
+  const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
+
+  // ── Drawing state ─────────────────────────────────────────────────────────
+  type LngLat = [number, number];
+  const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
+  const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  // Refs so imperative callbacks always see current state
+  const drawRingsRef  = useRef<LngLat[][]>([]);
+  const activeRingRef = useRef<LngLat[]>([]);
+  drawRingsRef.current  = drawRings;
+  activeRingRef.current = activeRing;
+  const drawLastClick = useRef<number>(0);
+  // Vertex drag state — shared between mousedown, mousemove, mouseup effects
+  const dragVertexRef = useRef<{ ring: number; vertex: number } | null>(null);
+  const dragJustEndedRef = useRef(false);
+  // Long-press vertex deletion (mobile)
+  const longPressHandledRef = useRef(false);
+  const onDrawingCompleteRef = useRef(onDrawingComplete);
+  onDrawingCompleteRef.current = onDrawingComplete;
+  const onDrawingStateChangeRef = useRef(onDrawingStateChange);
+  onDrawingStateChangeRef.current = onDrawingStateChange;
+  const onDrawingActionsRef = useRef(onDrawingActions);
+  onDrawingActionsRef.current = onDrawingActions;
+
+  // Expose imperative drawing actions to parent.
+  // onDrawingActions is intentionally NOT in the dep array — we always read it
+  // via the ref (kept current above), so the latest callback is always called
+  // without re-running the effect each time the parent re-renders and the
+  // inline function prop gets a new identity (stable ref prevents churn).
+  useEffect(() => {
+    if (!isDrawing) return;
+    onDrawingActionsRef.current?.({
+      closeRing: () => {
+        const ring = activeRingRef.current;
+        if (ring.length < 3) return;
+        setDrawRings((prev) => [...prev, ring]);
+        setActiveRing([]);
+      },
+      undoPoint: () => {
+        setActiveRing((prev) => prev.slice(0, -1));
+      },
+      getGeoJSON: () => {
+        const rings = drawRingsRef.current;
+        if (rings.length === 0) return null;
+        return rings.length === 1
+          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+      },
+      clearRings: () => {
+        setDrawRings([]);
+        setActiveRing([]);
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onDrawingActions omitted intentionally; latest value read via ref
+  }, [isDrawing]);
 
   const [mapReady, setMapReady] = useState(false);
+  const [styleSeq, setStyleSeq] = useState(0); // increments on each styledata event
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -195,29 +286,51 @@ export default function TerritoryMap({
       if (destroyed || !mapRef.current) return;
 
       const validPts = households.filter((h) => h.latitude && h.longitude);
-      let lng = center?.[1] ?? 124.85;
-      let lat = center?.[0] ?? 8.37;
-      const zoom = 14;
 
-      // Center on boundary if available
-      if (boundary) {
+      // Compute initial map view: fit to boundary bbox if available,
+      // otherwise center on households or fall back to default coords.
+      let mapInit: { center: [number, number]; zoom: number } | { bounds: [[number, number], [number, number]]; fitBoundsOptions: { padding: number; maxZoom: number } };
+
+      const boundaryBbox = (() => {
+        if (!boundary) return null;
         try {
           const geo = JSON.parse(boundary);
-          const coords: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
-          if (coords.length) {
-            const lngs = coords.map(([x]) => x);
-            const lats = coords.map(([, y]) => y);
-            lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-            lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          const geoData = geo?.geometry ?? geo;
+          let allPts: [number, number][] = [];
+          if (geoData?.type === 'Polygon') {
+            allPts = (geoData.coordinates as [number, number][][]).flat();
+          } else if (geoData?.type === 'MultiPolygon') {
+            allPts = (geoData.coordinates as [number, number][][][]).flat(2);
           }
+          if (!allPts.length) return null;
+          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+          for (const [lng, lat] of allPts) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
+          return { minLng, maxLng, minLat, maxLat };
         } catch {
-          /* skip */
+          return null;
         }
-      } else if (validPts.length) {
-        const lats = validPts.map((h) => Number(h.latitude));
-        const lngs = validPts.map((h) => Number(h.longitude));
-        lat = (Math.min(...lats) + Math.max(...lats)) / 2;
-        lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+      })();
+
+      if (boundaryBbox) {
+        mapInit = {
+          bounds: [[boundaryBbox.minLng, boundaryBbox.minLat], [boundaryBbox.maxLng, boundaryBbox.maxLat]],
+          fitBoundsOptions: { padding: 48, maxZoom: 17 },
+        };
+      } else {
+        let lng = center?.[1] ?? 124.85;
+        let lat = center?.[0] ?? 8.37;
+        if (validPts.length) {
+          const lats = validPts.map((h) => Number(h.latitude));
+          const lngs = validPts.map((h) => Number(h.longitude));
+          lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+        }
+        mapInit = { center: [lng, lat], zoom: 14 };
       }
 
       const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
@@ -225,8 +338,7 @@ export default function TerritoryMap({
       const map = new mgl.Map({
         container: mapRef.current as HTMLElement,
         style: style.url,
-        center: [lng, lat],
-        zoom,
+        ...mapInit,
         attributionControl: false,
       });
 
@@ -280,87 +392,60 @@ export default function TerritoryMap({
           );
         }
 
-        // ── Context territory polygons ───────────────────────────────────────
-        for (const tb of allBoundaries) {
-          try {
-            const geo = JSON.parse(tb.boundary);
-            const sourceId = `boundary-${tb.id}`;
-            map.addSource(sourceId, { type: 'geojson', data: geo });
-            map.addLayer({
-              id: `boundary-fill-${tb.id}`,
-              type: 'fill',
-              source: sourceId,
-              paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 },
-            });
-            map.addLayer({
-              id: `boundary-line-${tb.id}`,
-              type: 'line',
-              source: sourceId,
-              paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
-            });
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Context + active boundary: handled by reactive useEffect ─────
 
-        // ── Active territory spotlight ───────────────────────────────────────
-        if (boundary) {
-          try {
-            const geo = JSON.parse(boundary);
-            const outerRing: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
-            if (outerRing.length) {
-              const worldOuter: [number, number][] = [
-                [-180, -90],
-                [180, -90],
-                [180, 90],
-                [-180, 90],
-                [-180, -90],
-              ];
-              const maskGeo = {
-                type: 'Feature',
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [worldOuter, outerRing],
-                },
-              };
-              map.addSource('spotlight-mask', {
-                type: 'geojson',
-                data: maskGeo as Parameters<typeof map.addSource>[1] extends { data: infer D }
-                  ? D
-                  : never,
-              });
-              map.addLayer({
-                id: 'spotlight-fill',
-                type: 'fill',
-                source: 'spotlight-mask',
-                paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-              });
-              // Border
-              map.addSource('active-boundary', { type: 'geojson', data: geo });
-              map.addLayer({
-                id: 'active-boundary-line',
-                type: 'line',
-                source: 'active-boundary',
-                paint: { 'line-color': '#6B9ECC', 'line-width': 2.5 },
-              });
-
-              // Fit map to territory
-              const lngs = outerRing.map(([x]) => x);
-              const lats = outerRing.map(([, y]) => y);
-              map.fitBounds(
-                [
-                  [Math.min(...lngs), Math.min(...lats)],
-                  [Math.max(...lngs), Math.max(...lats)],
-                ],
-                { padding: 60, duration: 0 }
-              );
-            }
-          } catch {
-            /* skip */
-          }
-        }
+        // ── Boundary/spotlight handled by reactive useEffect ─────────────────
 
         setMapReady(true);
+
+        // ── Drawing layers helper — re-run after every style change ────────
+        const addDrawingLayers = (m: import('maplibre-gl').Map) => {
+          if (!m.getSource('draw-polygons')) {
+            m.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-active')) {
+            m.addSource('draw-active', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-points')) {
+            m.addSource('draw-points', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getSource('draw-completed-vertices')) {
+            m.addSource('draw-completed-vertices', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
+          if (!m.getLayer('draw-polygons-fill'))
+            m.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
+              paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+          if (!m.getLayer('draw-polygons-line'))
+            m.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
+              paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+          if (!m.getLayer('draw-active-line'))
+            m.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
+              paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+          if (!m.getLayer('draw-points-circle'))
+            m.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
+              filter: ['!=', ['get', 'first'], true],
+              paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          if (!m.getLayer('draw-points-first'))
+            m.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
+              filter: ['==', ['get', 'first'], true],
+              paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
+                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          // Vertices of completed rings (draggable handles)
+          if (!m.getLayer('draw-completed-vertices-circle'))
+            m.addLayer({ id: 'draw-completed-vertices-circle', type: 'circle', source: 'draw-completed-vertices',
+              paint: { 'circle-radius': 7, 'circle-color': '#059669',
+                       'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff' } });
+        };
+
+        // Add initially
+        addDrawingLayers(map);
+
+        // Re-add after every style change (setStyle wipes all sources+layers)
+        map.on('styledata', () => {
+          addDrawingLayers(map);
+          setStyleSeq((n) => n + 1);
+        });
 
         // ── Heading cone — standalone Marker with pitchAlignment:'map' ────────
         // Proper Marker so it tilts natively with map pitch (no CSS hacks)
@@ -557,6 +642,135 @@ useEffect(() => {
   // watchPosition continues after style change — markers re-added on next GPS fix
 }, [mapStyle, mapReady]);
 
+// ── Reactive boundary rendering ───────────────────────────────────────────
+// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady+styleSeq triggers
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+
+  // Helper: upsert a geojson source
+  const upsertSource = (id: string, data: object) => {
+    const src = map.getSource(id) as import('maplibre-gl').GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data as any);
+    } else {
+      map.addSource(id, { type: 'geojson', data: data as any });
+    }
+  };
+
+  // ── Active territory boundary fill + line ─────────────────────────────
+  if (boundary) {
+    try {
+      const geo = JSON.parse(boundary);
+
+      // Build mask for spotlight (world minus territory interior)
+      // Handle both raw geometry and GeoJSON Feature format
+      const geoData = geo?.geometry ?? geo;
+      let outerRings: [number, number][][] = [];
+      if (geoData?.type === 'Polygon') {
+        const ring = geoData.coordinates[0] as [number, number][];
+        if (ring?.length >= 3) outerRings = [ring];
+      } else if (geoData?.type === 'MultiPolygon') {
+        outerRings = (geoData.coordinates as [number, number][][][])
+          .map((poly) => poly[0])
+          .filter((r) => r?.length >= 3);
+      }
+
+      if (outerRings.length > 0) {
+        // worldOuter is counterclockwise (right-hand rule, exterior).
+        // GeoJSON holes must be clockwise; ensure each inner ring is CW
+        // so that MapLibre's nonzero fill rule properly punches holes.
+        const worldOuter: [number, number][] = [
+          [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
+        ];
+        const ringSignedArea = (ring: [number, number][]) => {
+          let area = 0;
+          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+          }
+          return area / 2;
+        };
+        // Positive signed area = CCW → reverse to CW for hole
+        const ensureCW = (ring: [number, number][]): [number, number][] =>
+          ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
+
+        // Each territory ring becomes a CW hole in the spotlight mask so that
+        // MapLibre's nonzero winding rule punches through the dimming layer.
+        // Using individual holes (one per polygon) keeps each polygon's spotlight
+        // exact — no imaginary shapes connecting separate polygons.
+        const holeRings: [number, number][][] = outerRings.map(ensureCW);
+
+        const maskGeo = {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [worldOuter, ...holeRings],
+          },
+          properties: {},
+        };
+        upsertSource('spotlight-mask', maskGeo);
+        if (!map.getLayer('spotlight-fill')) {
+          map.addLayer({
+            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
+            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+          });
+        }
+      }
+
+      // Active boundary line — reuse the already-resolved geoData
+      upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer('active-boundary-fill')) {
+        map.addLayer({
+          id: 'active-boundary-fill', type: 'fill', source: 'active-boundary',
+          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+        });
+      }
+      if (!map.getLayer('active-boundary-line')) {
+        map.addLayer({
+          id: 'active-boundary-line', type: 'line', source: 'active-boundary',
+          paint: { 'line-color': '#3b82f6', 'line-width': 2.5 },
+        });
+      }
+    } catch {
+      // ignore malformed boundary
+    }
+  } else {
+    // No boundary — remove layers if they exist
+    for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    for (const id of ['spotlight-mask', 'active-boundary']) {
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  }
+
+  // ── Context (other territory) boundaries ─────────────────────────
+  for (const tb of allBoundaries) {
+    try {
+      const geo = JSON.parse(tb.boundary);
+      const geoData = geo?.geometry ?? geo;
+      const srcId = `ctx-boundary-${tb.id}`;
+      upsertSource(srcId, { type: 'Feature', geometry: geoData, properties: {} });
+      if (!map.getLayer(`${srcId}-fill`))
+        map.addLayer({ id: `${srcId}-fill`, type: 'fill', source: srcId,
+          paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 } });
+      if (!map.getLayer(`${srcId}-line`))
+        map.addLayer({ id: `${srcId}-line`, type: 'line', source: srcId,
+          paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] } });
+    } catch { /* skip */ }
+  }
+}, [boundary, allBoundaries, mapReady, styleSeq]);
+
+// ── Hide/show stored boundary layers while in drawing mode ─────────────
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+  const vis = isDrawing ? 'none' : 'visible';
+  for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+  }
+}, [isDrawing, mapReady]);
+
 // ── Household markers effect ──────────────────────────────────────────────
 // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
 useEffect(() => {
@@ -573,8 +787,8 @@ useEffect(() => {
   import('maplibre-gl').then((mgl) => {
     if (!mapInstance.current) return;
 
-    const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-      radius: 128,
+    const index = new Supercluster<{ id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string }>({
+      radius: 40,
       maxZoom: 18,
       minPoints: 2,
     });
@@ -591,6 +805,9 @@ useEffect(() => {
           address: h.address,
           status: h.status ?? 'not_visited',
           type: h.type ?? 'house',
+          lastVisitDate: h.lastVisitDate ?? '',
+          lastVisitOutcome: h.lastVisitOutcome ?? '',
+          notes: h.notes ?? '',
         },
       }))
     );
@@ -618,7 +835,7 @@ useEffect(() => {
         const props = feature.properties as Record<string, unknown>;
 
         const el = document.createElement('div');
-        el.style.cssText = 'cursor:pointer;';
+        el.style.cssText = 'cursor:pointer;touch-action:manipulation;';
 
         if (props.cluster) {
           const count = props.point_count as number;
@@ -631,12 +848,35 @@ useEffect(() => {
           const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
           const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
           el.innerHTML = makePinHtml(color, icon, label, count, isDark);
-          el.addEventListener('click', () => {
+          const flyToCluster = () => {
             m.flyTo({
               center: [lng, lat],
               zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
               duration: 400,
             });
+          };
+          // Listen for both click (desktop) and touchend (mobile) to handle
+          // cases where MapLibre's touch handlers call e.preventDefault(),
+          // which blocks the browser's synthesized click from touch.
+          // Guard flag prevents double-firing on devices that fire both events.
+          let clusterTouchStartX = 0, clusterTouchStartY = 0;
+          let clusterTouchHandled = false;
+          el.addEventListener('touchstart', (e) => {
+            clusterTouchStartX = e.changedTouches[0].clientX;
+            clusterTouchStartY = e.changedTouches[0].clientY;
+            clusterTouchHandled = false;
+          }, { passive: true });
+          el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches[0];
+            if (Math.abs(t.clientX - clusterTouchStartX) < 10 && Math.abs(t.clientY - clusterTouchStartY) < 10) {
+              clusterTouchHandled = true;
+              flyToCluster();
+              requestAnimationFrame(() => requestAnimationFrame(() => { clusterTouchHandled = false; }));
+            }
+          }, { passive: true });
+          el.addEventListener('click', () => {
+            if (clusterTouchHandled) return;
+            flyToCluster();
           });
         } else {
           const {
@@ -644,44 +884,82 @@ useEffect(() => {
             address,
             status,
             type: hType,
-          } = props as { id: string; address: string; status: string; type: string };
+            lastVisitDate,
+            lastVisitOutcome,
+            notes,
+          } = props as { id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string };
           const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
           const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
           const label = address.split(' ').slice(0, 3).join(' ');
           el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
 
-          el.addEventListener('click', () => {
+          const showPopup = () => {
             const onHClick = onClickRef.current;
-            // Show popup
+            const fmtEnum = (s: string) => s.replace(/_/g, ' ');
+            // Format last visit date
+            const visitDateStr = lastVisitDate
+              ? (() => {
+                  try {
+                    const d = new Date(lastVisitDate);
+                    if (Number.isNaN(d.getTime())) return '';
+                    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                  } catch {
+                    return '';
+                  }
+                })()
+              : '';
+            const trimmedNotes = notes?.trim() ?? '';
+            const notesSnippet = trimmedNotes.length > 80 ? trimmedNotes.slice(0, 80) + '\u2026' : trimmedNotes;
+
+            // Close any existing popup so only one is open at a time
+            if (activePopupRef.current) {
+              activePopupRef.current.remove();
+              activePopupRef.current = null;
+            }
+
+            // Show popup — closeOnClick:false prevents the map's click handler
+            // from immediately closing it after the marker tap is processed.
             const popup = new mgl.Popup({
-              closeButton: false,
+              closeButton: true,
+              closeOnClick: false,
               className: 'territory-popup',
-              offset: [0, -30],
+              offset: [0, -38],
+              maxWidth: '300px',
             })
               .setHTML(
                 [
-                  '<div style="min-width:150px;padding:2px 0">',
-                  '<p style="font-weight:600;margin:0 0 4px;font-size:13px">',
-                  address,
+                  '<div style="padding:4px 2px;font-family:inherit;min-width:220px">',
+                  // Address
+                  '<p style="font-weight:700;margin:0 0 8px;font-size:14px;line-height:1.4;color:#0f172a">',
+                  escHtml(address),
                   '</p>',
-                  '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
-                  'background:',
-                  color,
-                  '22;color:',
-                  color,
-                  ';text-transform:capitalize;font-weight:600;">',
-                  status.replace(/_/g, ' '),
-                  '</span>',
+                  // Status badge
+                  '<div style="margin-bottom:8px">',
+                  '<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:9999px;background:' +
+                    color + '22;color:' + color + ';text-transform:capitalize;font-weight:600;">' +
+                    escHtml(fmtEnum(status)) + '</span>',
+                  '</div>',
+                  // Last visit
+                  visitDateStr
+                    ? '<p style="margin:0 0 6px;font-size:12px;color:#64748b">' +
+                        '<span style="font-weight:600;color:#475569">Last visit:</span> ' + escHtml(visitDateStr) +
+                        (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(fmtEnum(lastVisitOutcome)) + '</span>' : '') +
+                      '</p>'
+                    : '',
+                  // Notes
+                  notesSnippet
+                    ? '<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">' + escHtml(notesSnippet) + '</p>'
+                    : '',
+                  // Log Visit button
                   onHClick
                     ? [
                         '<button onclick="window.__mapLogVisit(\'' +
                           id +
                           "','" +
-                          address.replace(/'/g, "\\'") +
+                          address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
                           '\')"',
-                        ' style="margin-top:8px;width:100%;padding:5px 0;background:',
-                        color,
-                        ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                        ' style="margin-top:6px;width:100%;padding:9px 0;background:' + color +
+                          ';color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">',
                         'Log Visit</button>',
                       ].join('')
                     : '',
@@ -690,6 +968,11 @@ useEffect(() => {
               )
               .setLngLat([lng, lat])
               .addTo(m);
+
+            activePopupRef.current = popup;
+            popup.on('close', () => {
+              if (activePopupRef.current === popup) activePopupRef.current = null;
+            });
 
             if (onHClick) {
               (window as unknown as Record<string, unknown>).__mapLogVisit = (
@@ -700,6 +983,33 @@ useEffect(() => {
                 onHClick(hId, hAddr);
               };
             }
+          };
+
+          // Listen for both click (desktop) and touchend (mobile) because
+          // MapLibre's internal touch handlers may call e.preventDefault() on
+          // the map canvas touchend, preventing the browser from synthesising a
+          // click event for touch taps on HTML marker overlays.
+          // The touchHandled flag prevents double-firing when the browser also
+          // fires a synthesised click after the touchend.
+          let touchStartX = 0, touchStartY = 0;
+          let touchHandled = false;
+          el.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].clientX;
+            touchStartY = e.changedTouches[0].clientY;
+            touchHandled = false;
+          }, { passive: true });
+          el.addEventListener('touchend', (e) => {
+            const t = e.changedTouches[0];
+            if (Math.abs(t.clientX - touchStartX) < 10 && Math.abs(t.clientY - touchStartY) < 10) {
+              touchHandled = true;
+              showPopup();
+              // Reset after click fires (two rAFs so the click handler can check)
+              requestAnimationFrame(() => requestAnimationFrame(() => { touchHandled = false; }));
+            }
+          }, { passive: true });
+          el.addEventListener('click', () => {
+            if (touchHandled) return; // already handled by touchend above
+            showPopup();
           });
         }
 
@@ -716,9 +1026,383 @@ useEffect(() => {
   });
 }, [households, mapReady, isDark]);
 
-return (
+  // ─── Drawing: sync layers whenever rings/activeRing change ───────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    const setData = (src: string, data: GeoJSON.FeatureCollection) => {
+      const s = map.getSource(src) as import('maplibre-gl').GeoJSONSource | undefined;
+      s?.setData(data);
+    };
+
+    setData('draw-polygons', {
+      type: 'FeatureCollection',
+      features: drawRings.map((ring) => ({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
+        properties: {},
+      })),
+    });
+
+    setData('draw-active', {
+      type: 'FeatureCollection',
+      features: activeRing.length >= 2 ? [{
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: activeRing },
+        properties: {},
+      }] : [],
+    });
+
+    setData('draw-points', {
+      type: 'FeatureCollection',
+      features: activeRing.map((pt, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: pt },
+        properties: { first: i === 0 },
+      })),
+    });
+
+    // Draggable vertex handles for completed rings
+    setData('draw-completed-vertices', {
+      type: 'FeatureCollection',
+      features: drawRings.flatMap((ring, ri) =>
+        ring.map((pt, vi) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: pt },
+          properties: { ringIdx: ri, vertexIdx: vi },
+        }))
+      ),
+    });
+  }, [drawRings, activeRing, mapReady, styleSeq]);
+
+  // Fire state change so parent toolbar can reflect ring/point counts
+  useEffect(() => {
+    onDrawingStateChangeRef.current?.(drawRings.length, activeRing.length);
+  }, [drawRings.length, activeRing.length]);
+
+  // ─── Drawing: attach/detach map click + vertex drag handlers ────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    if (isDrawing) {
+      map.getCanvas().style.cursor = drawMode === 'edit' ? 'default' : 'crosshair';
+      // Disable zoom on double-tap/click so every tap adds a point (add mode only)
+      if (drawMode === 'add') {
+        map.doubleClickZoom.disable();
+      } else {
+        map.doubleClickZoom.enable();
+      }
+      // Seed rings from existing boundary — both in add and edit mode
+      if (initialDrawingRings && initialDrawingRings.length > 0) {
+        setDrawRings(initialDrawingRings);
+      }
+    } else {
+      map.getCanvas().style.cursor = '';
+      map.doubleClickZoom.enable();
+      setDrawRings([]);
+      setActiveRing([]);
+    }
+
+    if (!isDrawing) return;
+
+    const addPoint = (lngLat: { lng: number; lat: number }) => {
+      const pt: [number, number] = [lngLat.lng, lngLat.lat];
+      setActiveRing((prev) => [...prev, pt]);
+    };
+
+    // ── Edit mode: insert a new vertex on the nearest polygon edge ────────
+    const insertVertexOnEdge = (lngLat: { lng: number; lat: number }): boolean => {
+      const rings = drawRingsRef.current;
+      if (rings.length === 0) return false;
+
+      const clickPx = map.project([lngLat.lng, lngLat.lat]);
+      let bestRingIdx = -1;
+      let bestSegIdx = -1;
+      let bestDist = Infinity;
+      let bestPt: [number, number] | null = null;
+
+      for (let ri = 0; ri < rings.length; ri++) {
+        const ring = rings[ri];
+        const n = ring.length;
+        if (n < 2) continue;
+        for (let si = 0; si < n; si++) {
+          const a = map.project(ring[si]);
+          const b = map.project(ring[(si + 1) % n]);
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const lenSq = dx * dx + dy * dy;
+          let t = 0;
+          if (lenSq > 0) {
+            t = ((clickPx.x - a.x) * dx + (clickPx.y - a.y) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+          }
+          const cx = a.x + t * dx, cy = a.y + t * dy;
+          const dist = Math.sqrt((clickPx.x - cx) ** 2 + (clickPx.y - cy) ** 2);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestRingIdx = ri;
+            bestSegIdx = si;
+            const geo = map.unproject([cx, cy]);
+            bestPt = [geo.lng, geo.lat];
+          }
+        }
+      }
+
+      // Only insert if the tap is within 18 px of a polygon edge
+      if (bestRingIdx >= 0 && bestDist < 18 && bestPt !== null) {
+        const insertPt = bestPt; // captured so TypeScript knows it's non-null inside the closure
+        setDrawRings((prev) =>
+          prev.map((r, ri) => {
+            if (ri !== bestRingIdx) return r;
+            const next = [...r];
+            next.splice(bestSegIdx + 1, 0, insertPt);
+            return next;
+          })
+        );
+        return true;
+      }
+      return false;
+    };
+
+    // ── Edit mode: remove a vertex (ring must keep ≥ 3 vertices) ──────────
+    const removeVertex = (ringIdx: number, vertexIdx: number) => {
+      type LngLatPair = [number, number];
+      setDrawRings((prev: LngLatPair[][]) =>
+        prev
+          .map((r: LngLatPair[], ri: number): LngLatPair[] | null => {
+            if (ri !== ringIdx) return r;
+            // Keep the ring only if it will still have ≥ 3 vertices after removal
+            if (r.length <= 3) return null;
+            return r.filter((_: LngLatPair, vi: number) => vi !== vertexIdx);
+          })
+          .filter((r: LngLatPair[] | null): r is LngLatPair[] => r !== null)
+      );
+    };
+
+    // ── Desktop: add point on click (add mode) or insert vertex on edge (edit mode) ──
+    const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
+      if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      if (dragJustEndedRef.current) return;
+      if (drawMode === 'add') {
+        addPoint(e.lngLat);
+      } else if (drawMode === 'edit') {
+        insertVertexOnEdge(e.lngLat);
+      }
+    };
+
+    // ── Desktop: right-click on a vertex handle to delete it (edit mode) ──
+    const onContextMenu = (e: MouseEvent) => {
+      if (drawMode !== 'edit') return;
+      // Prevent the browser context menu from appearing in edit mode
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
+      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
+      if (features.length === 0) return;
+      const props = features[0].properties as Record<string, unknown>;
+      const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+      const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+      if (ringIdx < 0 || vertexIdx < 0) return;
+      removeVertex(ringIdx, vertexIdx);
+    };
+
+    // ── Desktop: vertex drag ──────────────────────────────────────────────
+    // Use capture-phase listener so we fire BEFORE MapLibre's internal
+    // dragPan mousedown handler — this prevents MapLibre from ever starting
+    // a pan on the same mousedown that begins a vertex drag.
+    const onCanvasMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // left-click only
+      if ((e as any).pointerType === 'touch') return;
+      const rect = canvas.getBoundingClientRect();
+      const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
+      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
+      if (features.length > 0) {
+        const props = features[0].properties as Record<string, unknown>;
+        const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+        const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+        if (ringIdx < 0 || vertexIdx < 0) return;
+        dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
+        dragJustEndedRef.current = false;
+        // Disable dragPan in capture phase, BEFORE MapLibre's internal
+        // dragPan mousedown handler fires, so the map never starts panning.
+        map.dragPan.disable();
+        canvas.style.cursor = 'grabbing';
+      }
+    };
+
+    const onMouseMove = (e: import('maplibre-gl').MapMouseEvent) => {
+      if (dragVertexRef.current) {
+        // Move the vertex being dragged
+        const { ring, vertex } = dragVertexRef.current;
+        const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        setDrawRings((prev) =>
+          prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+        );
+      } else {
+        // Hover cursor change
+        const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
+        canvas.style.cursor = features.length > 0 ? 'grab' : 'crosshair';
+      }
+    };
+
+    // rAF IDs used in onMouseUp — tracked here for cleanup on unmount
+    let suppressClickRaf1 = 0;
+    let suppressClickRaf2 = 0;
+    const clearDragJustEnded = () => { dragJustEndedRef.current = false; };
+
+    const onMouseUp = () => {
+      if (dragVertexRef.current) {
+        dragVertexRef.current = null;
+        // Suppress the click that fires on the same frame as mouseup.
+        // Cancelling rAF1 in cleanup prevents rAF2 from ever being scheduled.
+        dragJustEndedRef.current = true;
+        suppressClickRaf1 = requestAnimationFrame(() => {
+          suppressClickRaf2 = requestAnimationFrame(clearDragJustEnded);
+        });
+        map.dragPan.enable();
+        canvas.style.cursor = 'crosshair';
+      }
+    };
+
+    // ── Mobile: touch start (detect vertex) / move (drag vertex) / end (add point) ─
+    const canvas = map.getCanvas();
+    let touchStartX = 0, touchStartY = 0;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelLongPress = () => {
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      // Check if the touch starts on a completed-ring vertex
+      const rect = canvas.getBoundingClientRect();
+      const x = touchStartX - rect.left;
+      const y = touchStartY - rect.top;
+      const features = map.queryRenderedFeatures([x, y], { layers: ['draw-completed-vertices-circle'] });
+      if (features.length > 0) {
+        const props = features[0].properties as Record<string, unknown>;
+        const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+        const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+        if (ringIdx < 0 || vertexIdx < 0) return;
+        dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
+        // Disable map panning while dragging a vertex.
+        // touch-action: none prevents browser scroll/pinch; dragPan.disable()
+        // prevents MapLibre from panning on touchmove.
+        canvas.style.touchAction = 'none';
+        map.dragPan.disable();
+        // Long-press (500 ms without move) → delete the vertex (edit mode only)
+        if (drawMode === 'edit') {
+          longPressTimer = setTimeout(() => {
+            longPressTimer = null;
+            if (dragVertexRef.current && dragVertexRef.current.ring === ringIdx && dragVertexRef.current.vertex === vertexIdx) {
+              removeVertex(ringIdx, vertexIdx);
+              longPressHandledRef.current = true;
+              dragVertexRef.current = null;
+              canvas.style.touchAction = '';
+              map.dragPan.enable();
+            }
+          }, 500);
+        }
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      // Cancel long-press if the finger moved
+      cancelLongPress();
+      if (!dragVertexRef.current) return;
+      // touch-action: none (set in onTouchStart) prevents scroll; no need to call e.preventDefault()
+      const t = e.changedTouches[0];
+      const rect = canvas.getBoundingClientRect();
+      const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
+      const pt: [number, number] = [lngLat.lng, lngLat.lat];
+      const { ring, vertex } = dragVertexRef.current;
+      setDrawRings((prev) =>
+        prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+      );
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      cancelLongPress();
+      // If long-press deletion was handled, skip everything
+      if (longPressHandledRef.current) {
+        longPressHandledRef.current = false;
+        return;
+      }
+      // If dragging a vertex, finalize — do NOT add a new point
+      if (dragVertexRef.current) {
+        dragVertexRef.current = null;
+        canvas.style.touchAction = ''; // restore scroll
+        map.dragPan.enable();          // restore map panning
+        return;
+      }
+      // Otherwise treat as a tap-to-add-point (add mode) or edge vertex insert (edit mode)
+      const t = e.changedTouches[0];
+      const dx = Math.abs(t.clientX - touchStartX);
+      const dy = Math.abs(t.clientY - touchStartY);
+      if (dx > 10 || dy > 10) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
+      if (drawMode === 'add') {
+        addPoint(lngLat);
+      } else if (drawMode === 'edit') {
+        insertVertexOnEdge(lngLat);
+      }
+    };
+
+    map.on('click', onDesktopClick);
+    // Register in capture phase so our handler fires BEFORE MapLibre's
+    // internal dragPan mousedown handler — this lets us call
+    // map.dragPan.disable() before MapLibre begins tracking a pan.
+    canvas.addEventListener('mousedown', onCanvasMouseDown, { capture: true });
+    canvas.addEventListener('contextmenu', onContextMenu);
+    map.on('mousemove', onMouseMove);
+    map.on('mouseup', onMouseUp);
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: true });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+
+    return () => {
+      cancelLongPress();
+      // Cancel pending rAFs before they fire (prevents rAF2 from being scheduled)
+      cancelAnimationFrame(suppressClickRaf1);
+      cancelAnimationFrame(suppressClickRaf2);
+      dragJustEndedRef.current = false; // immediate reset if cleanup runs mid-drag
+      longPressHandledRef.current = false;
+      if (dragVertexRef.current) {
+        map.dragPan.enable(); // safety-net: restore pan if effect tears down mid-drag
+        dragVertexRef.current = null;
+      }
+      map.off('click', onDesktopClick);
+      canvas.removeEventListener('mousedown', onCanvasMouseDown, { capture: true });
+      canvas.removeEventListener('contextmenu', onContextMenu);
+      map.off('mousemove', onMouseMove);
+      map.off('mouseup', onMouseUp);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
+      canvas.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isDrawing, drawMode, mapReady]);
+
+  // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
+  const prevIsDrawing = useRef(isDrawing);
+  useEffect(() => {
+    if (prevIsDrawing.current && !isDrawing) {
+      const rings = drawRingsRef.current;
+      if (rings.length > 0) {
+        const geojson = rings.length === 1
+          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+        onDrawingCompleteRef.current?.(geojson);
+      }
+    }
+    prevIsDrawing.current = isDrawing;
+  }, [isDrawing]);
+
+  return (
     <div className={`relative ${className}`}>
-      {/* MapLibre GL CSS */}
       <link
         rel="stylesheet"
         href="https://unpkg.com/maplibre-gl@5.22.0/dist/maplibre-gl.css"
@@ -728,11 +1412,19 @@ return (
       <style>{`
         .maplibregl-canvas { outline: none; }
         .territory-popup .maplibregl-popup-content {
-          border-radius: 12px !important;
-          padding: 10px 12px !important;
-          box-shadow: 0 4px 16px rgba(0,0,0,.15) !important;
+          border-radius: 14px !important;
+          padding: 14px 16px !important;
+          box-shadow: 0 8px 28px rgba(0,0,0,.18) !important;
+          min-width: 220px !important;
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
+        .territory-popup .maplibregl-popup-close-button {
+          font-size: 18px !important;
+          padding: 4px 8px !important;
+          color: #64748b !important;
+          top: 4px !important;
+          right: 4px !important;
+        }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
         /* Geolocate — translucent, navigation arrow icon */
         .maplibregl-ctrl-top-right .maplibregl-ctrl-group { background: transparent !important; border: none !important; box-shadow: none !important; }
