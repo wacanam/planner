@@ -708,18 +708,18 @@ useEffect(() => {
         const convexHull = (pts: [number, number][]): [number, number][] => {
           if (pts.length < 3) return pts;
           const sorted = [...pts].sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
-          const cross = (o: [number,number], a: [number,number], b: [number,number]) =>
-            (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
-          const lower: [number,number][] = [];
+          const cross = (o: [number, number], a: [number, number], b: [number, number]) =>
+            (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+          const lower: [number, number][] = [];
           for (const p of sorted) {
-            while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0)
+            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
               lower.pop();
             lower.push(p);
           }
-          const upper: [number,number][] = [];
-          for (let i = sorted.length-1; i >= 0; i--) {
+          const upper: [number, number][] = [];
+          for (let i = sorted.length - 1; i >= 0; i--) {
             const p = sorted[i];
-            while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0)
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
               upper.pop();
             upper.push(p);
           }
