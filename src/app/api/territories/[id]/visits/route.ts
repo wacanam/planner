@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql, and, inArray } from 'drizzle-orm';
+import { eq, desc, sql, and, inArray, gte, lte } from 'drizzle-orm';
 import { db, visits, territories, households, UserRole } from '@/db';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
@@ -9,9 +9,41 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
+/**
+ * Extract an [minLng, minLat, maxLng, maxLat] bounding box from a GeoJSON Geometry string.
+ * Handles Polygon and MultiPolygon coordinate arrays by flattening all rings.
+ */
+function extractBBox(geomStr: string): [number, number, number, number] | null {
+  try {
+    const geom = JSON.parse(geomStr) as { coordinates?: unknown };
+    if (!geom.coordinates) return null;
+
+    const lngs: number[] = [];
+    const lats: number[] = [];
+
+    const flatten = (c: unknown): void => {
+      if (!Array.isArray(c)) return;
+      if (typeof c[0] === 'number' && typeof c[1] === 'number') {
+        lngs.push(c[0] as number);
+        lats.push(c[1] as number);
+      } else {
+        (c as unknown[]).forEach(flatten);
+      }
+    };
+    flatten(geom.coordinates);
+
+    if (!lngs.length) return null;
+    return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+  } catch {
+    return null;
+  }
+}
+
 // GET /api/territories/:id/visits
-// Finds all households inside the territory boundary via PostGIS ST_Within,
-// then returns visits for those households.
+// Finds all households inside the territory boundary, then returns visits for those households.
+// Strategy 1 (preferred): PostGIS ST_Within on the geometry column (GIST-indexed, exact polygon).
+// Strategy 2 (fallback):  lat/lng bounding-box filter when ST_Within returns no rows
+//                         (e.g. location column not yet populated on every row).
 // RBAC: admins/SO see all visits; publishers see only their own.
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
@@ -40,25 +72,53 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
-    // Find households within this territory's boundary using PostGIS ST_Within.
-    // boundary may be stored as a GeoJSON Feature (with .geometry) or a raw Geometry — normalise it.
     let householdIds: string[] = [];
+
     if (territory.boundary) {
+      // Normalise: boundary may be a GeoJSON Feature (has .geometry) or a raw Geometry
+      let geomStr: string | null = null;
       try {
         const parsed = JSON.parse(territory.boundary) as Record<string, unknown>;
-        const geomStr = parsed.geometry
+        geomStr = parsed.geometry
           ? JSON.stringify(parsed.geometry)
           : territory.boundary;
-
-        const rows = await db
-          .select({ id: households.id })
-          .from(households)
-          .where(sql`ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))`);
-
-        householdIds = rows.map((r) => r.id);
       } catch (parseErr) {
-        // boundary parse error or PostGIS unavailable — return empty
-        console.error('[GET /api/territories/:id/visits] boundary/spatial error:', parseErr);
+        console.error('[GET /api/territories/:id/visits] boundary parse error:', parseErr);
+      }
+
+      if (geomStr) {
+        // Pre-compute bbox once — used by Strategy 2 if needed
+        const bbox = extractBBox(geomStr);
+
+        // ── Strategy 1: exact polygon membership via PostGIS ──────────────────
+        try {
+          const rows = await db
+            .select({ id: households.id })
+            .from(households)
+            .where(sql`ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))`);
+
+          householdIds = rows.map((r) => r.id);
+        } catch (spatialErr) {
+          console.error('[GET /api/territories/:id/visits] ST_Within error:', spatialErr);
+        }
+
+        // ── Strategy 2: lat/lng bbox fallback ─────────────────────────────────
+        // Used when PostGIS location column is NULL on some rows (e.g. migration
+        // hasn't backfilled every household yet) or when ST_Within returns nothing.
+        if (householdIds.length === 0 && bbox) {
+          const [minLng, minLat, maxLng, maxLat] = bbox;
+          const lat = sql<number>`${households.latitude}::numeric`;
+          const lng = sql<number>`${households.longitude}::numeric`;
+          try {
+            const rows = await db
+              .select({ id: households.id })
+              .from(households)
+              .where(and(gte(lat, minLat), lte(lat, maxLat), gte(lng, minLng), lte(lng, maxLng)));
+            householdIds = rows.map((r) => r.id);
+          } catch (bboxErr) {
+            console.error('[GET /api/territories/:id/visits] bbox fallback error:', bboxErr);
+          }
+        }
       }
     }
 
