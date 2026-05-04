@@ -678,62 +678,11 @@ useEffect(() => {
         const ensureCW = (ring: [number, number][]): [number, number][] =>
           ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
 
-        // When multiple rings are present and their bounding boxes overlap, using
-        // each ring as a separate CW hole causes MapLibre's nonzero winding rule
-        // to darken the intersection (+1 outer −1 −1 = −1 ≠ 0 → dimmed).
-        // Fix: when any bboxes overlap, compute the convex hull of ALL ring
-        // coordinates combined and use it as a SINGLE hole.  A single hole has no
-        // winding accumulation, so the intersection is properly transparent.
-        // When no rings overlap the individual CW holes work perfectly as before.
-        const ringBbox = (r: [number, number][]) => {
-          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-          for (const [lng, lat] of r) {
-            if (lng < minLng) minLng = lng;
-            if (lng > maxLng) maxLng = lng;
-            if (lat < minLat) minLat = lat;
-            if (lat > maxLat) maxLat = lat;
-          }
-          return { minLng, maxLng, minLat, maxLat };
-        };
-        const bboxes = outerRings.map(ringBbox);
-        const ringsOverlap = bboxes.some((a, i) =>
-          bboxes.some(
-            (b, j) =>
-              i < j &&
-              a.minLng < b.maxLng && a.maxLng > b.minLng &&
-              a.minLat < b.maxLat && a.maxLat > b.minLat,
-          ),
-        );
-
-        // Convex hull (Graham scan) — used when rings overlap to produce a single
-        // hole that avoids the nonzero winding shadow at the intersection.
-        const convexHull = (pts: [number, number][]): [number, number][] => {
-          if (pts.length < 3) return pts;
-          const sorted = [...pts].sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
-          const cross = (o: [number, number], a: [number, number], b: [number, number]) =>
-            (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-          const lower: [number, number][] = [];
-          for (const p of sorted) {
-            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
-              lower.pop();
-            lower.push(p);
-          }
-          const upper: [number, number][] = [];
-          for (let i = sorted.length - 1; i >= 0; i--) {
-            const p = sorted[i];
-            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
-              upper.pop();
-            upper.push(p);
-          }
-          lower.pop(); upper.pop();
-          const hull = [...lower, ...upper];
-          if (hull.length > 0) hull.push(hull[0]);
-          return hull;
-        };
-
-        const holeRings: [number, number][][] = ringsOverlap
-          ? [ensureCW(convexHull(outerRings.flat()))]
-          : outerRings.map(ensureCW);
+        // Each territory ring becomes a CW hole in the spotlight mask so that
+        // MapLibre's nonzero winding rule punches through the dimming layer.
+        // Using individual holes (one per polygon) keeps each polygon's spotlight
+        // exact — no imaginary shapes connecting separate polygons.
+        const holeRings: [number, number][][] = outerRings.map(ensureCW);
 
         const maskGeo = {
           type: 'Feature',
