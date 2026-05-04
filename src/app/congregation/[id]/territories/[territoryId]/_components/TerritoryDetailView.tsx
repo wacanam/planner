@@ -227,6 +227,7 @@ export default function TerritoryDetailView() {
   const [drawRingCount, setDrawRingCount] = useState(0);
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
+  const [clearConfirmPending, setClearConfirmPending] = useState(false);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -337,15 +338,15 @@ export default function TerritoryDetailView() {
                     isDrawing={isDrawingBoundary}
                     drawMode={drawMode ?? 'add'}
                     initialDrawingRings={(() => {
-                      // In 'add' mode start with a blank canvas; in 'edit' mode load the existing boundary
-                      if (drawMode !== 'edit') return undefined;
+                      // Both 'add' and 'edit' mode start with the existing boundary rings.
+                      // In 'add' mode the user draws new polygons which are appended to the seeded set.
+                      // In 'edit' mode the user can drag existing vertex handles and tap edges to insert vertices.
                       if (!territory.boundary) return undefined;
                       try {
                         const geo = JSON.parse(territory.boundary);
                         const coords = geo?.coordinates;
                         if (!coords) return undefined;
                         if (geo.type === 'Polygon') {
-                          // Remove closing point
                           const ring = coords[0] as [number, number][];
                           return [ring.slice(0, -1)];
                         }
@@ -376,7 +377,7 @@ export default function TerritoryDetailView() {
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
-                              ? `✏️ Edit mode — drag vertex handles to reshape`
+                              ? `✏️ Drag handles to move · Tap edge to add vertex`
                               : drawActivePoints > 0
                               ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                               : drawRingCount > 0
@@ -528,20 +529,35 @@ export default function TerritoryDetailView() {
                     <Pencil className="w-4 h-4" />
                   </button>
                 )}
-                {/* Clear boundary */}
-                {territory.boundary && (
+                {/* Clear boundary — shows inline confirmation instead of window.confirm */}
+                {territory.boundary && !clearConfirmPending && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Clear this territory boundary? This cannot be undone.')) {
-                        handleClearBoundary();
-                      }
-                    }}
+                    onClick={() => setClearConfirmPending(true)}
                     title="Clear boundary"
                     className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+                )}
+                {territory.boundary && clearConfirmPending && (
+                  <div className="flex flex-col gap-1 p-2 rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800">
+                    <span className="text-xs text-red-600 dark:text-red-400 font-semibold px-0.5">Clear boundary?</span>
+                    <button
+                      type="button"
+                      onClick={() => { setClearConfirmPending(false); handleClearBoundary(); }}
+                      className="text-xs px-3 py-1 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClearConfirmPending(false)}
+                      className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
               </div>
             )}

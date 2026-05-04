@@ -211,6 +211,9 @@ export default function TerritoryMap({
   onDrawingStateChangeRef.current = onDrawingStateChange;
   const onDrawingActionsRef = useRef(onDrawingActions);
   onDrawingActionsRef.current = onDrawingActions;
+  // Keep a ref to isDrawing so non-reactive callbacks (boundary layer effect) can read it
+  const isDrawingRef = useRef(isDrawing);
+  isDrawingRef.current = isDrawing;
 
   // Expose imperative drawing actions to parent.
   // onDrawingActions is intentionally NOT in the dep array — we always read it
@@ -716,6 +719,16 @@ useEffect(() => {
   }
 }, [boundary, allBoundaries, mapReady, styleSeq]);
 
+// ── Hide/show stored boundary layers while in drawing mode ─────────────
+useEffect(() => {
+  const map = mapInstance.current;
+  if (!map || !mapReady) return;
+  const vis = isDrawing ? 'none' : 'visible';
+  for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+  }
+}, [isDrawing, mapReady]);
+
 // ── Household markers effect ──────────────────────────────────────────────
 // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
 useEffect(() => {
@@ -943,8 +956,8 @@ useEffect(() => {
       } else {
         map.doubleClickZoom.enable();
       }
-      // Seed rings from existing boundary — only in edit mode
-      if (drawMode === 'edit' && initialDrawingRings && initialDrawingRings.length > 0) {
+      // Seed rings from existing boundary — both in add and edit mode
+      if (initialDrawingRings && initialDrawingRings.length > 0) {
         setDrawRings(initialDrawingRings);
       }
     } else {
@@ -961,12 +974,67 @@ useEffect(() => {
       setActiveRing((prev) => [...prev, pt]);
     };
 
-    // ── Desktop: add point on click (add mode only; skip if vertex drag just ended) ──
+    // ── Edit mode: insert a new vertex on the nearest polygon edge ────────
+    const insertVertexOnEdge = (lngLat: { lng: number; lat: number }): boolean => {
+      const rings = drawRingsRef.current;
+      if (rings.length === 0) return false;
+
+      const clickPx = map.project([lngLat.lng, lngLat.lat]);
+      let bestRingIdx = -1;
+      let bestSegIdx = -1;
+      let bestDist = Infinity;
+      let bestPt: [number, number] | null = null;
+
+      for (let ri = 0; ri < rings.length; ri++) {
+        const ring = rings[ri];
+        const n = ring.length;
+        if (n < 2) continue;
+        for (let si = 0; si < n; si++) {
+          const a = map.project(ring[si]);
+          const b = map.project(ring[(si + 1) % n]);
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const lenSq = dx * dx + dy * dy;
+          let t = 0;
+          if (lenSq > 0) {
+            t = ((clickPx.x - a.x) * dx + (clickPx.y - a.y) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+          }
+          const cx = a.x + t * dx, cy = a.y + t * dy;
+          const dist = Math.sqrt((clickPx.x - cx) ** 2 + (clickPx.y - cy) ** 2);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestRingIdx = ri;
+            bestSegIdx = si;
+            const geo = map.unproject([cx, cy]);
+            bestPt = [geo.lng, geo.lat];
+          }
+        }
+      }
+
+      // Only insert if the tap is within 18 px of a polygon edge
+      if (bestRingIdx >= 0 && bestDist < 18 && bestPt !== null) {
+        setDrawRings((prev) =>
+          prev.map((r, ri) => {
+            if (ri !== bestRingIdx) return r;
+            const next = [...r];
+            next.splice(bestSegIdx + 1, 0, bestPt!);
+            return next;
+          })
+        );
+        return true;
+      }
+      return false;
+    };
+
+    // ── Desktop: add point on click (add mode) or insert vertex on edge (edit mode) ──
     const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      if (drawMode !== 'add') return;
       if ((e.originalEvent as any)?.pointerType === 'touch') return;
       if (dragJustEndedRef.current) return;
-      addPoint(e.lngLat);
+      if (drawMode === 'add') {
+        addPoint(e.lngLat);
+      } else if (drawMode === 'edit') {
+        insertVertexOnEdge(e.lngLat);
+      }
     };
 
     // ── Desktop: vertex drag ──────────────────────────────────────────────
@@ -1071,8 +1139,7 @@ useEffect(() => {
         map.dragPan.enable();          // restore map panning
         return;
       }
-      // Otherwise treat as a tap-to-add-point (add mode only; if it wasn't a pan)
-      if (drawMode !== 'add') return;
+      // Otherwise treat as a tap-to-add-point (add mode) or edge vertex insert (edit mode)
       const t = e.changedTouches[0];
       const dx = Math.abs(t.clientX - touchStartX);
       const dy = Math.abs(t.clientY - touchStartY);
@@ -1080,7 +1147,11 @@ useEffect(() => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
-      addPoint(lngLat);
+      if (drawMode === 'add') {
+        addPoint(lngLat);
+      } else if (drawMode === 'edit') {
+        insertVertexOnEdge(lngLat);
+      }
     };
 
     map.on('click', onDesktopClick);
