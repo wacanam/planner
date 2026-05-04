@@ -65,7 +65,7 @@ export function AddHouseholdSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-[1300] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[2050] flex flex-col justify-end">
       <button
         type="button"
         aria-label="Close sheet"

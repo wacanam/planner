@@ -4,13 +4,14 @@ import dynamic from 'next/dynamic';
 import { ChevronDown, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
@@ -42,12 +43,48 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
   const [pinMode, setPinMode] = useState(false);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
+  const [showAllPins, setShowAllPins] = useState(false);
 
-  const { data: householdsData } = useSWR(
-    territory.id ? `/api/households?territoryId=${territory.id}` : null,
-    (url: string) => apiClient.get<HouseholdsApiResponse>(url).then((r) => r.data),
+  // Load the FULL territory detail to get the boundary (the list API omits it)
+  const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
+
+  // Build boundary-filtered households API key (same pattern as TerritoryDetailView)
+  const boundaryStr = fullTerritory?.boundary ?? null;
+  const householdsKey = useMemo(() => {
+    if (!boundaryStr) return null;
+    try {
+      const geo = JSON.parse(boundaryStr);
+      const geoData = geo?.geometry ?? geo;
+      if (!geoData?.type || !geoData?.coordinates) return null;
+      return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}`;
+    } catch { return null; }
+  }, [boundaryStr]);
+
+  // All-pins fetch (no boundary filter) — only activate when toggle is on
+  const allPinsKey = showAllPins && !householdsKey ? '/api/households' : null;
+
+  const { data: boundaryHouseholdsData } = useSWR(
+    householdsKey,
+    (url: string) => apiClient.get<HouseholdMapItem[] | HouseholdsApiResponse>(url).then((r) => {
+      if (Array.isArray(r)) return r;
+      return (r as HouseholdsApiResponse).data ?? [];
+    }),
+    { revalidateOnFocus: false }
   );
-  const households: HouseholdMapItem[] = householdsData ?? [];
+  const { data: allPinsData } = useSWR(
+    allPinsKey,
+    (url: string) => apiClient.get<HouseholdMapItem[] | HouseholdsApiResponse>(url).then((r) => {
+      if (Array.isArray(r)) return r;
+      return (r as HouseholdsApiResponse).data ?? [];
+    }),
+    { revalidateOnFocus: false }
+  );
+
+  const households: HouseholdMapItem[] = (showAllPins
+    ? (allPinsData ?? boundaryHouseholdsData ?? [])
+    : (boundaryHouseholdsData ?? [])) as HouseholdMapItem[];
+
+  const householdsUrl = `/congregation/${congregationId}/records/households`;
 
   return (
     <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
@@ -59,6 +96,19 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Show all pins toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAllPins((v) => !v)}
+            className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+              showAllPins
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'text-muted-foreground border-border hover:border-primary/50'
+            }`}
+            title={showAllPins ? 'Showing all pins' : 'Showing pins in territory only'}
+          >
+            {showAllPins ? '📍 All' : '📍 In bounds'}
+          </button>
           {!pinMode && (
             <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setPinMode(true)}>
               <Plus size={12} />
@@ -80,21 +130,28 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           </button>
         </div>
       </div>
+
       <div className="flex-1 relative">
-        <TerritoryMap
-          boundary={territory.boundary}
-          households={households}
-          pinHouseholdMode={pinMode}
-          onHouseholdPinPlaced={(lat: number, lng: number) => {
-            setPendingPin({ lat, lng });
-            setPinMode(false);
-          }}
-          onHouseholdClick={(hh: { id: string }) => {
-            const found = households.find((h) => h.id === hh.id);
-            if (found) setSelectedHousehold(found);
-          }}
-          className="w-full h-full"
-        />
+        {territoryLoading ? (
+          <div className="w-full h-full bg-muted animate-pulse flex items-center justify-center">
+            <p className="text-sm text-muted-foreground">Loading map…</p>
+          </div>
+        ) : (
+          <TerritoryMap
+            boundary={fullTerritory?.boundary ?? territory.boundary}
+            households={households}
+            pinHouseholdMode={pinMode}
+            onHouseholdPinPlaced={(lat: number, lng: number) => {
+              setPendingPin({ lat, lng });
+              setPinMode(false);
+            }}
+            onHouseholdClick={(hh: { id: string }) => {
+              const found = households.find((h) => h.id === hh.id);
+              if (found) setSelectedHousehold(found);
+            }}
+            className="w-full h-full"
+          />
+        )}
       </div>
 
       {pendingPin && (
@@ -109,12 +166,17 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
       )}
 
       {selectedHousehold && (
-        <div className="fixed bottom-0 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3">
+        <div className="fixed bottom-16 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground">
                 {selectedHousehold.address ?? 'Unnamed household'}
               </p>
+              {(selectedHousehold.streetName || selectedHousehold.city) && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {[selectedHousehold.streetName, selectedHousehold.city].filter(Boolean).join(', ')}
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -126,21 +188,22 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           </div>
           <div className="flex gap-2">
             <Button asChild size="sm" className="flex-1">
-              <Link
-                href={`/congregation/${congregationId}/my-assignments/${territory.id}?householdId=${selectedHousehold.id}`}
-              >
+              <Link href={householdsUrl}>
                 <ClipboardList size={12} />
                 Log Visit
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="flex-1">
-              <Link href={`/records/households?householdId=${selectedHousehold.id}`}>
-                View Records
+              <Link href={householdsUrl}>
+                View Details
               </Link>
             </Button>
           </div>
         </div>
       )}
+
+      {/* Bottom tab bar persists inside full-screen overlay */}
+      <BottomTabBar congregationId={congregationId} />
     </div>
   );
 }
@@ -268,12 +331,6 @@ export default function MyAssignmentsClient() {
                   >
                     <MapPin size={12} />
                     View Map
-                  </Button>
-                  <Button asChild size="sm" className="flex-1">
-                    <Link href={`/congregation/${congregationId}/my-assignments/${t.id}`}>
-                      <ClipboardList size={12} />
-                      Log Visits
-                    </Link>
                   </Button>
                 </div>
               </div>
