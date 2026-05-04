@@ -1,8 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Users } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Trash2, Plus, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { useHouseholds, useMyEncounters } from '@/hooks';
 import { apiClient } from '@/lib/api-client';
-import { queueEncounter, registerVisitSync } from '@/lib/visits-store';
+import { queueEncounter, queueEncounterDelete, registerVisitSync } from '@/lib/visits-store';
 import { type RecordEncounterFormData, recordEncounterSchema } from '@/schemas/visit';
 import type { Household } from '@/types/api';
 
@@ -242,10 +242,102 @@ function LogEncounterDialog({ households, open, onOpenChange, onSaved }: LogEnco
   );
 }
 
+// ─── Swipe Card for Encounter ─────────────────────────────────────────────────
+
+interface EncounterSwipeCardProps {
+  isRevealed: boolean;
+  onSwipe: (revealed: boolean) => void;
+  onDelete: () => void;
+  deleting: boolean;
+  children: React.ReactNode;
+}
+
+function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children }: EncounterSwipeCardProps) {
+  const startXRef = useRef<number>(0);
+  const draggingRef = useRef(false);
+  const [offset, setOffset] = useState(0);
+  const ACTION_WIDTH = 72;
+  const THRESHOLD = 40;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    draggingRef.current = true;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!draggingRef.current) return;
+    const dx = startXRef.current - e.touches[0].clientX;
+    if (isRevealed) {
+      setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH + dx)));
+    } else {
+      setOffset(Math.max(0, Math.min(ACTION_WIDTH, dx)));
+    }
+  };
+
+  const onTouchEnd = () => {
+    draggingRef.current = false;
+    if (offset > THRESHOLD) {
+      setOffset(ACTION_WIDTH);
+      onSwipe(true);
+    } else {
+      setOffset(0);
+      if (isRevealed) onSwipe(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isRevealed) setOffset(0);
+    else setOffset(ACTION_WIDTH);
+  }, [isRevealed]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      <div className="absolute right-0 top-0 bottom-0 flex items-stretch" style={{ width: ACTION_WIDTH }}>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={onDelete}
+          className="flex flex-col items-center justify-center w-full bg-destructive text-destructive-foreground rounded-r-2xl text-xs font-medium gap-1 disabled:opacity-50"
+        >
+          {deleting ? <span>…</span> : <><Trash2 size={16} /><span>Delete</span></>}
+        </button>
+      </div>
+      <div
+        className="border border-border bg-card p-4 flex items-start justify-between gap-3"
+        style={{
+          transform: `translateX(-${offset}px)`,
+          transition: draggingRef.current ? 'none' : 'transform 0.2s ease',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function EncountersClient() {
   const { encounters, isLoading, error, mutate } = useMyEncounters();
   const { households } = useHouseholds();
   const [showLogDialog, setShowLogDialog] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [swipedId, setSwipedId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await queueEncounterDelete(id);
+      setDeletedIds((prev) => new Set(prev).add(id));
+      setSwipedId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const visibleEncounters = encounters.filter((e) => !deletedIds.has(e.id));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
@@ -269,7 +361,7 @@ export default function EncountersClient() {
             <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
           ))}
         </div>
-      ) : encounters.length === 0 ? (
+      ) : visibleEncounters.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Users size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No encounters logged yet.</p>
@@ -279,10 +371,13 @@ export default function EncountersClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {encounters.map((encounter) => (
-            <div
+          {visibleEncounters.map((encounter) => (
+            <EncounterSwipeCard
               key={encounter.id}
-              className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
+              isRevealed={swipedId === encounter.id}
+              onSwipe={(revealed) => setSwipedId(revealed ? encounter.id : null)}
+              onDelete={() => void handleDelete(encounter.id)}
+              deleting={deletingId === encounter.id}
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">
@@ -324,7 +419,7 @@ export default function EncountersClient() {
               <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
                 {responseLabels[encounter.response] ?? encounter.response}
               </Badge>
-            </div>
+            </EncounterSwipeCard>
           ))}
         </div>
       )}

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
 import useSWR, { mutate } from 'swr';
 import { apiClient } from '@/lib/api-client';
+import { queueHouseholdDelete } from '@/lib/visits-store';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
 import type { Territory } from '@/types/api';
 
@@ -81,9 +82,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
     setDeletingHouseholdId(id);
     setDeleteHouseholdError(false);
     try {
-      await apiClient.delete(`/api/households/${id}`);
+      await queueHouseholdDelete(id);
       setSelectedHousehold(null);
-      // Refresh household data
       void mutate(householdsKey);
       if (showAllPins) void mutate(allPinsKey);
     } catch {
@@ -126,8 +126,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}
-            onHouseholdClick={(hh: { id: string }) => {
-              const found = households.find((h) => h.id === hh.id);
+            onHouseholdClick={(id: string) => {
+              const found = households.find((h) => h.id === id);
               if (found) setSelectedHousehold(found);
             }}
             className="w-full h-full"
