@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql, and } from 'drizzle-orm';
-import { db, visits, territories, households, UserRole } from '@/db';
+import { eq, desc, sql, and, or, inArray } from 'drizzle-orm';
+import { db, visits, territories, households, territoryAssignments, UserRole } from '@/db';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
@@ -10,8 +10,10 @@ type RouteContext = { params: Promise<{ id: string }> };
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
 // GET /api/territories/:id/visits
-// Admins/SO see all visits; regular publishers see only their own.
-// Visits are scoped to households spatially within the territory (via the existing publisherId link).
+// Returns visits scoped to this territory:
+//   - visits whose assignmentId matches a territory_assignments record for this territory
+//   - visits whose assignmentId equals the territory ID directly (created from the My Assignments view)
+// RBAC: admins/SO see all; publishers see only their own.
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -23,7 +25,6 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
 
     const [territory] = await db
       .select({
-        publisherId: territories.publisherId,
         congregationId: territories.congregationId,
       })
       .from(territories)
@@ -39,17 +40,31 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
-    // Scope: admins see all; publishers see only their own visits
-    const whereConditions = [];
+    // Fetch assignment IDs for this territory to use as a safe parameterized filter
+    const assignmentRows = await db
+      .select({ id: territoryAssignments.id })
+      .from(territoryAssignments)
+      .where(eq(territoryAssignments.territoryId, territoryId));
+
+    const assignmentIds = assignmentRows.map((r) => r.id);
+
+    // Scope visits to this territory using two strategies:
+    // 1. Visits properly linked via territory_assignments (assignmentId = a territory_assignments.id)
+    // 2. Visits where assignmentId = territoryId directly (recorded from My Assignments list view,
+    //    where the territory ID is used as the assignment context)
+    // If no assignment records exist, only strategy 2 is applied; if neither matches, no results are returned.
+    const territoryScope =
+      assignmentIds.length > 0
+        ? or(inArray(visits.assignmentId, assignmentIds), eq(visits.assignmentId, territoryId))
+        : eq(visits.assignmentId, territoryId);
+
+    // RBAC: admins/SO see all visits for the territory; publishers see only their own.
+    // (The previous behaviour that filtered admin views to territory.publisherId's visits was incorrect —
+    // admins need full visibility regardless of who is assigned.)
+    const whereConditions = [territoryScope];
     if (!isAdmin) {
       whereConditions.push(eq(visits.userId, user.userId));
-    } else if (territory.publisherId) {
-      whereConditions.push(eq(visits.userId, territory.publisherId));
     }
-
-    // Filter to visits that belong to households in this territory
-    // We use assignmentId link as the primary scope if available, then fall back to publisherId filter
-    const baseWhere = whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
     const results = await db
       .select({
@@ -79,7 +94,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       })
       .from(visits)
       .innerJoin(households, eq(visits.householdId, households.id))
-      .where(baseWhere)
+      .where(and(...whereConditions))
       .orderBy(desc(visits.visitDate));
 
     return successResponse(results, undefined, 200, requestId);

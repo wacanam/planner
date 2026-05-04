@@ -1,6 +1,8 @@
 import { readFromIDB, useIDBStore } from '@/lib/idb-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
 import { useEffect, useState } from 'react';
+import useSWR, { type SWRConfiguration } from 'swr';
+import { apiClient } from '@/lib/api-client';
 import type { Visit, Household } from '@/types/api';
 
 function ensureArrayData<T>(value: unknown): T[] {
@@ -154,5 +156,28 @@ export function useHouseholds() {
       const merged = await mergePendingHouseholds(ensureArrayData<Household>(fresh));
       setHouseholds(merged);
     },
+  };
+}
+
+/**
+ * Fetch territory visits directly from the API using SWR.
+ * Properly scoped to the territory via territory_assignments joins.
+ * Replaces the IDB-cached useTerritoryVisits which was never populated.
+ */
+export function useTerritoryVisitsAPI(
+  territoryId: string | null,
+  options?: SWRConfiguration
+) {
+  const { data, error, isLoading, mutate } = useSWR<Visit[]>(
+    territoryId ? `/api/territories/${territoryId}/visits` : null,
+    (url: string) => apiClient.get<Visit[]>(url),
+    { revalidateOnFocus: false, ...options }
+  );
+  return {
+    visits: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+    dataSource: 'server' as 'server' | 'cache',
   };
 }

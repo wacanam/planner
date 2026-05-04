@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useHouseholds, useTerritoryDetail, useTerritoryVisits } from '@/hooks';
+import { useHouseholds, useTerritoryDetail, useTerritoryVisitsAPI } from '@/hooks';
 import { apiClient } from '@/lib/api-client';
 import {
   clearPendingHousehold,
@@ -897,7 +897,7 @@ export default function VisitsClient() {
     visits: serverVisits,
     isLoading: visitsLoading,
     dataSource: visitsSource,
-  } = useTerritoryVisits(territoryId ?? null);
+  } = useTerritoryVisitsAPI(territoryId ?? null);
 
   const [activeTab, setActiveTab] = useState<Tab>('households');
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
