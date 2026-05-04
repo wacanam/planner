@@ -268,29 +268,51 @@ export default function TerritoryMap({
       if (destroyed || !mapRef.current) return;
 
       const validPts = households.filter((h) => h.latitude && h.longitude);
-      let lng = center?.[1] ?? 124.85;
-      let lat = center?.[0] ?? 8.37;
-      const zoom = 14;
 
-      // Center on boundary if available
-      if (boundary) {
+      // Compute initial map view: fit to boundary bbox if available,
+      // otherwise center on households or fall back to default coords.
+      let mapInit: { center: [number, number]; zoom: number } | { bounds: [[number, number], [number, number]]; fitBoundsOptions: { padding: number; maxZoom: number } };
+
+      const boundaryBbox = (() => {
+        if (!boundary) return null;
         try {
           const geo = JSON.parse(boundary);
-          const coords: [number, number][] = geo?.geometry?.coordinates?.[0] ?? [];
-          if (coords.length) {
-            const lngs = coords.map(([x]) => x);
-            const lats = coords.map(([, y]) => y);
-            lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-            lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          const geoData = geo?.geometry ?? geo;
+          let allPts: [number, number][] = [];
+          if (geoData?.type === 'Polygon') {
+            allPts = (geoData.coordinates as [number, number][][]).flat();
+          } else if (geoData?.type === 'MultiPolygon') {
+            allPts = (geoData.coordinates as [number, number][][][]).flat(2);
           }
+          if (!allPts.length) return null;
+          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+          for (const [lng, lat] of allPts) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
+          return { minLng, maxLng, minLat, maxLat };
         } catch {
-          /* skip */
+          return null;
         }
-      } else if (validPts.length) {
-        const lats = validPts.map((h) => Number(h.latitude));
-        const lngs = validPts.map((h) => Number(h.longitude));
-        lat = (Math.min(...lats) + Math.max(...lats)) / 2;
-        lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+      })();
+
+      if (boundaryBbox) {
+        mapInit = {
+          bounds: [[boundaryBbox.minLng, boundaryBbox.minLat], [boundaryBbox.maxLng, boundaryBbox.maxLat]],
+          fitBoundsOptions: { padding: 48, maxZoom: 17 },
+        };
+      } else {
+        let lng = center?.[1] ?? 124.85;
+        let lat = center?.[0] ?? 8.37;
+        if (validPts.length) {
+          const lats = validPts.map((h) => Number(h.latitude));
+          const lngs = validPts.map((h) => Number(h.longitude));
+          lat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+        }
+        mapInit = { center: [lng, lat], zoom: 14 };
       }
 
       const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
@@ -298,8 +320,7 @@ export default function TerritoryMap({
       const map = new mgl.Map({
         container: mapRef.current as HTMLElement,
         style: style.url,
-        center: [lng, lat],
-        zoom,
+        ...mapInit,
         attributionControl: false,
       });
 
