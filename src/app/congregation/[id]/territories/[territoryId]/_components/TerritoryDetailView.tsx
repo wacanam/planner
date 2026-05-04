@@ -313,7 +313,7 @@ export default function TerritoryDetailView() {
                       setDrawRingCount(rings);
                       setDrawActivePoints(pts);
                     }}
-                    onDrawingActions={(actions) => {
+                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null }) => {
                       mapCloseRingRef.current = actions.closeRing;
                       mapUndoPointRef.current = actions.undoPoint;
                       mapGetGeoJSONRef.current = actions.getGeoJSON;
