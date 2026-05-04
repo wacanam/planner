@@ -285,11 +285,14 @@ export default function TerritoryDetailView() {
   const router = useRouter();
 
   // When a household pin is tapped, navigate to the active assignment visit log
-  // pre-selecting that household via query param
+  // pre-selecting that household via query param. Falls back to my-assignments
+  // list if no active assignment exists.
   const handleHouseholdClick = useCallback((householdId: string) => {
     const active = assignments.find((a) => a.status === 'active');
     if (active) {
       router.push(`/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`);
+    } else {
+      router.push(`/congregation/${congregationId}/my-assignments`);
     }
   }, [assignments, congregationId, router]);
 

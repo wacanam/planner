@@ -205,6 +205,8 @@ export default function TerritoryMap({
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
+  // Track the currently open household popup so only one is shown at a time
+  const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
 
   // ── Drawing state ─────────────────────────────────────────────────────────
   type LngLat = [number, number];
@@ -906,11 +908,15 @@ useEffect(() => {
                   }
                 })()
               : '';
-            const typeLabel = hType
-              ? hType.charAt(0).toUpperCase() + hType.slice(1).replace(/_/g, ' ')
-              : '';
             const trimmedNotes = notes?.trim() ?? '';
-            const notesSnippet = trimmedNotes.length > 60 ? trimmedNotes.slice(0, 60) + '\u2026' : trimmedNotes;
+            const notesSnippet = trimmedNotes.length > 80 ? trimmedNotes.slice(0, 80) + '\u2026' : trimmedNotes;
+
+            // Close any existing popup so only one is open at a time
+            if (activePopupRef.current) {
+              activePopupRef.current.remove();
+              activePopupRef.current = null;
+            }
+
             // Show popup — closeOnClick:false prevents the map's click handler
             // from immediately closing it after the marker tap is processed.
             const popup = new mgl.Popup({
@@ -918,34 +924,31 @@ useEffect(() => {
               closeOnClick: false,
               className: 'territory-popup',
               offset: [0, -38],
-              maxWidth: '240px',
+              maxWidth: '300px',
             })
               .setHTML(
                 [
-                  '<div style="padding:2px 0;font-family:inherit">',
+                  '<div style="padding:4px 2px;font-family:inherit;min-width:220px">',
                   // Address
-                  '<p style="font-weight:700;margin:0 0 6px;font-size:13px;line-height:1.35">',
+                  '<p style="font-weight:700;margin:0 0 8px;font-size:14px;line-height:1.4;color:#0f172a">',
                   escHtml(address),
                   '</p>',
-                  // Type + Status row
-                  '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">',
-                  typeLabel
-                    ? '<span style="display:inline-block;font-size:10px;padding:2px 7px;border-radius:9999px;background:#e2e8f0;color:#475569;font-weight:600;">' + escHtml(typeLabel) + '</span>'
-                    : '',
-                  '<span style="display:inline-block;font-size:10px;padding:2px 7px;border-radius:9999px;background:' +
+                  // Status badge
+                  '<div style="margin-bottom:8px">',
+                  '<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:9999px;background:' +
                     color + '22;color:' + color + ';text-transform:capitalize;font-weight:600;">' +
                     escHtml(fmtEnum(status)) + '</span>',
                   '</div>',
                   // Last visit
                   visitDateStr
-                    ? '<p style="margin:0 0 4px;font-size:11px;color:#64748b">' +
-                        '<span style="font-weight:600">Last visit:</span> ' + escHtml(visitDateStr) +
+                    ? '<p style="margin:0 0 6px;font-size:12px;color:#64748b">' +
+                        '<span style="font-weight:600;color:#475569">Last visit:</span> ' + escHtml(visitDateStr) +
                         (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(fmtEnum(lastVisitOutcome)) + '</span>' : '') +
                       '</p>'
                     : '',
                   // Notes
                   notesSnippet
-                    ? '<p style="margin:0 0 6px;font-size:11px;color:#64748b;font-style:italic">' + escHtml(notesSnippet) + '</p>'
+                    ? '<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">' + escHtml(notesSnippet) + '</p>'
                     : '',
                   // Log Visit button
                   onHClick
@@ -955,8 +958,8 @@ useEffect(() => {
                           "','" +
                           address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
                           '\')"',
-                        ' style="margin-top:4px;width:100%;padding:6px 0;background:' + color +
-                          ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                        ' style="margin-top:6px;width:100%;padding:9px 0;background:' + color +
+                          ';color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">',
                         'Log Visit</button>',
                       ].join('')
                     : '',
@@ -965,6 +968,11 @@ useEffect(() => {
               )
               .setLngLat([lng, lat])
               .addTo(m);
+
+            activePopupRef.current = popup;
+            popup.on('close', () => {
+              if (activePopupRef.current === popup) activePopupRef.current = null;
+            });
 
             if (onHClick) {
               (window as unknown as Record<string, unknown>).__mapLogVisit = (
@@ -1404,11 +1412,19 @@ useEffect(() => {
       <style>{`
         .maplibregl-canvas { outline: none; }
         .territory-popup .maplibregl-popup-content {
-          border-radius: 12px !important;
-          padding: 10px 12px !important;
-          box-shadow: 0 4px 16px rgba(0,0,0,.15) !important;
+          border-radius: 14px !important;
+          padding: 14px 16px !important;
+          box-shadow: 0 8px 28px rgba(0,0,0,.18) !important;
+          min-width: 220px !important;
         }
         .territory-popup .maplibregl-popup-tip { display: none; }
+        .territory-popup .maplibregl-popup-close-button {
+          font-size: 18px !important;
+          padding: 4px 8px !important;
+          color: #64748b !important;
+          top: 4px !important;
+          right: 4px !important;
+        }
         .maplibregl-div-icon { background: transparent !important; border: none !important; }
         /* Geolocate — translucent, navigation arrow icon */
         .maplibregl-ctrl-top-right .maplibregl-ctrl-group { background: transparent !important; border: none !important; box-shadow: none !important; }
