@@ -28,6 +28,9 @@ export interface HouseholdPoint {
   longitude?: string | null;
   status?: string | null;
   type?: string | null;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
+  notes?: string | null;
 }
 
 export type { StyleId };
@@ -114,6 +117,17 @@ const TYPE_SVG: Record<string, string> = {
 };
 const DEFAULT_SVG = TYPE_SVG.house;
 
+// ─── HTML escaping ────────────────────────────────────────────────────────────
+
+function escHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── Pin HTML builder ─────────────────────────────────────────────────────────
 
 function makePinHtml(
@@ -162,7 +176,7 @@ function makePinHtml(
     '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
     'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
     '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
-    truncated,
+    escHtml(truncated),
     '</div>',
     '</div>',
   ].join('');
@@ -771,7 +785,7 @@ useEffect(() => {
   import('maplibre-gl').then((mgl) => {
     if (!mapInstance.current) return;
 
-    const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
+    const index = new Supercluster<{ id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string }>({
       radius: 40,
       maxZoom: 18,
       minPoints: 2,
@@ -789,6 +803,9 @@ useEffect(() => {
           address: h.address,
           status: h.status ?? 'not_visited',
           type: h.type ?? 'house',
+          lastVisitDate: h.lastVisitDate ?? '',
+          lastVisitOutcome: h.lastVisitOutcome ?? '',
+          notes: h.notes ?? '',
         },
       }))
     );
@@ -842,7 +859,10 @@ useEffect(() => {
             address,
             status,
             type: hType,
-          } = props as { id: string; address: string; status: string; type: string };
+            lastVisitDate,
+            lastVisitOutcome,
+            notes,
+          } = props as { id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string };
           const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
           const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
           const label = address.split(' ').slice(0, 3).join(' ');
@@ -850,36 +870,63 @@ useEffect(() => {
 
           el.addEventListener('click', () => {
             const onHClick = onClickRef.current;
+            // Format last visit date
+            const visitDateStr = lastVisitDate
+              ? (() => {
+                  try {
+                    const d = new Date(lastVisitDate);
+                    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                  } catch { return ''; }
+                })()
+              : '';
+            const typeLabel = hType
+              ? hType.charAt(0).toUpperCase() + hType.slice(1).replace(/_/g, ' ')
+              : '';
+            const notesSnippet = notes && notes.length > 60 ? notes.slice(0, 60) + '\u2026' : notes;
             // Show popup
             const popup = new mgl.Popup({
-              closeButton: false,
+              closeButton: true,
               className: 'territory-popup',
               offset: [0, -30],
+              maxWidth: '220px',
             })
               .setHTML(
                 [
-                  '<div style="min-width:150px;padding:2px 0">',
-                  '<p style="font-weight:600;margin:0 0 4px;font-size:13px">',
-                  address,
+                  '<div style="padding:2px 0;font-family:inherit">',
+                  // Address
+                  '<p style="font-weight:700;margin:0 0 6px;font-size:13px;line-height:1.35">',
+                  escHtml(address),
                   '</p>',
-                  '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:9999px;',
-                  'background:',
-                  color,
-                  '22;color:',
-                  color,
-                  ';text-transform:capitalize;font-weight:600;">',
-                  status.replace(/_/g, ' '),
-                  '</span>',
+                  // Type + Status row
+                  '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">',
+                  typeLabel
+                    ? '<span style="display:inline-block;font-size:10px;padding:2px 7px;border-radius:9999px;background:#e2e8f0;color:#475569;font-weight:600;">' + escHtml(typeLabel) + '</span>'
+                    : '',
+                  '<span style="display:inline-block;font-size:10px;padding:2px 7px;border-radius:9999px;background:' +
+                    color + '22;color:' + color + ';text-transform:capitalize;font-weight:600;">' +
+                    escHtml(status.replace(/_/g, ' ')) + '</span>',
+                  '</div>',
+                  // Last visit
+                  visitDateStr
+                    ? '<p style="margin:0 0 4px;font-size:11px;color:#64748b">' +
+                        '<span style="font-weight:600">Last visit:</span> ' + escHtml(visitDateStr) +
+                        (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(lastVisitOutcome.replace(/_/g, ' ')) + '</span>' : '') +
+                      '</p>'
+                    : '',
+                  // Notes
+                  notesSnippet
+                    ? '<p style="margin:0 0 6px;font-size:11px;color:#64748b;font-style:italic">' + escHtml(notesSnippet) + '</p>'
+                    : '',
+                  // Log Visit button
                   onHClick
                     ? [
                         '<button onclick="window.__mapLogVisit(\'' +
-                          id +
+                          escHtml(id) +
                           "','" +
-                          address.replace(/'/g, "\\'") +
+                          escHtml(address).replace(/'/g, '&#39;') +
                           '\')"',
-                        ' style="margin-top:8px;width:100%;padding:5px 0;background:',
-                        color,
-                        ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
+                        ' style="margin-top:4px;width:100%;padding:6px 0;background:' + color +
+                          ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
                         'Log Visit</button>',
                       ].join('')
                     : '',
