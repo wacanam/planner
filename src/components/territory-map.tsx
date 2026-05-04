@@ -215,7 +215,8 @@ export default function TerritoryMap({
   // Expose imperative drawing actions to parent.
   // onDrawingActions is intentionally NOT in the dep array — we always read it
   // via the ref (kept current above), so the latest callback is always called
-  // without re-registering every time the parent re-renders.
+  // without re-running the effect each time the parent re-renders and the
+  // inline function prop gets a new identity (stable ref prevents churn).
   useEffect(() => {
     if (!isDrawing) return;
     onDrawingActionsRef.current?.({
@@ -240,7 +241,7 @@ export default function TerritoryMap({
         setActiveRing([]);
       },
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onDrawingActions omitted intentionally; latest value read via ref
   }, [isDrawing]);
 
   const [mapReady, setMapReady] = useState(false);
