@@ -156,7 +156,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
       )}
 
       {selectedHousehold && (
-        <div className="fixed bottom-16 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
+        <div className="fixed bottom-20 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground">
@@ -192,8 +192,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
         </div>
       )}
 
-      {/* Bottom tab bar persists inside full-screen overlay */}
-      <BottomTabBar congregationId={congregationId} />
+      {/* Bottom tab bar — inline (not fixed) so it always shows at the bottom of the overlay */}
+      <BottomTabBar congregationId={congregationId} inline />
     </div>
   );
 }
