@@ -896,6 +896,7 @@ export default function VisitsClient() {
     isLoading: boundaryHouseholdsLoading,
     hasBoundary,
     dataSource: boundarySource,
+    mutate: mutateBoundaryHouseholds,
   } = useTerritoryHouseholdsAPI(territory ?? null);
   const {
     households: cachedHouseholds,
@@ -912,6 +913,7 @@ export default function VisitsClient() {
     visits: serverVisits,
     isLoading: visitsLoading,
     dataSource: visitsSource,
+    mutate: mutateVisits,
   } = useTerritoryVisitsAPI(territoryId ?? null);
 
   const [activeTab, setActiveTab] = useState<Tab>('households');
@@ -942,6 +944,9 @@ export default function VisitsClient() {
       const { type, pendingId } = (event.data ?? {}) as { type?: string; pendingId?: string };
       if (type === 'VISIT_SYNCED' && pendingId) {
         setSyncedIds((prev) => new Set(prev).add(pendingId));
+        // Revalidate SWR so the freshly-synced visit appears from the server
+        // before we remove the pending entry from local state.
+        void mutateVisits();
         setTimeout(() => {
           void clearPendingVisit(pendingId).catch(console.error);
           setPendingVisits((prev) => prev.filter((v) => v.id !== pendingId));
@@ -954,6 +959,8 @@ export default function VisitsClient() {
       }
       if (type === 'HOUSEHOLD_SYNCED' && pendingId) {
         setSyncedIds((prev) => new Set(prev).add(pendingId));
+        // Revalidate boundary-scoped households so the newly-synced household appears.
+        if (hasBoundary) void mutateBoundaryHouseholds();
         setTimeout(() => {
           void clearPendingHousehold(pendingId).catch(console.error);
           setPendingHouseholds((prev) => prev.filter((h) => h.id !== pendingId));
@@ -963,6 +970,11 @@ export default function VisitsClient() {
             return s;
           });
         }, 2000);
+      }
+      if (type === 'CACHE_UPDATED') {
+        // Full sync completed — refresh both data sets
+        void mutateVisits();
+        if (hasBoundary) void mutateBoundaryHouseholds();
       }
     };
     navigator.serviceWorker.addEventListener('message', handler);
