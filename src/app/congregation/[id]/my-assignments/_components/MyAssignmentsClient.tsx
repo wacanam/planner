@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
