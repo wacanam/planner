@@ -211,9 +211,6 @@ export default function TerritoryMap({
   onDrawingStateChangeRef.current = onDrawingStateChange;
   const onDrawingActionsRef = useRef(onDrawingActions);
   onDrawingActionsRef.current = onDrawingActions;
-  // Keep a ref to isDrawing so non-reactive callbacks (boundary layer effect) can read it
-  const isDrawingRef = useRef(isDrawing);
-  isDrawingRef.current = isDrawing;
 
   // Expose imperative drawing actions to parent.
   // onDrawingActions is intentionally NOT in the dep array — we always read it
@@ -1013,11 +1010,12 @@ useEffect(() => {
 
       // Only insert if the tap is within 18 px of a polygon edge
       if (bestRingIdx >= 0 && bestDist < 18 && bestPt !== null) {
+        const insertPt = bestPt; // captured so TypeScript knows it's non-null inside the closure
         setDrawRings((prev) =>
           prev.map((r, ri) => {
             if (ri !== bestRingIdx) return r;
             const next = [...r];
-            next.splice(bestSegIdx + 1, 0, bestPt!);
+            next.splice(bestSegIdx + 1, 0, insertPt);
             return next;
           })
         );
