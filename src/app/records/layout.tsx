@@ -41,6 +41,7 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
         setPendingCount(total);
       } catch {
         // IndexedDB may be unavailable (private browsing, quota errors) — treat as zero pending
+        // Not logging to avoid console noise during normal offline/private browsing usage
       }
     };
 

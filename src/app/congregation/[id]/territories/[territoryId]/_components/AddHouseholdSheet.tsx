@@ -56,7 +56,8 @@ export function AddHouseholdSheet({
         onSuccess?.();
         onClose();
       }, 1200);
-    } catch {
+    } catch (err) {
+      console.error('[AddHouseholdSheet] Failed to queue household:', err);
       setError('Failed to queue household. Please try again.');
     } finally {
       setSubmitting(false);

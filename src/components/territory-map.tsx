@@ -1420,11 +1420,13 @@ useEffect(() => {
       pinMarkerRef.current?.remove();
       pinMarkerRef.current = null;
       setPendingPin(null);
+      // Only reset cursor if not in drawing mode (drawing mode manages its own cursor)
       if (!isDrawing) map.getCanvas().style.cursor = '';
       return;
     }
 
-    map.getCanvas().style.cursor = 'crosshair';
+    // Only set crosshair cursor if not in drawing mode (avoid conflicting cursor states)
+    if (!isDrawing) map.getCanvas().style.cursor = 'crosshair';
 
     const placePinAt = (lat: number, lng: number) => {
       setPendingPin([lat, lng]);
