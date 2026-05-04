@@ -296,7 +296,7 @@ export default function TerritoryDetailView() {
   return (
     <ProtectedPage congregationId={congregationId}>
       {loading ? (
-        <div className="max-w-2xl mx-auto w-full flex flex-col h-dvh overflow-hidden animate-pulse relative">
+        <div className="w-full flex flex-col h-dvh overflow-hidden animate-pulse relative">
           {/* Map area */}
           <div className="flex-1 bg-muted" />
           {/* Back button + title overlay */}
@@ -317,7 +317,7 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className={`min-w-0 w-full flex flex-col h-dvh overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000] max-w-none' : ' max-w-2xl mx-auto relative'}` }>
+        <main className={`min-w-0 w-full flex flex-col h-dvh overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000]' : ' relative'}` }>
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
@@ -642,7 +642,7 @@ export default function TerritoryDetailView() {
               if (!active) return null;
               return (
                 <div className="fixed bottom-0 left-0 right-0 z-[1100]">
-                  <div className="max-w-2xl mx-auto border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
+                  <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
