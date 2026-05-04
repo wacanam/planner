@@ -626,12 +626,29 @@ useEffect(() => {
       }
 
       if (outerRings.length > 0) {
+        // worldOuter is counterclockwise (right-hand rule, exterior).
+        // GeoJSON holes must be clockwise; ensure each inner ring is CW
+        // so that MapLibre's nonzero fill rule properly punches holes.
         const worldOuter: [number, number][] = [
           [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
         ];
+        const ringSignedArea = (ring: [number, number][]) => {
+          let s = 0;
+          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            s += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+          }
+          return s / 2;
+        };
+        // Positive signed area = CCW → reverse to CW for hole
+        const ensureCW = (ring: [number, number][]): [number, number][] =>
+          ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
+
         const maskGeo = {
           type: 'Feature',
-          geometry: { type: 'Polygon', coordinates: [worldOuter, ...outerRings] },
+          geometry: {
+            type: 'Polygon',
+            coordinates: [worldOuter, ...outerRings.map(ensureCW)],
+          },
           properties: {},
         };
         upsertSource('spotlight-mask', maskGeo);

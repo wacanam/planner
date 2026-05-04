@@ -27,10 +27,28 @@ export async function GET(req: NextRequest) {
 
     if (boundaryParam) {
       // ── Mode 1: exact polygon via PostGIS ST_Within ────────────────────
-      // GIST index on households.location makes this O(log n)
+      // GIST index on households.location makes this O(log n).
+      // When location is NULL (trigger migration not yet applied), fall back
+      // to constructing a Point from the latitude/longitude varchar columns.
       whereClause = drizzleSql`
         ST_Within(
-          ${households.location},
+          COALESCE(
+            ${households.location},
+            CASE
+              WHEN ${households.latitude}  IS NOT NULL
+               AND ${households.longitude} IS NOT NULL
+               AND ${households.latitude}  <> ''
+               AND ${households.longitude} <> ''
+              THEN ST_SetSRID(
+                ST_MakePoint(
+                  ${households.longitude}::numeric,
+                  ${households.latitude}::numeric
+                ),
+                4326
+              )
+              ELSE NULL
+            END
+          ),
           ST_GeomFromGeoJSON(${boundaryParam})
         )
       `;
