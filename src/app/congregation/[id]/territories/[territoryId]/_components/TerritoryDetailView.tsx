@@ -377,7 +377,7 @@ export default function TerritoryDetailView() {
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
-                              ? `✏️ Drag handles to move · Tap edge to add vertex`
+                              ? `✏️ Drag to move · Tap edge to add · Long-press to remove`
                               : drawActivePoints > 0
                               ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                               : drawRingCount > 0

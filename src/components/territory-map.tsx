@@ -205,6 +205,8 @@ export default function TerritoryMap({
   // Vertex drag state — shared between mousedown, mousemove, mouseup effects
   const dragVertexRef = useRef<{ ring: number; vertex: number } | null>(null);
   const dragJustEndedRef = useRef(false);
+  // Long-press vertex deletion (mobile)
+  const longPressHandledRef = useRef(false);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
   onDrawingCompleteRef.current = onDrawingComplete;
   const onDrawingStateChangeRef = useRef(onDrawingStateChange);
@@ -821,7 +823,7 @@ useEffect(() => {
     if (!mapInstance.current) return;
 
     const index = new Supercluster<{ id: string; address: string; status: string; type: string }>({
-      radius: 128,
+      radius: 40,
       maxZoom: 18,
       minPoints: 2,
     });
@@ -1102,6 +1104,21 @@ useEffect(() => {
       return false;
     };
 
+    // ── Edit mode: remove a vertex (ring must keep ≥ 3 vertices) ──────────
+    const removeVertex = (ringIdx: number, vertexIdx: number) => {
+      type LngLatPair = [number, number];
+      setDrawRings((prev: LngLatPair[][]) =>
+        prev
+          .map((r: LngLatPair[], ri: number): LngLatPair[] | null => {
+            if (ri !== ringIdx) return r;
+            // Keep the ring only if it will still have ≥ 3 vertices after removal
+            if (r.length <= 3) return null;
+            return r.filter((_: LngLatPair, vi: number) => vi !== vertexIdx);
+          })
+          .filter((r: LngLatPair[] | null): r is LngLatPair[] => r !== null)
+      );
+    };
+
     // ── Desktop: add point on click (add mode) or insert vertex on edge (edit mode) ──
     const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
       if ((e.originalEvent as any)?.pointerType === 'touch') return;
@@ -1111,6 +1128,22 @@ useEffect(() => {
       } else if (drawMode === 'edit') {
         insertVertexOnEdge(e.lngLat);
       }
+    };
+
+    // ── Desktop: right-click on a vertex handle to delete it (edit mode) ──
+    const onContextMenu = (e: MouseEvent) => {
+      if (drawMode !== 'edit') return;
+      // Prevent the browser context menu from appearing in edit mode
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
+      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
+      if (features.length === 0) return;
+      const props = features[0].properties as Record<string, unknown>;
+      const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+      const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+      if (ringIdx < 0 || vertexIdx < 0) return;
+      removeVertex(ringIdx, vertexIdx);
     };
 
     // ── Desktop: vertex drag ──────────────────────────────────────────────
@@ -1174,6 +1207,13 @@ useEffect(() => {
     // ── Mobile: touch start (detect vertex) / move (drag vertex) / end (add point) ─
     const canvas = map.getCanvas();
     let touchStartX = 0, touchStartY = 0;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelLongPress = () => {
+      if (longPressTimer !== null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
     const onTouchStart = (e: TouchEvent) => {
       touchStartX = e.changedTouches[0].clientX;
       touchStartY = e.changedTouches[0].clientY;
@@ -1193,9 +1233,24 @@ useEffect(() => {
         // prevents MapLibre from panning on touchmove.
         canvas.style.touchAction = 'none';
         map.dragPan.disable();
+        // Long-press (500 ms without move) → delete the vertex (edit mode only)
+        if (drawMode === 'edit') {
+          longPressTimer = setTimeout(() => {
+            longPressTimer = null;
+            if (dragVertexRef.current && dragVertexRef.current.ring === ringIdx && dragVertexRef.current.vertex === vertexIdx) {
+              removeVertex(ringIdx, vertexIdx);
+              longPressHandledRef.current = true;
+              dragVertexRef.current = null;
+              canvas.style.touchAction = '';
+              map.dragPan.enable();
+            }
+          }, 500);
+        }
       }
     };
     const onTouchMove = (e: TouchEvent) => {
+      // Cancel long-press if the finger moved
+      cancelLongPress();
       if (!dragVertexRef.current) return;
       // touch-action: none (set in onTouchStart) prevents scroll; no need to call e.preventDefault()
       const t = e.changedTouches[0];
@@ -1208,6 +1263,12 @@ useEffect(() => {
       );
     };
     const onTouchEnd = (e: TouchEvent) => {
+      cancelLongPress();
+      // If long-press deletion was handled, skip everything
+      if (longPressHandledRef.current) {
+        longPressHandledRef.current = false;
+        return;
+      }
       // If dragging a vertex, finalize — do NOT add a new point
       if (dragVertexRef.current) {
         dragVertexRef.current = null;
@@ -1235,6 +1296,7 @@ useEffect(() => {
     // internal dragPan mousedown handler — this lets us call
     // map.dragPan.disable() before MapLibre begins tracking a pan.
     canvas.addEventListener('mousedown', onCanvasMouseDown, { capture: true });
+    canvas.addEventListener('contextmenu', onContextMenu);
     map.on('mousemove', onMouseMove);
     map.on('mouseup', onMouseUp);
     canvas.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -1242,16 +1304,19 @@ useEffect(() => {
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 
     return () => {
+      cancelLongPress();
       // Cancel pending rAFs before they fire (prevents rAF2 from being scheduled)
       cancelAnimationFrame(suppressClickRaf1);
       cancelAnimationFrame(suppressClickRaf2);
       dragJustEndedRef.current = false; // immediate reset if cleanup runs mid-drag
+      longPressHandledRef.current = false;
       if (dragVertexRef.current) {
         map.dragPan.enable(); // safety-net: restore pan if effect tears down mid-drag
         dragVertexRef.current = null;
       }
       map.off('click', onDesktopClick);
       canvas.removeEventListener('mousedown', onCanvasMouseDown, { capture: true });
+      canvas.removeEventListener('contextmenu', onContextMenu);
       map.off('mousemove', onMouseMove);
       map.off('mouseup', onMouseUp);
       canvas.removeEventListener('touchstart', onTouchStart);
