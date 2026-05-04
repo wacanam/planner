@@ -23,6 +23,10 @@ export function BottomTabBar({ congregationId }: BottomTabBarProps) {
 
   if (!user) return null;
 
+  // Hide on territory detail map pages (e.g. /congregation/[id]/territories/[territoryId])
+  // but keep visible on the territories list page (/congregation/[id]/territories)
+  if (/\/territories\/[^/]+$/.test(pathname)) return null;
+
   let tabs: TabItem[] = [];
 
   if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {

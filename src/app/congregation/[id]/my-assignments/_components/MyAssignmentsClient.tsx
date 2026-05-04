@@ -1,10 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
@@ -35,7 +36,6 @@ interface InlineMapViewProps {
 }
 
 function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProps) {
-  const [pinMode, setPinMode] = useState(false);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
@@ -75,8 +75,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
 
   const householdsUrl = `/congregation/${congregationId}/records/households`;
 
-  return (
-    <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
+  return createPortal(
+    <div className="fixed inset-0 z-[9000] bg-background flex flex-col">
       {/* Simplified header — title + close only */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
         <div className="min-w-0">
@@ -104,10 +104,9 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           <TerritoryMap
             boundary={fullTerritory?.boundary ?? territory.boundary}
             households={households}
-            pinHouseholdMode={pinMode}
+            pinHouseholdMode={true}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
-              setPinMode(false);
             }}
             onHouseholdClick={(hh: { id: string }) => {
               const found = households.find((h) => h.id === hh.id);
@@ -117,7 +116,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           />
         )}
 
-        {/* Show all pins — checkbox overlay (bottom-left) */}
+        {/* Show all Household — checkbox overlay (bottom-left) */}
         <label htmlFor="show-all-pins" className="absolute bottom-4 left-4 z-10 flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none">
           <input
             id="show-all-pins"
@@ -126,29 +125,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             onChange={(e) => setShowAllPins(e.target.checked)}
             className="w-3.5 h-3.5 rounded accent-primary"
           />
-          Show all pins
+          Show all Households
         </label>
-
-        {/* Add HH / Cancel pin mode — FAB (bottom-right) */}
-        {!pinMode ? (
-          <button
-            type="button"
-            onClick={() => setPinMode(true)}
-            className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-primary text-primary-foreground rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold"
-          >
-            <Plus size={16} />
-            Add HH
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPinMode(false)}
-            className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-destructive text-destructive-foreground rounded-full px-4 py-2.5 shadow-lg text-sm font-semibold"
-          >
-            <X size={16} />
-            Cancel
-          </button>
-        )}
       </div>
 
       {pendingPin && (
@@ -163,7 +141,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
       )}
 
       {selectedHousehold && (
-        <div className="fixed bottom-4 inset-x-0 z-[2100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
+        <div className="fixed bottom-4 inset-x-0 z-[9100] bg-background border-t rounded-t-2xl p-5 space-y-3 shadow-2xl">
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground">
@@ -199,7 +177,8 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
         </div>
       )}
 
-    </div>
+    </div>,
+    document.body
   );
 }
 

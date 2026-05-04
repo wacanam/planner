@@ -1411,22 +1411,23 @@ useEffect(() => {
     prevIsDrawing.current = isDrawing;
   }, [isDrawing]);
 
-  // ─── Pin household mode: tap map to drop a pin ───────────────────────────
+  // ─── Pin household mode: long-press map to drop a pin ────────────────────
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
 
-    if (!pinHouseholdMode) {
+    if (!pinHouseholdMode || isDrawing) {
       pinMarkerRef.current?.remove();
       pinMarkerRef.current = null;
       setPendingPin(null);
-      // Only reset cursor if not in drawing mode (drawing mode manages its own cursor)
       if (!isDrawing) map.getCanvas().style.cursor = '';
       return;
     }
 
-    // Only set crosshair cursor if not in drawing mode (avoid conflicting cursor states)
-    if (!isDrawing) map.getCanvas().style.cursor = 'crosshair';
+    const LONG_PRESS_DURATION_MS = 600;
+    const PRESS_MOVEMENT_THRESHOLD = 10;
+
+    const canvas = map.getCanvas();
 
     const placePinAt = (lat: number, lng: number) => {
       setPendingPin([lat, lng]);
@@ -1464,41 +1465,63 @@ useEffect(() => {
       }
     };
 
-    const handleClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      // Skip synthesised click events from touch — touch is handled by touchend below
-      const origEvent = e.originalEvent;
-      if (origEvent && 'pointerType' in origEvent && (origEvent as PointerEvent).pointerType === 'touch') return;
-      placePinAt(e.lngLat.lat, e.lngLat.lng);
+    // ── Long-press to drop a pin ───────────────────────────────────────────
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let pressStartX = 0;
+    let pressStartY = 0;
+
+    const cancelPress = () => {
+      if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null; }
     };
 
-    const canvas = map.getCanvas();
-    let pinTouchStartX = 0;
-    let pinTouchStartY = 0;
+    const startPress = (clientX: number, clientY: number) => {
+      pressStartX = clientX;
+      pressStartY = clientY;
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        const rect = canvas.getBoundingClientRect();
+        const lngLat = map.unproject([pressStartX - rect.left, pressStartY - rect.top]);
+        placePinAt(lngLat.lat, lngLat.lng);
+      }, LONG_PRESS_DURATION_MS);
+    };
+
+    // Touch (mobile)
     const handleTouchStart = (e: TouchEvent) => {
-      pinTouchStartX = e.changedTouches[0].clientX;
-      pinTouchStartY = e.changedTouches[0].clientY;
-    };
-    const handleTouchEnd = (e: TouchEvent) => {
       const t = e.changedTouches[0];
-      if (
-        Math.abs(t.clientX - pinTouchStartX) > 10 ||
-        Math.abs(t.clientY - pinTouchStartY) > 10
-      )
-        return;
-      const rect = canvas.getBoundingClientRect();
-      const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
-      placePinAt(lngLat.lat, lngLat.lng);
+      startPress(t.clientX, t.clientY);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (Math.abs(t.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(t.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
+    };
+    const handleTouchEnd = () => cancelPress();
+
+    // Mouse (desktop)
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      startPress(e.clientX, e.clientY);
+    };
+    const handleMouseUp = () => cancelPress();
+    const handleMouseMove = (e: MouseEvent) => {
+      if (Math.abs(e.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(e.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
     };
 
-    map.on('click', handleClick);
     canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mousemove', handleMouseMove);
 
     return () => {
-      map.off('click', handleClick);
+      cancelPress();
       canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchend', handleTouchEnd);
-      if (!isDrawing) map.getCanvas().style.cursor = '';
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      map.getCanvas().style.cursor = '';
     };
   }, [pinHouseholdMode, mapReady, isDrawing]);
 
@@ -1561,10 +1584,10 @@ useEffect(() => {
         </div>
       )}
 
-      {pinHouseholdMode && !pendingPin && (
-        <div className="absolute top-4 inset-x-0 flex justify-center z-[100] pointer-events-none">
+      {pinHouseholdMode && !pendingPin && !isDrawing && (
+        <div className="absolute bottom-6 inset-x-0 flex justify-center z-[100] pointer-events-none">
           <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
-            Tap map to place pin
+            Hold map to add a household
           </div>
         </div>
       )}
