@@ -1,6 +1,6 @@
 import { readFromIDB, useIDBStore } from '@/lib/idb-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR, { type SWRConfiguration } from 'swr';
 import { apiClient } from '@/lib/api-client';
 import type { Visit, Household } from '@/types/api';
@@ -179,5 +179,50 @@ export function useTerritoryVisitsAPI(
     error: error?.message ?? null,
     mutate,
     dataSource: 'server' as 'server' | 'cache',
+  };
+}
+
+/**
+ * Fetch households for a specific territory using its boundary GeoJSON (SWR/API).
+ *
+ * Derives the API URL from the territory's boundary polygon so only households
+ * spatially within that boundary are returned — keeping the Doors tab in sync
+ * with what the Visits API already scopes to.
+ *
+ * Returns `hasBoundary: false` when the territory has no boundary, allowing
+ * the caller to fall back to the IDB-cached useHouseholds() for offline support.
+ */
+export function useTerritoryHouseholdsAPI(
+  territory: { boundary?: string | null } | null,
+  options?: SWRConfiguration
+) {
+  const apiUrl = useMemo(() => {
+    if (!territory?.boundary) return null;
+    try {
+      const geo = JSON.parse(territory.boundary) as Record<string, unknown>;
+      // Boundary is stored as a GeoJSON Feature — the inner Geometry is required.
+      // If it's missing the boundary is malformed; return null to avoid a bad API call.
+      if (!geo.geometry) return null;
+      const geomStr = JSON.stringify(geo.geometry);
+      return `/api/households?boundary=${encodeURIComponent(geomStr)}`;
+    } catch (err) {
+      console.warn('[useTerritoryHouseholdsAPI] Failed to parse territory boundary:', err);
+      return null;
+    }
+  }, [territory?.boundary]);
+
+  const { data, error, isLoading, mutate } = useSWR<Household[]>(
+    apiUrl,
+    (url: string) => apiClient.get<Household[]>(url),
+    { revalidateOnFocus: false, ...options }
+  );
+
+  return {
+    households: data ?? [],
+    isLoading,
+    error: error?.message ?? null,
+    mutate,
+    hasBoundary: apiUrl !== null,
+    dataSource: (apiUrl !== null ? 'server' : 'cache') as 'server' | 'cache',
   };
 }

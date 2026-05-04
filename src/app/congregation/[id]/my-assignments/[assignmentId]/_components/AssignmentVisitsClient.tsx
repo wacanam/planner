@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useHouseholds, useTerritoryDetail, useTerritoryVisitsAPI } from '@/hooks';
+import { useHouseholds, useTerritoryDetail, useTerritoryHouseholdsAPI, useTerritoryVisitsAPI } from '@/hooks';
 import { apiClient } from '@/lib/api-client';
 import {
   clearPendingHousehold,
@@ -888,11 +888,26 @@ export default function VisitsClient() {
   const territoryId = assignmentId ?? null;
 
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId ?? null);
+
+  // Fetch territory-specific households using the boundary polygon (same source as Visits API).
+  // Falls back to the full IDB cache when the territory has no boundary.
   const {
-    households: serverHouseholds,
-    isLoading: householdsLoading,
-    dataSource: householdsSource,
+    households: boundaryHouseholds,
+    isLoading: boundaryHouseholdsLoading,
+    hasBoundary,
+    dataSource: boundarySource,
+  } = useTerritoryHouseholdsAPI(territory ?? null);
+  const {
+    households: cachedHouseholds,
+    isLoading: cachedHouseholdsLoading,
+    dataSource: cachedSource,
   } = useHouseholds();
+
+  // Use boundary-scoped households when available; otherwise fall back to all cached
+  const serverHouseholds = hasBoundary ? boundaryHouseholds : cachedHouseholds;
+  const householdsLoading = hasBoundary ? boundaryHouseholdsLoading : cachedHouseholdsLoading;
+  const householdsSource = hasBoundary ? boundarySource : cachedSource;
+
   const {
     visits: serverVisits,
     isLoading: visitsLoading,
