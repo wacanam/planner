@@ -655,20 +655,48 @@ useEffect(() => {
         const ensureCW = (ring: [number, number][]): [number, number][] =>
           ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
 
-        const maskGeo = {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [worldOuter, ...outerRings.map(ensureCW)],
-          },
-          properties: {},
-        };
-        upsertSource('spotlight-mask', maskGeo);
-        if (!map.getLayer('spotlight-fill')) {
-          map.addLayer({
-            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
-            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-          });
+        // Detect whether any pair of rings' bounding boxes overlap.
+        // When two CW holes overlap inside the spotlight Polygon, MapLibre's
+        // nonzero winding rule darkens the intersection again (+1 outer –1 –1 = –1).
+        // We avoid this by skipping the spotlight when rings overlap; the blue
+        // fill + outline still marks the territory clearly.
+        const ringBbox = (r: [number, number][]) => ({
+          minLng: Math.min(...r.map((p) => p[0])),
+          maxLng: Math.max(...r.map((p) => p[0])),
+          minLat: Math.min(...r.map((p) => p[1])),
+          maxLat: Math.max(...r.map((p) => p[1])),
+        });
+        const bboxes = outerRings.map(ringBbox);
+        const ringsOverlap = bboxes.some((a, i) =>
+          bboxes.some(
+            (b, j) =>
+              i < j &&
+              a.minLng < b.maxLng && a.maxLng > b.minLng &&
+              a.minLat < b.maxLat && a.maxLat > b.minLat,
+          ),
+        );
+
+        if (!ringsOverlap) {
+          const maskGeo = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [worldOuter, ...outerRings.map(ensureCW)],
+            },
+            properties: {},
+          };
+          upsertSource('spotlight-mask', maskGeo);
+          if (!map.getLayer('spotlight-fill')) {
+            map.addLayer({
+              id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
+              paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+            });
+          }
+        } else {
+          // Overlapping rings — remove the spotlight to avoid the winding-rule
+          // shadow at the intersection; the blue fill/outline still shows the boundary.
+          if (map.getLayer('spotlight-fill')) map.removeLayer('spotlight-fill');
+          if (map.getSource('spotlight-mask')) map.removeSource('spotlight-mask');
         }
       }
 
