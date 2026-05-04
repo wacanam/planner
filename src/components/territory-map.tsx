@@ -45,7 +45,7 @@ export interface TerritoryMapProps {
   isDrawing?: boolean;
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
   onDrawingStateChange?: (rings: number, activePoints: number) => void;
-  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void }) => void;
+  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null }) => void;
   // Pre-seed drawing with existing boundary rings for editing
   initialDrawingRings?: [number, number][][];
   // Location / calibration (kept for callers)
@@ -218,6 +218,13 @@ export default function TerritoryMap({
       },
       undoPoint: () => {
         setActiveRing((prev) => prev.slice(0, -1));
+      },
+      getGeoJSON: () => {
+        const rings = drawRingsRef.current;
+        if (rings.length === 0) return null;
+        return rings.length === 1
+          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
       },
     });
   }, [isDrawing]);

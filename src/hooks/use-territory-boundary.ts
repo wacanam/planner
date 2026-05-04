@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { apiClient } from '@/lib/api-client';
 
 /**
  * GeoJSON Polygon or MultiPolygon geometry
@@ -59,22 +60,10 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
     setError(null);
 
     try {
-      const response = await fetch(`/api/territories/${territoryId}/boundary`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const data = await apiClient.get<{ id: string; boundary: GeoJSONGeometry | null }>(
+        `/api/territories/${territoryId}/boundary`
+      );
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          // No boundary yet, that's fine
-          setBoundary(null);
-          return;
-        }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
       if (data.boundary) {
         // Validate boundary structure
         if (validateGeoJSON(data.boundary)) {
@@ -83,11 +72,19 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
           setError('Invalid boundary data received from server');
           console.warn('[useTerritoryBoundary] Invalid GeoJSON:', data.boundary);
         }
+      } else {
+        setBoundary(null);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(`Failed to fetch boundary: ${message}`);
-      console.error('[useTerritoryBoundary] Fetch error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      // "Not found" means the territory exists but has no boundary yet — treat as empty
+      if (message.toLowerCase().includes('not found')) {
+        setBoundary(null);
+      } else {
+        // Surface unexpected errors (network failures, server errors, etc.)
+        setError(`Failed to fetch boundary: ${message}`);
+        console.error('[useTerritoryBoundary] Fetch error:', err);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -110,19 +107,11 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
       setError(null);
 
       try {
-        const response = await fetch(`/api/territories/${territoryId}/boundary`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ boundary: newBoundary }),
-        });
+        const data = await apiClient.put<{ id: string; boundary: GeoJSONGeometry | null; updatedAt: unknown }>(
+          `/api/territories/${territoryId}/boundary`,
+          { boundary: newBoundary }
+        );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const message = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-          throw new Error(message);
-        }
-
-        const data = await response.json();
         if (data.boundary && validateGeoJSON(data.boundary)) {
           setBoundary(data.boundary);
         }

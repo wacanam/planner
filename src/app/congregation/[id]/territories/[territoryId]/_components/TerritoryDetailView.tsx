@@ -14,7 +14,7 @@ import { apiClient } from '@/lib/api-client';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 
-import { useTerritoryBoundary } from '@/hooks/use-territory-boundary';
+import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
 // Dynamic import — Leaflet requires browser APIs
 // biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -194,11 +194,34 @@ export default function TerritoryDetailView() {
   const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
   const [drawRingCount, setDrawRingCount] = useState(0);
   const [drawActivePoints, setDrawActivePoints] = useState(0);
+  const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
   const { saveBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
-  // Exposed callbacks from map for closing ring and undoing
+  // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
   const mapUndoPointRef = useRef<(() => void) | null>(null);
+  const mapGetGeoJSONRef = useRef<(() => { type: string; coordinates: unknown } | null) | null>(null);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
+
+  const handleSaveBoundary = React.useCallback(async () => {
+    const geojson = mapGetGeoJSONRef.current?.();
+    if (!geojson || !validateGeoJSON(geojson)) {
+      setDrawSaveError('Invalid boundary geometry — please redraw the polygon');
+      return;
+    }
+    setDrawSaveError(null);
+    try {
+      await saveBoundary(territoryId, geojson as GeoJSONGeometry);
+      await mutateTerritory();
+      setIsDrawingBoundary(false);
+    } catch (err) {
+      setDrawSaveError(err instanceof Error ? err.message : 'Failed to save boundary');
+    }
+  }, [saveBoundary, territoryId, mutateTerritory]);
+
+  const handleCancelDrawing = React.useCallback(() => {
+    setIsDrawingBoundary(false);
+    setDrawSaveError(null);
+  }, []);
 
   // Auto-switch map style when dark mode toggles
   React.useEffect(() => {
@@ -290,18 +313,10 @@ export default function TerritoryDetailView() {
                       setDrawRingCount(rings);
                       setDrawActivePoints(pts);
                     }}
-                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void }) => {
+                    onDrawingActions={(actions) => {
                       mapCloseRingRef.current = actions.closeRing;
                       mapUndoPointRef.current = actions.undoPoint;
-                    }}
-                    onDrawingComplete={async (geojson: { type: string; coordinates: unknown }) => {
-                      try {
-                        await saveBoundary(territoryId, geojson as any);
-                        await mutateTerritory(); // refresh territory.boundary
-                        setIsDrawingBoundary(false);
-                      } catch {
-                        // error handled by hook
-                      }
+                      mapGetGeoJSONRef.current = actions.getGeoJSON;
                     }}
                     className="h-full"
                   />
@@ -310,36 +325,43 @@ export default function TerritoryDetailView() {
                   {isDrawingBoundary && (
                     <>
                       {/* Top status bar */}
-                      <div className="absolute top-0 inset-x-0 z-[1100] flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white pointer-events-auto">
-                        <span className="text-xs font-semibold truncate">
-                          {drawActivePoints > 0
-                            ? `📍 ${drawActivePoints} pts — tap ✓ to close`
-                            : drawRingCount > 0
-                            ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — tap Save`
-                            : '✏️ Tap on map to add points'}
-                        </span>
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          {isSavingBoundary ? (
-                            <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
-                          ) : (
-                            drawRingCount > 0 && drawActivePoints === 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setIsDrawingBoundary(false)}
-                                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
-                              >
-                                <Save className="w-3 h-3" /> Save
-                              </button>
-                            )
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setIsDrawingBoundary(false)}
-                            className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
-                          >
-                            Cancel
-                          </button>
+                      <div className="absolute top-0 inset-x-0 z-[1100] flex flex-col pointer-events-auto">
+                        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
+                          <span className="text-xs font-semibold truncate">
+                            {drawActivePoints > 0
+                              ? `📍 ${drawActivePoints} pts — tap ✓ to close`
+                              : drawRingCount > 0
+                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — tap Save`
+                              : '✏️ Tap on map to add points'}
+                          </span>
+                          <div className="flex gap-1.5 flex-shrink-0">
+                            {isSavingBoundary ? (
+                              <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
+                            ) : (
+                              drawRingCount > 0 && drawActivePoints === 0 && (
+                                <button
+                                  type="button"
+                                  onClick={handleSaveBoundary}
+                                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-green-500 hover:bg-green-600 font-semibold"
+                                >
+                                  <Save className="w-3 h-3" /> Save
+                                </button>
+                              )
+                            )}
+                            <button
+                              type="button"
+                              onClick={handleCancelDrawing}
+                              className="text-xs px-2.5 py-1 rounded-md bg-white/20 hover:bg-white/30 font-medium"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
+                        {drawSaveError && (
+                          <div className="px-3 py-1.5 bg-red-600/90 text-white text-xs font-medium">
+                            ⚠️ {drawSaveError}
+                          </div>
+                        )}
                       </div>
 
                       {/* Right-side floating action buttons */}
