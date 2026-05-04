@@ -165,7 +165,7 @@ export default function TerritoryDetailView() {
       globalRole === UserRole.SERVICE_OVERSEER ||
       globalRole === UserRole.TERRITORY_SERVANT
     ) return true;
-    const me = members.find((m) =>
+    const me = members?.find((m) =>
       m.userId === sessionUser.id || m.user?.id === sessionUser.id
     );
     return (

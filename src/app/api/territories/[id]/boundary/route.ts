@@ -32,9 +32,9 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
     if (!territory) return ApiErrors.notFound('Territory', requestId);
 
-    // Authorization: global admins always pass; for everyone else check congregation role.
-    // SO/TS roles are congregation-scoped (congregationMembers.congregationRole), not global.
-    if (!GLOBAL_ADMIN_ROLES.includes(user.role) && user.role !== UserRole.SERVICE_OVERSEER && user.role !== UserRole.TERRITORY_SERVANT) {
+    // Authorization: global admins always pass.
+    if (!GLOBAL_ADMIN_ROLES.includes(user.role)) {
+      // Non-global-admin: fetch this user's congregation membership.
       const [member] = await db
         .select()
         .from(congregationMembers)
@@ -47,29 +47,22 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
         )
         .limit(1);
 
-      const allowed =
-        member?.congregationRole === CongregationRole.SERVICE_OVERSEER ||
-        member?.congregationRole === CongregationRole.TERRITORY_SERVANT;
-
-      if (!allowed) {
-        return ApiErrors.forbidden('Only admins and territory managers can edit boundaries', requestId);
-      }
-    } else if (!GLOBAL_ADMIN_ROLES.includes(user.role)) {
-      // Global SO/TS role — still verify they belong to this congregation
-      const [member] = await db
-        .select({ id: congregationMembers.id })
-        .from(congregationMembers)
-        .where(
-          and(
-            eq(congregationMembers.userId, user.userId),
-            eq(congregationMembers.congregationId, territory.congregationId ?? ''),
-            eq(congregationMembers.status, MemberStatus.ACTIVE)
-          )
-        )
-        .limit(1);
-
       if (!member) {
         return ApiErrors.forbidden('Not a member of this congregation', requestId);
+      }
+
+      // Users with a global SO/TS role are allowed once membership is confirmed.
+      // Users with only UserRole.USER must have the congregation-scoped SO/TS role.
+      const hasGlobalManagerRole =
+        user.role === UserRole.SERVICE_OVERSEER ||
+        user.role === UserRole.TERRITORY_SERVANT;
+
+      const hasCongregationManagerRole =
+        member.congregationRole === CongregationRole.SERVICE_OVERSEER ||
+        member.congregationRole === CongregationRole.TERRITORY_SERVANT;
+
+      if (!hasGlobalManagerRole && !hasCongregationManagerRole) {
+        return ApiErrors.forbidden('Only admins and territory managers can edit boundaries', requestId);
       }
     }
 
