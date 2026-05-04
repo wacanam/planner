@@ -193,15 +193,17 @@ export default function TerritoryDetailView() {
   const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
 
   // Pass boundary GeoJSON to API for PostGIS ST_Within query (exact polygon, GIST-indexed)
-  // Falls back gracefully if no boundary is set
+  // Falls back gracefully if no boundary is set.
+  // `territory.boundary` is stored as a raw geometry string (Polygon/MultiPolygon),
+  // not a GeoJSON Feature, so we use `geo?.geometry ?? geo` to handle both formats.
   const boundaryStr = territory?.boundary ?? null;
   const householdsBboxKey = React.useMemo(() => {
     if (!boundaryStr) return null;
     try {
       const geo = JSON.parse(boundaryStr);
-      const geomStr = geo?.geometry ? JSON.stringify(geo.geometry) : null;
-      if (!geomStr) return null;
-      return `/api/households?boundary=${encodeURIComponent(geomStr)}&syncTerritory=${territoryId}`;
+      const geoData = geo?.geometry ?? geo; // handle Feature wrapper or raw geometry
+      if (!geoData?.type || !geoData?.coordinates) return null;
+      return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}&syncTerritory=${territoryId}`;
     } catch { return null; }
   }, [boundaryStr, territoryId]);
 
@@ -360,8 +362,8 @@ export default function TerritoryDetailView() {
                             {drawActivePoints > 0
                               ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                               : drawRingCount > 0
-                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — tap Save`
-                              : '✏️ Tap on map to add points'}
+                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — drag handles to edit, tap Save`
+                              : 'Tap map to add points. Drag handles to edit completed rings.'}
                           </span>
                           <div className="flex gap-1.5 flex-shrink-0">
                             {isSavingBoundary ? (

@@ -199,6 +199,9 @@ export default function TerritoryMap({
   drawRingsRef.current  = drawRings;
   activeRingRef.current = activeRing;
   const drawLastClick = useRef<number>(0);
+  // Vertex drag state — shared between mousedown, mousemove, mouseup effects
+  const dragVertexRef = useRef<{ ring: number; vertex: number } | null>(null);
+  const dragJustEndedRef = useRef(false);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
   onDrawingCompleteRef.current = onDrawingComplete;
   const onDrawingStateChangeRef = useRef(onDrawingStateChange);
@@ -355,6 +358,9 @@ export default function TerritoryMap({
           if (!m.getSource('draw-points')) {
             m.addSource('draw-points', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
           }
+          if (!m.getSource('draw-completed-vertices')) {
+            m.addSource('draw-completed-vertices', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          }
           if (!m.getLayer('draw-polygons-fill'))
             m.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
               paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
@@ -374,6 +380,11 @@ export default function TerritoryMap({
               filter: ['==', ['get', 'first'], true],
               paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
                        'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+          // Vertices of completed rings (draggable handles)
+          if (!m.getLayer('draw-completed-vertices-circle'))
+            m.addLayer({ id: 'draw-completed-vertices-circle', type: 'circle', source: 'draw-completed-vertices',
+              paint: { 'circle-radius': 7, 'circle-color': '#059669',
+                       'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff' } });
         };
 
         // Add initially
@@ -601,19 +612,26 @@ useEffect(() => {
     try {
       const geo = JSON.parse(boundary);
 
-      // Build mask for spotlight (world minus territory)
-      const coords = geo?.geometry?.coordinates ?? geo?.coordinates;
-      const outerRing: [number, number][] = Array.isArray(coords?.[0]?.[0])
-        ? coords[0]
-        : coords?.[0] ?? [];
+      // Build mask for spotlight (world minus territory interior)
+      // Handle both raw geometry and GeoJSON Feature format
+      const geoData = geo?.geometry ?? geo;
+      let outerRings: [number, number][][] = [];
+      if (geoData?.type === 'Polygon') {
+        const ring = geoData.coordinates[0] as [number, number][];
+        if (ring?.length >= 3) outerRings = [ring];
+      } else if (geoData?.type === 'MultiPolygon') {
+        outerRings = (geoData.coordinates as [number, number][][][])
+          .map((poly) => poly[0])
+          .filter((r) => r?.length >= 3);
+      }
 
-      if (outerRing.length >= 3) {
+      if (outerRings.length > 0) {
         const worldOuter: [number, number][] = [
           [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
         ];
         const maskGeo = {
           type: 'Feature',
-          geometry: { type: 'Polygon', coordinates: [worldOuter, outerRing] },
+          geometry: { type: 'Polygon', coordinates: [worldOuter, ...outerRings] },
           properties: {},
         };
         upsertSource('spotlight-mask', maskGeo);
@@ -625,8 +643,7 @@ useEffect(() => {
         }
       }
 
-      // Active boundary line
-      const geoData = geo?.geometry ?? geo;
+      // Active boundary line — reuse the already-resolved geoData
       upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
       if (!map.getLayer('active-boundary-fill')) {
         map.addLayer({
@@ -865,6 +882,18 @@ useEffect(() => {
         properties: { first: i === 0 },
       })),
     });
+
+    // Draggable vertex handles for completed rings
+    setData('draw-completed-vertices', {
+      type: 'FeatureCollection',
+      features: drawRings.flatMap((ring, ri) =>
+        ring.map((pt, vi) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: pt },
+          properties: { ringIdx: ri, vertexIdx: vi },
+        }))
+      ),
+    });
   }, [drawRings, activeRing, mapReady, styleSeq]);
 
   // Fire state change so parent toolbar can reflect ring/point counts
@@ -872,7 +901,7 @@ useEffect(() => {
     onDrawingStateChangeRef.current?.(drawRings.length, activeRing.length);
   }, [drawRings.length, activeRing.length]);
 
-  // ─── Drawing: attach/detach map click handler ────────────────────────────
+  // ─── Drawing: attach/detach map click + vertex drag handlers ────────────
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
@@ -899,42 +928,134 @@ useEffect(() => {
       setActiveRing((prev) => [...prev, pt]);
     };
 
-    // Desktop: map click event
+    // ── Desktop: add point on click (skip if a vertex drag just ended) ────
     const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      // Ignore if this is a touch event (handled by touchend instead)
       if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      if (dragJustEndedRef.current) return;
       addPoint(e.lngLat);
     };
 
-    // Mobile: touchend on the canvas for instant response
+    // ── Desktop: vertex drag ──────────────────────────────────────────────
+    const onMouseDown = (e: import('maplibre-gl').MapMouseEvent) => {
+      if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
+      if (features.length > 0) {
+        const props = features[0].properties as Record<string, unknown>;
+        const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+        const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+        if (ringIdx < 0 || vertexIdx < 0) return;
+        dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
+        dragJustEndedRef.current = false;
+        map.dragPan.disable();
+        map.getCanvas().style.cursor = 'grabbing';
+      }
+    };
+
+    const onMouseMove = (e: import('maplibre-gl').MapMouseEvent) => {
+      if (dragVertexRef.current) {
+        // Move the vertex being dragged
+        const { ring, vertex } = dragVertexRef.current;
+        const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        setDrawRings((prev) =>
+          prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+        );
+      } else {
+        // Hover cursor change
+        const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
+        map.getCanvas().style.cursor = features.length > 0 ? 'grab' : 'crosshair';
+      }
+    };
+
+    // rAF IDs used in onMouseUp — tracked here for cleanup on unmount
+    let suppressClickRaf1 = 0;
+    let suppressClickRaf2 = 0;
+    const clearDragJustEnded = () => { dragJustEndedRef.current = false; };
+
+    const onMouseUp = () => {
+      if (dragVertexRef.current) {
+        dragVertexRef.current = null;
+        // Suppress the click that fires on the same frame as mouseup.
+        // Cancelling rAF1 in cleanup prevents rAF2 from ever being scheduled.
+        dragJustEndedRef.current = true;
+        suppressClickRaf1 = requestAnimationFrame(() => {
+          suppressClickRaf2 = requestAnimationFrame(clearDragJustEnded);
+        });
+        map.dragPan.enable();
+        map.getCanvas().style.cursor = 'crosshair';
+      }
+    };
+
+    // ── Mobile: touch start (detect vertex) / move (drag vertex) / end (add point) ─
     const canvas = map.getCanvas();
     let touchStartX = 0, touchStartY = 0;
     const onTouchStart = (e: TouchEvent) => {
       touchStartX = e.changedTouches[0].clientX;
       touchStartY = e.changedTouches[0].clientY;
+      // Check if the touch starts on a completed-ring vertex
+      const rect = canvas.getBoundingClientRect();
+      const x = touchStartX - rect.left;
+      const y = touchStartY - rect.top;
+      const features = map.queryRenderedFeatures([x, y], { layers: ['draw-completed-vertices-circle'] });
+      if (features.length > 0) {
+        const props = features[0].properties as Record<string, unknown>;
+        const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
+        const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
+        if (ringIdx < 0 || vertexIdx < 0) return;
+        dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
+        // Prevent scroll while dragging a vertex using CSS touch-action
+        // (avoids the scroll penalty of a non-passive touchmove listener)
+        canvas.style.touchAction = 'none';
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragVertexRef.current) return;
+      // touch-action: none (set in onTouchStart) prevents scroll; no need to call e.preventDefault()
+      const t = e.changedTouches[0];
+      const rect = canvas.getBoundingClientRect();
+      const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
+      const pt: [number, number] = [lngLat.lng, lngLat.lat];
+      const { ring, vertex } = dragVertexRef.current;
+      setDrawRings((prev) =>
+        prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+      );
     };
     const onTouchEnd = (e: TouchEvent) => {
+      // If dragging a vertex, finalize — do NOT add a new point
+      if (dragVertexRef.current) {
+        dragVertexRef.current = null;
+        canvas.style.touchAction = ''; // restore scroll
+        return;
+      }
+      // Otherwise treat as a tap-to-add-point (if it wasn't a pan)
       const t = e.changedTouches[0];
       const dx = Math.abs(t.clientX - touchStartX);
       const dy = Math.abs(t.clientY - touchStartY);
-      // Only treat as a tap (not a drag/pan)
       if (dx > 10 || dy > 10) return;
       e.preventDefault();
-      // Convert touch position to map LngLat
       const rect = canvas.getBoundingClientRect();
-      const x = t.clientX - rect.left;
-      const y = t.clientY - rect.top;
-      const lngLat = map.unproject([x, y]);
+      const lngLat = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
       addPoint(lngLat);
     };
 
     map.on('click', onDesktopClick);
+    map.on('mousedown', onMouseDown);
+    map.on('mousemove', onMouseMove);
+    map.on('mouseup', onMouseUp);
     canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: true });
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
 
     return () => {
+      // Cancel pending rAFs before they fire (prevents rAF2 from being scheduled)
+      cancelAnimationFrame(suppressClickRaf1);
+      cancelAnimationFrame(suppressClickRaf2);
+      dragJustEndedRef.current = false; // immediate reset if cleanup runs mid-drag
       map.off('click', onDesktopClick);
+      map.off('mousedown', onMouseDown);
+      map.off('mousemove', onMouseMove);
+      map.off('mouseup', onMouseUp);
       canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
   }, [isDrawing, mapReady]);
