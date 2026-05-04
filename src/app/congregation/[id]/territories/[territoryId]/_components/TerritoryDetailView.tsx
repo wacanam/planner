@@ -532,7 +532,11 @@ export default function TerritoryDetailView() {
                 {territory.boundary && (
                   <button
                     type="button"
-                    onClick={handleClearBoundary}
+                    onClick={() => {
+                      if (window.confirm('Clear this territory boundary? This cannot be undone.')) {
+                        handleClearBoundary();
+                      }
+                    }}
                     title="Clear boundary"
                     className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
                   >
