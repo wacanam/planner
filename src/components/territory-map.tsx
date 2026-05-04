@@ -660,12 +660,16 @@ useEffect(() => {
         // nonzero winding rule darkens the intersection again (+1 outer –1 –1 = –1).
         // We avoid this by skipping the spotlight when rings overlap; the blue
         // fill + outline still marks the territory clearly.
-        const ringBbox = (r: [number, number][]) => ({
-          minLng: Math.min(...r.map((p) => p[0])),
-          maxLng: Math.max(...r.map((p) => p[0])),
-          minLat: Math.min(...r.map((p) => p[1])),
-          maxLat: Math.max(...r.map((p) => p[1])),
-        });
+        const ringBbox = (r: [number, number][]) => {
+          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+          for (const [lng, lat] of r) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+          }
+          return { minLng, maxLng, minLat, maxLat };
+        };
         const bboxes = outerRings.map(ringBbox);
         const ringsOverlap = bboxes.some((a, i) =>
           bboxes.some(
