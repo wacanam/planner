@@ -953,9 +953,15 @@ useEffect(() => {
     };
 
     // ── Desktop: vertex drag ──────────────────────────────────────────────
-    const onMouseDown = (e: import('maplibre-gl').MapMouseEvent) => {
-      if ((e.originalEvent as any)?.pointerType === 'touch') return;
-      const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
+    // Use capture-phase listener so we fire BEFORE MapLibre's internal
+    // dragPan mousedown handler — this prevents MapLibre from ever starting
+    // a pan on the same mousedown that begins a vertex drag.
+    const onCanvasMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // left-click only
+      if ((e as any).pointerType === 'touch') return;
+      const rect = canvas.getBoundingClientRect();
+      const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
+      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
       if (features.length > 0) {
         const props = features[0].properties as Record<string, unknown>;
         const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
@@ -963,8 +969,10 @@ useEffect(() => {
         if (ringIdx < 0 || vertexIdx < 0) return;
         dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
         dragJustEndedRef.current = false;
+        // Disable dragPan in capture phase, BEFORE MapLibre's internal
+        // dragPan mousedown handler fires, so the map never starts panning.
         map.dragPan.disable();
-        map.getCanvas().style.cursor = 'grabbing';
+        canvas.style.cursor = 'grabbing';
       }
     };
 
@@ -979,7 +987,7 @@ useEffect(() => {
       } else {
         // Hover cursor change
         const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
-        map.getCanvas().style.cursor = features.length > 0 ? 'grab' : 'crosshair';
+        canvas.style.cursor = features.length > 0 ? 'grab' : 'crosshair';
       }
     };
 
@@ -998,7 +1006,7 @@ useEffect(() => {
           suppressClickRaf2 = requestAnimationFrame(clearDragJustEnded);
         });
         map.dragPan.enable();
-        map.getCanvas().style.cursor = 'crosshair';
+        canvas.style.cursor = 'crosshair';
       }
     };
 
@@ -1019,9 +1027,11 @@ useEffect(() => {
         const vertexIdx = typeof props?.vertexIdx === 'number' ? props.vertexIdx : -1;
         if (ringIdx < 0 || vertexIdx < 0) return;
         dragVertexRef.current = { ring: ringIdx, vertex: vertexIdx };
-        // Prevent scroll while dragging a vertex using CSS touch-action
-        // (avoids the scroll penalty of a non-passive touchmove listener)
+        // Disable map panning while dragging a vertex.
+        // touch-action: none prevents browser scroll/pinch; dragPan.disable()
+        // prevents MapLibre from panning on touchmove.
         canvas.style.touchAction = 'none';
+        map.dragPan.disable();
       }
     };
     const onTouchMove = (e: TouchEvent) => {
@@ -1041,6 +1051,7 @@ useEffect(() => {
       if (dragVertexRef.current) {
         dragVertexRef.current = null;
         canvas.style.touchAction = ''; // restore scroll
+        map.dragPan.enable();          // restore map panning
         return;
       }
       // Otherwise treat as a tap-to-add-point (if it wasn't a pan)
@@ -1055,7 +1066,10 @@ useEffect(() => {
     };
 
     map.on('click', onDesktopClick);
-    map.on('mousedown', onMouseDown);
+    // Register in capture phase so our handler fires BEFORE MapLibre's
+    // internal dragPan mousedown handler — this lets us call
+    // map.dragPan.disable() before MapLibre begins tracking a pan.
+    canvas.addEventListener('mousedown', onCanvasMouseDown, { capture: true });
     map.on('mousemove', onMouseMove);
     map.on('mouseup', onMouseUp);
     canvas.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -1067,8 +1081,12 @@ useEffect(() => {
       cancelAnimationFrame(suppressClickRaf1);
       cancelAnimationFrame(suppressClickRaf2);
       dragJustEndedRef.current = false; // immediate reset if cleanup runs mid-drag
+      if (dragVertexRef.current) {
+        map.dragPan.enable(); // safety-net: restore pan if effect tears down mid-drag
+        dragVertexRef.current = null;
+      }
       map.off('click', onDesktopClick);
-      map.off('mousedown', onMouseDown);
+      canvas.removeEventListener('mousedown', onCanvasMouseDown, { capture: true });
       map.off('mousemove', onMouseMove);
       map.off('mouseup', onMouseUp);
       canvas.removeEventListener('touchstart', onTouchStart);
