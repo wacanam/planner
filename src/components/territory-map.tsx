@@ -43,9 +43,11 @@ export interface TerritoryMapProps {
   mapStyle?: StyleId;
   // Drawing mode
   isDrawing?: boolean;
+  /** 'add' = tap-to-add-points + vertex drag; 'edit' = vertex drag only */
+  drawMode?: 'add' | 'edit';
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
   onDrawingStateChange?: (rings: number, activePoints: number) => void;
-  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null }) => void;
+  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null; clearRings: () => void }) => void;
   // Pre-seed drawing with existing boundary rings for editing
   initialDrawingRings?: [number, number][][];
   // Location / calibration (kept for callers)
@@ -177,6 +179,7 @@ export default function TerritoryMap({
   onHouseholdClick,
   mapStyle = DEFAULT_STYLE,
   isDrawing = false,
+  drawMode = 'add',
   onDrawingComplete,
   onDrawingStateChange,
   onDrawingActions,
@@ -228,6 +231,10 @@ export default function TerritoryMap({
         return rings.length === 1
           ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
           : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+      },
+      clearRings: () => {
+        setDrawRings([]);
+        setActiveRing([]);
       },
     });
   }, [isDrawing]);
@@ -924,9 +931,13 @@ useEffect(() => {
     if (!map || !mapReady) return;
 
     if (isDrawing) {
-      map.getCanvas().style.cursor = 'crosshair';
-      // Disable zoom on double-tap/click so every tap adds a point
-      map.doubleClickZoom.disable();
+      map.getCanvas().style.cursor = drawMode === 'edit' ? 'default' : 'crosshair';
+      // Disable zoom on double-tap/click so every tap adds a point (add mode only)
+      if (drawMode === 'add') {
+        map.doubleClickZoom.disable();
+      } else {
+        map.doubleClickZoom.enable();
+      }
       // Seed rings from existing boundary for editing
       if (initialDrawingRings && initialDrawingRings.length > 0) {
         setDrawRings(initialDrawingRings);
@@ -945,8 +956,9 @@ useEffect(() => {
       setActiveRing((prev) => [...prev, pt]);
     };
 
-    // ── Desktop: add point on click (skip if a vertex drag just ended) ────
+    // ── Desktop: add point on click (add mode only; skip if vertex drag just ended) ──
     const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
+      if (drawMode !== 'add') return;
       if ((e.originalEvent as any)?.pointerType === 'touch') return;
       if (dragJustEndedRef.current) return;
       addPoint(e.lngLat);
@@ -1054,7 +1066,8 @@ useEffect(() => {
         map.dragPan.enable();          // restore map panning
         return;
       }
-      // Otherwise treat as a tap-to-add-point (if it wasn't a pan)
+      // Otherwise treat as a tap-to-add-point (add mode only; if it wasn't a pan)
+      if (drawMode !== 'add') return;
       const t = e.changedTouches[0];
       const dx = Math.abs(t.clientX - touchStartX);
       const dy = Math.abs(t.clientY - touchStartY);
@@ -1093,7 +1106,7 @@ useEffect(() => {
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isDrawing, mapReady]);
+  }, [isDrawing, drawMode, mapReady]);
 
   // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
   const prevIsDrawing = useRef(isDrawing);

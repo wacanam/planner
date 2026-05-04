@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 
-import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, Pentagon, Undo2, Check, Save } from 'lucide-react';
+import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, Undo2, Check, Save, Trash2, Pencil, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories, useCongregationMembers } from '@/hooks';
@@ -222,7 +222,8 @@ export default function TerritoryDetailView() {
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [locationOn, setLocationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
-  const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
+  const [drawMode, setDrawMode] = useState<'add' | 'edit' | null>(null);
+  const isDrawingBoundary = drawMode !== null;
   const [drawRingCount, setDrawRingCount] = useState(0);
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
@@ -231,6 +232,7 @@ export default function TerritoryDetailView() {
   const mapCloseRingRef = useRef<(() => void) | null>(null);
   const mapUndoPointRef = useRef<(() => void) | null>(null);
   const mapGetGeoJSONRef = useRef<(() => { type: string; coordinates: unknown } | null) | null>(null);
+  const mapClearRingsRef = useRef<(() => void) | null>(null);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   const handleSaveBoundary = React.useCallback(async () => {
@@ -243,14 +245,27 @@ export default function TerritoryDetailView() {
     try {
       await saveBoundary(territoryId, geojson as GeoJSONGeometry);
       await mutateTerritory();
-      setIsDrawingBoundary(false);
+      setDrawMode(null);
     } catch (err) {
       setDrawSaveError(err instanceof Error ? err.message : 'Failed to save boundary');
     }
   }, [saveBoundary, territoryId, mutateTerritory]);
 
+  const handleClearBoundary = React.useCallback(async () => {
+    mapClearRingsRef.current?.();
+    setDrawSaveError(null);
+    try {
+      // Save empty MultiPolygon to clear stored boundary
+      await saveBoundary(territoryId, { type: 'MultiPolygon', coordinates: [] } as unknown as GeoJSONGeometry);
+      await mutateTerritory();
+      setDrawMode(null);
+    } catch (err) {
+      setDrawSaveError(err instanceof Error ? err.message : 'Failed to clear boundary');
+    }
+  }, [saveBoundary, territoryId, mutateTerritory]);
+
   const handleCancelDrawing = React.useCallback(() => {
-    setIsDrawingBoundary(false);
+    setDrawMode(null);
     setDrawSaveError(null);
   }, []);
 
@@ -323,7 +338,10 @@ export default function TerritoryDetailView() {
                       .filter(t => t.boundary && t.id !== territory.id)
                       .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
+                    drawMode={drawMode ?? 'add'}
                     initialDrawingRings={(() => {
+                      // In 'add' mode start with a blank canvas; in 'edit' mode load the existing boundary
+                      if (drawMode !== 'edit') return undefined;
                       if (!territory.boundary) return undefined;
                       try {
                         const geo = JSON.parse(territory.boundary);
@@ -344,10 +362,11 @@ export default function TerritoryDetailView() {
                       setDrawRingCount(rings);
                       setDrawActivePoints(pts);
                     }}
-                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null }) => {
+                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null; clearRings: () => void }) => {
                       mapCloseRingRef.current = actions.closeRing;
                       mapUndoPointRef.current = actions.undoPoint;
                       mapGetGeoJSONRef.current = actions.getGeoJSON;
+                      mapClearRingsRef.current = actions.clearRings;
                     }}
                     className="h-full"
                   />
@@ -359,11 +378,15 @@ export default function TerritoryDetailView() {
                       <div className="absolute top-0 inset-x-0 z-[1100] flex flex-col pointer-events-auto">
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
-                            {drawActivePoints > 0
+                            {drawMode === 'edit'
+                              ? drawRingCount > 0
+                                ? `✏️ Edit mode — drag vertex handles to reshape`
+                                : `✏️ Edit mode — no boundary to edit yet`
+                              : drawActivePoints > 0
                               ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                               : drawRingCount > 0
-                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} — drag handles to edit, tap Save`
-                              : 'Tap map to add points. Drag handles to edit completed rings.'}
+                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} drawn — tap Save`
+                              : 'Tap map to add points'}
                           </span>
                           <div className="flex gap-1.5 flex-shrink-0">
                             {isSavingBoundary ? (
@@ -397,8 +420,8 @@ export default function TerritoryDetailView() {
 
                       {/* Right-side floating action buttons */}
                       <div className="absolute right-3 top-16 z-[1100] flex flex-col gap-2 pointer-events-auto">
-                        {/* Close current ring */}
-                        {drawActivePoints >= 3 && (
+                        {/* Close current ring — add mode only */}
+                        {drawMode === 'add' && drawActivePoints >= 3 && (
                           <button
                             type="button"
                             onClick={() => (mapCloseRingRef.current?.())}
@@ -408,8 +431,8 @@ export default function TerritoryDetailView() {
                             <Check className="w-5 h-5" />
                           </button>
                         )}
-                        {/* Undo last point */}
-                        {drawActivePoints > 0 && (
+                        {/* Undo last point — add mode only */}
+                        {drawMode === 'add' && drawActivePoints > 0 && (
                           <button
                             type="button"
                             onClick={() => (mapUndoPointRef.current?.())}
@@ -487,19 +510,41 @@ export default function TerritoryDetailView() {
 
           {/* Location toggle — fixed bottom-left */}
           <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
-            {/* Draw boundary button — only visible to SO, TS, and admins */}
-            {canDrawBoundary && (
-            <button
-              type="button"
-              onClick={() => setIsDrawingBoundary(!isDrawingBoundary)}
-              title={isDrawingBoundary ? "Stop drawing" : "Draw territory boundary"}
-              className={[
-                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all mb-2',
-                isDrawingBoundary ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
-              ].join(' ')}
-            >
-              <Pentagon className="w-4 h-4" />
-            </button>
+            {/* Boundary buttons — only visible to SO, TS, and admins */}
+            {canDrawBoundary && !isDrawingBoundary && (
+              <div className="flex flex-col gap-1.5 mb-2">
+                {/* Add polygons */}
+                <button
+                  type="button"
+                  onClick={() => setDrawMode('add')}
+                  title="Draw boundary (add polygons)"
+                  className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                {/* Edit existing boundary (only if one exists) */}
+                {territory.boundary && (
+                  <button
+                    type="button"
+                    onClick={() => setDrawMode('edit')}
+                    title="Edit boundary vertices"
+                    className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+                {/* Clear boundary */}
+                {territory.boundary && (
+                  <button
+                    type="button"
+                    onClick={handleClearBoundary}
+                    title="Clear boundary"
+                    className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
             {/* Location toggle */}
             <button
