@@ -227,7 +227,7 @@ export default function TerritoryDetailView() {
   const [drawRingCount, setDrawRingCount] = useState(0);
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
-  const { saveBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
+  const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
   const mapUndoPointRef = useRef<(() => void) | null>(null);
@@ -252,17 +252,14 @@ export default function TerritoryDetailView() {
   }, [saveBoundary, territoryId, mutateTerritory]);
 
   const handleClearBoundary = React.useCallback(async () => {
-    mapClearRingsRef.current?.();
     setDrawSaveError(null);
     try {
-      // Save empty MultiPolygon to clear stored boundary
-      await saveBoundary(territoryId, { type: 'MultiPolygon', coordinates: [] } as unknown as GeoJSONGeometry);
+      await clearBoundary(territoryId);
       await mutateTerritory();
-      setDrawMode(null);
     } catch (err) {
       setDrawSaveError(err instanceof Error ? err.message : 'Failed to clear boundary');
     }
-  }, [saveBoundary, territoryId, mutateTerritory]);
+  }, [clearBoundary, territoryId, mutateTerritory]);
 
   const handleCancelDrawing = React.useCallback(() => {
     setDrawMode(null);
@@ -379,9 +376,7 @@ export default function TerritoryDetailView() {
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
-                              ? drawRingCount > 0
-                                ? `✏️ Edit mode — drag vertex handles to reshape`
-                                : `✏️ Edit mode — no boundary to edit yet`
+                              ? `✏️ Edit mode — drag vertex handles to reshape`
                               : drawActivePoints > 0
                               ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                               : drawRingCount > 0

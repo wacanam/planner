@@ -70,17 +70,18 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     const body = await req.json();
     const { boundary } = body;
 
-    if (!boundary) {
-      return ApiErrors.badRequest('boundary (GeoJSON) is required', undefined, requestId);
+    // Allow explicit null to clear the boundary
+    if (boundary === undefined) {
+      return ApiErrors.badRequest('boundary (GeoJSON or null) is required', undefined, requestId);
     }
 
-    // Validate GeoJSON (basic check)
-    if (typeof boundary !== 'object' || !boundary.type) {
-      return ApiErrors.badRequest('boundary must be valid GeoJSON', undefined, requestId);
+    // Validate GeoJSON if not null (basic check)
+    if (boundary !== null && (typeof boundary !== 'object' || !boundary.type)) {
+      return ApiErrors.badRequest('boundary must be valid GeoJSON or null', undefined, requestId);
     }
 
-    // Save boundary
-    const boundaryJson = JSON.stringify(boundary);
+    // Save boundary (null clears it)
+    const boundaryJson = boundary !== null ? JSON.stringify(boundary) : null;
     
     const [updated] = await db
       .update(territories)

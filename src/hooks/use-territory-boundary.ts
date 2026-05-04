@@ -27,6 +27,7 @@ export interface UseTerritoryBoundaryReturn {
   error: string | null;
   fetchBoundary: (territoryId: string) => Promise<void>;
   saveBoundary: (territoryId: string, boundary: GeoJSONGeometry) => Promise<void>;
+  clearBoundary: (territoryId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -127,6 +128,36 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
     []
   );
 
+  /**
+   * Clear the boundary for a territory (sets it to null in the DB)
+   */
+  const clearBoundary = useCallback(
+    async (territoryId: string) => {
+      if (!territoryId) {
+        throw new Error('Territory ID is required');
+      }
+
+      setIsSaving(true);
+      setError(null);
+
+      try {
+        await apiClient.put<{ id: string; boundary: GeoJSONGeometry | null; updatedAt: unknown }>(
+          `/api/territories/${territoryId}/boundary`,
+          { boundary: null }
+        );
+        setBoundary(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(`Failed to clear boundary: ${message}`);
+        console.error('[useTerritoryBoundary] Clear error:', err);
+        throw err;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    []
+  );
+
   return {
     boundary,
     isLoading,
@@ -134,6 +165,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
     error,
     fetchBoundary,
     saveBoundary,
+    clearBoundary,
     clearError,
   };
 }

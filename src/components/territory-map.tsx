@@ -938,8 +938,8 @@ useEffect(() => {
       } else {
         map.doubleClickZoom.enable();
       }
-      // Seed rings from existing boundary for editing
-      if (initialDrawingRings && initialDrawingRings.length > 0) {
+      // Seed rings from existing boundary — only in edit mode
+      if (drawMode === 'edit' && initialDrawingRings && initialDrawingRings.length > 0) {
         setDrawRings(initialDrawingRings);
       }
     } else {
