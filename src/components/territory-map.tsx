@@ -1434,14 +1434,27 @@ useEffect(() => {
       } else {
         import('maplibre-gl').then((mgl) => {
           if (!mapInstance.current) return;
+          const ns = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(ns, 'svg');
+          svg.setAttribute('width', '28');
+          svg.setAttribute('height', '36');
+          svg.setAttribute('viewBox', '0 0 26 34');
+          svg.style.filter = 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))';
+          const body = document.createElementNS(ns, 'path');
+          body.setAttribute(
+            'd',
+            'M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z',
+          );
+          body.setAttribute('fill', '#ef4444');
+          const dot = document.createElementNS(ns, 'circle');
+          dot.setAttribute('cx', '13');
+          dot.setAttribute('cy', '13');
+          dot.setAttribute('r', '5');
+          dot.setAttribute('fill', 'white');
+          svg.appendChild(body);
+          svg.appendChild(dot);
           const el = document.createElement('div');
-          el.innerHTML =
-            '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 26 34"' +
-            ' style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35))">' +
-            '<path d="M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26' +
-            ' C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z" fill="#ef4444"/>' +
-            '<circle cx="13" cy="13" r="5" fill="white"/>' +
-            '</svg>';
+          el.appendChild(svg);
           const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
             .setLngLat([lng, lat])
             .addTo(mapInstance.current);

@@ -19,6 +19,19 @@ import type { Territory } from '@/types/api';
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
 
+interface HouseholdMapItem {
+  id: string;
+  address?: string | null;
+  streetName?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+interface HouseholdsApiResponse {
+  data?: HouseholdMapItem[];
+}
+
 interface InlineMapViewProps {
   territory: Territory;
   congregationId: string;
@@ -28,25 +41,13 @@ interface InlineMapViewProps {
 function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProps) {
   const [pinMode, setPinMode] = useState(false);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedHousehold, setSelectedHousehold] = useState<{
-    id: string;
-    address?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  } | null>(null);
+  const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
 
   const { data: householdsData } = useSWR(
     territory.id ? `/api/households?territoryId=${territory.id}` : null,
-    (url: string) => apiClient.get<{ data?: unknown }>(url).then((r) => r.data),
+    (url: string) => apiClient.get<HouseholdsApiResponse>(url).then((r) => r.data),
   );
-  const households = (householdsData as Array<{
-    id: string;
-    address?: string | null;
-    streetName?: string | null;
-    city?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  }>) ?? [];
+  const households: HouseholdMapItem[] = householdsData ?? [];
 
   return (
     <div className="fixed inset-0 z-[2000] bg-background flex flex-col">
@@ -112,7 +113,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           <div className="flex items-start justify-between">
             <div className="min-w-0">
               <p className="font-semibold text-sm text-foreground">
-                {selectedHousehold.address ?? 'Household'}
+                {selectedHousehold.address ?? 'Unnamed household'}
               </p>
             </div>
             <button
