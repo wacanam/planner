@@ -676,11 +676,13 @@ useEffect(() => {
         const ensureCW = (ring: [number, number][]): [number, number][] =>
           ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
 
-        // Detect whether any pair of rings' bounding boxes overlap.
-        // When two CW holes overlap inside the spotlight Polygon, MapLibre's
-        // nonzero winding rule darkens the intersection again (+1 outer –1 –1 = –1).
-        // We avoid this by skipping the spotlight when rings overlap; the blue
-        // fill + outline still marks the territory clearly.
+        // When multiple rings are present and their bounding boxes overlap, using
+        // each ring as a separate CW hole causes MapLibre's nonzero winding rule
+        // to darken the intersection (+1 outer −1 −1 = −1 ≠ 0 → dimmed).
+        // Fix: when any bboxes overlap, compute the convex hull of ALL ring
+        // coordinates combined and use it as a SINGLE hole.  A single hole has no
+        // winding accumulation, so the intersection is properly transparent.
+        // When no rings overlap the individual CW holes work perfectly as before.
         const ringBbox = (r: [number, number][]) => {
           let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
           for (const [lng, lat] of r) {
@@ -701,27 +703,50 @@ useEffect(() => {
           ),
         );
 
-        if (!ringsOverlap) {
-          const maskGeo = {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [worldOuter, ...outerRings.map(ensureCW)],
-            },
-            properties: {},
-          };
-          upsertSource('spotlight-mask', maskGeo);
-          if (!map.getLayer('spotlight-fill')) {
-            map.addLayer({
-              id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
-              paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-            });
+        // Convex hull (Graham scan) — used when rings overlap to produce a single
+        // hole that avoids the nonzero winding shadow at the intersection.
+        const convexHull = (pts: [number, number][]): [number, number][] => {
+          if (pts.length < 3) return pts;
+          const sorted = [...pts].sort((a, b) => a[0] !== b[0] ? a[0] - b[0] : a[1] - b[1]);
+          const cross = (o: [number,number], a: [number,number], b: [number,number]) =>
+            (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+          const lower: [number,number][] = [];
+          for (const p of sorted) {
+            while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0)
+              lower.pop();
+            lower.push(p);
           }
-        } else {
-          // Overlapping rings — remove the spotlight to avoid the winding-rule
-          // shadow at the intersection; the blue fill/outline still shows the boundary.
-          if (map.getLayer('spotlight-fill')) map.removeLayer('spotlight-fill');
-          if (map.getSource('spotlight-mask')) map.removeSource('spotlight-mask');
+          const upper: [number,number][] = [];
+          for (let i = sorted.length-1; i >= 0; i--) {
+            const p = sorted[i];
+            while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0)
+              upper.pop();
+            upper.push(p);
+          }
+          lower.pop(); upper.pop();
+          const hull = [...lower, ...upper];
+          if (hull.length > 0) hull.push(hull[0]);
+          return hull;
+        };
+
+        const holeRings: [number, number][][] = ringsOverlap
+          ? [ensureCW(convexHull(outerRings.flat()))]
+          : outerRings.map(ensureCW);
+
+        const maskGeo = {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [worldOuter, ...holeRings],
+          },
+          properties: {},
+        };
+        upsertSource('spotlight-mask', maskGeo);
+        if (!map.getLayer('spotlight-fill')) {
+          map.addLayer({
+            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
+            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+          });
         }
       }
 
