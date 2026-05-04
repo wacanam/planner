@@ -15,15 +15,9 @@ interface TabItem {
 
 interface BottomTabBarProps {
   congregationId?: string;
-  /**
-   * When true, renders as a normal (non-fixed) flex child so it anchors at
-   * the bottom of its parent flex container (e.g. a full-screen overlay).
-   * When false (default), renders as a fixed bottom bar visible on mobile.
-   */
-  inline?: boolean;
 }
 
-export function BottomTabBar({ congregationId, inline = false }: BottomTabBarProps) {
+export function BottomTabBar({ congregationId }: BottomTabBarProps) {
   const { user } = useCurrentUser();
   const pathname = usePathname();
 
@@ -65,12 +59,7 @@ export function BottomTabBar({ congregationId, inline = false }: BottomTabBarPro
 
   return (
     <nav
-      className={cn(
-        'bg-background/95 backdrop-blur-md border-t border-border',
-        inline
-          ? 'flex w-full shrink-0'
-          : 'flex md:hidden fixed bottom-0 inset-x-0 z-[900]',
-      )}
+      className="flex md:hidden fixed bottom-0 inset-x-0 z-[900] bg-background/95 backdrop-blur-md border-t border-border"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {tabs.map(({ href, label, icon: Icon }) => {
