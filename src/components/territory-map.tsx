@@ -870,6 +870,7 @@ useEffect(() => {
 
           el.addEventListener('click', () => {
             const onHClick = onClickRef.current;
+            const fmtEnum = (s: string) => s.replace(/_/g, ' ');
             // Format last visit date
             const visitDateStr = lastVisitDate
               ? (() => {
@@ -885,7 +886,8 @@ useEffect(() => {
             const typeLabel = hType
               ? hType.charAt(0).toUpperCase() + hType.slice(1).replace(/_/g, ' ')
               : '';
-            const notesSnippet = notes && notes.length > 60 ? notes.slice(0, 60) + '\u2026' : notes;
+            const trimmedNotes = notes?.trim() ?? '';
+            const notesSnippet = trimmedNotes.length > 60 ? trimmedNotes.slice(0, 60) + '\u2026' : trimmedNotes;
             // Show popup
             const popup = new mgl.Popup({
               closeButton: true,
@@ -907,13 +909,13 @@ useEffect(() => {
                     : '',
                   '<span style="display:inline-block;font-size:10px;padding:2px 7px;border-radius:9999px;background:' +
                     color + '22;color:' + color + ';text-transform:capitalize;font-weight:600;">' +
-                    escHtml(status.replace(/_/g, ' ')) + '</span>',
+                    escHtml(fmtEnum(status)) + '</span>',
                   '</div>',
                   // Last visit
                   visitDateStr
                     ? '<p style="margin:0 0 4px;font-size:11px;color:#64748b">' +
                         '<span style="font-weight:600">Last visit:</span> ' + escHtml(visitDateStr) +
-                        (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(lastVisitOutcome.replace(/_/g, ' ')) + '</span>' : '') +
+                        (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(fmtEnum(lastVisitOutcome)) + '</span>' : '') +
                       '</p>'
                     : '',
                   // Notes
