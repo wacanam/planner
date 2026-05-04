@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { eq, desc, sql, and, or, inArray } from 'drizzle-orm';
-import { db, visits, territories, households, territoryAssignments, UserRole } from '@/db';
+import { eq, desc, sql, and, inArray } from 'drizzle-orm';
+import { db, visits, territories, households, UserRole } from '@/db';
 import { withAuth, withCongregationAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
@@ -10,10 +10,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 const ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SERVICE_OVERSEER];
 
 // GET /api/territories/:id/visits
-// Returns visits scoped to this territory:
-//   - visits whose assignmentId matches a territory_assignments record for this territory
-//   - visits whose assignmentId equals the territory ID directly (created from the My Assignments view)
-// RBAC: admins/SO see all; publishers see only their own.
+// Finds all households inside the territory boundary via PostGIS ST_Within,
+// then returns visits for those households.
+// RBAC: admins/SO see all visits; publishers see only their own.
 export async function GET(req: NextRequest, ctx: RouteContext) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
@@ -26,6 +25,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     const [territory] = await db
       .select({
         congregationId: territories.congregationId,
+        boundary: territories.boundary,
       })
       .from(territories)
       .where(eq(territories.id, territoryId))
@@ -40,28 +40,34 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       if (memberCheck instanceof NextResponse) return memberCheck;
     }
 
-    // Fetch assignment IDs for this territory to use as a safe parameterized filter
-    const assignmentRows = await db
-      .select({ id: territoryAssignments.id })
-      .from(territoryAssignments)
-      .where(eq(territoryAssignments.territoryId, territoryId));
+    // Find households within this territory's boundary using PostGIS ST_Within.
+    // boundary may be stored as a GeoJSON Feature (with .geometry) or a raw Geometry — normalise it.
+    let householdIds: string[] = [];
+    if (territory.boundary) {
+      try {
+        const parsed = JSON.parse(territory.boundary) as Record<string, unknown>;
+        const geomStr = parsed.geometry
+          ? JSON.stringify(parsed.geometry)
+          : territory.boundary;
 
-    const assignmentIds = assignmentRows.map((r) => r.id);
+        const rows = await db
+          .select({ id: households.id })
+          .from(households)
+          .where(sql`ST_Within(${households.location}, ST_GeomFromGeoJSON(${geomStr}))`);
 
-    // Scope visits to this territory using two strategies:
-    // 1. Visits properly linked via territory_assignments (assignmentId = a territory_assignments.id)
-    // 2. Visits where assignmentId = territoryId directly (recorded from My Assignments list view,
-    //    where the territory ID is used as the assignment context)
-    // If no assignment records exist, only strategy 2 is applied; if neither matches, no results are returned.
-    const territoryScope =
-      assignmentIds.length > 0
-        ? or(inArray(visits.assignmentId, assignmentIds), eq(visits.assignmentId, territoryId))
-        : eq(visits.assignmentId, territoryId);
+        householdIds = rows.map((r) => r.id);
+      } catch (parseErr) {
+        // boundary parse error or PostGIS unavailable — return empty
+        console.error('[GET /api/territories/:id/visits] boundary/spatial error:', parseErr);
+      }
+    }
 
-    // RBAC: admins/SO see all visits for the territory; publishers see only their own.
-    // (The previous behaviour that filtered admin views to territory.publisherId's visits was incorrect —
-    // admins need full visibility regardless of who is assigned.)
-    const whereConditions = [territoryScope];
+    if (householdIds.length === 0) {
+      return successResponse([], undefined, 200, requestId);
+    }
+
+    // Scope to households in territory; RBAC: publishers see only their own visits
+    const whereConditions = [inArray(visits.householdId, householdIds)];
     if (!isAdmin) {
       whereConditions.push(eq(visits.userId, user.userId));
     }
