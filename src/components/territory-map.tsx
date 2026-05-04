@@ -875,8 +875,11 @@ useEffect(() => {
               ? (() => {
                   try {
                     const d = new Date(lastVisitDate);
+                    if (Number.isNaN(d.getTime())) return '';
                     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                  } catch { return ''; }
+                  } catch {
+                    return '';
+                  }
                 })()
               : '';
             const typeLabel = hType
@@ -921,9 +924,9 @@ useEffect(() => {
                   onHClick
                     ? [
                         '<button onclick="window.__mapLogVisit(\'' +
-                          escHtml(id) +
+                          id +
                           "','" +
-                          escHtml(address).replace(/'/g, '&#39;') +
+                          address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
                           '\')"',
                         ' style="margin-top:4px;width:100%;padding:6px 0;background:' + color +
                           ';color:white;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;">',
