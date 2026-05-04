@@ -633,11 +633,11 @@ useEffect(() => {
           [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
         ];
         const ringSignedArea = (ring: [number, number][]) => {
-          let s = 0;
+          let area = 0;
           for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-            s += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+            area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
           }
-          return s / 2;
+          return area / 2;
         };
         // Positive signed area = CCW → reverse to CW for hole
         const ensureCW = (ring: [number, number][]): [number, number][] =>

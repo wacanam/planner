@@ -37,8 +37,8 @@ export async function GET(req: NextRequest) {
             CASE
               WHEN ${households.latitude}  IS NOT NULL
                AND ${households.longitude} IS NOT NULL
-               AND ${households.latitude}  <> ''
-               AND ${households.longitude} <> ''
+               AND ${households.latitude}  ~ '^-?[0-9]+(\.[0-9]+)?$'
+               AND ${households.longitude} ~ '^-?[0-9]+(\.[0-9]+)?$'
               THEN ST_SetSRID(
                 ST_MakePoint(
                   ${households.longitude}::numeric,
