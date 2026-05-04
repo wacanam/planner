@@ -134,7 +134,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
               </Link>
             </Button>
             <Button asChild size="sm" variant="outline" className="flex-1">
-              <Link href={`/congregation/${congregationId}/records/households/${selectedHousehold.id}`}>
+              <Link href="/records/households">
                 View Records
               </Link>
             </Button>

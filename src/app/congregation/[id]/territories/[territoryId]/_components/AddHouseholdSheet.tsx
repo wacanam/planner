@@ -22,7 +22,7 @@ export function AddHouseholdSheet({
   onClose,
   onSuccess,
 }: AddHouseholdSheetProps) {
-  const [address, setAddress] = useState(`Pin at ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+  const [address, setAddress] = useState('');
   const [streetName, setStreetName] = useState('');
   const [city, setCity] = useState('');
   const [type, setType] = useState('house');

@@ -1412,7 +1412,6 @@ useEffect(() => {
   }, [isDrawing]);
 
   // ─── Pin household mode: tap map to drop a pin ───────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
@@ -1464,7 +1463,9 @@ useEffect(() => {
     };
 
     const handleClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      if ((e.originalEvent as unknown as { pointerType?: string })?.pointerType === 'touch') return;
+      // Skip synthesised click events from touch — touch is handled by touchend below
+      const origEvent = e.originalEvent;
+      if (origEvent && 'pointerType' in origEvent && (origEvent as PointerEvent).pointerType === 'touch') return;
       placePinAt(e.lngLat.lat, e.lngLat.lng);
     };
 
