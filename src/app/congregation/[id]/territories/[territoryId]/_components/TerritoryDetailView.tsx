@@ -4,15 +4,17 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
+import { useSession } from 'next-auth/react';
 
 import { ArrowLeft, User, Users, MapPin, ChevronUp, ChevronDown, Maximize2, Minimize2, Pentagon, Undo2, Check, Save } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories } from '@/hooks';
+import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories, useCongregationMembers } from '@/hooks';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
+import { CongregationRole, UserRole } from '@/db';
 
 import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
 // Dynamic import — Leaflet requires browser APIs
@@ -144,6 +146,33 @@ export default function TerritoryDetailView() {
     id: string;
     territoryId: string;
   }>();
+
+  const { data: session } = useSession();
+  const sessionUser = session?.user as
+    | { id?: string; role?: string; congregationId?: string }
+    | undefined;
+
+  const { data: members } = useCongregationMembers(congregationId ?? null);
+
+  // Determine if current user can draw/save boundaries:
+  // Global admins always can; otherwise check congregation-scoped role.
+  const canDrawBoundary = React.useMemo(() => {
+    if (!sessionUser?.id) return false;
+    const globalRole = sessionUser.role as UserRole | undefined;
+    if (
+      globalRole === UserRole.SUPER_ADMIN ||
+      globalRole === UserRole.ADMIN ||
+      globalRole === UserRole.SERVICE_OVERSEER ||
+      globalRole === UserRole.TERRITORY_SERVANT
+    ) return true;
+    const me = members.find((m) =>
+      m.userId === sessionUser.id || m.user?.id === sessionUser.id
+    );
+    return (
+      me?.congregationRole === CongregationRole.SERVICE_OVERSEER ||
+      me?.congregationRole === CongregationRole.TERRITORY_SERVANT
+    );
+  }, [sessionUser, members]);
 
   const {
     territory: territoryResponse,
@@ -456,7 +485,8 @@ export default function TerritoryDetailView() {
 
           {/* Location toggle — fixed bottom-left */}
           <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
-            {/* Draw boundary button — beside geolocation */}
+            {/* Draw boundary button — only visible to SO, TS, and admins */}
+            {canDrawBoundary && (
             <button
               type="button"
               onClick={() => setIsDrawingBoundary(!isDrawingBoundary)}
@@ -468,6 +498,7 @@ export default function TerritoryDetailView() {
             >
               <Pentagon className="w-4 h-4" />
             </button>
+            )}
             {/* Location toggle */}
             <button
               type="button"
