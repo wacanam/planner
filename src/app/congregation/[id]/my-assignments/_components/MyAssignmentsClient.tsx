@@ -29,10 +29,6 @@ interface HouseholdMapItem {
   longitude?: number | null;
 }
 
-interface HouseholdsApiResponse {
-  data?: HouseholdMapItem[];
-}
-
 interface InlineMapViewProps {
   territory: Territory;
   congregationId: string;
@@ -61,28 +57,22 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
   }, [boundaryStr]);
 
   // All-pins fetch (no boundary filter) — only activate when toggle is on
-  const allPinsKey = showAllPins && !householdsKey ? '/api/households' : null;
+  const allPinsKey = showAllPins ? '/api/households' : null;
 
   const { data: boundaryHouseholdsData } = useSWR(
     householdsKey,
-    (url: string) => apiClient.get<HouseholdMapItem[] | HouseholdsApiResponse>(url).then((r) => {
-      if (Array.isArray(r)) return r;
-      return (r as HouseholdsApiResponse).data ?? [];
-    }),
+    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
     { revalidateOnFocus: false }
   );
   const { data: allPinsData } = useSWR(
     allPinsKey,
-    (url: string) => apiClient.get<HouseholdMapItem[] | HouseholdsApiResponse>(url).then((r) => {
-      if (Array.isArray(r)) return r;
-      return (r as HouseholdsApiResponse).data ?? [];
-    }),
+    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
     { revalidateOnFocus: false }
   );
 
-  const households: HouseholdMapItem[] = (showAllPins
+  const households: HouseholdMapItem[] = showAllPins
     ? (allPinsData ?? boundaryHouseholdsData ?? [])
-    : (boundaryHouseholdsData ?? [])) as HouseholdMapItem[];
+    : (boundaryHouseholdsData ?? []);
 
   const householdsUrl = `/congregation/${congregationId}/records/households`;
 

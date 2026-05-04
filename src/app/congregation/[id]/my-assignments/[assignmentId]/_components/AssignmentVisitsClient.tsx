@@ -15,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-400 border-gray-100',
 };
 
-export default function AssignmentStatsClient() {
+export default function AssignmentVisitsClient() {
   const { id: congregationId, assignmentId } = useParams<{
     id: string;
     assignmentId: string;
@@ -175,7 +175,7 @@ export default function AssignmentStatsClient() {
                 <Button asChild variant="outline" className="w-full gap-2">
                   <Link href={`/congregation/${congregationId}/records/households`}>
                     <Home size={16} />
-                    View Households &amp; Log Visits
+                    View Households & Log Visits
                   </Link>
                 </Button>
               </div>
