@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -12,7 +12,7 @@ import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
 import type { Territory } from '@/types/api';
@@ -39,6 +39,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdMapItem | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
+  const [deletingHouseholdId, setDeletingHouseholdId] = useState<string | null>(null);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
   const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
@@ -74,6 +75,21 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
     : (boundaryHouseholdsData ?? []);
 
   const householdsUrl = `/congregation/${congregationId}/records/households`;
+
+  const handleDeleteHousehold = async (id: string) => {
+    setDeletingHouseholdId(id);
+    try {
+      await apiClient.delete(`/api/households/${id}`);
+      setSelectedHousehold(null);
+      // Refresh household data
+      void mutate(householdsKey);
+      if (showAllPins) void mutate(allPinsKey);
+    } catch {
+      // silently fail
+    } finally {
+      setDeletingHouseholdId(null);
+    }
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[9000] bg-background flex flex-col">
@@ -173,6 +189,15 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
                 View Details
               </Link>
             </Button>
+            <button
+              type="button"
+              disabled={deletingHouseholdId === selectedHousehold.id}
+              onClick={() => void handleDeleteHousehold(selectedHousehold.id)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              aria-label="Delete household"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         </div>
       )}

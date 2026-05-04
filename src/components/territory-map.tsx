@@ -1585,7 +1585,7 @@ useEffect(() => {
       )}
 
       {pinHouseholdMode && !pendingPin && !isDrawing && (
-        <div className="absolute bottom-6 inset-x-0 flex justify-center z-[100] pointer-events-none">
+        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100] pointer-events-none">
           <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
             Hold map to add a household
           </div>
@@ -1593,7 +1593,7 @@ useEffect(() => {
       )}
 
       {pinHouseholdMode && pendingPin && (
-        <div className="absolute bottom-6 inset-x-0 flex justify-center z-[100]">
+        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100]">
           <button
             type="button"
             onClick={() => {

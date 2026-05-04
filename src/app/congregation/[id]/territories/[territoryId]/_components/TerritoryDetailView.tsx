@@ -322,7 +322,7 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className={`min-w-0 w-full flex flex-col h-dvh overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000]' : ' relative'}` }>
+        <main className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000]' : ' h-dvh pb-14 md:pb-0 relative'}` }>
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
@@ -508,13 +508,8 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                </div>
-              );
-            })()}
-          </div>{/* end flex-1 map wrapper */}
-
-          {/* Location toggle — fixed bottom-left */}
-          <div className={`fixed left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+                  {/* Location toggle — absolute bottom-left, inside map */}
+                  <div className={`absolute left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
             {/* Boundary buttons — only visible to SO, TS, and admins */}
             {canDrawBoundary && !isDrawingBoundary && (
               <div className="flex flex-col gap-1.5 mb-2">
@@ -606,26 +601,8 @@ export default function TerritoryDetailView() {
             </button>
           </div>
 
-
-          {/* AddHouseholdSheet — opens when a long-press pin is confirmed */}
-          {pendingPinCoords && (
-            <AddHouseholdSheet
-              lat={pendingPinCoords.lat}
-              lng={pendingPinCoords.lng}
-              territoryId={territoryId}
-              congregationId={congregationId}
-              onClose={() => setPendingPinCoords(null)}
-              onSuccess={() => setPendingPinCoords(null)}
-            />
-          )}
-
-          {/* Manual calibration overlay */}
-          {locationOn && showCalibPrompt && (
-            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
-          )}
-
-          {/* Map style switcher — fixed, shifts up when assignment strip expands */}
-          <div className={`fixed right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+          {/* Map style switcher — absolute bottom-right, inside map */}
+          <div className={`absolute right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
             {showStylePicker && (
               <div className="mb-1 flex flex-col gap-1 items-end">
                 {MAP_STYLES.map((s) => (
@@ -658,13 +635,13 @@ export default function TerritoryDetailView() {
             </button>
           </div>
 
-          {/* Assignment strip — shrink-0 sibling of map, always visible */}
-            {(() => {
-              const active = assignments.find((a) => a.status === 'active');
-              if (!active) return null;
-              return (
-                <div className="fixed bottom-0 left-0 right-0 z-[1100]">
-                  <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
+          {/* Assignment strip — absolute bottom, inside map */}
+          {(() => {
+            const active = assignments.find((a) => a.status === 'active');
+            if (!active) return null;
+            return (
+              <div className="absolute bottom-0 left-0 right-0 z-[1100]">
+                <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
                   <button
                     type="button"
                     onClick={() => setAssignmentExpanded(p => !p)}
@@ -701,10 +678,31 @@ export default function TerritoryDetailView() {
                       </Button>
                     </div>
                   )}
-                  </div>
+                </div>
+              </div>
+            );
+          })()}
                 </div>
               );
             })()}
+          </div>{/* end flex-1 map wrapper */}
+
+          {/* AddHouseholdSheet — opens when a long-press pin is confirmed */}
+          {pendingPinCoords && (
+            <AddHouseholdSheet
+              lat={pendingPinCoords.lat}
+              lng={pendingPinCoords.lng}
+              territoryId={territoryId}
+              congregationId={congregationId}
+              onClose={() => setPendingPinCoords(null)}
+              onSuccess={() => setPendingPinCoords(null)}
+            />
+          )}
+
+          {/* Manual calibration overlay */}
+          {locationOn && showCalibPrompt && (
+            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
+          )}
         </main>
       )}
     </ProtectedPage>

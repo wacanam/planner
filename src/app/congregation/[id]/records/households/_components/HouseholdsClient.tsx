@@ -12,6 +12,7 @@ import {
   BookOpen,
   FileText,
   User,
+  Trash2,
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,6 +42,7 @@ import {
   type AddHouseholdFormData,
 } from '@/schemas/visit';
 import { queueVisit, queueHousehold, registerVisitSync } from '@/lib/visits-store';
+import { apiClient } from '@/lib/api-client';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -611,6 +613,8 @@ export default function HouseholdsClient() {
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { households, isLoading, dataSource, mutate } = useHouseholds();
 
@@ -629,6 +633,19 @@ export default function HouseholdsClient() {
     navigator.serviceWorker?.addEventListener('message', handler);
     return () => navigator.serviceWorker?.removeEventListener('message', handler);
   }, [mutate]);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await apiClient.delete(`/api/households/${id}`);
+      setDeleteConfirmId(null);
+      void mutate();
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = households as Household[];
@@ -741,16 +758,46 @@ export default function HouseholdsClient() {
                     )}
                   </div>
                 </button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLogVisitHousehold(h);
-                  }}
-                >
-                  Log Visit
-                </Button>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLogVisitHousehold(h);
+                    }}
+                  >
+                    Log Visit
+                  </Button>
+                  {deleteConfirmId === h.id ? (
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); void handleDelete(h.id); }}
+                        disabled={deletingId === h.id}
+                        className="flex-1 text-xs px-2 py-1 rounded-lg bg-destructive text-destructive-foreground font-medium disabled:opacity-50"
+                      >
+                        {deletingId === h.id ? '…' : 'Delete'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                        className="flex-1 text-xs px-2 py-1 rounded-lg border border-border text-muted-foreground"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(h.id); }}
+                      className="flex items-center justify-center w-full p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Delete household"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
