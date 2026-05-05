@@ -186,7 +186,7 @@ function ViewDetailsSheet({
                     {v.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{v.notes}</p>}
                   </div>
                   <Badge variant="outline" className="text-xs capitalize shrink-0">
-                    {(v.outcome as string)?.replace(/_/g, ' ')}
+                    {outcomeLabels[v.outcome as string] ?? (v.outcome as string)?.replace(/_/g, ' ')}
                   </Badge>
                 </div>
               </div>
@@ -255,11 +255,10 @@ function DeleteConfirmDialog({
 
 interface InlineMapViewProps {
   territory: Territory;
-  congregationId: string;
   onClose: () => void;
 }
 
-function InlineMapView({ territory, congregationId: _congregationId, onClose }: InlineMapViewProps) {
+function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
   const [mapMode, setMapMode] = useState<'view' | 'add' | 'remove'>('view');
@@ -688,7 +687,6 @@ export default function MyAssignmentsClient() {
       {mapOpenTerritory && (
         <InlineMapView
           territory={mapOpenTerritory}
-          congregationId={congregationId}
           onClose={() => setMapOpenTerritoryId(null)}
         />
       )}
