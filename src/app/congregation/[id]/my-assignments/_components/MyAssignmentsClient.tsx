@@ -123,6 +123,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             boundary={fullTerritory?.boundary ?? territory.boundary}
             households={households}
             pinHouseholdMode={true}
+            directHouseholdClick={true}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}

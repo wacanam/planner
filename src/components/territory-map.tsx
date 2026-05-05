@@ -61,6 +61,10 @@ export interface TerritoryMapProps {
   // Pin household mode
   pinHouseholdMode?: boolean;
   onHouseholdPinPlaced?: (lat: number, lng: number) => void;
+  /** When true, tapping a household marker calls onHouseholdClick(id) directly
+   *  without showing the MapLibre popup first. Use in contexts where a React
+   *  bottom sheet handles the actions (e.g. InlineMapView). */
+  directHouseholdClick?: boolean;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -203,6 +207,7 @@ export default function TerritoryMap({
   initialDrawingRings,
   pinHouseholdMode = false,
   onHouseholdPinPlaced,
+  directHouseholdClick = false,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -210,6 +215,8 @@ export default function TerritoryMap({
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
+  const directHouseholdClickRef = useRef(directHouseholdClick);
+  directHouseholdClickRef.current = directHouseholdClick;
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
   // Pin household mode
@@ -1003,6 +1010,20 @@ useEffect(() => {
           // fires a synthesised click after the touchend.
           let touchStartX = 0, touchStartY = 0;
           let touchHandled = false;
+          const handleMarkerTap = () => {
+            // directHouseholdClick: skip the MapLibre popup and call the
+            // callback immediately so the React bottom sheet can open.
+            if (directHouseholdClickRef.current && onClickRef.current) {
+              // Close any existing popup
+              if (activePopupRef.current) {
+                activePopupRef.current.remove();
+                activePopupRef.current = null;
+              }
+              onClickRef.current(id, address);
+            } else {
+              showPopup();
+            }
+          };
           el.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].clientX;
             touchStartY = e.changedTouches[0].clientY;
@@ -1012,14 +1033,14 @@ useEffect(() => {
             const t = e.changedTouches[0];
             if (Math.abs(t.clientX - touchStartX) < 10 && Math.abs(t.clientY - touchStartY) < 10) {
               touchHandled = true;
-              showPopup();
+              handleMarkerTap();
               // Reset after click fires (two rAFs so the click handler can check)
               requestAnimationFrame(() => requestAnimationFrame(() => { touchHandled = false; }));
             }
           }, { passive: true });
           el.addEventListener('click', () => {
             if (touchHandled) return; // already handled by touchend above
-            showPopup();
+            handleMarkerTap();
           });
         }
 
