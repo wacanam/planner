@@ -234,6 +234,8 @@ export default function TerritoryMap({
   onHouseholdRemoveRef.current = onHouseholdRemove;
   // Derive effective interaction mode — mapInteractionMode takes precedence over legacy pinHouseholdMode
   const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
+  const effectiveInteractionModeRef = useRef(effectiveInteractionMode);
+  effectiveInteractionModeRef.current = effectiveInteractionMode;
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
   // Pin household mode
@@ -1028,8 +1030,7 @@ useEffect(() => {
           let touchStartX = 0, touchStartY = 0;
           let touchHandled = false;
           const handleMarkerTap = () => {
-            const effectiveMode = mapInteractionModeRef.current ?? (pinHouseholdMode ? 'add' : 'view');
-            if (effectiveMode === 'remove' && onHouseholdRemoveRef.current) {
+            if (effectiveInteractionModeRef.current === 'remove' && onHouseholdRemoveRef.current) {
               // Remove mode: delete the household
               if (activePopupRef.current) {
                 activePopupRef.current.remove();
@@ -1461,10 +1462,7 @@ useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
 
-    // 'mapInteractionMode' takes precedence; fall back to legacy pinHouseholdMode prop
-    const effectiveMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
-
-    if (effectiveMode !== 'add' || isDrawing) {
+    if (effectiveInteractionMode !== 'add' || isDrawing) {
       pinMarkerRef.current?.remove();
       pinMarkerRef.current = null;
       setPendingPin(null);
@@ -1521,7 +1519,7 @@ useEffect(() => {
       map.off('click', handleMapClick);
       map.getCanvas().style.cursor = '';
     };
-  }, [mapInteractionMode, pinHouseholdMode, mapReady, isDrawing]);
+  }, [effectiveInteractionMode, mapReady, isDrawing]);
 
   return (
     <div className={`relative ${className}`}>
