@@ -1,6 +1,8 @@
-import { readFromIDB, useIDBStore } from '@/lib/idb-store';
+import { writeToIDB, readFromIDB } from '@/lib/idb-store';
 import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
+import { apiClient } from '@/lib/api-client';
 import type { Visit, Household } from '@/types/api';
 
 function ensureArrayData<T>(value: unknown): T[] {
@@ -17,71 +19,119 @@ function ensureArrayData<T>(value: unknown): T[] {
 }
 
 /**
- * Read visits ONLY from IDB cache.
- * Reactive: updates when IDB changes.
+ * Fetch visits from API, fall back to IDB cache when offline.
+ * Updates IDB cache on each successful API fetch.
  */
 export function useMyVisits(
   filters?: { householdId?: string; assignmentId?: string }
 ) {
-  const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>('visits-cache', 'my-visits', []);
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [dataSource, setDataSource] = useState<'server' | 'cache'>('server');
 
-  // Merge pending items whenever cache updates
+  const { data: rawData, isLoading, error, mutate } = useSWR<Visit[]>(
+    '/api/visits',
+    async (url: string) => {
+      try {
+        const result = await apiClient.get<Visit[]>(url);
+        await writeToIDB('visits-cache', 'my-visits', result, 'sw');
+        setDataSource('server');
+        return result;
+      } catch {
+        // Offline or API error — try IDB cache
+        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch(() => null);
+        if (cached !== null) {
+          setDataSource('cache');
+          return ensureArrayData<Visit>(cached);
+        }
+        return [];
+      }
+    },
+    { revalidateOnFocus: false }
+  );
+
   useEffect(() => {
     (async () => {
-      const visits = ensureArrayData<Visit>(cachedVisits);
-      if (visits.length > 0) {
-        const merged = await mergePendingVisits(visits);
-        const filtered = merged.filter((visit) => {
-          if (filters?.householdId && visit.householdId !== filters.householdId) return false;
-          if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
-          return true;
-        });
-        setVisits(filtered);
-      } else {
-        setVisits([]);
-      }
+      const raw = ensureArrayData<Visit>(rawData ?? []);
+      const merged = await mergePendingVisits(raw);
+      const filtered = merged.filter((visit) => {
+        if (filters?.householdId && visit.householdId !== filters.householdId) return false;
+        if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
+        return true;
+      });
+      setVisits(filtered);
     })();
-  }, [cachedVisits, filters?.assignmentId, filters?.householdId]);
+  }, [rawData, filters?.assignmentId, filters?.householdId]);
+
+  // Listen for SW sync events to refresh
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const { type } = (e.data ?? {}) as { type?: string };
+      if (type === 'VISIT_SYNCED' || type === 'CACHE_UPDATED') {
+        void mutate();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [mutate]);
 
   return {
     visits,
     isLoading,
     error,
-    dataSource: ('cache' as 'server' | 'cache'),
+    dataSource,
+    mutate,
   };
 }
 
 /**
- * Read household visits ONLY from IDB cache.
- * Reactive: updates when IDB changes.
+ * Read visits for a specific household.
+ * Fetches from API and falls back to IDB cache when offline.
  */
 export function useHouseholdVisits(householdId: string | null) {
-  const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>(
-    'visits-cache',
-    'my-visits',
-    []
-  );
   const [visits, setVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
 
-  // Merge pending items
+  const { data: rawData, isLoading, error, mutate } = useSWR<Visit[]>(
+    householdId ? `/api/visits?householdId=${householdId}` : null,
+    async (url: string) => {
+      try {
+        const result = await apiClient.get<Visit[]>(url);
+        return result;
+      } catch {
+        // Offline — try full visits cache and filter
+        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch(() => null);
+        const all = ensureArrayData<Visit>(cached ?? []);
+        return all.filter((v) => v.householdId === householdId);
+      }
+    },
+    { revalidateOnFocus: false }
+  );
+
   useEffect(() => {
     (async () => {
-      const visits = ensureArrayData<Visit>(cachedVisits);
-      if (householdId) {
-        const merged = await mergePendingVisits(visits);
-        const filtered = merged.filter((visit) => visit.householdId === householdId);
-        setVisits(filtered as (Visit & { publisherName?: string; _pending?: boolean })[]);
-      } else {
-        setVisits([]);
-      }
+      const raw = ensureArrayData<Visit>(rawData ?? []);
+      const merged = await mergePendingVisits(raw);
+      const filtered = merged.filter((v) => v.householdId === householdId);
+      setVisits(filtered as (Visit & { publisherName?: string; _pending?: boolean })[]);
     })();
-  }, [cachedVisits, householdId]);
+  }, [rawData, householdId]);
+
+  // Listen for SW sync events to refresh
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const { type } = (e.data ?? {}) as { type?: string };
+      if (type === 'VISIT_SYNCED' || type === 'CACHE_UPDATED') {
+        void mutate();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [mutate]);
 
   return {
     visits,
     isLoading,
     error,
+    mutate,
   };
 }
 
@@ -91,68 +141,87 @@ export function useHouseholdVisits(householdId: string | null) {
  */
 export function useTerritoryVisits(territoryId: string | null) {
   const cacheKey = territoryId ? `territory-${territoryId}` : 'territory-null';
-  const [cachedVisits, isLoading, error] = useIDBStore<Visit[]>(
-    'visits-cache',
-    cacheKey,
-    []
-  );
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     (async () => {
-      const visits = ensureArrayData<Visit>(cachedVisits);
-      if (visits.length > 0 && territoryId) {
-        const merged = await mergePendingVisits(visits);
+      const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey).catch(() => null);
+      const raw = ensureArrayData<Visit>(cached ?? []);
+      if (territoryId && raw.length > 0) {
+        const merged = await mergePendingVisits(raw);
         setVisits(merged);
       } else {
         setVisits([]);
       }
+      setIsLoading(false);
     })();
-  }, [cachedVisits, territoryId]);
+  }, [cacheKey, territoryId]);
 
   return {
     visits,
     isLoading,
-    error,
+    error: null,
     dataSource: ('cache' as 'server' | 'cache'),
   };
 }
 
 /**
- * Read households ONLY from IDB cache.
- * Reactive: updates when IDB changes.
- * Pending households merged in automatically with ⏳ badge.
+ * Fetch households from API, fall back to IDB cache when offline.
+ * Updates IDB cache on each successful API fetch.
+ * Pending households merged in automatically.
  */
 export function useHouseholds() {
-  const [cachedHouseholds, isLoading, error] = useIDBStore<Household[]>(
-    'households-cache',
-    'all',
-    []
-  );
   const [households, setHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
+  const [dataSource, setDataSource] = useState<'server' | 'cache'>('server');
 
-  // Merge pending items whenever cache updates
+  const { data: rawData, isLoading, error, mutate } = useSWR<Household[]>(
+    '/api/households',
+    async (url: string) => {
+      try {
+        const result = await apiClient.get<Household[]>(url);
+        await writeToIDB('households-cache', 'all', result, 'sw');
+        setDataSource('server');
+        return result;
+      } catch {
+        // Offline or API error — try IDB cache
+        const cached = await readFromIDB<Household[]>('households-cache', 'all').catch(() => null);
+        if (cached !== null) {
+          setDataSource('cache');
+          return ensureArrayData<Household>(cached);
+        }
+        return [];
+      }
+    },
+    { revalidateOnFocus: false }
+  );
+
   useEffect(() => {
     (async () => {
-      const households = ensureArrayData<Household>(cachedHouseholds);
-      if (households.length > 0) {
-        const merged = await mergePendingHouseholds(households);
-        setHouseholds(merged);
-      } else {
-        setHouseholds([]);
-      }
+      const raw = ensureArrayData<Household>(rawData ?? []);
+      const merged = await mergePendingHouseholds(raw);
+      setHouseholds(merged);
     })();
-  }, [cachedHouseholds]);
+  }, [rawData]);
+
+  // Listen for SW sync events to refresh
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const { type } = (e.data ?? {}) as { type?: string };
+      if (type === 'HOUSEHOLD_SYNCED' || type === 'CACHE_UPDATED') {
+        void mutate();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handler);
+    return () => navigator.serviceWorker?.removeEventListener('message', handler);
+  }, [mutate]);
 
   return {
     households,
     isLoading,
     error,
-    dataSource: ('cache' as 'server' | 'cache'),
-    mutate: async () => {
-      const fresh = await readFromIDB<Household[]>('households-cache', 'all');
-      const merged = await mergePendingHouseholds(ensureArrayData<Household>(fresh));
-      setHouseholds(merged);
-    },
+    dataSource,
+    mutate,
   };
 }

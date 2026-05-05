@@ -718,7 +718,7 @@ export default function HouseholdsClient() {
   const { households, isLoading, dataSource, mutate } = useHouseholds();
   const { visits: allVisits } = useMyVisits();
 
-  // Count visits per household from IDB cache
+  // Count visits per household
   const visitCountByHousehold = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const v of allVisits) {
@@ -726,22 +726,6 @@ export default function HouseholdsClient() {
     }
     return counts;
   }, [allVisits]);
-
-  // Listen for SW sync messages — revalidate list on sync
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      const { type } = (e.data ?? {}) as { type?: string };
-      if (
-        type === 'VISIT_SYNCED' ||
-        type === 'HOUSEHOLD_SYNCED' ||
-        type === 'CACHE_UPDATED'
-      ) {
-        void mutate();
-      }
-    };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [mutate]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
