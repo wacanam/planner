@@ -65,6 +65,15 @@ export interface TerritoryMapProps {
    *  without showing the MapLibre popup first. Use in contexts where a React
    *  bottom sheet handles the actions (e.g. InlineMapView). */
   directHouseholdClick?: boolean;
+  /**
+   * Map interaction mode:
+   * - 'view'   (default) — normal marker click → popup or onHouseholdClick
+   * - 'add'    — single tap on empty map area drops a pin → onHouseholdPinPlaced
+   * - 'remove' — tap on a household marker calls onHouseholdRemove(id)
+   */
+  mapInteractionMode?: 'view' | 'add' | 'remove';
+  /** Called in 'remove' mode when user taps a household marker */
+  onHouseholdRemove?: (id: string) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -208,6 +217,8 @@ export default function TerritoryMap({
   pinHouseholdMode = false,
   onHouseholdPinPlaced,
   directHouseholdClick = false,
+  mapInteractionMode,
+  onHouseholdRemove,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -217,6 +228,10 @@ export default function TerritoryMap({
   onClickRef.current = onHouseholdClick;
   const directHouseholdClickRef = useRef(directHouseholdClick);
   directHouseholdClickRef.current = directHouseholdClick;
+  const mapInteractionModeRef = useRef(mapInteractionMode);
+  mapInteractionModeRef.current = mapInteractionMode;
+  const onHouseholdRemoveRef = useRef(onHouseholdRemove);
+  onHouseholdRemoveRef.current = onHouseholdRemove;
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
   // Pin household mode
@@ -1011,10 +1026,17 @@ useEffect(() => {
           let touchStartX = 0, touchStartY = 0;
           let touchHandled = false;
           const handleMarkerTap = () => {
-            // directHouseholdClick: skip the MapLibre popup and call the
-            // callback immediately so the React bottom sheet can open.
-            if (directHouseholdClickRef.current && onClickRef.current) {
-              // Close any existing popup
+            const effectiveMode = mapInteractionModeRef.current ?? (pinHouseholdMode ? 'add' : 'view');
+            if (effectiveMode === 'remove' && onHouseholdRemoveRef.current) {
+              // Remove mode: delete the household
+              if (activePopupRef.current) {
+                activePopupRef.current.remove();
+                activePopupRef.current = null;
+              }
+              onHouseholdRemoveRef.current(id);
+            } else if (directHouseholdClickRef.current && onClickRef.current) {
+              // directHouseholdClick: skip the MapLibre popup and call the
+              // callback immediately so the React bottom sheet can open.
               if (activePopupRef.current) {
                 activePopupRef.current.remove();
                 activePopupRef.current = null;
@@ -1432,12 +1454,15 @@ useEffect(() => {
     prevIsDrawing.current = isDrawing;
   }, [isDrawing]);
 
-  // ─── Pin household mode: long-press map to drop a pin ────────────────────
+  // ─── Pin household mode: click map to drop a pin (no long-press) ────────
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
 
-    if (!pinHouseholdMode || isDrawing) {
+    // 'mapInteractionMode' takes precedence; fall back to legacy pinHouseholdMode prop
+    const effectiveMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
+
+    if (effectiveMode !== 'add' || isDrawing) {
       pinMarkerRef.current?.remove();
       pinMarkerRef.current = null;
       setPendingPin(null);
@@ -1445,10 +1470,7 @@ useEffect(() => {
       return;
     }
 
-    const LONG_PRESS_DURATION_MS = 600;
-    const PRESS_MOVEMENT_THRESHOLD = 10;
-
-    const canvas = map.getCanvas();
+    map.getCanvas().style.cursor = 'crosshair';
 
     const placePinAt = (lat: number, lng: number) => {
       setPendingPin([lat, lng]);
@@ -1486,65 +1508,18 @@ useEffect(() => {
       }
     };
 
-    // ── Long-press to drop a pin ───────────────────────────────────────────
-    let pressTimer: ReturnType<typeof setTimeout> | null = null;
-    let pressStartX = 0;
-    let pressStartY = 0;
-
-    const cancelPress = () => {
-      if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null; }
+    // Single tap/click on map canvas drops a pin
+    const handleMapClick = (e: { lngLat: { lat: number; lng: number } }) => {
+      placePinAt(e.lngLat.lat, e.lngLat.lng);
     };
 
-    const startPress = (clientX: number, clientY: number) => {
-      pressStartX = clientX;
-      pressStartY = clientY;
-      pressTimer = setTimeout(() => {
-        pressTimer = null;
-        const rect = canvas.getBoundingClientRect();
-        const lngLat = map.unproject([pressStartX - rect.left, pressStartY - rect.top]);
-        placePinAt(lngLat.lat, lngLat.lng);
-      }, LONG_PRESS_DURATION_MS);
-    };
-
-    // Touch (mobile)
-    const handleTouchStart = (e: TouchEvent) => {
-      const t = e.changedTouches[0];
-      startPress(t.clientX, t.clientY);
-    };
-    const handleTouchMove = (e: TouchEvent) => {
-      const t = e.changedTouches[0];
-      if (Math.abs(t.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(t.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
-    };
-    const handleTouchEnd = () => cancelPress();
-
-    // Mouse (desktop)
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      startPress(e.clientX, e.clientY);
-    };
-    const handleMouseUp = () => cancelPress();
-    const handleMouseMove = (e: MouseEvent) => {
-      if (Math.abs(e.clientX - pressStartX) > PRESS_MOVEMENT_THRESHOLD || Math.abs(e.clientY - pressStartY) > PRESS_MOVEMENT_THRESHOLD) cancelPress();
-    };
-
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mousemove', handleMouseMove);
+    map.on('click', handleMapClick);
 
     return () => {
-      cancelPress();
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchmove', handleTouchMove);
-      canvas.removeEventListener('touchend', handleTouchEnd);
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mousemove', handleMouseMove);
+      map.off('click', handleMapClick);
       map.getCanvas().style.cursor = '';
     };
-  }, [pinHouseholdMode, mapReady, isDrawing]);
+  }, [mapInteractionMode, pinHouseholdMode, mapReady, isDrawing]);
 
   return (
     <div className={`relative ${className}`}>
@@ -1605,15 +1580,15 @@ useEffect(() => {
         </div>
       )}
 
-      {pinHouseholdMode && !pendingPin && !isDrawing && (
+      {(mapInteractionMode === 'add' || pinHouseholdMode) && !pendingPin && !isDrawing && (
         <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100] pointer-events-none">
           <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
-            Hold map to add a household
+            Tap map to place a household
           </div>
         </div>
       )}
 
-      {pinHouseholdMode && pendingPin && (
+      {(mapInteractionMode === 'add' || pinHouseholdMode) && pendingPin && (
         <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100]">
           <button
             type="button"

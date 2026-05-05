@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, MapPin, MapPinOff, Plus, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -16,6 +16,8 @@ import useSWR, { mutate } from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { queueHouseholdDelete } from '@/lib/visits-store';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
+import { MAP_STYLES } from '@/components/territory-map';
+import type { StyleId } from '@/components/territory-map';
 import type { Territory } from '@/types/api';
 
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
@@ -42,6 +44,9 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
   const [showAllPins, setShowAllPins] = useState(false);
   const [deletingHouseholdId, setDeletingHouseholdId] = useState<string | null>(null);
   const [deleteHouseholdError, setDeleteHouseholdError] = useState(false);
+  const [mapMode, setMapMode] = useState<'view' | 'add' | 'remove'>('view');
+  const [mapStyle, setMapStyle] = useState<StyleId>('streets');
+  const [showStylePicker, setShowStylePicker] = useState(false);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
   const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
@@ -122,30 +127,103 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
           <TerritoryMap
             boundary={fullTerritory?.boundary ?? territory.boundary}
             households={households}
-            pinHouseholdMode={true}
-            directHouseholdClick={true}
+            mapStyle={mapStyle}
+            mapInteractionMode={mapMode}
+            directHouseholdClick={mapMode !== 'remove'}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}
             onHouseholdClick={(id: string) => {
+              if (mapMode === 'remove') return;
               const found = households.find((h) => h.id === id);
               if (found) setSelectedHousehold(found);
             }}
+            onHouseholdRemove={(id: string) => void handleDeleteHousehold(id)}
             className="w-full h-full"
           />
         )}
 
-        {/* Show all Household — checkbox overlay (bottom-left) */}
-        <label htmlFor="show-all-pins" className="absolute bottom-4 left-4 z-10 flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none">
-          <input
-            id="show-all-pins"
-            type="checkbox"
-            checked={showAllPins}
-            onChange={(e) => setShowAllPins(e.target.checked)}
-            className="w-3.5 h-3.5 rounded accent-primary"
-          />
-          Show all Households
-        </label>
+        {/* Right-side controls — mode buttons + style picker + show all */}
+        <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-1.5 items-end">
+          {/* Style picker */}
+          {showStylePicker && (
+            <div className="mb-1 flex flex-col gap-1 items-end">
+              {MAP_STYLES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => { setMapStyle(s.id as StyleId); setShowStylePicker(false); }}
+                  style={{ fontWeight: 600, fontSize: '10px' }}
+                  className={[
+                    'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
+                    mapStyle === s.id
+                      ? 'bg-primary text-white'
+                      : 'bg-background/90 text-foreground hover:bg-background',
+                  ].join(' ')}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Mode: Add household */}
+          <button
+            type="button"
+            onClick={() => setMapMode((m) => m === 'add' ? 'view' : 'add')}
+            title={mapMode === 'add' ? 'Cancel add mode' : 'Add household (tap map)'}
+            className={[
+              'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+              mapMode === 'add'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background/90 text-foreground hover:bg-background',
+            ].join(' ')}
+          >
+            <MapPin size={16} />
+          </button>
+
+          {/* Mode: Remove household */}
+          <button
+            type="button"
+            onClick={() => setMapMode((m) => m === 'remove' ? 'view' : 'remove')}
+            title={mapMode === 'remove' ? 'Cancel remove mode' : 'Remove household (tap marker)'}
+            className={[
+              'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+              mapMode === 'remove'
+                ? 'bg-destructive text-destructive-foreground'
+                : 'bg-background/90 text-foreground hover:bg-background',
+            ].join(' ')}
+          >
+            <MapPinOff size={16} />
+          </button>
+
+          {/* Show all Households checkbox */}
+          <label
+            htmlFor="show-all-pins"
+            className="flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none"
+          >
+            <input
+              id="show-all-pins"
+              type="checkbox"
+              checked={showAllPins}
+              onChange={(e) => setShowAllPins(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-primary"
+            />
+            Show all
+          </label>
+
+          {/* Map style toggle */}
+          <button
+            type="button"
+            onClick={() => setShowStylePicker((p) => !p)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background/90 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M3 6h18M3 12h18M3 18h18"/>
+            </svg>
+            {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
+          </button>
+        </div>
       </div>
 
       {pendingPin && (
