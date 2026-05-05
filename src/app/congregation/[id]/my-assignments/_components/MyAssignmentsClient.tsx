@@ -186,7 +186,7 @@ function ViewDetailsSheet({
                     {v.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{v.notes}</p>}
                   </div>
                   <Badge variant="outline" className="text-xs capitalize shrink-0">
-                    {outcomeLabels[v.outcome as string] ?? (v.outcome as string)?.replace(/_/g, ' ')}
+                    {outcomeLabels[v.outcome as string] ?? 'Unknown'}
                   </Badge>
                 </div>
               </div>
@@ -454,7 +454,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
       {logVisitHouseholdId && (
         <LogVisitSheet
           householdId={logVisitHouseholdId}
-          householdLabel={logVisitHousehold?.address ?? logVisitHouseholdId}
+          householdLabel={logVisitHousehold?.address ?? 'Unnamed Household'}
           onClose={() => setLogVisitHouseholdId(null)}
         />
       )}
