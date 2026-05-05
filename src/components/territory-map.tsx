@@ -232,6 +232,8 @@ export default function TerritoryMap({
   mapInteractionModeRef.current = mapInteractionMode;
   const onHouseholdRemoveRef = useRef(onHouseholdRemove);
   onHouseholdRemoveRef.current = onHouseholdRemove;
+  // Derive effective interaction mode — mapInteractionMode takes precedence over legacy pinHouseholdMode
+  const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
   // Pin household mode
@@ -1580,7 +1582,7 @@ useEffect(() => {
         </div>
       )}
 
-      {(mapInteractionMode === 'add' || pinHouseholdMode) && !pendingPin && !isDrawing && (
+      {effectiveInteractionMode === 'add' && !pendingPin && !isDrawing && (
         <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100] pointer-events-none">
           <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
             Tap map to place a household
@@ -1588,7 +1590,7 @@ useEffect(() => {
         </div>
       )}
 
-      {(mapInteractionMode === 'add' || pinHouseholdMode) && pendingPin && (
+      {effectiveInteractionMode === 'add' && pendingPin && (
         <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100]">
           <button
             type="button"

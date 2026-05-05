@@ -129,7 +129,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
             households={households}
             mapStyle={mapStyle}
             mapInteractionMode={mapMode}
-            directHouseholdClick={mapMode !== 'remove'}
+            directHouseholdClick={mapMode === 'view' || mapMode === 'add'}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}
@@ -209,7 +209,7 @@ function InlineMapView({ territory, congregationId, onClose }: InlineMapViewProp
               onChange={(e) => setShowAllPins(e.target.checked)}
               className="w-3.5 h-3.5 rounded accent-primary"
             />
-            Show all
+            Show all Households
           </label>
 
           {/* Map style toggle */}
