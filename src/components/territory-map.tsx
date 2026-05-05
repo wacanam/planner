@@ -74,6 +74,10 @@ export interface TerritoryMapProps {
   mapInteractionMode?: 'view' | 'add' | 'remove';
   /** Called in 'remove' mode when user taps a household marker */
   onHouseholdRemove?: (id: string) => void;
+  /** Called when user clicks "View Details" in the marker popup */
+  onHouseholdViewDetails?: (id: string) => void;
+  /** Called when user clicks "Delete" in the marker popup (shows confirmation in parent) */
+  onHouseholdDeleteRequest?: (id: string) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -219,6 +223,8 @@ export default function TerritoryMap({
   directHouseholdClick = false,
   mapInteractionMode,
   onHouseholdRemove,
+  onHouseholdViewDetails,
+  onHouseholdDeleteRequest,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -232,6 +238,10 @@ export default function TerritoryMap({
   mapInteractionModeRef.current = mapInteractionMode;
   const onHouseholdRemoveRef = useRef(onHouseholdRemove);
   onHouseholdRemoveRef.current = onHouseholdRemove;
+  const onHouseholdViewDetailsRef = useRef(onHouseholdViewDetails);
+  onHouseholdViewDetailsRef.current = onHouseholdViewDetails;
+  const onHouseholdDeleteRequestRef = useRef(onHouseholdDeleteRequest);
+  onHouseholdDeleteRequestRef.current = onHouseholdDeleteRequest;
   // Derive effective interaction mode — mapInteractionMode takes precedence over legacy pinHouseholdMode
   const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
   const effectiveInteractionModeRef = useRef(effectiveInteractionMode);
@@ -931,6 +941,8 @@ useEffect(() => {
 
           const showPopup = () => {
             const onHClick = onClickRef.current;
+            const onViewDetails = onHouseholdViewDetailsRef.current;
+            const onDeleteRequest = onHouseholdDeleteRequestRef.current;
             const fmtEnum = (s: string) => s.replace(/_/g, ' ');
             // Format last visit date
             const visitDateStr = lastVisitDate
@@ -986,6 +998,8 @@ useEffect(() => {
                   notesSnippet
                     ? '<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">' + escHtml(notesSnippet) + '</p>'
                     : '',
+                  // Action buttons
+                  '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">',
                   // Log Visit button
                   onHClick
                     ? [
@@ -994,11 +1008,28 @@ useEffect(() => {
                           "','" +
                           address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
                           '\')"',
-                        ' style="margin-top:6px;width:100%;padding:9px 0;background:' + color +
-                          ';color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">',
+                        ' style="flex:1;min-width:80px;padding:8px 4px;background:' + color +
+                          ';color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
                         'Log Visit</button>',
                       ].join('')
                     : '',
+                  // View Details button
+                  onViewDetails
+                    ? [
+                        '<button onclick="window.__mapViewDetails(\'' + id + '\')"',
+                        ' style="flex:1;min-width:80px;padding:8px 4px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                        'View Details</button>',
+                      ].join('')
+                    : '',
+                  // Delete button
+                  onDeleteRequest
+                    ? [
+                        '<button onclick="window.__mapDeleteRequest(\'' + id + '\')"',
+                        ' style="padding:8px 10px;background:#fff1f2;color:#e11d48;border:1px solid #fecdd3;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                        '🗑</button>',
+                      ].join('')
+                    : '',
+                  '</div>',
                   '</div>',
                 ].join('')
               )
@@ -1017,6 +1048,18 @@ useEffect(() => {
               ) => {
                 popup.remove();
                 onHClick(hId, hAddr);
+              };
+            }
+            if (onViewDetails) {
+              (window as unknown as Record<string, unknown>).__mapViewDetails = (hId: string) => {
+                popup.remove();
+                onViewDetails(hId);
+              };
+            }
+            if (onDeleteRequest) {
+              (window as unknown as Record<string, unknown>).__mapDeleteRequest = (hId: string) => {
+                popup.remove();
+                onDeleteRequest(hId);
               };
             }
           };
