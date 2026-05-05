@@ -36,9 +36,13 @@ export function useMyVisits(
         await writeToIDB('visits-cache', 'my-visits', result, 'sw');
         setDataSource('server');
         return result;
-      } catch {
+      } catch (apiErr) {
+        console.warn('[useMyVisits] API fetch failed, falling back to IDB cache:', apiErr);
         // Offline or API error — try IDB cache
-        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch(() => null);
+        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch((idbErr) => {
+          console.warn('[useMyVisits] IDB fallback read failed:', idbErr);
+          return null;
+        });
         if (cached !== null) {
           setDataSource('cache');
           return ensureArrayData<Visit>(cached);
@@ -96,9 +100,13 @@ export function useHouseholdVisits(householdId: string | null) {
       try {
         const result = await apiClient.get<Visit[]>(url);
         return result;
-      } catch {
+      } catch (apiErr) {
+        console.warn('[useHouseholdVisits] API fetch failed, falling back to IDB cache:', apiErr);
         // Offline — try full visits cache and filter
-        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch(() => null);
+        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch((idbErr) => {
+          console.warn('[useHouseholdVisits] IDB fallback read failed:', idbErr);
+          return null;
+        });
         const all = ensureArrayData<Visit>(cached ?? []);
         return all.filter((v) => v.householdId === householdId);
       }
@@ -143,26 +151,37 @@ export function useTerritoryVisits(territoryId: string | null) {
   const cacheKey = territoryId ? `territory-${territoryId}` : 'territory-null';
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
+    setError(null);
     (async () => {
-      const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey).catch(() => null);
-      const raw = ensureArrayData<Visit>(cached ?? []);
-      if (territoryId && raw.length > 0) {
-        const merged = await mergePendingVisits(raw);
-        setVisits(merged);
-      } else {
+      try {
+        const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey).catch((err) => {
+          throw err;
+        });
+        const raw = ensureArrayData<Visit>(cached ?? []);
+        if (territoryId && raw.length > 0) {
+          const merged = await mergePendingVisits(raw);
+          setVisits(merged);
+        } else {
+          setVisits([]);
+        }
+      } catch (err) {
+        console.warn('[useTerritoryVisits] IDB read failed:', err);
+        setError(String(err));
         setVisits([]);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     })();
   }, [cacheKey, territoryId]);
 
   return {
     visits,
     isLoading,
-    error: null,
+    error,
     dataSource: ('cache' as 'server' | 'cache'),
   };
 }
@@ -184,9 +203,13 @@ export function useHouseholds() {
         await writeToIDB('households-cache', 'all', result, 'sw');
         setDataSource('server');
         return result;
-      } catch {
+      } catch (apiErr) {
+        console.warn('[useHouseholds] API fetch failed, falling back to IDB cache:', apiErr);
         // Offline or API error — try IDB cache
-        const cached = await readFromIDB<Household[]>('households-cache', 'all').catch(() => null);
+        const cached = await readFromIDB<Household[]>('households-cache', 'all').catch((idbErr) => {
+          console.warn('[useHouseholds] IDB fallback read failed:', idbErr);
+          return null;
+        });
         if (cached !== null) {
           setDataSource('cache');
           return ensureArrayData<Household>(cached);
