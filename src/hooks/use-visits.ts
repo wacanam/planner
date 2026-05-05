@@ -158,9 +158,7 @@ export function useTerritoryVisits(territoryId: string | null) {
     setError(null);
     (async () => {
       try {
-        const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey).catch((err) => {
-          throw err;
-        });
+        const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey);
         const raw = ensureArrayData<Visit>(cached ?? []);
         if (territoryId && raw.length > 0) {
           const merged = await mergePendingVisits(raw);
