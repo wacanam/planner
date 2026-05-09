@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { asc, and, eq, sql as drizzleSql } from 'drizzle-orm';
-import { db, households, territories } from '@/db';
+import { db, households, territories, congregationMembers, UserRole } from '@/db';
 import { withAuth } from '@/lib/auth-middleware';
 import { successResponse, ApiErrors, generateRequestId } from '@/lib/api-helpers';
 import { NextResponse } from 'next/server';
@@ -9,10 +9,13 @@ import { NextResponse } from 'next/server';
 // ?boundary=<GeoJSON geometry>  — ST_Within (PostGIS, GIST-indexed, exact polygon)
 // ?syncTerritory=<id>           — also update territory.householdsCount with the live count
 // ?minLat&maxLat&minLng&maxLng  — bbox fallback
+// No spatial filter: returns households scoped to the user's congregation (via createdById).
+//   Super-admins/admins bypass this and see all households.
 export async function GET(req: NextRequest) {
   const requestId = generateRequestId();
   const authResult = withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -22,6 +25,8 @@ export async function GET(req: NextRequest) {
     const maxLat = searchParams.get('maxLat');
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
+
+    const isGlobalAdmin = user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN;
 
     let whereClause: ReturnType<typeof import("drizzle-orm").and> | ReturnType<typeof import("drizzle-orm").sql> | undefined;
 
@@ -60,6 +65,15 @@ export async function GET(req: NextRequest) {
       if (minLng) conditions.push(drizzleSql`${households.longitude}::numeric >= ${Number(minLng)}`);
       if (maxLng) conditions.push(drizzleSql`${households.longitude}::numeric <= ${Number(maxLng)}`);
       whereClause = conditions.length ? and(...conditions) : undefined;
+    } else if (!isGlobalAdmin && user.congregationId) {
+      // ── Mode 3: no spatial filter — scope to user's congregation ──────
+      // Households have no direct congregationId FK; we scope via createdById
+      // matching active members of the user's congregation.
+      whereClause = drizzleSql`${households.createdById} IN (
+        SELECT "userId" FROM ${congregationMembers}
+        WHERE "congregationId" = ${user.congregationId}::uuid
+          AND status = 'active'
+      )`;
     }
 
     const results = await db
