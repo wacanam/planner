@@ -1,216 +1,23 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, ChevronUp, MapPin, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  HouseholdEncounterSheet,
-  HouseholdLogVisitSheet,
-} from '@/components/households/household-action-sheets';
-import {
-  useCongregationTerritories,
-  useCongregationTerritoryRequests,
-  useTerritoryDetail,
-  useHouseholds,
-} from '@/hooks';
-import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
-import type { StyleId } from '@/components/territory-map';
-import type { Household, Territory } from '@/types/api';
-
-// biome-ignore lint/suspicious/noExplicitAny: dynamic import
-const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
-
-interface HouseholdMapItem {
-  id: string;
-  address?: string | null;
-  streetName?: string | null;
-  city?: string | null;
-  notes?: string | null;
-  membersCount?: number | null;
-  occupantsCount?: number | null;
-  status?: string | null;
-  type?: string | null;
-  lastVisitDate?: string | null;
-  lastVisitOutcome?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-  latitude?: number | null;
-  longitude?: number | null;
-}
-
-// ─── InlineMapView ─────────────────────────────────────────────────────────────
-
-interface InlineMapViewProps {
-  territory: Territory;
-  onClose: () => void;
-}
-
-function InlineMapView({ territory, onClose }: InlineMapViewProps) {
-  const router = useRouter();
-  const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [showAllPins, setShowAllPins] = useState(false);
-  const [mapStyle, setMapStyle] = useState<StyleId>('streets');
-  const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add'>('add');
-
-  // Action states — opened from popup buttons
-  const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
-  const [encounterHouseholdId, setEncounterHouseholdId] = useState<string | null>(null);
-
-  // Load the FULL territory detail to get the boundary (the list API omits it)
-  const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(
-    territory.id
-  );
-
-  const { households: localHouseholds } = useHouseholds({
-    congregationId: territory.congregationId,
-    territoryId: showAllPins ? undefined : territory.id,
-  });
-
-  const households: HouseholdMapItem[] = localHouseholds
-    .filter((household) => household.latitude != null && household.longitude != null)
-    .map((household) => ({
-      id: household.id,
-      address: household.address,
-      streetName: household.streetName ?? null,
-      city: household.city ?? '',
-      notes: household.notes ?? null,
-      occupantsCount: household.occupantsCount ?? null,
-      status: household.status ?? null,
-      type: household.type ?? null,
-      lastVisitDate: household.lastVisitDate ?? null,
-      lastVisitOutcome: household.lastVisitOutcome ?? null,
-      latitude: Number(household.latitude),
-      longitude: Number(household.longitude),
-    }));
-
-  const logVisitHousehold = households.find((h) => h.id === logVisitHouseholdId) ?? null;
-  const logVisitHouseholdRecord =
-    localHouseholds.find((household) => household.id === logVisitHouseholdId) ?? null;
-  const encounterHouseholdRecord =
-    localHouseholds.find((household) => household.id === encounterHouseholdId) ?? null;
-
-  return createPortal(
-    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 9000 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
-        <div className="min-w-0">
-          <p className="text-xs text-primary font-medium uppercase tracking-wide">Territory Map</p>
-          <p className="text-base font-bold text-foreground leading-tight truncate">
-            #{territory.number} {territory.name}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-2 rounded-full hover:bg-muted ml-2"
-          aria-label="Close map"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      <div className="flex-1 relative">
-        {territoryLoading ? (
-          <div className="w-full h-full bg-muted animate-pulse flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">Loading map…</p>
-          </div>
-        ) : (
-          <TerritoryMap
-            boundary={fullTerritory?.boundary ?? territory.boundary}
-            households={households}
-            mapStyle={mapStyle}
-            onMapStyleChange={setMapStyle}
-            mapInteractionMode={mapInteractionMode}
-            onMapInteractionModeChange={setMapInteractionMode}
-            pinPreview={pendingPin}
-            onPinPreviewChange={setPendingPin}
-            pinPlacement="instant"
-            onHouseholdPinPlaced={(lat: number, lng: number) => {
-              setPendingPin({ lat, lng });
-            }}
-            onHouseholdClick={(id: string) => {
-              setLogVisitHouseholdId(id);
-            }}
-            onHouseholdAddEncounter={(id: string) => {
-              setEncounterHouseholdId(id);
-            }}
-            onHouseholdViewDetails={(id: string) => {
-              router.push(`/congregation/${territory.congregationId}/records/households/${id}`);
-            }}
-            className="w-full h-full"
-          />
-        )}
-
-        <div className="absolute left-3 bottom-4 z-10 flex flex-col gap-2 items-start">
-          <label
-            htmlFor="show-all-pins"
-            className="flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none"
-          >
-            <input
-              id="show-all-pins"
-              type="checkbox"
-              checked={showAllPins}
-              onChange={(e) => setShowAllPins(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-primary"
-            />
-            Show all Households
-          </label>
-        </div>
-      </div>
-
-      {pendingPin && (
-        <AddHouseholdSheet
-          lat={pendingPin.lat}
-          lng={pendingPin.lng}
-          territoryId={territory.id}
-          congregationId={territory.congregationId ?? ''}
-          onClose={() => setPendingPin(null)}
-          onSuccess={() => {
-            setPendingPin(null);
-          }}
-        />
-      )}
-
-      {/* Log Visit bottom sheet */}
-      {logVisitHouseholdId && (
-        <HouseholdLogVisitSheet
-          household={(logVisitHouseholdRecord ?? logVisitHousehold) as Household | null}
-          open={!!logVisitHouseholdId}
-          onOpenChange={(open) => {
-            if (!open) setLogVisitHouseholdId(null);
-          }}
-        />
-      )}
-
-      {encounterHouseholdId && (
-        <HouseholdEncounterSheet
-          household={encounterHouseholdRecord}
-          open={!!encounterHouseholdId}
-          onOpenChange={(open) => {
-            if (!open) setEncounterHouseholdId(null);
-          }}
-        />
-      )}
-    </div>,
-    document.body
-  );
-}
+import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
 
 export default function MyAssignmentsClient() {
   const params = useParams();
+  const router = useRouter();
   const congregationId = params?.id as string;
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string; name?: string } | undefined;
   const [showPast, setShowPast] = useState(false);
-  const [mapOpenTerritoryId, setMapOpenTerritoryId] = useState<string | null>(null);
 
   const { data: territoriesData, isLoading: territoriesLoading } =
     useCongregationTerritories(congregationId);
@@ -240,9 +47,6 @@ export default function MyAssignmentsClient() {
   }
 
   const firstName = sessionUser?.name?.split(' ')[0] ?? 'Publisher';
-  const mapOpenTerritory = mapOpenTerritoryId
-    ? (territories.find((t) => t.id === mapOpenTerritoryId) ?? null)
-    : null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -296,7 +100,7 @@ export default function MyAssignmentsClient() {
                 type="button"
                 aria-label={`View map for Territory #${t.number} ${t.name}`}
                 className="w-full text-left rounded-2xl bg-primary/8 border border-primary/20 p-5 space-y-3 active:scale-[0.98] transition-transform"
-                onClick={() => setMapOpenTerritoryId(t.id)}
+                onClick={() => router.push(`/congregation/${congregationId}/territories/${t.id}`)}
               >
                 {/* Territory identity */}
                 <div className="flex items-start justify-between gap-2">
@@ -394,11 +198,6 @@ export default function MyAssignmentsClient() {
           </div>
         )}
       </div>
-
-      {/* Inline map overlay — full screen */}
-      {mapOpenTerritory && (
-        <InlineMapView territory={mapOpenTerritory} onClose={() => setMapOpenTerritoryId(null)} />
-      )}
     </ProtectedPage>
   );
 }

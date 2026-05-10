@@ -4,6 +4,14 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 
 import {
@@ -237,20 +245,8 @@ export default function TerritoryDetailView() {
   // All congregation territories — for showing all polygons as layers on the map
   const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
 
-  type HouseholdItem = {
-    id: string;
-    address: string;
-    latitude?: string | null;
-    longitude?: string | null;
-    status?: string | null;
-    type?: string | null;
-    occupantsCount?: number | null;
-    lastVisitDate?: string | null;
-    lastVisitOutcome?: string | null;
-    notes?: string | null;
-  };
   const { households: householdsResp } = useHouseholds({ congregationId, territoryId });
-  const householdsInTerritory = householdsResp as HouseholdItem[];
+  const householdsInTerritory = householdsResp;
 
   const backHref = `/congregation/${congregationId}/territories`;
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
@@ -489,7 +485,7 @@ export default function TerritoryDetailView() {
                           {territory.boundary && canClearBoundary && (
                             <button
                               type="button"
-                              onClick={() => setClearConfirmPending((pending) => !pending)}
+                              onClick={() => setClearConfirmPending(true)}
                               title="Clear boundary"
                               aria-label="Clear boundary"
                               className={`${mapToolButtonClass} text-destructive hover:bg-destructive/10`}
@@ -497,33 +493,6 @@ export default function TerritoryDetailView() {
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
-                        </div>
-                      )}
-
-                      {territory.boundary && canClearBoundary && clearConfirmPending && (
-                        <div className="w-44 rounded-xl border border-destructive/25 bg-background p-2 text-right shadow-lg">
-                          <p className="px-1 pb-2 text-xs font-semibold text-destructive">
-                            Clear boundary?
-                          </p>
-                          <div className="flex justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setClearConfirmPending(false)}
-                              className="rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-foreground"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClearConfirmPending(false);
-                                handleClearBoundary();
-                              }}
-                              className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground"
-                            >
-                              Clear
-                            </button>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -537,7 +506,7 @@ export default function TerritoryDetailView() {
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
-                              ? `✏️ Drag to move · Tap edge to add · Long-press to remove`
+                              ? `✏️ Drag to move · Tap edge to add · Long-press vertex to remove`
                               : drawActivePoints > 0
                                 ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                                 : drawRingCount > 0
@@ -742,6 +711,33 @@ export default function TerritoryDetailView() {
 
           {/* Manual calibration overlay */}
           {showCalibPrompt && <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />}
+
+          {/* Clear boundary confirmation dialog */}
+          <Dialog open={clearConfirmPending} onOpenChange={setClearConfirmPending}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Clear boundary?</DialogTitle>
+                <DialogDescription>
+                  This will permanently remove the boundary for this territory. This action cannot
+                  be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setClearConfirmPending(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setClearConfirmPending(false);
+                    handleClearBoundary();
+                  }}
+                >
+                  Clear boundary
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       )}
     </ProtectedPage>

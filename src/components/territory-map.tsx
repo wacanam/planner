@@ -240,18 +240,20 @@ function formatHouseholdType(value?: string | null) {
 
 function orientationHeading(event: DeviceOrientationEvent & { webkitCompassHeading?: number }) {
   const compassHeading = event.webkitCompassHeading;
+  // webkitCompassHeading is already absolute (0=North, clockwise) on iOS.
+  // event.alpha on Android is counter-clockwise from the initial orientation — invert it.
   const rawHeading =
     typeof compassHeading === 'number'
       ? compassHeading
       : typeof event.alpha === 'number'
-        ? 360 - event.alpha
+        ? (360 - event.alpha) % 360
         : null;
   if (rawHeading === null) return null;
   const screenAngle =
     window.screen.orientation?.angle ??
     (window as typeof window & { orientation?: number }).orientation ??
     0;
-  return (((rawHeading + screenAngle) % 360) + 360) % 360;
+  return (((rawHeading - screenAngle) % 360) + 360) % 360;
 }
 
 function markerIcon(api: GoogleApi, color: string): google.maps.Icon {
@@ -492,6 +494,7 @@ export default function TerritoryMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const markerMapRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const boundaryOverlaysRef = useRef<google.maps.MVCObject[]>([]);
   const drawingOverlaysRef = useRef<google.maps.MVCObject[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
@@ -675,9 +678,10 @@ export default function TerritoryMap({
         navigator.geolocation.clearWatch(locationWatchRef.current);
       if (headingLocationWatchRef.current !== null)
         navigator.geolocation.clearWatch(headingLocationWatchRef.current);
-      markersRef.current.forEach((marker) => {
+      for (const marker of markerMapRef.current.values()) {
         marker.setMap(null);
-      });
+      }
+      markerMapRef.current.clear();
       tempPinMarkerRef.current?.setMap(null);
       locationMarkerRef.current?.setMap(null);
       locationCircleRef.current?.setMap(null);
@@ -895,6 +899,32 @@ export default function TerritoryMap({
               .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
           );
         });
+
+        // Mobile long-press to delete vertex (>= 500 ms)
+        const markerDiv = marker as google.maps.Marker & {
+          __longPressTimer?: ReturnType<typeof setTimeout>;
+        };
+        api.maps.event.addDomListener(marker as unknown as Element, 'touchstart', () => {
+          markerDiv.__longPressTimer = setTimeout(() => {
+            setDrawRings((current) =>
+              current
+                .map((currentRing, currentRingIndex) => {
+                  if (currentRingIndex !== ringIndex) return currentRing;
+                  if (currentRing.length <= 3) return null;
+                  return currentRing.filter(
+                    (_, currentVertexIndex) => currentVertexIndex !== vertexIndex
+                  );
+                })
+                .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
+            );
+          }, 500);
+        });
+        api.maps.event.addDomListener(marker as unknown as Element, 'touchend', () => {
+          clearTimeout(markerDiv.__longPressTimer);
+        });
+        api.maps.event.addDomListener(marker as unknown as Element, 'touchmove', () => {
+          clearTimeout(markerDiv.__longPressTimer);
+        });
         drawingOverlaysRef.current.push(marker);
       });
     });
@@ -938,16 +968,52 @@ export default function TerritoryMap({
     const api = googleApi;
     const map = mapRef.current;
     if (!api || !map || !mapReady) return;
-    markersRef.current.forEach((marker) => {
-      marker.setMap(null);
-    });
-    markersRef.current = [];
+
+    const nextIds = new Set(validPoints.map((h) => h.id));
+    const currentMap = markerMapRef.current;
+
+    // Remove markers for households no longer in the list
+    for (const [id, marker] of currentMap) {
+      if (!nextIds.has(id)) {
+        marker.setMap(null);
+        currentMap.delete(id);
+      }
+    }
     infoWindowRef.current?.close();
 
-    const markers = validPoints.map((household, index) => {
+    // Add or update markers
+    validPoints.forEach((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
       const label = householdLabel(household);
-      const markerOptions: google.maps.MarkerOptions = {
+
+      const existing = currentMap.get(household.id);
+      if (existing) {
+        // Update position and icon in case data changed
+        existing.setPosition({ lat: household.lat, lng: household.lng });
+        existing.setIcon(markerIcon(api, color));
+        existing.setTitle(label);
+        // Re-register click with current household snapshot
+        api.maps.event.clearListeners(existing, 'click');
+        existing.addListener('click', () => {
+          if (directHouseholdClickRef.current && onHouseholdClickRef.current) {
+            infoWindowRef.current?.close();
+            onHouseholdClickRef.current(household.id, label);
+            return;
+          }
+          const content = createInfoWindowContent({
+            household,
+            color,
+            onLogVisit: onHouseholdClickRef.current,
+            onAddEncounter: onHouseholdAddEncounterRef.current,
+            onViewDetails: onHouseholdViewDetailsRef.current,
+          });
+          infoWindowRef.current?.setContent(content);
+          infoWindowRef.current?.open({ map, anchor: existing });
+        });
+        return;
+      }
+
+      const marker = new api.maps.Marker({
         map,
         position: { lat: household.lat, lng: household.lng },
         icon: markerIcon(api, color),
@@ -955,8 +1021,7 @@ export default function TerritoryMap({
         optimized: true,
         zIndex: 100 + index,
         collisionBehavior: api.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
-      };
-      const marker = new api.maps.Marker(markerOptions);
+      });
 
       marker.addListener('click', () => {
         if (directHouseholdClickRef.current && onHouseholdClickRef.current) {
@@ -964,7 +1029,6 @@ export default function TerritoryMap({
           onHouseholdClickRef.current(household.id, label);
           return;
         }
-
         const content = createInfoWindowContent({
           household,
           color,
@@ -976,15 +1040,14 @@ export default function TerritoryMap({
         infoWindowRef.current?.open({ map, anchor: marker });
       });
 
-      return marker;
+      currentMap.set(household.id, marker);
     });
 
-    markersRef.current = markers;
+    // keep markersRef in sync for cleanup
+    markersRef.current = [...currentMap.values()];
 
     return () => {
-      markers.forEach((marker) => {
-        marker.setMap(null);
-      });
+      // cleanup is managed by the diff above; full cleanup on unmount is in the map init effect
     };
   }, [googleApi, mapReady, validPoints]);
 
@@ -1044,18 +1107,19 @@ export default function TerritoryMap({
 
       const origin = new api.maps.LatLng(coords.lat, coords.lng);
       const zoom = map.getZoom() ?? 16;
-      const beamLengthMeters = Math.max(60, Math.min(130, 180 - zoom * 5));
-      const beamWidthDegrees = 26;
+      const beamLengthMeters = Math.max(80, Math.min(200, 280 - zoom * 8));
+      // Narrow flashlight beam: wide half-angle of ~10°
+      const halfAngle = 10;
       const left = api.maps.geometry.spherical.computeOffset(
         origin,
-        beamLengthMeters * 0.7,
-        nextHeading - beamWidthDegrees
+        beamLengthMeters,
+        nextHeading - halfAngle
       );
       const tip = api.maps.geometry.spherical.computeOffset(origin, beamLengthMeters, nextHeading);
       const right = api.maps.geometry.spherical.computeOffset(
         origin,
-        beamLengthMeters * 0.7,
-        nextHeading + beamWidthDegrees
+        beamLengthMeters,
+        nextHeading + halfAngle
       );
       const path = [coords, left.toJSON(), tip.toJSON(), right.toJSON()];
 
