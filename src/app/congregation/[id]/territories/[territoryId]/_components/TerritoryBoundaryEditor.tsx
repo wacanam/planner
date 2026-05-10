@@ -19,7 +19,9 @@ type LngLat = [number, number];
 function boundaryToRings(boundary: GeoJSONGeometry | null): LngLat[][] {
   if (!boundary) return [];
   if (boundary.type === 'Polygon') {
-    return boundary.coordinates.map((ring) => ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat));
+    return boundary.coordinates.map((ring) =>
+      ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat)
+    );
   }
   return boundary.coordinates.flatMap((polygon) =>
     polygon.map((ring) => ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat))
@@ -114,7 +116,13 @@ export function TerritoryBoundaryEditor({
               <CheckCircle2 className="h-4 w-4" />
               Close polygon
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={handleClear} disabled={isSaving || ringCount === 0}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleClear}
+              disabled={isSaving || ringCount === 0}
+            >
               <Trash2 className="h-4 w-4" />
               Clear
             </Button>

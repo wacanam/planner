@@ -42,9 +42,11 @@ export default function CongregationGroupsPage() {
   const { update: updateGroup } = useUpdateGroup(congregationId);
   const { remove: deleteGroup } = useDeleteGroup(congregationId);
   const [search, setSearch] = useState('');
-  const myRole = members.find((member) => member.userId === sessionUser?.id)?.congregationRole ?? null;
+  const myRole =
+    members.find((member) => member.userId === sessionUser?.id)?.congregationRole ?? null;
   const canManageGroups =
-    myRole === 'service_overseer' || ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER'].includes(sessionUser?.role ?? '');
+    myRole === 'service_overseer' ||
+    ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER'].includes(sessionUser?.role ?? '');
 
   const filtered = useMemo(() => {
     if (!search) return groups;
@@ -228,10 +230,20 @@ export default function CongregationGroupsPage() {
                     </div>
                     {canManageGroups && (
                       <div className="flex items-center gap-1 -mt-1 -mr-1">
-                        <Button size="sm" variant="ghost" onClick={() => openMembers(g)} aria-label="Manage members">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openMembers(g)}
+                          aria-label="Manage members"
+                        >
                           <Users size={13} />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(g)} aria-label="Edit group">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openEdit(g)}
+                          aria-label="Edit group"
+                        >
                           <Pencil size={13} />
                         </Button>
                         <Button

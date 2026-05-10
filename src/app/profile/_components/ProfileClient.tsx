@@ -4,7 +4,12 @@ import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
-import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar } from '@/hooks/use-profile';
+import {
+  useProfile,
+  useUpdateProfile,
+  useChangePassword,
+  useUpdateAvatar,
+} from '@/hooks/use-profile';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
@@ -123,7 +128,9 @@ export default function ProfileClient() {
       setPreviewUrl(objectUrl);
       const result = await updateAvatar({ file });
       setPreviewUrl(result.avatarUrl);
-      setOfflineMsg(navigator.onLine ? 'Photo saved.' : 'Photo saved locally and will sync automatically.');
+      setOfflineMsg(
+        navigator.onLine ? 'Photo saved.' : 'Photo saved locally and will sync automatically.'
+      );
       setUploadError('');
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Photo update failed.');

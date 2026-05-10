@@ -54,7 +54,10 @@ export default function CongregationMembersPage() {
   const { data: membersData, isLoading: loading } = useCongregationMembers(congregationId);
   const members = membersData.filter((m) => m.status === 'active');
 
-  const { data: requestsData, isLoading: requestsLoading } = useCongregationJoinRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationJoinRequests(
+    congregationId,
+    'pending'
+  );
   const requests: JoinRequest[] = requestsData;
   const pendingCount = requests.length;
 

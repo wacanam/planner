@@ -30,10 +30,7 @@ export function BottomTabBar({ congregationId }: BottomTabBarProps) {
       { href: '/admin/dashboard', label: 'Dashboard', icon: House },
       { href: '/admin/congregations', label: 'Congregations', icon: Building },
     ];
-  } else if (
-    user.role === UserRole.SERVICE_OVERSEER ||
-    user.role === UserRole.TERRITORY_SERVANT
-  ) {
+  } else if (user.role === UserRole.SERVICE_OVERSEER || user.role === UserRole.TERRITORY_SERVANT) {
     const id = congregationId ?? user.congregationId ?? '';
     if (id) {
       tabs = [

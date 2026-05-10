@@ -64,7 +64,11 @@ const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
   { elementType: 'geometry', stylers: [{ color: '#1f2937' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#111827' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#e5e7eb' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#4b5563' }] },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#4b5563' }],
+  },
   { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d1d5db' }] },
   { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#064e3b' }] },
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#374151' }] },
@@ -78,7 +82,12 @@ export const MAP_STYLES = [
   { id: 'streets', label: 'Street', mapTypeId: 'roadmap' as google.maps.MapTypeId, styles: null },
   { id: 'bright', label: 'Hybrid', mapTypeId: 'hybrid' as google.maps.MapTypeId, styles: null },
   { id: 'positron', label: 'Terrain', mapTypeId: 'terrain' as google.maps.MapTypeId, styles: null },
-  { id: 'dark', label: 'Dark', mapTypeId: 'roadmap' as google.maps.MapTypeId, styles: DARK_MAP_STYLES },
+  {
+    id: 'dark',
+    label: 'Dark',
+    mapTypeId: 'roadmap' as google.maps.MapTypeId,
+    styles: DARK_MAP_STYLES,
+  },
 ] as const;
 
 export type StyleId = (typeof MAP_STYLES)[number]['id'];
@@ -98,7 +107,8 @@ const STATUS_COLOR: Record<string, string> = {
 const DEFAULT_COLOR = '#64748b';
 
 function loadGoogleMaps(): Promise<GoogleApi> {
-  if (typeof window === 'undefined') return Promise.reject(new Error('Google Maps is browser-only.'));
+  if (typeof window === 'undefined')
+    return Promise.reject(new Error('Google Maps is browser-only.'));
   if (window.google?.maps) return Promise.resolve(window.google);
   if (googleMapsPromise) return googleMapsPromise;
 
@@ -233,7 +243,10 @@ function pointToSegmentDistanceMeters(point: LngLat, start: LngLat, end: LngLat)
   const dx = bx - ax;
   const dy = by - ay;
   const lengthSquared = dx * dx + dy * dy;
-  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  const t =
+    lengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
   const closestX = ax + t * dx;
   const closestY = ay + t * dy;
   return {
@@ -243,7 +256,8 @@ function pointToSegmentDistanceMeters(point: LngLat, start: LngLat, end: LngLat)
 }
 
 function nearestRingSegment(rings: LngLat[][], point: LngLat) {
-  let nearest: { ringIndex: number; segmentIndex: number; point: LngLat; distance: number } | null = null;
+  let nearest: { ringIndex: number; segmentIndex: number; point: LngLat; distance: number } | null =
+    null;
   for (let ringIndex = 0; ringIndex < rings.length; ringIndex++) {
     const ring = rings[ringIndex];
     for (let segmentIndex = 0; segmentIndex < ring.length; segmentIndex++) {
@@ -315,7 +329,8 @@ function createInfoWindowContent(params: {
   if (onViewDetails) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
+    button.className =
+      'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
     button.textContent = 'View Details';
     button.addEventListener('click', () => onViewDetails(household.id));
     actions.appendChild(button);
@@ -324,7 +339,8 @@ function createInfoWindowContent(params: {
   if (onDeleteRequest) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600';
+    button.className =
+      'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600';
     button.textContent = 'Delete';
     button.addEventListener('click', () => onDeleteRequest(household.id));
     actions.appendChild(button);
@@ -409,7 +425,10 @@ export default function TerritoryMap({
   const effectiveInteractionModeRef = useRef(effectiveInteractionMode);
   effectiveInteractionModeRef.current = effectiveInteractionMode;
   const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
-  const initialRingsSignature = useMemo(() => JSON.stringify(initialDrawingRings ?? []), [initialDrawingRings]);
+  const initialRingsSignature = useMemo(
+    () => JSON.stringify(initialDrawingRings ?? []),
+    [initialDrawingRings]
+  );
   const stableInitialDrawingRings = useMemo(
     () => JSON.parse(initialRingsSignature) as LngLat[][],
     [initialRingsSignature]
@@ -424,7 +443,8 @@ export default function TerritoryMap({
 
   const clearDrawingOverlays = useCallback(() => {
     for (const overlay of drawingOverlaysRef.current) {
-      if ('setMap' in overlay) (overlay as google.maps.Polygon | google.maps.Polyline | google.maps.Marker).setMap(null);
+      if ('setMap' in overlay)
+        (overlay as google.maps.Polygon | google.maps.Polyline | google.maps.Marker).setMap(null);
     }
     drawingOverlaysRef.current = [];
   }, []);
@@ -439,7 +459,9 @@ export default function TerritoryMap({
       for (const polygonRings of polygons) {
         const polygon = new api.maps.Polygon({
           map,
-          paths: polygonRings.map((ring) => ringToLatLng(ring.map(([lng, lat]) => [lng, lat] as LngLat))),
+          paths: polygonRings.map((ring) =>
+            ringToLatLng(ring.map(([lng, lat]) => [lng, lat] as LngLat))
+          ),
           clickable: false,
           ...options,
         });
@@ -492,7 +514,8 @@ export default function TerritoryMap({
     setMapReady(true);
 
     return () => {
-      if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+      if (locationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(locationWatchRef.current);
       clustererRef.current?.clearMarkers();
       markersRef.current.forEach((marker) => {
         marker.setMap(null);
@@ -683,7 +706,9 @@ export default function TerritoryMap({
               .map((currentRing, currentRingIndex) => {
                 if (currentRingIndex !== ringIndex) return currentRing;
                 if (currentRing.length <= 3) return null;
-                return currentRing.filter((_, currentVertexIndex) => currentVertexIndex !== vertexIndex);
+                return currentRing.filter(
+                  (_, currentVertexIndex) => currentVertexIndex !== vertexIndex
+                );
               })
               .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
           );
@@ -879,7 +904,8 @@ export default function TerritoryMap({
   useEffect(() => {
     if (!navigator.geolocation) return;
     if (!locationOn) {
-      if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+      if (locationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(locationWatchRef.current);
       locationWatchRef.current = null;
       locationMarkerRef.current?.setMap(null);
       locationMarkerRef.current = null;
@@ -894,7 +920,8 @@ export default function TerritoryMap({
       { enableHighAccuracy: true, maximumAge: 5_000 }
     );
     return () => {
-      if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+      if (locationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(locationWatchRef.current);
       locationWatchRef.current = null;
     };
   }, [locateOnce, locationOn, updateLocation]);

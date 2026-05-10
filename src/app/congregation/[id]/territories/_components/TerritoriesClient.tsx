@@ -1,6 +1,16 @@
 'use client';
 
-import { CheckCircle, Clock, MapPin, Pencil, Plus, Search, UserPlus, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  CheckCircle,
+  Clock,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  UserPlus,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -71,8 +81,10 @@ export default function CongregationTerritoriesPage() {
     useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const { data: requestsData, isLoading: requestsLoading } =
-    useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
+    congregationId,
+    'pending'
+  );
   const requests = requestsData;
 
   const { data: membersRaw } = useCongregationMembers(congregationId);
@@ -309,7 +321,7 @@ export default function CongregationTerritoriesPage() {
           ? { territoryId: confirmTerritoryId }
           : confirmAction === 'approve' && confirmRequest.territoryId
             ? { territoryId: confirmRequest.territoryId }
-          : {}),
+            : {}),
       });
       closeConfirmDialog();
     } catch {
@@ -674,7 +686,9 @@ export default function CongregationTerritoriesPage() {
                                       disabled={requestDeletingId === pendingRequest.id}
                                       onClick={() => void handleDeleteRequest(pendingRequest.id)}
                                     >
-                                      {requestDeletingId === pendingRequest.id ? 'Canceling…' : 'Cancel'}
+                                      {requestDeletingId === pendingRequest.id
+                                        ? 'Canceling…'
+                                        : 'Cancel'}
                                     </Button>
                                   );
                                 }
@@ -1407,8 +1421,9 @@ export default function CongregationTerritoriesPage() {
           <DialogHeader>
             <DialogTitle>Delete Territory?</DialogTitle>
             <DialogDescription>
-              Delete <strong>{deleteTarget ? `#${deleteTarget.number} ${deleteTarget.name}` : ''}</strong>
-              ? Related assignments and requests for this territory will also be removed.
+              Delete{' '}
+              <strong>{deleteTarget ? `#${deleteTarget.number} ${deleteTarget.name}` : ''}</strong>?
+              Related assignments and requests for this territory will also be removed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

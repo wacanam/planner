@@ -6,7 +6,23 @@ import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 
-import { ArrowLeft, User, Users, MapPin, MapPinOff, ChevronUp, ChevronDown, Maximize2, Minimize2, Undo2, Check, Save, Trash2, Pencil, Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  User,
+  Users,
+  MapPin,
+  MapPinOff,
+  ChevronUp,
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  Undo2,
+  Check,
+  Save,
+  Trash2,
+  Pencil,
+  Plus,
+} from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import {
@@ -20,7 +36,11 @@ import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 import { deleteHouseholdRecord } from '@/lib/record-writes';
 
-import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
+import {
+  useTerritoryBoundary,
+  validateGeoJSON,
+  type GeoJSONGeometry,
+} from '@/hooks/use-territory-boundary';
 import { AddHouseholdSheet } from './AddHouseholdSheet';
 // Dynamic import because the Google Maps SDK requires browser APIs.
 // biome-ignore lint/suspicious/noExplicitAny: dynamic map import
@@ -80,7 +100,13 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
           <>
             {/* Animated figure-8 SVG */}
             <div className="flex justify-center">
-              <svg width="80" height="50" viewBox="0 0 80 50" fill="none" aria-label="Figure 8 animation">
+              <svg
+                width="80"
+                height="50"
+                viewBox="0 0 80 50"
+                fill="none"
+                aria-label="Figure 8 animation"
+              >
                 <style>{`
                   @keyframes fig8 {
                     0%   { offset-distance: 0%; }
@@ -125,8 +151,16 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
             {/* Done state */}
             <div className="flex justify-center">
               <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5"/>
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="2.5"
+                  aria-hidden="true"
+                >
+                  <path d="M20 6L9 17l-5-5" />
                 </svg>
               </div>
             </div>
@@ -159,7 +193,9 @@ export default function TerritoryDetailView() {
   const { data: members } = useCongregationMembers(congregationId ?? null);
   const myRole = React.useMemo(() => {
     if (!sessionUser?.id) return '';
-    const me = members.find((member) => member.userId === sessionUser.id || member.user?.id === sessionUser.id);
+    const me = members.find(
+      (member) => member.userId === sessionUser.id || member.user?.id === sessionUser.id
+    );
     return me?.congregationRole ?? '';
   }, [members, sessionUser?.id]);
 
@@ -168,7 +204,9 @@ export default function TerritoryDetailView() {
     return (
       myRole === 'service_overseer' ||
       myRole === 'territory_servant' ||
-      ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER', 'TERRITORY_SERVANT'].includes(sessionUser.role ?? '')
+      ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER', 'TERRITORY_SERVANT'].includes(
+        sessionUser.role ?? ''
+      )
     );
   }, [myRole, sessionUser?.id, sessionUser?.role]);
 
@@ -189,7 +227,17 @@ export default function TerritoryDetailView() {
   // All congregation territories — for showing all polygons as layers on the map
   const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
 
-  type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null; type?: string | null; lastVisitDate?: string | null; lastVisitOutcome?: string | null; notes?: string | null };
+  type HouseholdItem = {
+    id: string;
+    address: string;
+    latitude?: string | null;
+    longitude?: string | null;
+    status?: string | null;
+    type?: string | null;
+    lastVisitDate?: string | null;
+    lastVisitOutcome?: string | null;
+    notes?: string | null;
+  };
   const { households: householdsResp } = useHouseholds({ congregationId, territoryId });
   const householdsInTerritory = householdsResp as HouseholdItem[];
 
@@ -206,13 +254,17 @@ export default function TerritoryDetailView() {
   const [drawActivePoints, setDrawActivePoints] = useState(0);
   const [drawSaveError, setDrawSaveError] = useState<string | null>(null);
   const [clearConfirmPending, setClearConfirmPending] = useState(false);
-  const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
   const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add' | 'remove'>('view');
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
   const mapUndoPointRef = useRef<(() => void) | null>(null);
-  const mapGetGeoJSONRef = useRef<(() => { type: string; coordinates: unknown } | null) | null>(null);
+  const mapGetGeoJSONRef = useRef<(() => { type: string; coordinates: unknown } | null) | null>(
+    null
+  );
   const mapClearRingsRef = useRef<(() => void) | null>(null);
   const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
@@ -266,19 +318,26 @@ export default function TerritoryDetailView() {
   // When a household pin is tapped, navigate to the active assignment visit log
   // pre-selecting that household via query param. Falls back to my-assignments
   // list if no active assignment exists.
-  const handleHouseholdClick = useCallback((householdId: string) => {
-    const active = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
-    if (active) {
-      router.push(`/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`);
-    } else {
-      router.push(`/congregation/${congregationId}/my-assignments`);
-    }
-  }, [assignments, congregationId, router]);
+  const handleHouseholdClick = useCallback(
+    (householdId: string) => {
+      const active = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
+      if (active) {
+        router.push(
+          `/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`
+        );
+      } else {
+        router.push(`/congregation/${congregationId}/my-assignments`);
+      }
+    },
+    [assignments, congregationId, router]
+  );
 
   const handleHouseholdRemove = useCallback(async (householdId: string) => {
     try {
       await deleteHouseholdRecord(householdId);
-    } catch { /* silently queue for retry */ }
+    } catch {
+      /* silently queue for retry */
+    }
   }, []);
 
   return (
@@ -305,7 +364,9 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-2000' : ' h-dvh pb-14 md:pb-0 relative'}` }>
+        <main
+          className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-2000' : ' h-dvh pb-14 md:pb-0 relative'}`}
+        >
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
@@ -318,12 +379,22 @@ export default function TerritoryDetailView() {
                     onHouseholdRemove={handleHouseholdRemove}
                     mapStyle={mapStyle}
                     locationOn={locationOn}
-                    onCalibrationNeeded={(needed: boolean) => { if (needed) setShowCalibPrompt(true); }}
+                    onCalibrationNeeded={(needed: boolean) => {
+                      if (needed) setShowCalibPrompt(true);
+                    }}
                     onLocationDotClick={() => setShowCalibPrompt(true)}
-                    onGeolocateReady={(fn: () => void) => { geolocateTriggerRef.current = fn; }}
-                    allBoundaries={(allTerritoriesData as Array<{id: string; name: string; boundary?: string | null}>)
-                      .filter(t => t.boundary && t.id !== territory.id)
-                      .map(t => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
+                    onGeolocateReady={(fn: () => void) => {
+                      geolocateTriggerRef.current = fn;
+                    }}
+                    allBoundaries={(
+                      allTerritoriesData as Array<{
+                        id: string;
+                        name: string;
+                        boundary?: string | null;
+                      }>
+                    )
+                      .filter((t) => t.boundary && t.id !== territory.id)
+                      .map((t) => ({ id: t.id, name: t.name, boundary: t.boundary as string }))}
                     isDrawing={isDrawingBoundary}
                     drawMode={drawMode ?? 'add'}
                     mapInteractionMode={isDrawingBoundary ? 'view' : mapInteractionMode}
@@ -346,14 +417,21 @@ export default function TerritoryDetailView() {
                         if (geo.type === 'MultiPolygon') {
                           return (coords as [number, number][][][]).map((p) => p[0].slice(0, -1));
                         }
-                      } catch { /* ignore */ }
+                      } catch {
+                        /* ignore */
+                      }
                       return undefined;
                     })()}
                     onDrawingStateChange={(rings: number, pts: number) => {
                       setDrawRingCount(rings);
                       setDrawActivePoints(pts);
                     }}
-                    onDrawingActions={(actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null; clearRings: () => void }) => {
+                    onDrawingActions={(actions: {
+                      closeRing: () => void;
+                      undoPoint: () => void;
+                      getGeoJSON: () => { type: string; coordinates: unknown } | null;
+                      clearRings: () => void;
+                    }) => {
                       mapCloseRingRef.current = actions.closeRing;
                       mapUndoPointRef.current = actions.undoPoint;
                       mapGetGeoJSONRef.current = actions.getGeoJSON;
@@ -372,16 +450,19 @@ export default function TerritoryDetailView() {
                             {drawMode === 'edit'
                               ? `✏️ Drag to move · Tap edge to add · Long-press to remove`
                               : drawActivePoints > 0
-                              ? `📍 ${drawActivePoints} pts — tap ✓ to close`
-                              : drawRingCount > 0
-                              ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} drawn — tap Save`
-                              : 'Tap map to add points'}
+                                ? `📍 ${drawActivePoints} pts — tap ✓ to close`
+                                : drawRingCount > 0
+                                  ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} drawn — tap Save`
+                                  : 'Tap map to add points'}
                           </span>
                           <div className="flex gap-1.5 shrink-0">
                             {isSavingBoundary ? (
-                              <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
+                              <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">
+                                Saving…
+                              </span>
                             ) : (
-                              drawRingCount > 0 && drawActivePoints === 0 && (
+                              drawRingCount > 0 &&
+                              drawActivePoints === 0 && (
                                 <button
                                   type="button"
                                   onClick={handleSaveBoundary}
@@ -413,7 +494,7 @@ export default function TerritoryDetailView() {
                         {drawMode === 'add' && drawActivePoints >= 3 && (
                           <button
                             type="button"
-                            onClick={() => (mapCloseRingRef.current?.())}
+                            onClick={() => mapCloseRingRef.current?.()}
                             className="flex items-center justify-center w-9 h-9 bg-blue-500 text-white rounded-full shadow-md"
                             title="Close polygon"
                           >
@@ -424,7 +505,7 @@ export default function TerritoryDetailView() {
                         {drawMode === 'add' && drawActivePoints > 0 && (
                           <button
                             type="button"
-                            onClick={() => (mapUndoPointRef.current?.())}
+                            onClick={() => mapUndoPointRef.current?.()}
                             className="flex items-center justify-center w-9 h-9 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-md border border-gray-200"
                             title="Undo last point"
                           >
@@ -439,12 +520,14 @@ export default function TerritoryDetailView() {
                   <div className="absolute top-1/2 right-0 -translate-y-1/2 z-1001 p-2 pointer-events-auto">
                     <button
                       type="button"
-                      onClick={() => setMapFullscreen(p => !p)}
+                      onClick={() => setMapFullscreen((p) => !p)}
                       className="flex items-center justify-center w-8 h-8 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-lg shadow-sm"
                     >
-                      {mapFullscreen
-                        ? <Minimize2 className="h-4 w-4 text-foreground" />
-                        : <Maximize2 className="h-4 w-4 text-foreground" />}
+                      {mapFullscreen ? (
+                        <Minimize2 className="h-4 w-4 text-foreground" />
+                      ) : (
+                        <Maximize2 className="h-4 w-4 text-foreground" />
+                      )}
                     </button>
                   </div>
 
@@ -457,7 +540,9 @@ export default function TerritoryDetailView() {
                         </Link>
                       </Button>
                       <div className="min-w-0 pr-1">
-                        <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">Territory</p>
+                        <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">
+                          Territory
+                        </p>
                         <p className="text-xs font-bold text-foreground truncate leading-tight max-w-45">
                           #{territory.number} {territory.name}
                         </p>
@@ -474,9 +559,9 @@ export default function TerritoryDetailView() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-[11px] font-semibold text-foreground">
-                            {householdsInTerritory.length} <span className="text-muted-foreground font-normal">households</span>
+                            {householdsInTerritory.length}{' '}
+                            <span className="text-muted-foreground font-normal">households</span>
                           </span>
-
                         </div>
                         <span className="text-[11px] font-bold text-foreground tabular-nums">
                           {Number(territory.coveragePercent).toFixed(1)}% covered
@@ -493,216 +578,266 @@ export default function TerritoryDetailView() {
                   </div>
 
                   {/* Location toggle — absolute bottom-left, inside map */}
-                  <div className={`absolute left-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
-            {/* Boundary buttons — only visible to SO, TS, and admins */}
-            {canDrawBoundary && !isDrawingBoundary && (
-              <div className="flex flex-col gap-1.5 mb-2">
-                {/* Add polygons */}
-                <button
-                  type="button"
-                  onClick={() => setDrawMode('add')}
-                  title="Draw boundary (add polygons)"
-                  className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                {/* Edit existing boundary (only if one exists) */}
-                {territory.boundary && (
-                  <button
-                    type="button"
-                    onClick={() => setDrawMode('edit')}
-                    title="Edit boundary vertices"
-                    className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                  <div
+                    className={`absolute left-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}
                   >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                )}
-                {/* Clear boundary — shows inline confirmation instead of window.confirm */}
-                {territory.boundary && !clearConfirmPending && (
-                  <button
-                    type="button"
-                    onClick={() => setClearConfirmPending(true)}
-                    title="Clear boundary"
-                    className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                {territory.boundary && clearConfirmPending && (
-                  <div className="flex flex-col gap-1 p-2 rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800">
-                    <span className="text-xs text-red-600 dark:text-red-400 font-semibold px-0.5">Clear boundary?</span>
-                    <button
-                      type="button"
-                      onClick={() => { setClearConfirmPending(false); handleClearBoundary(); }}
-                      className="text-xs px-3 py-1 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClearConfirmPending(false)}
-                      className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Location toggle */}
-            <button
-              type="button"
-              onClick={() => {
-                  if (!locationOn) {
-                    // Must call trigger() synchronously in the gesture for Safari.
-                    // Call it immediately (may be a no-op if map not ready yet),
-                    // then set state so the useEffect retry loop takes over.
-                    geolocateTriggerRef.current?.();
-
-                    // DeviceOrientation permission (iOS 13+ Safari)
-                    type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-                    const DOE = DeviceOrientationEvent as DOE;
-                    if (typeof DOE.requestPermission === 'function') {
-                      DOE.requestPermission()
-                        .then(() => setLocationOn(true))
-                        .catch(() => setLocationOn(true));
-                    } else {
-                      setLocationOn(true);
-                    }
-                  } else {
-                    setLocationOn(false);
-                  }
-                }}
-              title={locationOn ? 'Hide my location' : 'Show my location'}
-              className={[
-                'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                locationOn ? 'bg-blue-500 text-white' : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
-              ].join(' ')}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
-              </svg>
-            </button>
-          </div>
-
-          {/* Map style switcher — absolute bottom-right, inside map */}
-          <div className={`absolute right-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
-            {/* Map interaction mode buttons — above style picker, hidden while drawing */}
-            {!isDrawingBoundary && (
-              <div className="flex flex-col gap-1.5 mb-2">
-                {/* Add household mode */}
-                <button
-                  type="button"
-                  onClick={() => setMapInteractionMode((m) => m === 'add' ? 'view' : 'add')}
-                  title={mapInteractionMode === 'add' ? 'Cancel add mode' : 'Add household (tap map)'}
-                  className={[
-                    'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                    mapInteractionMode === 'add'
-                      ? 'bg-primary text-white'
-                      : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
-                  ].join(' ')}
-                >
-                  <MapPin className="w-4 h-4" />
-                </button>
-                {/* Remove household mode */}
-                <button
-                  type="button"
-                  onClick={() => setMapInteractionMode((m) => m === 'remove' ? 'view' : 'remove')}
-                  title={mapInteractionMode === 'remove' ? 'Cancel remove mode' : 'Remove household (tap marker)'}
-                  className={[
-                    'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                    mapInteractionMode === 'remove'
-                      ? 'bg-destructive text-white'
-                      : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
-                  ].join(' ')}
-                >
-                  <MapPinOff className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            {showStylePicker && (
-              <div className="mb-1 flex flex-col gap-1 items-end">
-                {MAP_STYLES.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => { setMapStyle(s.id); setShowStylePicker(false); }}
-                    style={{ fontWeight: 600, fontSize: '10px' }}
-                    className={[
-                      'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
-                      mapStyle === s.id
-                        ? 'bg-primary text-white'
-                        : 'bg-white/5 dark:bg-gray-900/10 text-foreground hover:bg-white',
-                    ].join(' ')}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowStylePicker((p) => !p)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M3 6h18M3 12h18M3 18h18"/>
-              </svg>
-              {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
-            </button>
-          </div>
-
-          {/* Assignment strip — absolute bottom, inside map */}
-          {(() => {
-            const active = assignments.find((a) => a.status === 'active');
-            if (!active) return null;
-            return (
-              <div className="absolute bottom-0 left-0 right-0 z-1100">
-                <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
-                  <button
-                    type="button"
-                    onClick={() => setAssignmentExpanded(p => !p)}
-                    className="w-full flex items-center justify-between px-4 py-2.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      {active.groupName
-                        ? <Users className="h-3.5 w-3.5 text-blue-500" />
-                        : <User  className="h-3.5 w-3.5 text-blue-500" />}
-                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
-                        Assigned to {getAssigneeDisplayName(active)}
-                      </span>
-                    </div>
-                    {assignmentExpanded
-                      ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                      : <ChevronUp   className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </button>
-                  {assignmentExpanded && (
-                    <div className="px-4 pb-4 flex items-end justify-between gap-2 border-t border-blue-100/50">
-                      <div>
-                        <p className="font-semibold text-sm text-foreground mt-2">{getAssigneeDisplayName(active)}</p>
-                        {active.assignedAt && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Since {new Date(active.assignedAt).toLocaleDateString()}
-                            {active.dueAt && ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
-                          </p>
+                    {/* Boundary buttons — only visible to SO, TS, and admins */}
+                    {canDrawBoundary && !isDrawingBoundary && (
+                      <div className="flex flex-col gap-1.5 mb-2">
+                        {/* Add polygons */}
+                        <button
+                          type="button"
+                          onClick={() => setDrawMode('add')}
+                          title="Draw boundary (add polygons)"
+                          className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        {/* Edit existing boundary (only if one exists) */}
+                        {territory.boundary && (
+                          <button
+                            type="button"
+                            onClick={() => setDrawMode('edit')}
+                            title="Edit boundary vertices"
+                            className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                        {/* Clear boundary — shows inline confirmation instead of window.confirm */}
+                        {territory.boundary && !clearConfirmPending && (
+                          <button
+                            type="button"
+                            onClick={() => setClearConfirmPending(true)}
+                            title="Clear boundary"
+                            className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {territory.boundary && clearConfirmPending && (
+                          <div className="flex flex-col gap-1 p-2 rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800">
+                            <span className="text-xs text-red-600 dark:text-red-400 font-semibold px-0.5">
+                              Clear boundary?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClearConfirmPending(false);
+                                handleClearBoundary();
+                              }}
+                              className="text-xs px-3 py-1 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setClearConfirmPending(false)}
+                              className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <Button asChild size="sm" variant="outline" className="shrink-0">
-                        <Link href={`/congregation/${congregationId}/my-assignments`}>
-                          <MapPin className="h-3.5 w-3.5" />
-                          Log Visits
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+                    )}
+                    {/* Location toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!locationOn) {
+                          // Must call trigger() synchronously in the gesture for Safari.
+                          // Call it immediately (may be a no-op if map not ready yet),
+                          // then set state so the useEffect retry loop takes over.
+                          geolocateTriggerRef.current?.();
+
+                          // DeviceOrientation permission (iOS 13+ Safari)
+                          type DOE = typeof DeviceOrientationEvent & {
+                            requestPermission?: () => Promise<string>;
+                          };
+                          const DOE = DeviceOrientationEvent as DOE;
+                          if (typeof DOE.requestPermission === 'function') {
+                            DOE.requestPermission()
+                              .then(() => setLocationOn(true))
+                              .catch(() => setLocationOn(true));
+                          } else {
+                            setLocationOn(true);
+                          }
+                        } else {
+                          setLocationOn(false);
+                        }
+                      }}
+                      title={locationOn ? 'Hide my location' : 'Show my location'}
+                      className={[
+                        'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+                        locationOn
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
+                      ].join(' ')}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Map style switcher — absolute bottom-right, inside map */}
+                  <div
+                    className={`absolute right-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}
+                  >
+                    {/* Map interaction mode buttons — above style picker, hidden while drawing */}
+                    {!isDrawingBoundary && (
+                      <div className="flex flex-col gap-1.5 mb-2">
+                        {/* Add household mode */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMapInteractionMode((m) => (m === 'add' ? 'view' : 'add'))
+                          }
+                          title={
+                            mapInteractionMode === 'add'
+                              ? 'Cancel add mode'
+                              : 'Add household (tap map)'
+                          }
+                          className={[
+                            'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+                            mapInteractionMode === 'add'
+                              ? 'bg-primary text-white'
+                              : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
+                          ].join(' ')}
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </button>
+                        {/* Remove household mode */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMapInteractionMode((m) => (m === 'remove' ? 'view' : 'remove'))
+                          }
+                          title={
+                            mapInteractionMode === 'remove'
+                              ? 'Cancel remove mode'
+                              : 'Remove household (tap marker)'
+                          }
+                          className={[
+                            'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
+                            mapInteractionMode === 'remove'
+                              ? 'bg-destructive text-white'
+                              : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
+                          ].join(' ')}
+                        >
+                          <MapPinOff className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    {showStylePicker && (
+                      <div className="mb-1 flex flex-col gap-1 items-end">
+                        {MAP_STYLES.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setMapStyle(s.id);
+                              setShowStylePicker(false);
+                            }}
+                            style={{ fontWeight: 600, fontSize: '10px' }}
+                            className={[
+                              'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
+                              mapStyle === s.id
+                                ? 'bg-primary text-white'
+                                : 'bg-white/5 dark:bg-gray-900/10 text-foreground hover:bg-white',
+                            ].join(' ')}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowStylePicker((p) => !p)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 6h18M3 12h18M3 18h18" />
+                      </svg>
+                      {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
+                    </button>
+                  </div>
+
+                  {/* Assignment strip — absolute bottom, inside map */}
+                  {(() => {
+                    const active = assignments.find((a) => a.status === 'active');
+                    if (!active) return null;
+                    return (
+                      <div className="absolute bottom-0 left-0 right-0 z-1100">
+                        <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
+                          <button
+                            type="button"
+                            onClick={() => setAssignmentExpanded((p) => !p)}
+                            className="w-full flex items-center justify-between px-4 py-2.5"
+                          >
+                            <div className="flex items-center gap-2">
+                              {active.groupName ? (
+                                <Users className="h-3.5 w-3.5 text-blue-500" />
+                              ) : (
+                                <User className="h-3.5 w-3.5 text-blue-500" />
+                              )}
+                              <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wide">
+                                Assigned to {getAssigneeDisplayName(active)}
+                              </span>
+                            </div>
+                            {assignmentExpanded ? (
+                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+                          {assignmentExpanded && (
+                            <div className="px-4 pb-4 flex items-end justify-between gap-2 border-t border-blue-100/50">
+                              <div>
+                                <p className="font-semibold text-sm text-foreground mt-2">
+                                  {getAssigneeDisplayName(active)}
+                                </p>
+                                {active.assignedAt && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Since {new Date(active.assignedAt).toLocaleDateString()}
+                                    {active.dueAt &&
+                                      ` · Due ${new Date(active.dueAt).toLocaleDateString()}`}
+                                  </p>
+                                )}
+                              </div>
+                              <Button asChild size="sm" variant="outline" className="shrink-0">
+                                <Link href={`/congregation/${congregationId}/my-assignments`}>
+                                  <MapPin className="h-3.5 w-3.5" />
+                                  Log Visits
+                                </Link>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}
-          </div>{/* end flex-1 map wrapper */}
+          </div>
+          {/* end flex-1 map wrapper */}
 
           {/* AddHouseholdSheet — opens when a long-press pin is confirmed */}
           {pendingPinCoords && (

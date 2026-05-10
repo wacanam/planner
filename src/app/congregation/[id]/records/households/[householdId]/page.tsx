@@ -49,9 +49,7 @@ export default function HouseholdDetailPage() {
       </Button>
 
       {!household ? (
-        <p className="text-sm text-muted-foreground">
-          Household not found in Firestore records.
-        </p>
+        <p className="text-sm text-muted-foreground">Household not found in Firestore records.</p>
       ) : (
         <>
           <div className="rounded-xl border p-4">

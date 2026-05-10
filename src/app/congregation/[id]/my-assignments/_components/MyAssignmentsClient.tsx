@@ -31,11 +31,7 @@ import {
   type LogVisitFormValues,
 } from '@/components/households/log-visit-form';
 import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
-import {
-  createEncounter,
-  createVisit,
-  getHouseholdById,
-} from '@/lib/local-first';
+import { createEncounter, createVisit, getHouseholdById } from '@/lib/local-first';
 
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -386,10 +382,14 @@ export default function MyAssignmentsClient() {
   const [showPast, setShowPast] = useState(false);
   const [mapOpenTerritoryId, setMapOpenTerritoryId] = useState<string | null>(null);
 
-  const { data: territoriesData, isLoading: territoriesLoading } = useCongregationTerritories(congregationId);
+  const { data: territoriesData, isLoading: territoriesLoading } =
+    useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
+    congregationId,
+    'pending'
+  );
   const requests = requestsData;
 
   const loading = territoriesLoading || requestsLoading;

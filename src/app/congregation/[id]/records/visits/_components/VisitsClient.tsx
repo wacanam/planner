@@ -9,8 +9,10 @@ import type { Visit } from '@/types/api';
 
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  not_home: 'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
-  return_visit: 'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
+  not_home:
+    'text-yellow-700 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400',
+  return_visit:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   other: 'text-muted-foreground border-border bg-muted/30',
@@ -25,7 +27,11 @@ const outcomeLabels: Record<string, string> = {
   other: 'Other',
 };
 
-function VisitCard({ visit }: { visit: Visit & { householdAddress?: string; householdCity?: string } }) {
+function VisitCard({
+  visit,
+}: {
+  visit: Visit & { householdAddress?: string; householdCity?: string };
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const hasDetails =
@@ -117,9 +123,8 @@ export default function VisitsClient() {
   const { visits, isLoading, error } = useMyVisits();
   const [outcomeFilter, setOutcomeFilter] = useState('all');
 
-  const filtered = outcomeFilter === 'all'
-    ? visits
-    : visits.filter((v) => v.outcome === outcomeFilter);
+  const filtered =
+    outcomeFilter === 'all' ? visits : visits.filter((v) => v.outcome === outcomeFilter);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
@@ -140,7 +145,9 @@ export default function VisitsClient() {
           >
             <option value="all">All outcomes</option>
             {Object.entries(outcomeLabels).map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+              <option key={v} value={v}>
+                {l}
+              </option>
             ))}
           </select>
         </div>
@@ -162,12 +169,17 @@ export default function VisitsClient() {
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Clock size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No visits logged yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Log visits from your Assignments tab.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Log visits from your Assignments tab.
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((v) => (
-            <VisitCard key={v.id} visit={v as Visit & { householdAddress?: string; householdCity?: string }} />
+            <VisitCard
+              key={v.id}
+              visit={v as Visit & { householdAddress?: string; householdCity?: string }}
+            />
           ))}
         </div>
       )}

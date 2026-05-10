@@ -123,7 +123,9 @@ async function findExistingUserByEmail(email: string) {
   if (!email) return null;
   const snapshot = await getDocs(query(usersCollection(), where('email', '==', email), limit(1)));
   const existing = snapshot.docs[0];
-  return existing ? ({ id: existing.id, ...existing.data() } as User & { password?: string }) : null;
+  return existing
+    ? ({ id: existing.id, ...existing.data() } as User & { password?: string })
+    : null;
 }
 
 async function ensureUserDocument(firebaseUser: FirebaseUser, preferredName?: string) {
@@ -255,7 +257,10 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
     return { user };
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ data: session, status, update }), [session, status, update]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ data: session, status, update }),
+    [session, status, update]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -331,7 +336,9 @@ export async function updateUserProfile(input: { name?: string; avatarUrl?: stri
 export async function changeUserPassword(input: { currentPassword: string; newPassword: string }) {
   const firebaseUser = getPlannerAuth().currentUser;
   if (!firebaseUser?.email) throw new Error('You must be signed in with an email account.');
-  const hasPasswordProvider = firebaseUser.providerData.some((provider) => provider.providerId === 'password');
+  const hasPasswordProvider = firebaseUser.providerData.some(
+    (provider) => provider.providerId === 'password'
+  );
   if (!hasPasswordProvider) {
     throw new Error('Password changes are only available for email/password accounts.');
   }

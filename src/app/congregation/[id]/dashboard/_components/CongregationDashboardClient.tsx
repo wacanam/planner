@@ -55,8 +55,12 @@ export default function CongregationDashboardPage() {
   );
   const { data: membersData, isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { groups: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
-  const { data: territoriesData, isLoading: territoriesLoading } = useCongregationTerritories(congregationId);
-  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: territoriesData, isLoading: territoriesLoading } =
+    useCongregationTerritories(congregationId);
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
+    congregationId,
+    'pending'
+  );
 
   const loading =
     congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
@@ -114,9 +118,7 @@ export default function CongregationDashboardPage() {
               <Skeleton className="mt-1 h-4 w-48 rounded-md" />
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">
-                {isOverseer
-                  ? 'Congregation overview and quick actions'
-                  : 'Your ministry overview'}
+                {isOverseer ? 'Congregation overview and quick actions' : 'Your ministry overview'}
               </p>
             )}
           </div>

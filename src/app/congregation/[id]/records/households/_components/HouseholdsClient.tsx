@@ -348,7 +348,8 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
       visit
         ? {
             outcome: visit.outcome as LogVisitFormData['outcome'],
-            householdStatusAfter: visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
+            householdStatusAfter:
+              visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
             duration: visit.duration ?? undefined,
             literatureLeft: visit.literatureLeft ?? undefined,
             bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
@@ -375,7 +376,9 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
       nextVisitDate: values.nextVisitDate,
       nextVisitNotes: values.nextVisitNotes,
     };
-    const savedId = visit ? await updateVisitRecord(visit.id, payload) : await saveVisitRecord(payload);
+    const savedId = visit
+      ? await updateVisitRecord(visit.id, payload)
+      : await saveVisitRecord(payload);
     onSaved(savedId);
     reset();
   };

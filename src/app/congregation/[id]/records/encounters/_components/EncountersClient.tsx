@@ -23,7 +23,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useHouseholds, useMyEncounters } from '@/hooks';
-import { deleteEncounterRecord, saveEncounterRecord, updateEncounterRecord } from '@/lib/record-writes';
+import {
+  deleteEncounterRecord,
+  saveEncounterRecord,
+  updateEncounterRecord,
+} from '@/lib/record-writes';
 import { type RecordEncounterFormData, recordEncounterSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
 
@@ -68,7 +72,13 @@ interface LogEncounterDialogProps {
   onSaved: () => void;
 }
 
-function LogEncounterDialog({ households, encounter, open, onOpenChange, onSaved }: LogEncounterDialogProps) {
+function LogEncounterDialog({
+  households,
+  encounter,
+  open,
+  onOpenChange,
+  onSaved,
+}: LogEncounterDialogProps) {
   const {
     register,
     handleSubmit,
@@ -258,7 +268,13 @@ interface EncounterSwipeCardProps {
   children: React.ReactNode;
 }
 
-function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children }: EncounterSwipeCardProps) {
+function EncounterSwipeCard({
+  isRevealed,
+  onSwipe,
+  onDelete,
+  deleting,
+  children,
+}: EncounterSwipeCardProps) {
   const startXRef = useRef<number>(0);
   const draggingRef = useRef(false);
   const [offset, setOffset] = useState(0);
@@ -298,7 +314,10 @@ function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children 
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      <div className="absolute right-0 top-0 bottom-0 flex items-stretch" style={{ width: ACTION_WIDTH }}>
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: ACTION_WIDTH }}
+      >
         <button
           type="button"
           disabled={deleting}
