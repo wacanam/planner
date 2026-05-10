@@ -7,10 +7,7 @@ import {
   AddEncounterForm,
   type AddEncounterFormValues,
 } from '@/components/households/add-encounter-form';
-import {
-  LogVisitForm,
-  type LogVisitFormValues,
-} from '@/components/households/log-visit-form';
+import { LogVisitForm, type LogVisitFormValues } from '@/components/households/log-visit-form';
 import { createEncounter, createVisit } from '@/lib/local-first';
 import type { Household } from '@/types/api';
 
@@ -37,10 +34,7 @@ export function HouseholdLogVisitSheet({
 }: HouseholdLogVisitSheetProps) {
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (
-    values: LogVisitFormValues,
-    encounters: AddEncounterFormValues[]
-  ) => {
+  const handleSubmit = async (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => {
     if (!household) return;
 
     setSubmitting(true);

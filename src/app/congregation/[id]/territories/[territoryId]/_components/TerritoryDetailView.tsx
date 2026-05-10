@@ -323,16 +323,17 @@ export default function TerritoryDetailView() {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
-  const handleHouseholdClick = useCallback(
-    (householdId: string) => {
-      setLogVisitHouseholdId(householdId);
-    },
-    []
-  );
+  const handleHouseholdClick = useCallback((householdId: string) => {
+    setLogVisitHouseholdId(householdId);
+  }, []);
 
-  const activeAssignment = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
-  const logVisitHousehold = householdsResp.find((household) => household.id === logVisitHouseholdId) ?? null;
-  const encounterHousehold = householdsResp.find((household) => household.id === encounterHouseholdId) ?? null;
+  const activeAssignment = assignments.find(
+    (a) => a.status === 'active' || a.status === 'assigned'
+  );
+  const logVisitHousehold =
+    householdsResp.find((household) => household.id === logVisitHouseholdId) ?? null;
+  const encounterHousehold =
+    householdsResp.find((household) => household.id === encounterHouseholdId) ?? null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -370,7 +371,9 @@ export default function TerritoryDetailView() {
                     boundary={territory.boundary}
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
-                    onHouseholdAddEncounter={(householdId: string) => setEncounterHouseholdId(householdId)}
+                    onHouseholdAddEncounter={(householdId: string) =>
+                      setEncounterHouseholdId(householdId)
+                    }
                     mapStyle={mapStyle}
                     onMapStyleChange={setMapStyle}
                     locationOn={locationOn}
@@ -728,9 +731,7 @@ export default function TerritoryDetailView() {
           />
 
           {/* Manual calibration overlay */}
-          {showCalibPrompt && (
-            <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
-          )}
+          {showCalibPrompt && <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />}
         </main>
       )}
     </ProtectedPage>

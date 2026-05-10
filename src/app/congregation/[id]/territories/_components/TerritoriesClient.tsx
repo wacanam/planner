@@ -990,10 +990,7 @@ export default function CongregationTerritoriesPage() {
       </Dialog>
 
       {/* Assign Territory dialog */}
-      <Dialog
-        open={assignOpen}
-        onOpenChange={handleAssignOpenChange}
-      >
+      <Dialog open={assignOpen} onOpenChange={handleAssignOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>

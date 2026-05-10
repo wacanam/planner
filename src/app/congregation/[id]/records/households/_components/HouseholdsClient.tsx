@@ -385,20 +385,20 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
         ? (() => {
             const nextVisit = splitNextVisit(visit.nextVisitDate, visit.nextVisitTime);
             return {
-            outcome: visit.outcome as LogVisitFormData['outcome'],
-            householdStatusAfter:
-              visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
-            duration: visit.duration ?? undefined,
-            literatureLeft: visit.literatureLeft ?? undefined,
-            bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
-            returnVisitPlanned: visit.returnVisitPlanned,
-            nextVisitDate: nextVisit.date,
-            nextVisitTime: nextVisit.time,
-            nextVisitNotes: visit.nextVisitNotes ?? undefined,
-            notes: visit.notes ?? undefined,
-            addEncounter: false,
-            encounterResponse: 'neutral',
-          };
+              outcome: visit.outcome as LogVisitFormData['outcome'],
+              householdStatusAfter:
+                visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
+              duration: visit.duration ?? undefined,
+              literatureLeft: visit.literatureLeft ?? undefined,
+              bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
+              returnVisitPlanned: visit.returnVisitPlanned,
+              nextVisitDate: nextVisit.date,
+              nextVisitTime: nextVisit.time,
+              nextVisitNotes: visit.nextVisitNotes ?? undefined,
+              notes: visit.notes ?? undefined,
+              addEncounter: false,
+              encounterResponse: 'neutral',
+            };
           })()
         : { returnVisitPlanned: false, addEncounter: false, encounterResponse: 'neutral' }
     );

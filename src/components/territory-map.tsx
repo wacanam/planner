@@ -464,7 +464,8 @@ export default function TerritoryMap({
   activeRingRef.current = activeRing;
 
   const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
-  const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
+  const effectiveInteractionMode =
+    mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
   const pinPreviewIsControlled = pinPreview !== undefined;
   const visiblePin = pinPreviewIsControlled ? pinPreview : pendingPin;
   const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
@@ -919,7 +920,9 @@ export default function TerritoryMap({
   useEffect(() => {
     if (!visiblePin) return;
     const hasSavedHousehold = validPoints.some(
-      (point) => Math.abs(point.lat - visiblePin.lat) < 0.00001 && Math.abs(point.lng - visiblePin.lng) < 0.00001
+      (point) =>
+        Math.abs(point.lat - visiblePin.lat) < 0.00001 &&
+        Math.abs(point.lng - visiblePin.lng) < 0.00001
     );
     if (hasSavedHousehold) setVisiblePin(null);
   }, [setVisiblePin, validPoints, visiblePin]);
@@ -1069,7 +1072,9 @@ export default function TerritoryMap({
               <MapControlButton
                 title={effectiveInteractionMode === 'add' ? 'Stop pinning' : 'Pin household'}
                 active={effectiveInteractionMode === 'add'}
-                onClick={() => setInteractionMode(effectiveInteractionMode === 'add' ? 'view' : 'add')}
+                onClick={() =>
+                  setInteractionMode(effectiveInteractionMode === 'add' ? 'view' : 'add')
+                }
               >
                 <MapPinPlus className="h-4 w-4" />
               </MapControlButton>
@@ -1133,22 +1138,25 @@ export default function TerritoryMap({
         </div>
       )}
 
-      {effectiveInteractionMode === 'add' && visiblePin && pinPlacement === 'confirm' && !isDrawing && (
-        <div className="absolute inset-x-0 bottom-16 z-100 flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              onHouseholdPinPlacedRef.current?.(visiblePin.lat, visiblePin.lng);
-              setVisiblePin(null);
-              tempPinMarkerRef.current?.setMap(null);
-              tempPinMarkerRef.current = null;
-            }}
-            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg"
-          >
-            Confirm Pin
-          </button>
-        </div>
-      )}
+      {effectiveInteractionMode === 'add' &&
+        visiblePin &&
+        pinPlacement === 'confirm' &&
+        !isDrawing && (
+          <div className="absolute inset-x-0 bottom-16 z-100 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                onHouseholdPinPlacedRef.current?.(visiblePin.lat, visiblePin.lng);
+                setVisiblePin(null);
+                tempPinMarkerRef.current?.setMap(null);
+                tempPinMarkerRef.current = null;
+              }}
+              className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg"
+            >
+              Confirm Pin
+            </button>
+          </div>
+        )}
     </div>
   );
 }

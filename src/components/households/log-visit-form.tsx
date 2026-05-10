@@ -91,10 +91,7 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
   };
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={handleSubmit(handleFormSubmit)}
-    >
+    <form className="space-y-4" onSubmit={handleSubmit(handleFormSubmit)}>
       <div className="space-y-1.5">
         <Label htmlFor="log-outcome">Outcome</Label>
         <Controller
@@ -127,7 +124,10 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
             name="householdStatusAfter"
             control={control}
             render={({ field }) => (
-              <Select value={field.value ?? 'keep'} onValueChange={(value) => field.onChange(value === 'keep' ? undefined : value)}>
+              <Select
+                value={field.value ?? 'keep'}
+                onValueChange={(value) => field.onChange(value === 'keep' ? undefined : value)}
+              >
                 <SelectTrigger id="log-status">
                   <SelectValue placeholder="Keep current" />
                 </SelectTrigger>
@@ -184,7 +184,11 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
 
       <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-3">
         <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" className="h-4 w-4 rounded border" {...register('returnVisitPlanned')} />
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border"
+            {...register('returnVisitPlanned')}
+          />
           Return visit planned
         </label>
         {returnVisitPlanned ? (
@@ -219,7 +223,9 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium">Add encounter?</p>
-            <p className="text-xs text-muted-foreground">Save conversation details with this visit.</p>
+            <p className="text-xs text-muted-foreground">
+              Save conversation details with this visit.
+            </p>
           </div>
           <Button
             type="button"
@@ -233,7 +239,10 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
         {encounters.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {encounters.map((encounter, index) => (
-              <span key={`${encounter.response}-${index}`} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+              <span
+                key={`${encounter.response}-${index}`}
+                className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+              >
                 {encounter.name || 'Unknown'} · {encounter.response.replace('_', ' ')}
               </span>
             ))}

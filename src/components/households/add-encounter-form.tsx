@@ -56,9 +56,9 @@ export function AddEncounterForm({
   });
 
   const submitEncounter = handleSubmit(async (values) => {
-        await onSubmit(values);
-        reset();
-      });
+    await onSubmit(values);
+    reset();
+  });
 
   const fields = (
     <>
@@ -88,7 +88,9 @@ export function AddEncounterForm({
             </Select>
           )}
         />
-        {errors.response ? <p className="text-xs text-destructive">{errors.response.message}</p> : null}
+        {errors.response ? (
+          <p className="text-xs text-destructive">{errors.response.message}</p>
+        ) : null}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -105,7 +107,11 @@ export function AddEncounterForm({
         <Textarea id="encounter-notes" rows={2} {...register('notes')} />
       </div>
       <label className="flex items-center gap-2 text-sm font-medium">
-        <input type="checkbox" className="h-4 w-4 rounded border" {...register('returnVisitRequested')} />
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border"
+          {...register('returnVisitRequested')}
+        />
         Return visit requested
       </label>
       <Button
