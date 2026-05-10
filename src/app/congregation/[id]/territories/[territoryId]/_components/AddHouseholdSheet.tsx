@@ -42,8 +42,8 @@ export function AddHouseholdSheet({
 
       await queueHousehold({
         address: values.address,
-        streetName: values.address,
-        city: congregationId ?? 'Local',
+        streetName: values.streetName,
+        city: values.city,
         type: 'house',
         notes: values.notes?.trim() || null,
         latitude: String(lat),
@@ -78,6 +78,8 @@ export function AddHouseholdSheet({
         defaultValues={{
           address: '',
           name: '',
+          streetName: '',
+          city: '',
           membersCount: 1,
           notes: '',
         }}

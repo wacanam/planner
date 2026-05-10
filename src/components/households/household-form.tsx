@@ -11,6 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   address: z.string().min(1, 'Address is required'),
+  streetName: z.string().min(1, 'Street name is required'),
+  city: z.string().min(1, 'City is required'),
   membersCount: z.coerce.number().int().min(1, 'Members must be at least 1'),
   notes: z.string().optional(),
 });
@@ -39,6 +41,8 @@ export function HouseholdForm({
     defaultValues: {
       name: defaultValues?.name ?? '',
       address: defaultValues?.address ?? '',
+      streetName: defaultValues?.streetName ?? '',
+      city: defaultValues?.city ?? '',
       membersCount: defaultValues?.membersCount ?? 1,
       notes: defaultValues?.notes ?? '',
     },
@@ -62,6 +66,18 @@ export function HouseholdForm({
         <Label htmlFor="household-members">Members count</Label>
         <Input id="household-members" type="number" min={1} {...register('membersCount')} />
         {errors.membersCount ? <p className="text-xs text-destructive">{errors.membersCount.message}</p> : null}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="household-street-name">Street name</Label>
+        <Input id="household-street-name" {...register('streetName')} />
+        {errors.streetName ? <p className="text-xs text-destructive">{errors.streetName.message}</p> : null}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="household-city">City</Label>
+        <Input id="household-city" {...register('city')} />
+        {errors.city ? <p className="text-xs text-destructive">{errors.city.message}</p> : null}
       </div>
 
       <div className="space-y-1.5">

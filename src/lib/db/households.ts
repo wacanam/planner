@@ -43,8 +43,9 @@ export async function upsertHousehold(record: HouseholdRecord): Promise<void> {
 export async function bulkUpsertHouseholds(records: HouseholdRecord[]): Promise<void> {
   const db = await getPlannerDB();
   const tx = db.transaction('households', 'readwrite');
+  const now = new Date().toISOString();
   for (const record of records) {
-    await tx.store.put({ ...record, updatedAt: record.updatedAt ?? new Date().toISOString() });
+    await tx.store.put({ ...record, updatedAt: now });
   }
   await tx.done;
   dispatchDBChange('households');

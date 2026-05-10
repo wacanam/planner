@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, ChevronUp, MapPin, MapPinOff, Plus, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
@@ -199,6 +199,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     : (boundaryHouseholdsData ?? []);
 
   const { households: idbHouseholds } = useIDBHouseholds();
+  const lastSyncSignatureRef = useRef<string>('');
 
   useEffect(() => {
     const mapped: HouseholdRecord[] = serverHouseholds
@@ -216,6 +217,12 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
+    const signature = mapped
+      .map((household) => `${household.id}:${household.latitude}:${household.longitude}:${household.address}`)
+      .sort()
+      .join('|');
+    if (signature === lastSyncSignatureRef.current) return;
+    lastSyncSignatureRef.current = signature;
     void bulkUpsertHouseholds(mapped);
   }, [serverHouseholds, territory.id, territory.congregationId]);
 
