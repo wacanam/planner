@@ -32,6 +32,8 @@ export function AddHouseholdSheet({
       const household = await createHousehold({
         name: values.name,
         address: values.address,
+        streetName: values.streetName,
+        city: values.city,
         membersCount: values.membersCount,
         notes: values.notes,
         latitude: lat,

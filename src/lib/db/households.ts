@@ -4,6 +4,8 @@ import type { HouseholdRecord } from '@/lib/db/types';
 interface CreateHouseholdInput {
   name: string;
   address: string;
+  streetName?: string | null;
+  city?: string | null;
   membersCount: number;
   notes?: string | null;
   latitude: number;
@@ -19,6 +21,8 @@ export async function createHousehold(input: CreateHouseholdInput): Promise<Hous
     id: crypto.randomUUID(),
     name: input.name,
     address: input.address,
+    streetName: input.streetName ?? null,
+    city: input.city ?? null,
     membersCount: input.membersCount,
     notes: input.notes ?? null,
     latitude: input.latitude,

@@ -2,6 +2,8 @@ export interface HouseholdRecord {
   id: string;
   name: string;
   address: string;
+  streetName?: string | null;
+  city?: string | null;
   membersCount: number;
   notes?: string | null;
   latitude: number;

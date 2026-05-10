@@ -208,6 +208,8 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         id: household.id,
         name: household.address ?? 'Unnamed household',
         address: household.address ?? '',
+        streetName: household.streetName ?? null,
+        city: household.city ?? null,
         membersCount: 1,
         notes: null,
         latitude: Number(household.latitude),
@@ -217,20 +219,20 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
-    const signature = mapped
-      .map((household) => `${household.id}:${household.latitude}:${household.longitude}:${household.address}`)
-      .sort()
-      .join('|');
+    const signature = `${mapped.length}:${mapped.map((household) => household.id).join('|')}`;
     if (signature === lastSyncSignatureRef.current) return;
     lastSyncSignatureRef.current = signature;
-    void bulkUpsertHouseholds(mapped);
+    void bulkUpsertHouseholds(mapped).catch((error) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      toast.error(reason);
+    });
   }, [serverHouseholds, territory.id, territory.congregationId]);
 
   const households: HouseholdMapItem[] = idbHouseholds.map((household) => ({
     id: household.id,
     address: household.address,
-    streetName: household.address,
-    city: '',
+    streetName: household.streetName ?? household.address,
+    city: household.city ?? '',
     latitude: household.latitude,
     longitude: household.longitude,
   }));
