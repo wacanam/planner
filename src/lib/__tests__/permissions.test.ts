@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hasPermission, hasRole } from '../permissions';
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 
 describe('hasPermission', () => {
   it('USER cannot access TERRITORY_SERVANT routes', () => {

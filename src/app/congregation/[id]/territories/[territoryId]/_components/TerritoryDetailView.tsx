@@ -4,23 +4,26 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 
 import { ArrowLeft, User, Users, MapPin, MapPinOff, ChevronUp, ChevronDown, Maximize2, Minimize2, Undo2, Check, Save, Trash2, Pencil, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
-import { useTerritoryDetail, useTerritoryAssignments, useCongregationTerritories, useCongregationMembers } from '@/hooks';
-import useSWR, { mutate as swrMutate } from 'swr';
-import { apiClient } from '@/lib/api-client';
+import {
+  useCongregationMembers,
+  useCongregationTerritories,
+  useHouseholds,
+  useTerritoryAssignments,
+  useTerritoryDetail,
+} from '@/hooks';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
-import { CongregationRole, UserRole } from '@/db';
-import { queueHouseholdDelete } from '@/lib/visits-store';
+import { deleteHouseholdRecord } from '@/lib/record-writes';
 
 import { useTerritoryBoundary, validateGeoJSON, type GeoJSONGeometry } from '@/hooks/use-territory-boundary';
 import { AddHouseholdSheet } from './AddHouseholdSheet';
-// Dynamic import — Leaflet requires browser APIs
-// biome-ignore lint/suspicious/noExplicitAny: Leaflet dynamic import
+// Dynamic import because the Google Maps SDK requires browser APIs.
+// biome-ignore lint/suspicious/noExplicitAny: dynamic map import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
 
 type LocalAssignment = {
@@ -71,8 +74,8 @@ function CalibrationOverlay({ onDone }: { onDone: () => void }) {
   }, [phase]);
 
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
-      <div className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-[260px] w-full mx-4 space-y-4">
+    <div className="fixed inset-0 z-1300 flex items-center justify-center pointer-events-auto bg-black/60 backdrop-blur-sm">
+      <div className="bg-gray-900/95 text-white text-center px-6 py-6 rounded-3xl max-w-65 w-full mx-4 space-y-4">
         {phase === 'guide' ? (
           <>
             {/* Animated figure-8 SVG */}
@@ -153,34 +156,26 @@ export default function TerritoryDetailView() {
   const sessionUser = session?.user as
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
-
   const { data: members } = useCongregationMembers(congregationId ?? null);
+  const myRole = React.useMemo(() => {
+    if (!sessionUser?.id) return '';
+    const me = members.find((member) => member.userId === sessionUser.id || member.user?.id === sessionUser.id);
+    return me?.congregationRole ?? '';
+  }, [members, sessionUser?.id]);
 
-  // Determine if current user can draw/save boundaries:
-  // Global admins always can; otherwise check congregation-scoped role.
   const canDrawBoundary = React.useMemo(() => {
     if (!sessionUser?.id) return false;
-    const globalRole = sessionUser.role as UserRole | undefined;
-    if (
-      globalRole === UserRole.SUPER_ADMIN ||
-      globalRole === UserRole.ADMIN ||
-      globalRole === UserRole.SERVICE_OVERSEER ||
-      globalRole === UserRole.TERRITORY_SERVANT
-    ) return true;
-    const me = members?.find((m) =>
-      m.userId === sessionUser.id || m.user?.id === sessionUser.id
-    );
     return (
-      me?.congregationRole === CongregationRole.SERVICE_OVERSEER ||
-      me?.congregationRole === CongregationRole.TERRITORY_SERVANT
+      myRole === 'service_overseer' ||
+      myRole === 'territory_servant' ||
+      ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER', 'TERRITORY_SERVANT'].includes(sessionUser.role ?? '')
     );
-  }, [sessionUser, members]);
+  }, [myRole, sessionUser?.id, sessionUser?.role]);
 
   const {
     territory: territoryResponse,
     isLoading: territoryLoading,
     error: territoryError,
-    mutate: mutateTerritory,
   } = useTerritoryDetail(territoryId ?? null);
 
   const { assignments: assignmentsResponse, isLoading: assignmentsLoading } =
@@ -189,33 +184,14 @@ export default function TerritoryDetailView() {
   const loading = territoryLoading || assignmentsLoading;
   const territory = territoryResponse;
   const assignments = assignmentsResponse;
-  const error = territoryError?.message ?? (!loading && !territory ? 'Territory not found' : '');
+  const error = territoryError ?? (!loading && !territory ? 'Territory not found' : '');
 
   // All congregation territories — for showing all polygons as layers on the map
   const { data: allTerritoriesData } = useCongregationTerritories(congregationId ?? null);
 
-  // Pass boundary GeoJSON to API for PostGIS ST_Within query (exact polygon, GIST-indexed)
-  // Falls back gracefully if no boundary is set.
-  // `territory.boundary` is stored as a raw geometry string (Polygon/MultiPolygon),
-  // not a GeoJSON Feature, so we use `geo?.geometry ?? geo` to handle both formats.
-  const boundaryStr = territory?.boundary ?? null;
-  const householdsBboxKey = React.useMemo(() => {
-    if (!boundaryStr) return null;
-    try {
-      const geo = JSON.parse(boundaryStr);
-      const geoData = geo?.geometry ?? geo; // handle Feature wrapper or raw geometry
-      if (!geoData?.type || !geoData?.coordinates) return null;
-      return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}&syncTerritory=${territoryId}`;
-    } catch { return null; }
-  }, [boundaryStr, territoryId]);
-
   type HouseholdItem = { id: string; address: string; latitude?: string | null; longitude?: string | null; status?: string | null; type?: string | null; lastVisitDate?: string | null; lastVisitOutcome?: string | null; notes?: string | null };
-  const { data: householdsResp } = useSWR<HouseholdItem[]>(
-    householdsBboxKey,
-    (url: string) => apiClient.get<HouseholdItem[]>(url),
-    { revalidateOnFocus: false }
-  );
-  const householdsInTerritory = householdsResp ?? [];
+  const { households: householdsResp } = useHouseholds({ congregationId, territoryId });
+  const householdsInTerritory = householdsResp as HouseholdItem[];
 
   const backHref = `/congregation/${congregationId}/territories`;
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
@@ -249,22 +225,20 @@ export default function TerritoryDetailView() {
     setDrawSaveError(null);
     try {
       await saveBoundary(territoryId, geojson as GeoJSONGeometry);
-      await mutateTerritory();
       setDrawMode(null);
     } catch (err) {
       setDrawSaveError(err instanceof Error ? err.message : 'Failed to save boundary');
     }
-  }, [saveBoundary, territoryId, mutateTerritory]);
+  }, [saveBoundary, territoryId]);
 
   const handleClearBoundary = React.useCallback(async () => {
     setDrawSaveError(null);
     try {
       await clearBoundary(territoryId);
-      await mutateTerritory();
     } catch (err) {
       setDrawSaveError(err instanceof Error ? err.message : 'Failed to clear boundary');
     }
-  }, [clearBoundary, territoryId, mutateTerritory]);
+  }, [clearBoundary, territoryId]);
 
   const handleCancelDrawing = React.useCallback(() => {
     setDrawMode(null);
@@ -293,7 +267,7 @@ export default function TerritoryDetailView() {
   // pre-selecting that household via query param. Falls back to my-assignments
   // list if no active assignment exists.
   const handleHouseholdClick = useCallback((householdId: string) => {
-    const active = assignments.find((a) => a.status === 'active');
+    const active = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
     if (active) {
       router.push(`/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`);
     } else {
@@ -303,10 +277,9 @@ export default function TerritoryDetailView() {
 
   const handleHouseholdRemove = useCallback(async (householdId: string) => {
     try {
-      await queueHouseholdDelete(householdId);
-      if (householdsBboxKey) void swrMutate(householdsBboxKey);
+      await deleteHouseholdRecord(householdId);
     } catch { /* silently queue for retry */ }
-  }, [householdsBboxKey]);
+  }, []);
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -332,7 +305,7 @@ export default function TerritoryDetailView() {
           </Link>
         </div>
       ) : (
-        <main className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000]' : ' h-dvh pb-14 md:pb-0 relative'}` }>
+        <main className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-2000' : ' h-dvh pb-14 md:pb-0 relative'}` }>
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
             {(() => {
@@ -393,7 +366,7 @@ export default function TerritoryDetailView() {
                   {isDrawingBoundary && (
                     <>
                       {/* Top status bar */}
-                      <div className="absolute top-0 inset-x-0 z-[1100] flex flex-col pointer-events-auto">
+                      <div className="absolute top-0 inset-x-0 z-1100 flex flex-col pointer-events-auto">
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
@@ -404,7 +377,7 @@ export default function TerritoryDetailView() {
                               ? `✅ ${drawRingCount} polygon${drawRingCount > 1 ? 's' : ''} drawn — tap Save`
                               : 'Tap map to add points'}
                           </span>
-                          <div className="flex gap-1.5 flex-shrink-0">
+                          <div className="flex gap-1.5 shrink-0">
                             {isSavingBoundary ? (
                               <span className="text-xs px-2.5 py-1 rounded-md bg-green-500/80 font-medium">Saving…</span>
                             ) : (
@@ -435,7 +408,7 @@ export default function TerritoryDetailView() {
                       </div>
 
                       {/* Right-side floating action buttons */}
-                      <div className="absolute right-3 top-16 z-[1100] flex flex-col gap-2 pointer-events-auto">
+                      <div className="absolute right-3 top-16 z-1100 flex flex-col gap-2 pointer-events-auto">
                         {/* Close current ring — add mode only */}
                         {drawMode === 'add' && drawActivePoints >= 3 && (
                           <button
@@ -463,7 +436,7 @@ export default function TerritoryDetailView() {
                   )}
 
                   {/* Fullscreen toggle — right center */}
-                  <div className="absolute top-1/2 right-0 -translate-y-1/2 z-[1001] p-2 pointer-events-auto">
+                  <div className="absolute top-1/2 right-0 -translate-y-1/2 z-1001 p-2 pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setMapFullscreen(p => !p)}
@@ -476,7 +449,7 @@ export default function TerritoryDetailView() {
                   </div>
 
                   {/* Back button + title overlay — top-left of map */}
-                  <div className="absolute top-0 left-0 z-[1001] p-3 pointer-events-auto">
+                  <div className="absolute top-0 left-0 z-1001 p-3 pointer-events-auto">
                     <div className="flex items-center gap-2 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-2 py-1.5 shadow-sm">
                       <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
                         <Link href={backHref}>
@@ -485,7 +458,7 @@ export default function TerritoryDetailView() {
                       </Button>
                       <div className="min-w-0 pr-1">
                         <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">Territory</p>
-                        <p className="text-xs font-bold text-foreground truncate leading-tight max-w-[180px]">
+                        <p className="text-xs font-bold text-foreground truncate leading-tight max-w-45">
                           #{territory.number} {territory.name}
                         </p>
                       </div>
@@ -495,7 +468,7 @@ export default function TerritoryDetailView() {
                   {/* Draw Boundary button — inline map control, right side */}
                   {/* Rendered in the fixed bottom-left cluster below */}
                   {/* Top HUD — stats + coverage bar (below back button) */}
-                  <div className="absolute top-14 left-0 right-0 z-[1000] px-3 pointer-events-none">
+                  <div className="absolute top-14 left-0 right-0 z-1000 px-3 pointer-events-none">
                     <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">
                       {/* Stats row */}
                       <div className="flex items-center justify-between">
@@ -520,7 +493,7 @@ export default function TerritoryDetailView() {
                   </div>
 
                   {/* Location toggle — absolute bottom-left, inside map */}
-                  <div className={`absolute left-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+                  <div className={`absolute left-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
             {/* Boundary buttons — only visible to SO, TS, and admins */}
             {canDrawBoundary && !isDrawingBoundary && (
               <div className="flex flex-col gap-1.5 mb-2">
@@ -613,7 +586,7 @@ export default function TerritoryDetailView() {
           </div>
 
           {/* Map style switcher — absolute bottom-right, inside map */}
-          <div className={`absolute right-3 z-[1200] transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
+          <div className={`absolute right-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}>
             {/* Map interaction mode buttons — above style picker, hidden while drawing */}
             {!isDrawingBoundary && (
               <div className="flex flex-col gap-1.5 mb-2">
@@ -684,7 +657,7 @@ export default function TerritoryDetailView() {
             const active = assignments.find((a) => a.status === 'active');
             if (!active) return null;
             return (
-              <div className="absolute bottom-0 left-0 right-0 z-[1100]">
+              <div className="absolute bottom-0 left-0 right-0 z-1100">
                 <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
                   <button
                     type="button"

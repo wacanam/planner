@@ -13,6 +13,7 @@ import {
   FileText,
   User,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,12 +43,13 @@ import {
   type AddHouseholdFormData,
 } from '@/schemas/visit';
 import {
-  queueVisit,
-  queueHousehold,
-  queueHouseholdDelete,
-  queueVisitDelete,
-  registerVisitSync,
-} from '@/lib/visits-store';
+  deleteHouseholdRecord,
+  deleteVisitRecord,
+  saveHouseholdRecord,
+  saveVisitRecord,
+  updateHouseholdRecord,
+  updateVisitRecord,
+} from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -108,11 +110,12 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingVisitId, setDeletingVisitId] = useState<string | null>(null);
   const [deletedVisitIds, setDeletedVisitIds] = useState<Set<string>>(new Set());
+  const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
 
   const handleDeleteVisit = async (visitId: string) => {
     setDeletingVisitId(visitId);
     try {
-      await queueVisitDelete(visitId);
+      await deleteVisitRecord(visitId);
       setDeletedVisitIds((prev) => new Set(prev).add(visitId));
     } finally {
       setDeletingVisitId(null);
@@ -218,6 +221,14 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                       </Badge>
                       <button
                         type="button"
+                        onClick={() => setEditingVisit(v)}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="Edit visit"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
                         disabled={deletingVisitId === v.id}
                         onClick={() => void handleDeleteVisit(v.id)}
                         className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
@@ -233,10 +244,6 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                       ↩ Return visit planned
                     </p>
                   )}
-                  {v.syncStatus === 'pending' && (
-                    <p className="text-xs text-amber-600">⏳ Pending sync</p>
-                  )}
-
                   {hasDetails && (
                     <>
                       <button
@@ -299,6 +306,13 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
           )}
         </div>
       </div>
+      <LogVisitDialog
+        open={!!editingVisit}
+        household={household}
+        visit={editingVisit}
+        onClose={() => setEditingVisit(null)}
+        onSaved={() => setEditingVisit(null)}
+      />
     </div>
   );
 }
@@ -308,11 +322,12 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
 interface LogVisitDialogProps {
   open: boolean;
   household: Household | null;
+  visit?: Visit | null;
   onClose: () => void;
   onSaved: (pendingId: string) => void;
 }
 
-function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogProps) {
+function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDialogProps) {
   const {
     register,
     handleSubmit,
@@ -326,6 +341,25 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
   });
 
   const returnVisitPlanned = watch('returnVisitPlanned');
+
+  useEffect(() => {
+    if (!open) return;
+    reset(
+      visit
+        ? {
+            outcome: visit.outcome as LogVisitFormData['outcome'],
+            householdStatusAfter: visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
+            duration: visit.duration ?? undefined,
+            literatureLeft: visit.literatureLeft ?? undefined,
+            bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
+            returnVisitPlanned: visit.returnVisitPlanned,
+            nextVisitDate: visit.nextVisitDate ?? undefined,
+            nextVisitNotes: visit.nextVisitNotes ?? undefined,
+            notes: visit.notes ?? undefined,
+          }
+        : { returnVisitPlanned: false }
+    );
+  }, [open, reset, visit]);
 
   const onSubmit = async (values: LogVisitFormData) => {
     if (!household) return;
@@ -341,10 +375,8 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
       nextVisitDate: values.nextVisitDate,
       nextVisitNotes: values.nextVisitNotes,
     };
-    const pendingId = await queueVisit(payload);
-    // Don't await sync - resolve form immediately while Local-First sync runs.
-    void registerVisitSync().catch(() => {});
-    onSaved(pendingId);
+    const savedId = visit ? await updateVisitRecord(visit.id, payload) : await saveVisitRecord(payload);
+    onSaved(savedId);
     reset();
   };
 
@@ -357,7 +389,7 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Log Visit</DialogTitle>
+          <DialogTitle>{visit ? 'Edit Visit' : 'Log Visit'}</DialogTitle>
           {household && (
             <p className="text-sm text-muted-foreground mt-1">
               {household.address}, {household.city}
@@ -489,7 +521,7 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Save Visit'}
+              {isSubmitting ? 'Saving…' : visit ? 'Save Changes' : 'Save Visit'}
             </Button>
           </DialogFooter>
         </form>
@@ -502,11 +534,12 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
 
 interface AddHouseholdDialogProps {
   open: boolean;
+  household?: Household | null;
   onClose: () => void;
   onSaved: (pendingId: string) => void;
 }
 
-function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps) {
+function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdDialogProps) {
   const {
     register,
     handleSubmit,
@@ -519,12 +552,34 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
   });
 
   const onSubmit = async (values: AddHouseholdFormData) => {
-    const pendingId = await queueHousehold(values as Record<string, unknown>);
-    // Don't await sync - resolve form immediately while Local-First sync runs.
-    void registerVisitSync().catch(() => {});
-    onSaved(pendingId);
+    const savedId = household
+      ? await updateHouseholdRecord(household.id, values)
+      : await saveHouseholdRecord(values as Record<string, unknown>);
+    onSaved(savedId);
     reset();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    reset(
+      household
+        ? {
+            address: household.address,
+            houseNumber: household.houseNumber ?? undefined,
+            unitNumber: household.unitNumber ?? undefined,
+            streetName: household.streetName,
+            city: household.city,
+            postalCode: household.postalCode ?? undefined,
+            country: household.country ?? undefined,
+            type: household.type as AddHouseholdFormData['type'],
+            floor: household.floor ?? undefined,
+            notes: household.notes ?? undefined,
+            latitude: household.latitude ?? undefined,
+            longitude: household.longitude ?? undefined,
+          }
+        : { type: 'house' }
+    );
+  }, [household, open, reset]);
 
   const handleClose = () => {
     reset();
@@ -535,8 +590,10 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Household</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">Create a new address record</p>
+          <DialogTitle>{household ? 'Edit Household' : 'Add Household'}</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            {household ? 'Update this address record' : 'Create a new address record'}
+          </p>
         </DialogHeader>
 
         <form
@@ -625,7 +682,7 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Add Household'}
+              {isSubmitting ? 'Saving…' : household ? 'Save Changes' : 'Add Household'}
             </Button>
           </DialogFooter>
         </form>
@@ -716,11 +773,12 @@ export default function HouseholdsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
+  const [editHousehold, setEditHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [swipedId, setSwipedId] = useState<string | null>(null);
 
-  const { households, isLoading, dataSource, mutate } = useHouseholds();
+  const { households, isLoading } = useHouseholds();
   const { visits: allVisits } = useMyVisits();
 
   // Count visits per household
@@ -735,9 +793,8 @@ export default function HouseholdsClient() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await queueHouseholdDelete(id);
+      await deleteHouseholdRecord(id);
       setSwipedId(null);
-      void mutate();
     } finally {
       setDeletingId(null);
     }
@@ -769,14 +826,6 @@ export default function HouseholdsClient() {
             Add Household
           </Button>
         </div>
-
-        {/* Offline indicator */}
-        {!isLoading && dataSource === 'cache' && (
-          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-            Cached data · offline
-          </span>
-        )}
 
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
@@ -883,17 +932,29 @@ export default function HouseholdsClient() {
                       )}
                     </div>
                   </button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLogVisitHousehold(h);
-                    }}
-                  >
-                    Log Visit
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditHousehold(h);
+                      }}
+                      aria-label="Edit household"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLogVisitHousehold(h);
+                      }}
+                    >
+                      Log Visit
+                    </Button>
+                  </div>
                 </div>
               </SwipeToReveal>
             ))}
@@ -920,7 +981,6 @@ export default function HouseholdsClient() {
         onClose={() => setLogVisitHousehold(null)}
         onSaved={() => {
           setLogVisitHousehold(null);
-          void mutate();
         }}
       />
 
@@ -930,8 +990,14 @@ export default function HouseholdsClient() {
         onClose={() => setAddHouseholdOpen(false)}
         onSaved={() => {
           setAddHouseholdOpen(false);
-          void mutate();
         }}
+      />
+
+      <AddHouseholdDialog
+        open={!!editHousehold}
+        household={editHousehold}
+        onClose={() => setEditHousehold(null)}
+        onSaved={() => setEditHousehold(null)}
       />
     </>
   );

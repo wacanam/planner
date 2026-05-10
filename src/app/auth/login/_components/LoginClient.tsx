@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle } from 'lucide-react';
@@ -12,11 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { loginSchema, type LoginFormData } from '@/schemas';
+import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -30,26 +31,32 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormData) {
     setError('');
     try {
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (!result?.ok) {
-        setError('Invalid email or password. Please try again.');
-      } else {
-        router.push('/dashboard');
-        router.refresh();
-      }
+      await signInWithEmail(data.email, data.password);
+      router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       console.error('[login error]', err);
-      setError('Something went wrong. Please try again.');
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setIsGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      router.push('/dashboard');
+      router.refresh();
+    } catch (err) {
+      console.error('[google login error]', err);
+      setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
+    } finally {
+      setIsGoogleLoading(false);
     }
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5">
       <div className="w-full max-w-md">
         {/* Card */}
         <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
@@ -71,6 +78,26 @@ export default function LoginPage() {
               <AlertDescription className="pl-6">{error}</AlertDescription>
             </Alert>
           )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-5"
+            size="lg"
+            onClick={() => void handleGoogleSignIn()}
+            disabled={isSubmitting || isGoogleLoading}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-semibold">
+              G
+            </span>
+            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
+          </Button>
+
+          <div className="relative mb-5 flex items-center">
+            <div className="h-px flex-1 bg-border" />
+            <span className="px-3 text-xs text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Email */}

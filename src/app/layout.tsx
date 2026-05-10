@@ -7,7 +7,6 @@ import { StandaloneAuthHeader } from '@/components/standalone-auth-header';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { Providers } from './providers';
 import { OfflineIndicator } from '@/components/offline-indicator';
-import { LocalFirstDebugDialog } from '@/components/local-first-debug-dialog';
 import { ServiceWorkerCleanup } from './ServiceWorkerCleanup';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -67,7 +66,6 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <LocalFirstDebugDialog />
           <ServiceWorkerCleanup />
           <Providers>
             <OfflineIndicator />

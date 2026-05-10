@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { apiClient } from '@/lib/api-client';
+import { useCreateTerritoryRequest } from '@/hooks';
 import { requestTerritorySchema, type RequestTerritoryFormData } from '@/schemas';
 
 interface TerritoryRequestDialogProps {
@@ -37,6 +38,9 @@ export function TerritoryRequestDialog({
   const [open, setOpen] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const { request } = useCreateTerritoryRequest(congregationId);
+  const sessionUser = session?.user as { id?: string; name?: string } | undefined;
 
   const {
     register,
@@ -51,9 +55,11 @@ export function TerritoryRequestDialog({
   async function handleFormSubmit(data: RequestTerritoryFormData) {
     setError(null);
     try {
-      await apiClient.post(`/api/congregations/${congregationId}/territory-requests`, {
+      await request({
         territoryId: territoryId ?? null,
         message: data.message,
+        publisherId: sessionUser?.id ?? '',
+        publisherName: sessionUser?.name ?? null,
       });
       setSuccess(true);
       onSuccess?.();
@@ -86,7 +92,7 @@ export function TerritoryRequestDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Request Territory</DialogTitle>
           <DialogDescription>

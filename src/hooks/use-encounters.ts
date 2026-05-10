@@ -1,98 +1,72 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createEncounter,
-  getLocalFirstDB,
-  requestLocalFirstSync,
-  syncLocalFirst,
   toEncounterView,
+  watchEncounters,
+  watchHouseholds,
+  watchVisits,
 } from '@/lib/local-first';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import type { Encounter } from '@/types/api';
 
-function sortEncounters(encounters: (Encounter & { _pending?: boolean })[]) {
+function sortEncounters(encounters: Encounter[]) {
   return [...encounters].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 function useEncounterRecords(visitId?: string | null) {
-  const [encounters, setEncounters] = useState<(Encounter & { _pending?: boolean })[]>([]);
+  const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
+  const [households, setHouseholds] = useState<LocalHousehold[]>([]);
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const database = await getLocalFirstDB();
-    const [encounterDocuments, householdDocuments, visitDocuments] = await Promise.all([
-      database.encounters.find().exec(),
-      database.households.find().exec(),
-      database.visits.find().exec(),
-    ]);
-    const households = new Map(
-      householdDocuments.map((document) => {
-        const household = document.toMutableJSON() as LocalHousehold;
-        return [household.id, household] as const;
-      })
+  useEffect(() => {
+    setIsLoading(true);
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setIsLoading(false);
+    };
+    const unsubscribeEncounters = watchEncounters(
+      visitId ? { visitId } : undefined,
+      (records) => {
+        setEncounters(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
     );
-    const visits = new Map(
-      visitDocuments.map((document) => {
-        const visit = document.toMutableJSON() as LocalVisit;
-        return [visit.id, visit] as const;
-      })
-    );
-
-    setEncounters(
-      sortEncounters(
-        encounterDocuments
-          .map((document) => document.toMutableJSON() as LocalEncounter)
-          .filter((encounter) => !encounter.deletedAt)
-          .filter((encounter) => (visitId ? encounter.visitId === visitId : true))
-          .map((encounter) =>
-            toEncounterView(
-              encounter,
-              encounter.householdId ? households.get(encounter.householdId) : null,
-              encounter.visitId ? visits.get(encounter.visitId) : null
-            )
-          )
-      )
-    );
-    setError(null);
+    const unsubscribeHouseholds = watchHouseholds(undefined, setHouseholds, handleError);
+    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    return () => {
+      unsubscribeEncounters();
+      unsubscribeHouseholds();
+      unsubscribeVisits();
+    };
   }, [visitId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let encounterSubscription: { unsubscribe: () => void } | null = null;
-    let householdSubscription: { unsubscribe: () => void } | null = null;
-    let visitSubscription: { unsubscribe: () => void } | null = null;
+  const householdMap = useMemo(
+    () => new Map(households.map((household) => [household.id, household] as const)),
+    [households]
+  );
+  const visitMap = useMemo(
+    () => new Map(visits.map((visit) => [visit.id, visit] as const)),
+    [visits]
+  );
+  const mappedEncounters = useMemo(
+    () =>
+      sortEncounters(
+        encounters.map((encounter) =>
+          toEncounterView(
+            encounter,
+            encounter.householdId ? householdMap.get(encounter.householdId) : null,
+            encounter.visitId ? visitMap.get(encounter.visitId) : null
+          )
+        )
+      ),
+    [encounters, householdMap, visitMap]
+  );
 
-    const start = async () => {
-      try {
-        const database = await getLocalFirstDB();
-        if (cancelled) return;
-        await refresh();
-        encounterSubscription = database.encounters.$.subscribe(() => void refresh());
-        householdSubscription = database.households.$.subscribe(() => void refresh());
-        visitSubscription = database.visits.$.subscribe(() => void refresh());
-        requestLocalFirstSync();
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    void start();
-    return () => {
-      cancelled = true;
-      encounterSubscription?.unsubscribe();
-      householdSubscription?.unsubscribe();
-      visitSubscription?.unsubscribe();
-    };
-  }, [refresh]);
-
-  const mutate = useCallback(async () => {
-    await syncLocalFirst();
-    await refresh();
-  }, [refresh]);
-
-  return { encounters, isLoading, error, mutate };
+  return { encounters: mappedEncounters, isLoading, error };
 }
 
 export function useVisitEncounters(visitId: string | null) {
@@ -110,13 +84,10 @@ export function useAddEncounter() {
       visitId: visitId ?? (data.visitId as string | null | undefined) ?? null,
       response: String(data.response ?? 'other'),
     });
-    requestLocalFirstSync();
     return encounter.id;
   };
 
   return {
     addEncounter,
-    getPendingEncounters: async () => [],
-    clearPendingEncounter: async () => undefined,
   };
 }

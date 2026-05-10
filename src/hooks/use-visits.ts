@@ -1,217 +1,149 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  getLocalFirstDB,
-  requestLocalFirstSync,
-  syncLocalFirst,
   toHouseholdView,
   toVisitView,
+  watchHouseholds,
+  watchVisits,
 } from '@/lib/local-first';
+import type { HouseholdFilters } from '@/lib/local-first/households';
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import type { Household, Visit } from '@/types/api';
 
-type DataSource = 'server' | 'cache';
-
-function useDataSource(): DataSource {
-  const [source, setSource] = useState<DataSource>('server');
-
-  useEffect(() => {
-    const update = () => setSource(navigator.onLine ? 'server' : 'cache');
-    update();
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
-  }, []);
-
-  return source;
-}
-
-function sortVisits(visits: (Visit & { _pending?: boolean })[]) {
+function sortVisits(visits: Visit[]) {
   return [...visits].sort((left, right) => right.visitDate.localeCompare(left.visitDate));
 }
 
-export function useMyVisits(filters?: { householdId?: string; assignmentId?: string }) {
-  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+function useVisitRecords(filters?: { householdId?: string; assignmentId?: string }) {
+  const householdId = filters?.householdId ?? null;
+  const assignmentId = filters?.assignmentId ?? null;
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const dataSource = useDataSource();
-
-  const refresh = useCallback(async () => {
-    const database = await getLocalFirstDB();
-    const [visitDocuments, householdDocuments] = await Promise.all([
-      database.visits.find().exec(),
-      database.households.find().exec(),
-    ]);
-    const households = new Map(
-      householdDocuments.map((document) => {
-        const household = document.toMutableJSON() as LocalHousehold;
-        return [household.id, household] as const;
-      })
-    );
-
-    const mapped = visitDocuments
-      .map((document) => document.toMutableJSON() as LocalVisit)
-      .filter((visit) => !visit.deletedAt)
-      .filter((visit) => {
-        if (filters?.householdId && visit.householdId !== filters.householdId) return false;
-        if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
-        return true;
-      })
-      .map((visit) => toVisitView(visit, households.get(visit.householdId)));
-
-    setVisits(sortVisits(mapped));
-    setError(null);
-  }, [filters?.assignmentId, filters?.householdId]);
 
   useEffect(() => {
-    let cancelled = false;
-    let visitSubscription: { unsubscribe: () => void } | null = null;
-    let householdSubscription: { unsubscribe: () => void } | null = null;
-
-    const start = async () => {
-      try {
-        const database = await getLocalFirstDB();
-        if (cancelled) return;
-        await refresh();
-        visitSubscription = database.visits.$.subscribe(() => void refresh());
-        householdSubscription = database.households.$.subscribe(() => void refresh());
-        requestLocalFirstSync();
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
+    setIsLoading(true);
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setIsLoading(false);
     };
-
-    void start();
+    const unsubscribeVisits = watchVisits(
+      { householdId, assignmentId },
+      (records) => {
+        setVisits(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
+    const unsubscribeHouseholds = watchHouseholds(undefined, (records) => {
+      setHouseholds(records);
+      setError(null);
+      setIsLoading(false);
+    }, handleError);
     return () => {
-      cancelled = true;
-      visitSubscription?.unsubscribe();
-      householdSubscription?.unsubscribe();
+      unsubscribeVisits();
+      unsubscribeHouseholds();
     };
-  }, [refresh]);
+  }, [assignmentId, householdId]);
 
-  const mutate = useCallback(async () => {
-    await syncLocalFirst();
-    await refresh();
-  }, [refresh]);
+  const householdMap = useMemo(
+    () => new Map(households.map((household) => [household.id, household] as const)),
+    [households]
+  );
+  const mappedVisits = useMemo(
+    () => sortVisits(visits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))),
+    [householdMap, visits]
+  );
 
-  return { visits, isLoading, error, dataSource, mutate };
+  return { visits: mappedVisits, isLoading, error };
+}
+
+export function useMyVisits(filters?: { householdId?: string; assignmentId?: string }) {
+  return useVisitRecords(filters);
 }
 
 export function useHouseholdVisits(householdId: string | null) {
-  return useMyVisits(householdId ? { householdId } : undefined);
+  return useVisitRecords(householdId ? { householdId } : undefined);
 }
 
 export function useTerritoryVisits(territoryId: string | null) {
-  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const database = await getLocalFirstDB();
-    const [visitDocuments, householdDocuments] = await Promise.all([
-      database.visits.find().exec(),
-      database.households.find().exec(),
-    ]);
-    const households = new Map(
-      householdDocuments
-        .map((document) => document.toMutableJSON() as LocalHousehold)
-        .filter((household) => !territoryId || household.territoryId === territoryId)
-        .map((household) => [household.id, household] as const)
+  useEffect(() => {
+    setIsLoading(true);
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setIsLoading(false);
+    };
+    const unsubscribeVisits = watchVisits(undefined, (records) => {
+      setVisits(records);
+      setError(null);
+      setIsLoading(false);
+    }, handleError);
+    const unsubscribeHouseholds = watchHouseholds(
+      territoryId ? { territoryId } : undefined,
+      (records) => {
+        setHouseholds(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
     );
-
-    setVisits(
-      sortVisits(
-        visitDocuments
-          .map((document) => document.toMutableJSON() as LocalVisit)
-          .filter((visit) => !visit.deletedAt && households.has(visit.householdId))
-          .map((visit) => toVisitView(visit, households.get(visit.householdId)))
-      )
-    );
-    setError(null);
+    return () => {
+      unsubscribeVisits();
+      unsubscribeHouseholds();
+    };
   }, [territoryId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let visitSubscription: { unsubscribe: () => void } | null = null;
-    let householdSubscription: { unsubscribe: () => void } | null = null;
+  const householdMap = useMemo(
+    () => new Map(households.map((household) => [household.id, household] as const)),
+    [households]
+  );
+  const mappedVisits = useMemo(
+    () =>
+      sortVisits(
+        visits
+          .filter((visit) => householdMap.has(visit.householdId))
+          .map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))
+      ),
+    [householdMap, visits]
+  );
 
-    const start = async () => {
-      try {
-        const database = await getLocalFirstDB();
-        if (cancelled) return;
-        await refresh();
-        visitSubscription = database.visits.$.subscribe(() => void refresh());
-        householdSubscription = database.households.$.subscribe(() => void refresh());
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    };
-
-    void start();
-    return () => {
-      cancelled = true;
-      visitSubscription?.unsubscribe();
-      householdSubscription?.unsubscribe();
-    };
-  }, [refresh]);
-
-  return { visits, isLoading, error, dataSource: 'cache' as DataSource };
+  return { visits: mappedVisits, isLoading, error };
 }
 
-export function useHouseholds() {
-  const [households, setHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
+export function useHouseholds(filters?: HouseholdFilters) {
+  const congregationId = filters?.congregationId ?? null;
+  const territoryId = filters?.territoryId ?? null;
+  const [records, setRecords] = useState<LocalHousehold[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const dataSource = useDataSource();
-
-  const refresh = useCallback(async () => {
-    const database = await getLocalFirstDB();
-    const documents = await database.households.find().exec();
-    setHouseholds(
-      documents
-        .map((document) => document.toMutableJSON() as LocalHousehold)
-        .filter((household) => !household.deletedAt)
-        .map(toHouseholdView)
-        .sort((left, right) => left.address.localeCompare(right.address))
-    );
-    setError(null);
-  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    let subscription: { unsubscribe: () => void } | null = null;
-
-    const start = async () => {
-      try {
-        const database = await getLocalFirstDB();
-        if (cancelled) return;
-        await refresh();
-        subscription = database.households.$.subscribe(() => void refresh());
-        requestLocalFirstSync();
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
+    setIsLoading(true);
+    const unsubscribe = watchHouseholds(
+      { congregationId, territoryId },
+      (households) => {
+        setRecords(households);
+        setError(null);
+        setIsLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setIsLoading(false);
       }
-    };
+    );
+    return unsubscribe;
+  }, [congregationId, territoryId]);
 
-    void start();
-    return () => {
-      cancelled = true;
-      subscription?.unsubscribe();
-    };
-  }, [refresh]);
+  const households = useMemo(
+    () => records.map(toHouseholdView).sort((left, right) => left.address.localeCompare(right.address)),
+    [records]
+  );
 
-  const mutate = useCallback(async () => {
-    await syncLocalFirst();
-    await refresh();
-  }, [refresh]);
-
-  return { households, isLoading, error, dataSource, mutate };
+  return { households: households as Household[], isLoading, error };
 }

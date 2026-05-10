@@ -1,4 +1,4 @@
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [

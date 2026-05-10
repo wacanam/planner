@@ -62,9 +62,6 @@ function VisitCard({ visit }: { visit: Visit & { householdAddress?: string; hous
         {visit.returnVisitPlanned && (
           <span className="text-purple-600 dark:text-purple-400 font-medium">↩ Return visit</span>
         )}
-        {visit.syncStatus === 'pending' && (
-          <span className="text-amber-600 dark:text-amber-400">⏳ Pending sync</span>
-        )}
       </div>
 
       {/* Expandable details */}
@@ -117,7 +114,7 @@ function VisitCard({ visit }: { visit: Visit & { householdAddress?: string; hous
 }
 
 export default function VisitsClient() {
-  const { visits, isLoading, error, dataSource } = useMyVisits();
+  const { visits, isLoading, error } = useMyVisits();
   const [outcomeFilter, setOutcomeFilter] = useState('all');
 
   const filtered = outcomeFilter === 'all'
@@ -132,13 +129,6 @@ export default function VisitsClient() {
           <span className="text-xs text-muted-foreground">{visits.length} total</span>
         )}
       </div>
-
-      {!isLoading && dataSource === 'cache' && (
-        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-          Cached · offline
-        </span>
-      )}
 
       {/* Outcome filter */}
       {visits.length > 0 && (

@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { UserRole } from '@/db';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
+import { UserRole } from '@/lib/roles';
 import type { ReactNode } from 'react';
 
 interface ProtectedPageProps {

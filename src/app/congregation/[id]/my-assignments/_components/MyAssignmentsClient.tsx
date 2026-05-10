@@ -4,9 +4,9 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, ChevronUp, MapPin, MapPinOff, Plus, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,7 @@ import {
   useTerritoryDetail,
   useHouseholds,
 } from '@/hooks';
-import useSWR from 'swr';
-import { apiClient } from '@/lib/api-client';
-import { queueHouseholdDelete } from '@/lib/visits-store';
+import { deleteHouseholdRecord } from '@/lib/record-writes';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
@@ -34,10 +32,8 @@ import {
 } from '@/components/households/log-visit-form';
 import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
 import {
-  bulkUpsertHouseholds,
   createEncounter,
   createVisit,
-  deleteHousehold,
   getHouseholdById,
 } from '@/lib/local-first';
 
@@ -136,10 +132,9 @@ function DeleteConfirmDialog({
     try {
       const existing = await getHouseholdById(householdId);
       if (!existing) {
-        throw new Error(`Household ${householdId} was not found in the local-first store`);
+        throw new Error(`Household ${householdId} was not found in Firestore records`);
       }
-      await deleteHousehold(householdId);
-      await queueHouseholdDelete(householdId);
+      await deleteHouseholdRecord(householdId);
       onDeleted();
       toast.success('Household deleted');
     } catch (e) {
@@ -158,7 +153,7 @@ function DeleteConfirmDialog({
         if (!open) onClose();
       }}
       title="Delete household?"
-      description={`This removes ${householdLabel} from local records and queues deletion sync.`}
+      description={`This removes ${householdLabel} from the shared records. Firestore will sync the change when the device is online.`}
       confirmLabel={deleting ? 'Deleting…' : 'Delete'}
       confirmVariant="destructive"
       loading={deleting}
@@ -192,69 +187,10 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     territory.id
   );
 
-  // Build boundary-filtered households API key
-  const boundaryStr = fullTerritory?.boundary ?? null;
-  const householdsKey = useMemo(() => {
-    if (!boundaryStr) return null;
-    try {
-      const geo = JSON.parse(boundaryStr);
-      const geoData = geo?.geometry ?? geo;
-      if (!geoData?.type || !geoData?.coordinates) return null;
-      return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}`;
-    } catch {
-      return null;
-    }
-  }, [boundaryStr]);
-
-  const allPinsKey = showAllPins ? '/api/households' : null;
-
-  const { data: boundaryHouseholdsData } = useSWR(
-    householdsKey,
-    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
-    { revalidateOnFocus: false }
-  );
-  const { data: allPinsData } = useSWR(
-    allPinsKey,
-    (url: string) => apiClient.get<HouseholdMapItem[]>(url),
-    { revalidateOnFocus: false }
-  );
-
-  const serverHouseholds: HouseholdMapItem[] = showAllPins
-    ? (allPinsData ?? boundaryHouseholdsData ?? [])
-    : (boundaryHouseholdsData ?? []);
-
-  const { households: localHouseholds } = useHouseholds();
-  const lastSyncSignatureRef = useRef<string>('');
-  const serverHouseholdsSignature = useMemo(
-    () =>
-      `${serverHouseholds.length}:${serverHouseholds.map((household) => household.id).join('|')}`,
-    [serverHouseholds]
-  );
-
-  useEffect(() => {
-    const mapped = serverHouseholds
-      .filter((household) => household.latitude != null && household.longitude != null)
-      .map((household) => ({
-        id: household.id,
-        address: household.address ?? '',
-        streetName: household.streetName ?? null,
-        city: household.city ?? null,
-        membersCount: household.membersCount ?? 1,
-        notes: household.notes ?? null,
-        latitude: Number(household.latitude),
-        longitude: Number(household.longitude),
-        territoryId: territory.id,
-        congregationId: territory.congregationId ?? null,
-        createdAt: household.createdAt ?? new Date().toISOString(),
-        updatedAt: household.updatedAt ?? new Date().toISOString(),
-      }));
-    if (serverHouseholdsSignature === lastSyncSignatureRef.current) return;
-    lastSyncSignatureRef.current = serverHouseholdsSignature;
-    void bulkUpsertHouseholds(mapped).catch((error) => {
-      const reason = error instanceof Error ? error.message : String(error);
-      toast.error(reason);
-    });
-  }, [serverHouseholds, serverHouseholdsSignature, territory.id, territory.congregationId]);
+  const { households: localHouseholds } = useHouseholds({
+    congregationId: territory.congregationId,
+    territoryId: showAllPins ? undefined : territory.id,
+  });
 
   const households: HouseholdMapItem[] = localHouseholds
     .filter((household) => household.latitude != null && household.longitude != null)
@@ -450,24 +386,14 @@ export default function MyAssignmentsClient() {
   const [showPast, setShowPast] = useState(false);
   const [mapOpenTerritoryId, setMapOpenTerritoryId] = useState<string | null>(null);
 
-  const {
-    data: territoriesData,
-    isLoading: territoriesLoading,
-    mutate: mutateTerritories,
-  } = useCongregationTerritories(congregationId);
+  const { data: territoriesData, isLoading: territoriesLoading } = useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const {
-    data: requestsData,
-    isLoading: requestsLoading,
-    mutate: mutateRequests,
-  } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(congregationId, 'pending');
   const requests = requestsData;
 
   const loading = territoriesLoading || requestsLoading;
-  const reload = async () => {
-    await Promise.all([mutateTerritories(), mutateRequests()]);
-  };
+  const reload = () => undefined;
 
   const myActive = territories.filter(
     (t) => t.status === 'assigned' && t.publisherId === sessionUser?.id

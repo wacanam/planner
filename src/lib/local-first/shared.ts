@@ -1,5 +1,3 @@
-import type { LocalSyncStatus } from './types';
-
 export function nowIso() {
   return new Date().toISOString();
 }
@@ -21,10 +19,3 @@ export function isoDate(value: unknown, fallback = nowIso()): string {
   return fallback;
 }
 
-export function pendingStatus(status: LocalSyncStatus): boolean {
-  return status !== 'synced';
-}
-
-export function syncErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

@@ -1,7 +1,21 @@
-import type { RxDocument } from 'rxdb';
-import { getLocalFirstDB } from './database';
-import { notifyLocalFirstChange } from './events';
-import { isoDate, nowIso, nullableString, pendingStatus } from './shared';
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+  writeBatch,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import { getHouseholdById } from './households';
+import { getAllVisits } from './visits';
+import { isoDate, nowIso, nullableString } from './shared';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from './types';
 import type { Encounter } from '@/types/api';
 
@@ -23,13 +37,35 @@ export interface CreateEncounterInput {
   notes?: string | null;
 }
 
-type EncounterDocument = RxDocument<LocalEncounter>;
+export interface EncounterFilters {
+  visitId?: string | null;
+  householdId?: string | null;
+}
+
+function encounterCollection() {
+  return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.encounters);
+}
+
+function encounterDocument(id: string) {
+  return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.encounters, id);
+}
+
+function encounterFromSnapshot(snapshot: QueryDocumentSnapshot): LocalEncounter {
+  return snapshot.data() as LocalEncounter;
+}
+
+function filterEncounter(record: LocalEncounter, filters?: EncounterFilters) {
+  if (record.deletedAt) return false;
+  if (filters?.visitId && record.visitId !== filters.visitId) return false;
+  if (filters?.householdId && record.householdId !== filters.householdId) return false;
+  return true;
+}
 
 export function toEncounterView(
   record: LocalEncounter,
   household?: LocalHousehold | null,
   visit?: LocalVisit | null
-): Encounter & { _pending?: boolean } {
+): Encounter {
   return {
     id: record.id,
     visitId: record.visitId,
@@ -47,16 +83,12 @@ export function toEncounterView(
     returnVisitRequested: record.returnVisitRequested,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
-    syncStatus: record.syncStatus === 'synced' ? 'synced' : 'pending',
-    offlineCreated: record.offlineCreated,
-    syncedAt: record.lastSyncedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     householdAddress: household?.address ?? null,
     householdCity: household?.city ?? null,
     visitDate: visit?.visitDate ?? record.encounterDate,
     visitOutcome: visit?.outcome ?? null,
-    _pending: pendingStatus(record.syncStatus),
   };
 }
 
@@ -84,33 +116,27 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
     returnVisitRequested: Boolean(encounter.returnVisitRequested),
     nextVisitNotes: encounter.nextVisitNotes ?? null,
     notes: encounter.notes ?? null,
-    syncStatus: 'synced',
-    syncError: null,
-    offlineCreated: Boolean(encounter.offlineCreated),
     deletedAt: null,
-    lastSyncedAt: now,
     createdAt: isoDate(encounter.createdAt, now),
     updatedAt: isoDate(encounter.updatedAt, now),
   };
 }
 
 export async function createEncounter(input: CreateEncounterInput): Promise<LocalEncounter> {
-  const database = await getLocalFirstDB();
   const now = nowIso();
-  const visit = input.visitId ? await database.visits.findOne(input.visitId).exec() : null;
-  const visitData = visit?.toMutableJSON() as LocalVisit | undefined;
-  const householdId = nullableString(input.householdId) ?? visitData?.householdId ?? null;
-  const household = householdId ? await database.households.findOne(householdId).exec() : null;
-  const householdData = household?.toMutableJSON() as LocalHousehold | undefined;
+  const visits = input.visitId ? await getAllVisits({}) : [];
+  const visit = input.visitId ? visits.find((item) => item.id === input.visitId) : null;
+  const householdId = nullableString(input.householdId) ?? visit?.householdId ?? null;
+  const household = householdId ? await getHouseholdById(householdId) : null;
 
   const record: LocalEncounter = {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     serverId: null,
     userId: null,
     visitId: nullableString(input.visitId),
-    visitServerId: visitData?.serverId ?? null,
+    visitServerId: visit?.serverId ?? null,
     householdId,
-    householdServerId: householdData?.serverId ?? null,
+    householdServerId: household?.serverId ?? null,
     encounterDate: nullableString(input.encounterDate) ?? now,
     name: nullableString(input.name),
     gender: nullableString(input.gender),
@@ -124,88 +150,99 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     returnVisitRequested: Boolean(input.returnVisitRequested),
     nextVisitNotes: nullableString(input.nextVisitNotes),
     notes: nullableString(input.notes),
-    syncStatus: 'pending',
-    syncError: null,
-    offlineCreated: true,
     deletedAt: null,
-    lastSyncedAt: null,
     createdAt: now,
     updatedAt: now,
   };
 
-  await database.encounters.insert(record);
-  notifyLocalFirstChange();
+  await writeBatch(getPlannerFirestore()).set(encounterDocument(record.id), record).commit();
   return record;
 }
 
 export async function applyRemoteEncounters(encounters: Encounter[]): Promise<number> {
-  const database = await getLocalFirstDB();
-  let applied = 0;
-
+  const batch = writeBatch(getPlannerFirestore());
   for (const encounter of encounters) {
-    const localHousehold = encounter.householdId
-      ? await database.households.findOne({ selector: { serverId: encounter.householdId } }).exec()
-      : null;
-    const localVisit = encounter.visitId
-      ? await database.visits.findOne({ selector: { serverId: encounter.visitId } }).exec()
-      : null;
-    const existingByServerId = await database.encounters
-      .findOne({ selector: { serverId: encounter.id } })
-      .exec();
-    const existingById = existingByServerId
-      ? null
-      : await database.encounters.findOne(encounter.id).exec();
-    const existing = existingByServerId ?? existingById;
-    const existingData = existing?.toMutableJSON() as LocalEncounter | undefined;
-
-    if (existingData?.deletedAt || (existingData?.syncStatus && existingData.syncStatus !== 'synced')) {
-      continue;
-    }
-
-    const local = localEncounterFromApi(encounter, existingData?.id);
-    await database.encounters.incrementalUpsert({
-      ...local,
-      householdId: localHousehold?.primary ?? encounter.householdId,
-      householdServerId: encounter.householdId,
-      visitId: localVisit?.primary ?? encounter.visitId,
-      visitServerId: encounter.visitId,
-    });
-    applied += 1;
+    const local = localEncounterFromApi(encounter);
+    batch.set(encounterDocument(local.id), local, { merge: true });
   }
+  await batch.commit();
+  return encounters.length;
+}
 
-  if (applied > 0) notifyLocalFirstChange();
-  return applied;
+export async function updateEncounter(
+  id: string,
+  input: Partial<CreateEncounterInput>
+): Promise<void> {
+  const updates: Record<string, unknown> = { updatedAt: nowIso() };
+  if (input.visitId !== undefined) updates.visitId = nullableString(input.visitId);
+  if (input.householdId !== undefined) updates.householdId = nullableString(input.householdId);
+  if (input.encounterDate !== undefined) updates.encounterDate = nullableString(input.encounterDate) ?? nowIso();
+  if (input.name !== undefined) updates.name = nullableString(input.name);
+  if (input.gender !== undefined) updates.gender = nullableString(input.gender);
+  if (input.ageGroup !== undefined) updates.ageGroup = nullableString(input.ageGroup);
+  if (input.role !== undefined) updates.role = nullableString(input.role);
+  if (input.response !== undefined) updates.response = input.response;
+  if (input.languageSpoken !== undefined) updates.languageSpoken = nullableString(input.languageSpoken);
+  if (input.topicDiscussed !== undefined) updates.topicDiscussed = nullableString(input.topicDiscussed);
+  if (input.literatureAccepted !== undefined) {
+    updates.literatureAccepted = nullableString(input.literatureAccepted);
+  }
+  if (input.bibleStudyInterest !== undefined) updates.bibleStudyInterest = Boolean(input.bibleStudyInterest);
+  if (input.returnVisitRequested !== undefined) {
+    updates.returnVisitRequested = Boolean(input.returnVisitRequested);
+  }
+  if (input.nextVisitNotes !== undefined) updates.nextVisitNotes = nullableString(input.nextVisitNotes);
+  if (input.notes !== undefined) updates.notes = nullableString(input.notes);
+  await updateDoc(encounterDocument(id), updates);
+}
+
+export async function getAllEncounters(filters?: EncounterFilters): Promise<LocalEncounter[]> {
+  const snapshot = await getDocs(encounterCollection());
+  return snapshot.docs
+    .map(encounterFromSnapshot)
+    .filter((encounter) => filterEncounter(encounter, filters))
+    .sort((left, right) => right.encounterDate.localeCompare(left.encounterDate));
 }
 
 export async function getEncountersByVisit(visitId: string): Promise<LocalEncounter[]> {
-  const database = await getLocalFirstDB();
-  const documents = await database.encounters.find({ selector: { visitId } }).exec();
-  return documents
-    .map((document) => document.toMutableJSON() as LocalEncounter)
-    .filter((encounter) => !encounter.deletedAt)
-    .sort((left, right) => right.encounterDate.localeCompare(left.encounterDate));
+  return getAllEncounters({ visitId });
 }
 
 export async function getEncountersByHousehold(householdId: string): Promise<LocalEncounter[]> {
-  const database = await getLocalFirstDB();
-  const documents = await database.encounters.find({ selector: { householdId } }).exec();
-  return documents
-    .map((document) => document.toMutableJSON() as LocalEncounter)
-    .filter((encounter) => !encounter.deletedAt)
-    .sort((left, right) => right.encounterDate.localeCompare(left.encounterDate));
+  return getAllEncounters({ householdId });
+}
+
+export function watchEncounters(
+  filters: EncounterFilters | undefined,
+  onChange: (encounters: LocalEncounter[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const constraints: QueryConstraint[] = [];
+  if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
+  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  const encounterQuery = constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
+
+  return onSnapshot(
+    encounterQuery,
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      onChange(
+        snapshot.docs
+          .map(encounterFromSnapshot)
+          .filter((encounter) => filterEncounter(encounter, filters))
+          .sort((left, right) => right.encounterDate.localeCompare(left.encounterDate))
+      );
+    },
+    onError
+  );
 }
 
 export async function deleteEncounter(id: string): Promise<void> {
-  const database = await getLocalFirstDB();
-  const document = await database.encounters.findOne(id).exec();
-  if (!document) return;
-  await document.incrementalPatch({
-    deletedAt: nowIso(),
-    syncStatus: 'pending',
-    syncError: null,
-    updatedAt: nowIso(),
+  const now = nowIso();
+  await updateDoc(encounterDocument(id), {
+    deletedAt: now,
+    updatedAt: now,
   });
-  notifyLocalFirstChange();
 }
 
 export function encounterPayload(
@@ -233,24 +270,6 @@ export function encounterPayload(
   };
 }
 
-export async function markEncounterSynced(
-  document: EncounterDocument,
-  encounter: Encounter
-): Promise<void> {
-  const current = document.toMutableJSON() as LocalEncounter;
-  const local = localEncounterFromApi(encounter, document.primary);
-  await document.incrementalPatch({
-    ...local,
-    id: document.primary,
-    householdId: current.householdId,
-    householdServerId: encounter.householdId,
-    visitId: current.visitId,
-    visitServerId: encounter.visitId,
-    serverId: encounter.id,
-    syncStatus: 'synced',
-    syncError: null,
-    offlineCreated: false,
-    deletedAt: null,
-    lastSyncedAt: nowIso(),
-  });
+export async function markEncounterSynced(_document: unknown, _encounter: Encounter): Promise<void> {
+  return undefined;
 }

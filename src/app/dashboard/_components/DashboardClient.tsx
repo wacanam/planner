@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 
 export default function DashboardRedirectPage() {
   const { data: session, status } = useSession();

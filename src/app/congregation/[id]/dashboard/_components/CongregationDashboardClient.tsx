@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { StatCard } from '@/components/stat-card';
@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CongregationRole, UserRole } from '@/db';
+import { CongregationRole, UserRole } from '@/lib/roles';
 import {
   useCongregation,
   useCongregationMembers,
@@ -53,22 +53,10 @@ export default function CongregationDashboardPage() {
   const { congregation: congData, isLoading: congLoading } = useCongregation(
     congregationId ?? null
   );
-  const {
-    data: membersData,
-    isLoading: membersLoading,
-    mutate: mutateMembers,
-  } = useCongregationMembers(congregationId);
+  const { data: membersData, isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { groups: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
-  const {
-    data: territoriesData,
-    isLoading: territoriesLoading,
-    mutate: mutateTerritories,
-  } = useCongregationTerritories(congregationId);
-  const {
-    data: requestsData,
-    isLoading: requestsLoading,
-    mutate: mutateRequests,
-  } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: territoriesData, isLoading: territoriesLoading } = useCongregationTerritories(congregationId);
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(congregationId, 'pending');
 
   const loading =
     congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
@@ -90,9 +78,7 @@ export default function CongregationDashboardPage() {
     sessionUser?.role === UserRole.SUPER_ADMIN ||
     sessionUser?.role === UserRole.ADMIN;
 
-  const loadAll = async () => {
-    await Promise.all([mutateMembers(), mutateTerritories(), mutateRequests()]);
-  };
+  const loadAll = () => undefined;
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
   const pendingRequests = requests.length;

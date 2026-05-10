@@ -1,8 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, Plus, Users } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pencil, Trash2, Plus, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,10 +23,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useHouseholds, useMyEncounters } from '@/hooks';
-import { apiClient } from '@/lib/api-client';
-import { queueEncounter, queueEncounterDelete, registerVisitSync } from '@/lib/visits-store';
+import { deleteEncounterRecord, saveEncounterRecord, updateEncounterRecord } from '@/lib/record-writes';
 import { type RecordEncounterFormData, recordEncounterSchema } from '@/schemas/visit';
-import type { Household } from '@/types/api';
+import type { Encounter, Household } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20',
@@ -55,21 +54,21 @@ const DEFAULT_VALUES: Partial<RecordEncounterFormData> = {
   returnVisitRequested: false,
 };
 
-function householdLabel(household: Household & { _pending?: boolean }) {
+function householdLabel(household: Household) {
   const address =
     household.address || [household.houseNumber, household.streetName].filter(Boolean).join(' ');
-  const pendingSuffix = household._pending ? ' (pending)' : '';
-  return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}${pendingSuffix}`;
+  return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}`;
 }
 
 interface LogEncounterDialogProps {
-  households: (Household & { _pending?: boolean })[];
+  households: Household[];
+  encounter?: Encounter | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: () => Promise<void>;
+  onSaved: () => void;
 }
 
-function LogEncounterDialog({ households, open, onOpenChange, onSaved }: LogEncounterDialogProps) {
+function LogEncounterDialog({ households, encounter, open, onOpenChange, onSaved }: LogEncounterDialogProps) {
   const {
     register,
     handleSubmit,
@@ -81,41 +80,48 @@ function LogEncounterDialog({ households, open, onOpenChange, onSaved }: LogEnco
     defaultValues: DEFAULT_VALUES,
   });
 
-  const pendingHouseholdIds = useMemo(
-    () =>
-      new Set(
-        households.filter((household) => household._pending).map((household) => household.id)
-      ),
-    [households]
-  );
-
   const onSubmit = async (values: RecordEncounterFormData) => {
     const payload = {
       ...values,
-      householdId: values.householdId || undefined,
+      householdId: values.householdId || null,
     };
 
-    const shouldQueueOffline =
-      !navigator.onLine ||
-      (values.householdId ? pendingHouseholdIds.has(values.householdId) : false);
-
-    if (shouldQueueOffline) {
-      await queueEncounter(payload);
-      await registerVisitSync();
+    if (encounter) {
+      await updateEncounterRecord(encounter.id, payload);
     } else {
-      await apiClient.post('/api/profile/encounters', payload);
+      await saveEncounterRecord(payload);
     }
-
-    await onSaved();
+    onSaved();
     reset(DEFAULT_VALUES);
     onOpenChange(false);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    reset(
+      encounter
+        ? {
+            householdId: encounter.householdId ?? '',
+            encounterDate: (encounter.visitDate ?? encounter.createdAt).slice(0, 10),
+            name: encounter.name ?? undefined,
+            gender: (encounter.gender as RecordEncounterFormData['gender']) ?? 'unknown',
+            role: (encounter.role as RecordEncounterFormData['role']) ?? 'unknown',
+            response: encounter.response as RecordEncounterFormData['response'],
+            topicDiscussed: encounter.topicDiscussed ?? undefined,
+            literatureAccepted: encounter.literatureAccepted ?? undefined,
+            bibleStudyInterest: encounter.bibleStudyInterest,
+            returnVisitRequested: encounter.returnVisitRequested,
+            notes: encounter.notes ?? undefined,
+          }
+        : DEFAULT_VALUES
+    );
+  }, [encounter, open, reset]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Log Encounter</DialogTitle>
+          <DialogTitle>{encounter ? 'Edit Encounter' : 'Log Encounter'}</DialogTitle>
           <DialogDescription>
             Record a ministry conversation even if it happened outside an assignment or without a
             visit.
@@ -233,7 +239,7 @@ function LogEncounterDialog({ households, open, onOpenChange, onSaved }: LogEnco
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              Save Encounter
+              {encounter ? 'Save Changes' : 'Save Encounter'}
             </Button>
           </DialogFooter>
         </form>
@@ -326,17 +332,18 @@ function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children 
 }
 
 export default function EncountersClient() {
-  const { encounters, isLoading, error, mutate } = useMyEncounters();
+  const { encounters, isLoading, error } = useMyEncounters();
   const { households } = useHouseholds();
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [swipedId, setSwipedId] = useState<string | null>(null);
+  const [editingEncounter, setEditingEncounter] = useState<Encounter | null>(null);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await queueEncounterDelete(id);
+      await deleteEncounterRecord(id);
       setDeletedIds((prev) => new Set(prev).add(id));
       setSwipedId(null);
     } finally {
@@ -413,19 +420,21 @@ export default function EncountersClient() {
                       ? new Date(encounter.visitDate).toLocaleDateString()
                       : new Date(encounter.createdAt).toLocaleDateString()}
                   </p>
-                  {encounter._pending && (
-                    <Badge
-                      variant="outline"
-                      className="text-amber-700 border-amber-200 bg-amber-50"
-                    >
-                      Pending
-                    </Badge>
-                  )}
                 </div>
               </div>
-              <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
-                {responseLabels[encounter.response] ?? encounter.response}
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditingEncounter(encounter)}
+                  aria-label="Edit encounter"
+                >
+                  <Pencil size={13} />
+                </Button>
+                <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
+                  {responseLabels[encounter.response] ?? encounter.response}
+                </Badge>
+              </div>
             </EncounterSwipeCard>
           ))}
         </div>
@@ -435,9 +444,16 @@ export default function EncountersClient() {
         households={households}
         open={showLogDialog}
         onOpenChange={setShowLogDialog}
-        onSaved={async () => {
-          await mutate();
+        onSaved={() => undefined}
+      />
+      <LogEncounterDialog
+        households={households}
+        encounter={editingEncounter}
+        open={!!editingEncounter}
+        onOpenChange={(open) => {
+          if (!open) setEditingEncounter(null);
         }}
+        onSaved={() => setEditingEncounter(null)}
       />
     </div>
   );

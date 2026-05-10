@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert } from '@/components/ui/alert';
-import { apiClient } from '@/lib/api-client';
+import { useCreateAssignment } from '@/hooks';
 
 type Props = {
   territoryId: string;
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export function AssignmentForm({ territoryId, onSuccess }: Props) {
+  const { create: createAssignment } = useCreateAssignment();
   const [userId, setUserId] = useState('');
   const [dueAt, setDueAt] = useState('');
   const [notes, setNotes] = useState('');
@@ -32,24 +33,17 @@ export function AssignmentForm({ territoryId, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      const result = await apiClient.post<
-        { success: boolean; error?: { message: string } },
-        object
-      >('/api/assignments', {
+      await createAssignment({
         territoryId,
         userId: userId.trim(),
         dueAt: dueAt || undefined,
         notes: notes || undefined,
       });
-      if (!result.success) {
-        setError(result.error?.message ?? 'Failed to assign territory');
-      } else {
-        setSuccess(true);
-        setUserId('');
-        setDueAt('');
-        setNotes('');
-        onSuccess?.();
-      }
+      setSuccess(true);
+      setUserId('');
+      setDueAt('');
+      setNotes('');
+      onSuccess?.();
     } catch {
       setError('Network error. Please try again.');
     } finally {

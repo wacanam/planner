@@ -1,20 +1,12 @@
-import type { RxCollection, RxDatabase } from 'rxdb';
-
-export type LocalSyncStatus = 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict';
-
-export interface SyncMetadata {
+export interface FirestoreRecordMetadata {
   id: string;
   serverId: string | null;
-  syncStatus: LocalSyncStatus;
-  syncError: string | null;
-  offlineCreated: boolean;
   deletedAt: string | null;
-  lastSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface LocalHousehold extends SyncMetadata {
+export interface LocalHousehold extends FirestoreRecordMetadata {
   congregationId: string | null;
   territoryId: string | null;
   address: string;
@@ -40,7 +32,7 @@ export interface LocalHousehold extends SyncMetadata {
   updatedById: string | null;
 }
 
-export interface LocalVisit extends SyncMetadata {
+export interface LocalVisit extends FirestoreRecordMetadata {
   userId: string | null;
   householdId: string;
   householdServerId: string | null;
@@ -58,7 +50,7 @@ export interface LocalVisit extends SyncMetadata {
   notes: string | null;
 }
 
-export interface LocalEncounter extends SyncMetadata {
+export interface LocalEncounter extends FirestoreRecordMetadata {
   userId: string | null;
   visitId: string | null;
   visitServerId: string | null;
@@ -77,33 +69,4 @@ export interface LocalEncounter extends SyncMetadata {
   returnVisitRequested: boolean;
   nextVisitNotes: string | null;
   notes: string | null;
-}
-
-export interface LocalAvatarUpload {
-  id: string;
-  userId: string;
-  fileName: string;
-  mimeType: string;
-  dataUrl: string;
-  syncStatus: LocalSyncStatus;
-  syncError: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lastSyncedAt: string | null;
-}
-
-export interface LocalFirstCollections {
-  households: RxCollection<LocalHousehold>;
-  visits: RxCollection<LocalVisit>;
-  encounters: RxCollection<LocalEncounter>;
-  avataruploads: RxCollection<LocalAvatarUpload>;
-}
-
-export type LocalFirstDatabase = RxDatabase<LocalFirstCollections>;
-
-export interface LocalFirstSyncResult {
-  pushed: number;
-  pulled: number;
-  failed: number;
-  errors: string[];
 }

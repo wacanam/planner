@@ -222,7 +222,7 @@ export default function ReportsClient({ congregationId }: { congregationId: stri
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Publisher Assignments</h2>
           </div>
-          <table className="w-full text-sm min-w-[600px]">
+          <table className="w-full text-sm" style={{ minWidth: 600 }}>
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">

@@ -7,7 +7,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 import { useCongregations } from '@/hooks';
 
 export default function AdminDashboardPage() {

@@ -1,7 +1,20 @@
-import type { RxDocument } from 'rxdb';
-import { getLocalFirstDB } from './database';
-import { notifyLocalFirstChange } from './events';
-import { isoDate, nowIso, nullableNumber, nullableString, pendingStatus } from './shared';
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+  writeBatch,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import { getHouseholdById } from './households';
+import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold, LocalVisit } from './types';
 import type { Visit } from '@/types/api';
 
@@ -19,12 +32,34 @@ export interface CreateVisitInput {
   notes?: string | null;
 }
 
-type VisitDocument = RxDocument<LocalVisit>;
+export interface VisitFilters {
+  householdId?: string | null;
+  assignmentId?: string | null;
+}
+
+function visitCollection() {
+  return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.visits);
+}
+
+function visitDocument(id: string) {
+  return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.visits, id);
+}
+
+function visitFromSnapshot(snapshot: QueryDocumentSnapshot): LocalVisit {
+  return snapshot.data() as LocalVisit;
+}
+
+function filterVisit(record: LocalVisit, filters?: VisitFilters) {
+  if (record.deletedAt) return false;
+  if (filters?.householdId && record.householdId !== filters.householdId) return false;
+  if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
+  return true;
+}
 
 export function toVisitView(
   record: LocalVisit,
   household?: LocalHousehold | null
-): Visit & { _pending?: boolean } {
+): Visit {
   return {
     id: record.id,
     userId: record.userId ?? '',
@@ -41,14 +76,10 @@ export function toVisitView(
     nextVisitDate: record.nextVisitDate,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
-    syncStatus: record.syncStatus === 'synced' ? 'synced' : 'pending',
-    offlineCreated: record.offlineCreated,
-    syncedAt: record.lastSyncedAt,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     householdAddress: household?.address,
     householdCity: household?.city ?? undefined,
-    _pending: pendingStatus(record.syncStatus),
   };
 }
 
@@ -72,31 +103,25 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
     nextVisitDate: visit.nextVisitDate ?? null,
     nextVisitNotes: visit.nextVisitNotes ?? null,
     notes: visit.notes ?? null,
-    syncStatus: 'synced',
-    syncError: null,
-    offlineCreated: Boolean(visit.offlineCreated),
     deletedAt: null,
-    lastSyncedAt: now,
     createdAt: isoDate(visit.createdAt, now),
     updatedAt: isoDate(visit.updatedAt, now),
   };
 }
 
 export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> {
-  const database = await getLocalFirstDB();
   const now = nowIso();
-  const household = await database.households.findOne(input.householdId).exec();
-  const householdData = household?.toMutableJSON() as LocalHousehold | undefined;
+  const household = await getHouseholdById(input.householdId);
   const record: LocalVisit = {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     serverId: null,
     userId: null,
     householdId: input.householdId,
-    householdServerId: householdData?.serverId ?? null,
+    householdServerId: household?.serverId ?? input.householdId,
     assignmentId: nullableString(input.assignmentId),
     visitDate: now,
     outcome: input.outcome,
-    householdStatusBefore: householdData?.status ?? null,
+    householdStatusBefore: household?.status ?? null,
     householdStatusAfter: nullableString(input.householdStatusAfter),
     duration: nullableNumber(input.duration),
     literatureLeft: nullableString(input.literatureLeft),
@@ -105,83 +130,104 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
     nextVisitDate: nullableString(input.nextVisitDate),
     nextVisitNotes: nullableString(input.nextVisitNotes),
     notes: nullableString(input.notes),
-    syncStatus: 'pending',
-    syncError: null,
-    offlineCreated: true,
     deletedAt: null,
-    lastSyncedAt: null,
     createdAt: now,
     updatedAt: now,
   };
 
-  await database.visits.insert(record);
+  const batch = writeBatch(getPlannerFirestore());
+  batch.set(visitDocument(record.id), record);
 
   if (household) {
-    await household.incrementalPatch({
-      lastVisitDate: record.visitDate,
-      lastVisitOutcome: record.outcome,
-      status: record.householdStatusAfter ?? householdData?.status ?? 'new',
-      syncStatus: householdData?.syncStatus === 'synced' ? 'pending' : householdData?.syncStatus,
-      updatedAt: now,
-    });
+    batch.set(
+      doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.households, household.id),
+      {
+        lastVisitDate: record.visitDate,
+        lastVisitOutcome: record.outcome,
+        status: record.householdStatusAfter ?? household.status ?? 'new',
+        updatedAt: now,
+      },
+      { merge: true }
+    );
   }
 
-  notifyLocalFirstChange();
+  await batch.commit();
   return record;
 }
 
 export async function applyRemoteVisits(visits: Visit[]): Promise<number> {
-  const database = await getLocalFirstDB();
-  let applied = 0;
-
+  const batch = writeBatch(getPlannerFirestore());
   for (const visit of visits) {
-    const household = await database.households
-      .findOne({ selector: { serverId: visit.householdId } })
-      .exec();
-    const existingByServerId = await database.visits
-      .findOne({ selector: { serverId: visit.id } })
-      .exec();
-    const existingById = existingByServerId ? null : await database.visits.findOne(visit.id).exec();
-    const existing = existingByServerId ?? existingById;
-    const existingData = existing?.toMutableJSON() as LocalVisit | undefined;
-
-    if (existingData?.deletedAt || (existingData?.syncStatus && existingData.syncStatus !== 'synced')) {
-      continue;
-    }
-
-    const local = localVisitFromApi(visit, existingData?.id);
-    await database.visits.incrementalUpsert({
-      ...local,
-      householdId: household?.primary ?? visit.householdId,
-      householdServerId: visit.householdId,
-    });
-    applied += 1;
+    const local = localVisitFromApi(visit);
+    batch.set(visitDocument(local.id), local, { merge: true });
   }
-
-  if (applied > 0) notifyLocalFirstChange();
-  return applied;
+  await batch.commit();
+  return visits.length;
 }
 
-export async function getVisitsByHousehold(householdId: string): Promise<LocalVisit[]> {
-  const database = await getLocalFirstDB();
-  const documents = await database.visits.find({ selector: { householdId } }).exec();
-  return documents
-    .map((document) => document.toMutableJSON() as LocalVisit)
-    .filter((visit) => !visit.deletedAt)
+export async function updateVisit(id: string, input: Partial<CreateVisitInput>): Promise<void> {
+  const now = nowIso();
+  const updates: Record<string, unknown> = { updatedAt: now };
+  if (input.outcome !== undefined) updates.outcome = input.outcome;
+  if (input.householdStatusAfter !== undefined) {
+    updates.householdStatusAfter = nullableString(input.householdStatusAfter);
+  }
+  if (input.duration !== undefined) updates.duration = nullableNumber(input.duration);
+  if (input.literatureLeft !== undefined) updates.literatureLeft = nullableString(input.literatureLeft);
+  if (input.bibleTopicDiscussed !== undefined) {
+    updates.bibleTopicDiscussed = nullableString(input.bibleTopicDiscussed);
+  }
+  if (input.returnVisitPlanned !== undefined) updates.returnVisitPlanned = Boolean(input.returnVisitPlanned);
+  if (input.nextVisitDate !== undefined) updates.nextVisitDate = nullableString(input.nextVisitDate);
+  if (input.nextVisitNotes !== undefined) updates.nextVisitNotes = nullableString(input.nextVisitNotes);
+  if (input.notes !== undefined) updates.notes = nullableString(input.notes);
+  if (input.assignmentId !== undefined) updates.assignmentId = nullableString(input.assignmentId);
+  await updateDoc(visitDocument(id), updates);
+}
+
+export async function getAllVisits(filters?: VisitFilters): Promise<LocalVisit[]> {
+  const snapshot = await getDocs(visitCollection());
+  return snapshot.docs
+    .map(visitFromSnapshot)
+    .filter((visit) => filterVisit(visit, filters))
     .sort((left, right) => right.visitDate.localeCompare(left.visitDate));
 }
 
+export async function getVisitsByHousehold(householdId: string): Promise<LocalVisit[]> {
+  return getAllVisits({ householdId });
+}
+
+export function watchVisits(
+  filters: VisitFilters | undefined,
+  onChange: (visits: LocalVisit[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const constraints: QueryConstraint[] = [];
+  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  const visitQuery = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
+
+  return onSnapshot(
+    visitQuery,
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      onChange(
+        snapshot.docs
+          .map(visitFromSnapshot)
+          .filter((visit) => filterVisit(visit, filters))
+          .sort((left, right) => right.visitDate.localeCompare(left.visitDate))
+      );
+    },
+    onError
+  );
+}
+
 export async function deleteVisit(id: string): Promise<void> {
-  const database = await getLocalFirstDB();
-  const document = await database.visits.findOne(id).exec();
-  if (!document) return;
-  await document.incrementalPatch({
-    deletedAt: nowIso(),
-    syncStatus: 'pending',
-    syncError: null,
-    updatedAt: nowIso(),
+  const now = nowIso();
+  await updateDoc(visitDocument(id), {
+    deletedAt: now,
+    updatedAt: now,
   });
-  notifyLocalFirstChange();
 }
 
 export function visitPayload(record: LocalVisit, householdServerId: string) {
@@ -201,18 +247,6 @@ export function visitPayload(record: LocalVisit, householdServerId: string) {
   };
 }
 
-export async function markVisitSynced(document: VisitDocument, visit: Visit): Promise<void> {
-  const local = localVisitFromApi(visit, document.primary);
-  await document.incrementalPatch({
-    ...local,
-    id: document.primary,
-    householdId: (document.toMutableJSON() as LocalVisit).householdId,
-    householdServerId: visit.householdId,
-    serverId: visit.id,
-    syncStatus: 'synced',
-    syncError: null,
-    offlineCreated: false,
-    deletedAt: null,
-    lastSyncedAt: nowIso(),
-  });
+export async function markVisitSynced(_document: unknown, _visit: Visit): Promise<void> {
+  return undefined;
 }

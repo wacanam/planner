@@ -1,10 +1,10 @@
 'use client';
 
-import { Bell, UserPlus, CheckCircle, XCircle } from 'lucide-react';
+import { Bell, Trash2, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { timeAgo } from '@/lib/time-ago';
 import { cn } from '@/lib/utils';
-import { useNotifications, useMarkNotificationsRead } from '@/hooks';
+import { useDeleteNotification, useNotifications, useMarkNotificationsRead } from '@/hooks';
 
 interface Notification {
   id: string;
@@ -51,13 +51,13 @@ function groupByDate(notifications: Notification[]): Record<string, Notification
 }
 
 export function NotificationsClient() {
-  const { notifications, isLoading, mutate } = useNotifications();
+  const { notifications, isLoading } = useNotifications();
   const { markRead } = useMarkNotificationsRead();
+  const { remove: deleteNotification } = useDeleteNotification();
 
   const markAsRead = async (id: string) => {
     try {
       await markRead({ ids: [id] });
-      await mutate();
     } catch {
       // ignore
     }
@@ -66,7 +66,14 @@ export function NotificationsClient() {
   const markAllAsRead = async () => {
     try {
       await markRead({});
-      await mutate();
+    } catch {
+      // ignore
+    }
+  };
+
+  const removeNotification = async (id: string) => {
+    try {
+      await deleteNotification(id);
     } catch {
       // ignore
     }
@@ -157,16 +164,26 @@ export function NotificationsClient() {
                       {new Date(n.createdAt).toLocaleString()} · {timeAgo(n.createdAt)}
                     </p>
                   </div>
-                  {!n.isRead && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!n.isRead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => markAsRead(n.id)}
+                      >
+                        Mark read
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="shrink-0 text-xs"
-                      onClick={() => markAsRead(n.id)}
+                      onClick={() => removeNotification(n.id)}
+                      aria-label="Delete notification"
                     >
-                      Mark read
+                      <Trash2 size={14} />
                     </Button>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -50,7 +50,7 @@ export default function HouseholdDetailPage() {
 
       {!household ? (
         <p className="text-sm text-muted-foreground">
-          Household not found in the local-first store.
+          Household not found in Firestore records.
         </p>
       ) : (
         <>

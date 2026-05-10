@@ -3,15 +3,14 @@
 import { LogOut, MapPin, BarChart2, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { useState, useRef, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
-import { SyncNowButton } from '@/components/sync-now-button';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { signOut } from '@/lib/firebase/auth';
 
 function _roleLabel(role: UserRole): string {
   switch (role) {
@@ -147,7 +146,6 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
 
             {/* Right side */}
             <div className="flex items-center gap-2">
-              <SyncNowButton />
               <NotificationBell />
               <ThemeToggle />
 
@@ -206,7 +204,7 @@ function UserAvatarDropdown({ name }: { name: string }) {
           <button
             type="button"
             className="w-full flex items-center gap-2 px-4 py-2 text-foreground hover:bg-accent/20 transition-colors"
-            onClick={() => signOut({ callbackUrl: '/auth/login' })}
+            onClick={() => void signOut().then(() => window.location.assign('/auth/login'))}
           >
             <LogOut size={14} />
             Sign out
