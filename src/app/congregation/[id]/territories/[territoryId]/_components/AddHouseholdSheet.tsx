@@ -54,7 +54,7 @@ export function AddHouseholdSheet({
         congregationId,
       });
 
-      toast.success(`Household added at ${household.latitude.toFixed(5)}, ${household.longitude.toFixed(5)}`);
+      toast.success(`Household added successfully: ${household.name}`);
       onSuccess?.();
       onClose();
     } catch (error) {

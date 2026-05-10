@@ -200,6 +200,10 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
 
   const { households: idbHouseholds } = useIDBHouseholds();
   const lastSyncSignatureRef = useRef<string>('');
+  const serverHouseholdsSignature = useMemo(
+    () => `${serverHouseholds.length}:${serverHouseholds.map((household) => household.id).join('|')}`,
+    [serverHouseholds]
+  );
 
   useEffect(() => {
     const mapped: HouseholdRecord[] = serverHouseholds
@@ -219,14 +223,13 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }));
-    const signature = `${mapped.length}:${mapped.map((household) => household.id).join('|')}`;
-    if (signature === lastSyncSignatureRef.current) return;
-    lastSyncSignatureRef.current = signature;
+    if (serverHouseholdsSignature === lastSyncSignatureRef.current) return;
+    lastSyncSignatureRef.current = serverHouseholdsSignature;
     void bulkUpsertHouseholds(mapped).catch((error) => {
       const reason = error instanceof Error ? error.message : String(error);
       toast.error(reason);
     });
-  }, [serverHouseholds, territory.id, territory.congregationId]);
+  }, [serverHouseholds, serverHouseholdsSignature, territory.id, territory.congregationId]);
 
   const households: HouseholdMapItem[] = idbHouseholds.map((household) => ({
     id: household.id,
