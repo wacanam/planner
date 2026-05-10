@@ -9,6 +9,7 @@ import { Providers } from './providers';
 import { OfflineIndicator } from '@/components/offline-indicator';
 import { IDBDebugDialog } from '@/components/idb-debug-dialog';
 import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
+import { Toaster } from '@/components/ui/sonner';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -74,6 +75,7 @@ export default function RootLayout({
             <StandaloneAuthHeader />
             <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
+            <Toaster richColors />
           </Providers>
         </ThemeProvider>
       </body>

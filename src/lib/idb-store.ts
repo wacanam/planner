@@ -27,7 +27,10 @@ export type StoreName =
   | 'pending-encounters'
   | 'pending-household-deletes'
   | 'pending-visit-deletes'
-  | 'pending-encounter-deletes';
+  | 'pending-encounter-deletes'
+  | 'households'
+  | 'visits'
+  | 'encounters';
 
 interface CacheEntry<T> {
   data: T;
@@ -42,7 +45,7 @@ let _db: IDBPDatabase | null = null;
 
 async function getDB(): Promise<IDBPDatabase> {
   if (_db) return _db;
-  _db = await openDB('ministry-planner', 5, {
+  _db = await openDB('ministry-planner', 6, {
     upgrade(db) {
       const stores: StoreName[] = [
         'pending-avatars',
@@ -55,6 +58,9 @@ async function getDB(): Promise<IDBPDatabase> {
         'pending-household-deletes',
         'pending-visit-deletes',
         'pending-encounter-deletes',
+        'households',
+        'visits',
+        'encounters',
       ];
       for (const store of stores) {
         if (!db.objectStoreNames.contains(store)) {

@@ -3,26 +3,35 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, ChevronUp, MapPin, MapPinOff, Plus, X } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSession } from 'next-auth/react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail, useHouseholdVisits } from '@/hooks';
-import useSWR, { mutate } from 'swr';
+import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
+import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
-import { queueHouseholdDelete, queueVisit, registerVisitSync } from '@/lib/visits-store';
+import { queueHouseholdDelete } from '@/lib/visits-store';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
 import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
 import type { Territory } from '@/types/api';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { LogVisitForm, type AddEncounterFormValues, type LogVisitFormValues } from '@/components/households/log-visit-form';
+import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
+import { createVisit } from '@/lib/db/visits';
+import { createEncounter } from '@/lib/db/encounters';
+import {
+  bulkUpsertHouseholds,
+  deleteHousehold,
+  getHouseholdById,
+} from '@/lib/db/households';
+import { useIDBHouseholds } from '@/hooks/use-idb-households';
+import type { HouseholdRecord } from '@/lib/db/types';
 
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -36,166 +45,56 @@ interface HouseholdMapItem {
   longitude?: number | null;
 }
 
-// ─── Log Visit form schema ─────────────────────────────────────────────────────
-
-const outcomeLabels: Record<string, string> = {
-  not_home: 'Not Home',
-  contacted: 'Contacted',
-  do_not_visit: 'Do Not Visit',
-  revisit: 'Revisit',
-  bible_study: 'Bible Study',
-};
-
-const logVisitSchema = z.object({
-  outcome: z.string().min(1, 'Required'),
-  notes: z.string().optional(),
-});
-type LogVisitForm = z.infer<typeof logVisitSchema>;
-
-// ─── Log Visit Sheet ───────────────────────────────────────────────────────────
+// ─── Log Visit Dialog ──────────────────────────────────────────────────────────
 
 function LogVisitSheet({
   householdId,
   householdLabel,
   onClose,
 }: { householdId: string; householdLabel: string; onClose: () => void }) {
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } =
-    useForm<LogVisitForm>({ resolver: zodResolver(logVisitSchema) });
+  const [isSubmitting, setSubmitting] = useState(false);
 
-  const onSubmit = async (values: LogVisitForm) => {
-    await queueVisit({ householdId, outcome: values.outcome, notes: values.notes });
-    void registerVisitSync().catch(() => {});
-    reset();
-    onClose();
+  const onSubmit = async (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => {
+    setSubmitting(true);
+    try {
+      const visit = await createVisit({
+        householdId,
+        outcome: values.outcome,
+        notes: values.notes,
+      });
+
+      for (const encounter of encounters) {
+        await createEncounter({
+          visitId: visit.id,
+          householdId,
+          name: encounter.name,
+          response: encounter.response,
+          notes: encounter.notes,
+        });
+      }
+
+      toast.success('Visit logged successfully');
+      onClose();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      toast.error(reason);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss
-    // biome-ignore lint/a11y/useKeyWithClickEvents: intentional overlay dismiss
-    <div className="fixed inset-0 z-[9200] flex flex-col justify-end" onClick={onClose}>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
-      <div
-        className="bg-background rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 border-b">
-          <div>
-            <p className="font-semibold text-sm">Log Visit</p>
-            <p className="text-xs text-muted-foreground">{householdLabel}</p>
-          </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-muted">
-            <X size={16} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="outcome">Outcome *</label>
-            <Controller
-              name="outcome"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="outcome">
-                    <SelectValue placeholder="Select outcome…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(outcomeLabels).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>{l}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.outcome && <p className="text-xs text-destructive">{errors.outcome.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="notes">Notes</label>
-            <textarea
-              id="notes"
-              rows={3}
-              className="w-full border border-input rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Optional notes…"
-              {...register('notes')}
-            />
-          </div>
-          <div className="flex gap-2 pt-1">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Save Visit'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ─── View Details Sheet ────────────────────────────────────────────────────────
-
-function ViewDetailsSheet({
-  household,
-  onClose,
-  onLogVisit,
-}: { household: HouseholdMapItem; onClose: () => void; onLogVisit: () => void }) {
-  const { visits, isLoading } = useHouseholdVisits(household.id);
-
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss
-    // biome-ignore lint/a11y/useKeyWithClickEvents: intentional overlay dismiss
-    <div className="fixed inset-0 z-[9200] flex justify-end" onClick={onClose}>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
-      <div
-        className="w-full max-w-md h-full bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3 p-4 border-b">
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-sm truncate">{household.address ?? 'Unnamed household'}</p>
-            {(household.streetName || household.city) && (
-              <p className="text-xs text-muted-foreground">
-                {[household.streetName, household.city].filter(Boolean).join(', ')}
-              </p>
-            )}
-          </div>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-full hover:bg-muted shrink-0">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="px-4 py-3 border-b">
-          <Button size="sm" className="w-full" onClick={onLogVisit}>+ Log Visit</Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Visit History ({isLoading ? '…' : visits.length})
-          </p>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />)}
-            </div>
-          ) : visits.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">No visits recorded yet.</p>
-          ) : (
-            visits.map((v) => (
-              <div key={v.id} className="rounded-xl border border-border bg-card p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{new Date(v.visitDate).toLocaleDateString()}</p>
-                    {v.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{v.notes}</p>}
-                  </div>
-                  <Badge variant="outline" className="text-xs capitalize shrink-0">
-                    {outcomeLabels[v.outcome as string] ?? 'Unknown'}
-                  </Badge>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
+    <ResponsiveDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title="Log Visit"
+      description={householdLabel}
+      contentClassName="sm:max-w-lg"
+    >
+      <LogVisitForm submitting={isSubmitting} onSubmit={onSubmit} />
+    </ResponsiveDialog>
   );
 }
 
@@ -214,41 +113,37 @@ function DeleteConfirmDialog({
     setDeleting(true);
     setError(null);
     try {
+      const existing = await getHouseholdById(householdId);
+      if (!existing) {
+        throw new Error(`Household ${householdId} was not found in local IndexedDB`);
+      }
+      await deleteHousehold(householdId);
       await queueHouseholdDelete(householdId);
       onDeleted();
+      toast.success('Household deleted');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete. Please try again.');
+      const reason = e instanceof Error ? e.message : String(e);
+      setError(reason);
+      toast.error(reason);
     } finally {
       setDeleting(false);
     }
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss
-    // biome-ignore lint/a11y/useKeyWithClickEvents: intentional overlay dismiss
-    <div className="fixed inset-0 z-[9200] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
-      <div
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div>
-          <p className="font-semibold text-sm">Delete Household?</p>
-          <p className="text-xs text-muted-foreground mt-1">{householdLabel}</p>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          This will queue the household for deletion. The action will sync when online.
-        </p>
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={deleting}>Cancel</Button>
-          <Button variant="destructive" className="flex-1" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Delete'}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title="Delete household?"
+      description={`This removes ${householdLabel} from local records and queues deletion sync.`}
+      confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+      confirmVariant="destructive"
+      loading={deleting}
+      error={error}
+      onConfirm={handleDelete}
+    />
   );
 }
 
@@ -260,6 +155,7 @@ interface InlineMapViewProps {
 }
 
 function InlineMapView({ territory, onClose }: InlineMapViewProps) {
+  const router = useRouter();
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
   const [mapMode, setMapMode] = useState<'view' | 'add' | 'remove'>('view');
@@ -268,7 +164,6 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
 
   // Action states — opened from popup buttons
   const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
-  const [viewDetailsHouseholdId, setViewDetailsHouseholdId] = useState<string | null>(null);
   const [deleteConfirmHouseholdId, setDeleteConfirmHouseholdId] = useState<string | null>(null);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
@@ -299,18 +194,45 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     { revalidateOnFocus: false }
   );
 
-  const households: HouseholdMapItem[] = showAllPins
+  const serverHouseholds: HouseholdMapItem[] = showAllPins
     ? (allPinsData ?? boundaryHouseholdsData ?? [])
     : (boundaryHouseholdsData ?? []);
 
+  const { households: idbHouseholds } = useIDBHouseholds();
+
+  useEffect(() => {
+    const mapped: HouseholdRecord[] = serverHouseholds
+      .filter((household) => household.latitude != null && household.longitude != null)
+      .map((household) => ({
+        id: household.id,
+        name: household.address ?? 'Unnamed household',
+        address: household.address ?? '',
+        membersCount: 1,
+        notes: null,
+        latitude: Number(household.latitude),
+        longitude: Number(household.longitude),
+        territoryId: territory.id,
+        congregationId: territory.congregationId ?? null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }));
+    void bulkUpsertHouseholds(mapped);
+  }, [serverHouseholds, territory.id, territory.congregationId]);
+
+  const households: HouseholdMapItem[] = idbHouseholds.map((household) => ({
+    id: household.id,
+    address: household.address,
+    streetName: household.address,
+    city: '',
+    latitude: household.latitude,
+    longitude: household.longitude,
+  }));
+
   const logVisitHousehold = households.find((h) => h.id === logVisitHouseholdId) ?? null;
-  const viewDetailsHousehold = households.find((h) => h.id === viewDetailsHouseholdId) ?? null;
 
   const handleDeleted = useCallback(() => {
     setDeleteConfirmHouseholdId(null);
-    void mutate(householdsKey);
-    if (showAllPins) void mutate(allPinsKey);
-  }, [householdsKey, allPinsKey, showAllPins]);
+  }, []);
 
   return createPortal(
     <div className="fixed inset-0 z-[9000] bg-background flex flex-col">
@@ -350,7 +272,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
               setLogVisitHouseholdId(id);
             }}
             onHouseholdViewDetails={(id: string) => {
-              setViewDetailsHouseholdId(id);
+              router.push(`/congregation/${territory.congregationId}/records/households/${id}`);
             }}
             onHouseholdDeleteRequest={(id: string) => {
               setDeleteConfirmHouseholdId(id);
@@ -385,19 +307,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => setMapMode((m) => m === 'add' ? 'view' : 'add')}
-            title={mapMode === 'add' ? 'Cancel add mode' : 'Add household (tap map)'}
-            className={[
-              'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-              mapMode === 'add'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-background/90 text-foreground hover:bg-background',
-            ].join(' ')}
-          >
-            <MapPin size={16} />
-          </button>
+          <PinHouseModeToggle active={mapMode === 'add'} onToggle={() => setMapMode((m) => (m === 'add' ? 'view' : 'add'))} />
 
           <button
             type="button"
@@ -447,7 +357,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
           territoryId={territory.id}
           congregationId={territory.congregationId ?? ''}
           onClose={() => setPendingPin(null)}
-          onSuccess={() => { setPendingPin(null); void mutate(householdsKey); }}
+          onSuccess={() => { setPendingPin(null); }}
         />
       )}
 
@@ -457,18 +367,6 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
           householdId={logVisitHouseholdId}
           householdLabel={logVisitHousehold?.address ?? 'Unnamed Household'}
           onClose={() => setLogVisitHouseholdId(null)}
-        />
-      )}
-
-      {/* View Details side sheet */}
-      {viewDetailsHouseholdId && viewDetailsHousehold && (
-        <ViewDetailsSheet
-          household={viewDetailsHousehold}
-          onClose={() => setViewDetailsHouseholdId(null)}
-          onLogVisit={() => {
-            setViewDetailsHouseholdId(null);
-            setLogVisitHouseholdId(viewDetailsHouseholdId);
-          }}
         />
       )}
 
@@ -694,4 +592,3 @@ export default function MyAssignmentsClient() {
     </ProtectedPage>
   );
 }
-

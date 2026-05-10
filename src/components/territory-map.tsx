@@ -1018,7 +1018,7 @@ useEffect(() => {
                     ? [
                         '<button onclick="window.__mapViewDetails(\'' + id + '\')"',
                         ' style="flex:1;min-width:80px;padding:8px 4px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
-                        'View Details</button>',
+                        'View Full Details</button>',
                       ].join('')
                     : '',
                   // Delete button
@@ -1026,7 +1026,7 @@ useEffect(() => {
                     ? [
                         '<button onclick="window.__mapDeleteRequest(\'' + id + '\')"',
                         ' style="padding:8px 10px;background:#fff1f2;color:#e11d48;border:1px solid #fecdd3;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
-                        '🗑</button>',
+                        'Delete</button>',
                       ].join('')
                     : '',
                   '</div>',
