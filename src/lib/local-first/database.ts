@@ -12,14 +12,22 @@ import type { LocalFirstCollections, LocalFirstDatabase } from './types';
 
 export const LOCAL_FIRST_DB_NAME = 'ministry_planner_local_first';
 
-let databasePromise: Promise<LocalFirstDatabase> | null = null;
-let pluginsAdded = false;
+interface LocalFirstGlobalState {
+  __plannerLocalFirstDatabasePromise?: Promise<LocalFirstDatabase> | null;
+  __plannerLocalFirstPluginsAdded?: boolean;
+}
+
+const localFirstGlobal = globalThis as typeof globalThis & LocalFirstGlobalState;
+
+function isDevelopmentMode() {
+  return process.env.NODE_ENV !== 'production';
+}
 
 function addPluginsOnce() {
-  if (pluginsAdded) return;
-  pluginsAdded = true;
+  if (localFirstGlobal.__plannerLocalFirstPluginsAdded) return;
+  localFirstGlobal.__plannerLocalFirstPluginsAdded = true;
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (isDevelopmentMode()) {
     addRxPlugin(RxDBDevModePlugin);
     disableWarnings();
   }
@@ -30,11 +38,14 @@ export async function getLocalFirstDB(): Promise<LocalFirstDatabase> {
     throw new Error('Local-first database is only available in the browser');
   }
 
-  if (!databasePromise) {
-    databasePromise = createLocalFirstDatabase();
+  if (!localFirstGlobal.__plannerLocalFirstDatabasePromise) {
+    localFirstGlobal.__plannerLocalFirstDatabasePromise = createLocalFirstDatabase().catch((error) => {
+      localFirstGlobal.__plannerLocalFirstDatabasePromise = null;
+      throw error;
+    });
   }
 
-  return databasePromise;
+  return localFirstGlobal.__plannerLocalFirstDatabasePromise;
 }
 
 async function createLocalFirstDatabase(): Promise<LocalFirstDatabase> {
@@ -45,7 +56,7 @@ async function createLocalFirstDatabase(): Promise<LocalFirstDatabase> {
     storage: wrappedValidateAjvStorage({ storage: getRxStorageDexie() }),
     multiInstance: true,
     eventReduce: true,
-    ignoreDuplicate: true,
+    closeDuplicates: isDevelopmentMode(),
   });
 
   await database.addCollections({
