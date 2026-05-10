@@ -14,10 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Supercluster from 'supercluster';
-import {
-  getHeadingFromQuaternion,
-  getTiltCompensatedHeading,
-} from '@/lib/heading-filter';
+import { getHeadingFromQuaternion, getTiltCompensatedHeading } from '@/lib/heading-filter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +47,12 @@ export interface TerritoryMapProps {
   drawMode?: 'add' | 'edit';
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
   onDrawingStateChange?: (rings: number, activePoints: number) => void;
-  onDrawingActions?: (actions: { closeRing: () => void; undoPoint: () => void; getGeoJSON: () => { type: string; coordinates: unknown } | null; clearRings: () => void }) => void;
+  onDrawingActions?: (actions: {
+    closeRing: () => void;
+    undoPoint: () => void;
+    getGeoJSON: () => { type: string; coordinates: unknown } | null;
+    clearRings: () => void;
+  }) => void;
   // Pre-seed drawing with existing boundary rings for editing
   initialDrawingRings?: [number, number][][];
   // Location / calibration (kept for callers)
@@ -148,6 +150,14 @@ function escHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function isTouchPointerEvent(event: Event): boolean {
+  return (
+    typeof PointerEvent !== 'undefined' &&
+    event instanceof PointerEvent &&
+    event.pointerType === 'touch'
+  );
+}
+
 // ─── Pin HTML builder ─────────────────────────────────────────────────────────
 
 function makePinHtml(
@@ -157,7 +167,7 @@ function makePinHtml(
   badge?: number,
   dark = false
 ): string {
-  const truncated = label.length > 20 ? label.slice(0, 20) + '\u2026' : label;
+  const truncated = label.length > 20 ? `${label.slice(0, 20)}\u2026` : label;
   const labelColor = dark ? '#f1f5f9' : '#1e293b';
   const strokeColor = dark ? '#0f172a' : 'white';
 
@@ -193,9 +203,9 @@ function makePinHtml(
     pinSvg,
     badgeHtml,
     '</div>',
-    '<div style="position:absolute;left:15px;top:-19px;color:' + labelColor + ';',
+    `<div style="position:absolute;left:15px;top:-19px;color:${labelColor};`,
     'font-size:10px;font-weight:500;line-height:1.3;white-space:nowrap;pointer-events:none;',
-    '-webkit-text-stroke:2px ' + strokeColor + ';paint-order:stroke fill;">',
+    `-webkit-text-stroke:2px ${strokeColor};paint-order:stroke fill;">`,
     escHtml(truncated),
     '</div>',
     '</div>',
@@ -259,11 +269,10 @@ export default function TerritoryMap({
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
   // Refs so imperative callbacks always see current state
-  const drawRingsRef  = useRef<LngLat[][]>([]);
+  const drawRingsRef = useRef<LngLat[][]>([]);
   const activeRingRef = useRef<LngLat[]>([]);
-  drawRingsRef.current  = drawRings;
+  drawRingsRef.current = drawRings;
   activeRingRef.current = activeRing;
-  const drawLastClick = useRef<number>(0);
   // Vertex drag state — shared between mousedown, mousemove, mouseup effects
   const dragVertexRef = useRef<{ ring: number; vertex: number } | null>(null);
   const dragJustEndedRef = useRef(false);
@@ -335,7 +344,12 @@ export default function TerritoryMap({
 
       // Compute initial map view: fit to boundary bbox if available,
       // otherwise center on households or fall back to default coords.
-      let mapInit: { center: [number, number]; zoom: number } | { bounds: [[number, number], [number, number]]; fitBoundsOptions: { padding: number; maxZoom: number } };
+      let mapInit:
+        | { center: [number, number]; zoom: number }
+        | {
+            bounds: [[number, number], [number, number]];
+            fitBoundsOptions: { padding: number; maxZoom: number };
+          };
 
       const boundaryBbox = (() => {
         if (!boundary) return null;
@@ -349,7 +363,10 @@ export default function TerritoryMap({
             allPts = (geoData.coordinates as [number, number][][][]).flat(2);
           }
           if (!allPts.length) return null;
-          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+          let minLng = Infinity,
+            maxLng = -Infinity,
+            minLat = Infinity,
+            maxLat = -Infinity;
           for (const [lng, lat] of allPts) {
             if (lng < minLng) minLng = lng;
             if (lng > maxLng) maxLng = lng;
@@ -364,7 +381,10 @@ export default function TerritoryMap({
 
       if (boundaryBbox) {
         mapInit = {
-          bounds: [[boundaryBbox.minLng, boundaryBbox.minLat], [boundaryBbox.maxLng, boundaryBbox.maxLat]],
+          bounds: [
+            [boundaryBbox.minLng, boundaryBbox.minLat],
+            [boundaryBbox.maxLng, boundaryBbox.maxLat],
+          ],
           fitBoundsOptions: { padding: 48, maxZoom: 17 },
         };
       } else {
@@ -447,41 +467,89 @@ export default function TerritoryMap({
         // ── Drawing layers helper — re-run after every style change ────────
         const addDrawingLayers = (m: import('maplibre-gl').Map) => {
           if (!m.getSource('draw-polygons')) {
-            m.addSource('draw-polygons', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            m.addSource('draw-polygons', {
+              type: 'geojson',
+              data: { type: 'FeatureCollection', features: [] },
+            });
           }
           if (!m.getSource('draw-active')) {
-            m.addSource('draw-active', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            m.addSource('draw-active', {
+              type: 'geojson',
+              data: { type: 'FeatureCollection', features: [] },
+            });
           }
           if (!m.getSource('draw-points')) {
-            m.addSource('draw-points', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            m.addSource('draw-points', {
+              type: 'geojson',
+              data: { type: 'FeatureCollection', features: [] },
+            });
           }
           if (!m.getSource('draw-completed-vertices')) {
-            m.addSource('draw-completed-vertices', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            m.addSource('draw-completed-vertices', {
+              type: 'geojson',
+              data: { type: 'FeatureCollection', features: [] },
+            });
           }
           if (!m.getLayer('draw-polygons-fill'))
-            m.addLayer({ id: 'draw-polygons-fill', type: 'fill',   source: 'draw-polygons',
-              paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
+            m.addLayer({
+              id: 'draw-polygons-fill',
+              type: 'fill',
+              source: 'draw-polygons',
+              paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 },
+            });
           if (!m.getLayer('draw-polygons-line'))
-            m.addLayer({ id: 'draw-polygons-line', type: 'line',   source: 'draw-polygons',
-              paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+            m.addLayer({
+              id: 'draw-polygons-line',
+              type: 'line',
+              source: 'draw-polygons',
+              paint: { 'line-color': '#059669', 'line-width': 2.5 },
+            });
           if (!m.getLayer('draw-active-line'))
-            m.addLayer({ id: 'draw-active-line',   type: 'line',   source: 'draw-active',
-              paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] } });
+            m.addLayer({
+              id: 'draw-active-line',
+              type: 'line',
+              source: 'draw-active',
+              paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [3, 2] },
+            });
           if (!m.getLayer('draw-points-circle'))
-            m.addLayer({ id: 'draw-points-circle', type: 'circle', source: 'draw-points',
+            m.addLayer({
+              id: 'draw-points-circle',
+              type: 'circle',
+              source: 'draw-points',
               filter: ['!=', ['get', 'first'], true],
-              paint: { 'circle-radius': 6, 'circle-color': '#3b82f6',
-                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+              paint: {
+                'circle-radius': 6,
+                'circle-color': '#3b82f6',
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff',
+              },
+            });
           if (!m.getLayer('draw-points-first'))
-            m.addLayer({ id: 'draw-points-first',  type: 'circle', source: 'draw-points',
+            m.addLayer({
+              id: 'draw-points-first',
+              type: 'circle',
+              source: 'draw-points',
               filter: ['==', ['get', 'first'], true],
-              paint: { 'circle-radius': 8, 'circle-color': '#f59e0b',
-                       'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+              paint: {
+                'circle-radius': 8,
+                'circle-color': '#f59e0b',
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff',
+              },
+            });
           // Vertices of completed rings (draggable handles)
           if (!m.getLayer('draw-completed-vertices-circle'))
-            m.addLayer({ id: 'draw-completed-vertices-circle', type: 'circle', source: 'draw-completed-vertices',
-              paint: { 'circle-radius': 7, 'circle-color': '#059669',
-                       'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff' } });
+            m.addLayer({
+              id: 'draw-completed-vertices-circle',
+              type: 'circle',
+              source: 'draw-completed-vertices',
+              paint: {
+                'circle-radius': 7,
+                'circle-color': '#059669',
+                'circle-stroke-width': 2.5,
+                'circle-stroke-color': '#fff',
+              },
+            });
         };
 
         // Add initially
@@ -502,13 +570,16 @@ export default function TerritoryMap({
         let hasHeading = false;
         let lastHeadingAngle = -1;
         let usingAOS = false;
-        let userLng = 0, userLat = 0, hasPos = false;
+        let userLng = 0,
+          userLat = 0,
+          hasPos = false;
 
         const createConeMarker = () => {
           if (coneMkr) return coneMkr;
           // Zero-size marker anchored at center = GPS dot position
           const el = document.createElement('div');
-          el.style.cssText = 'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
+          el.style.cssText =
+            'position:absolute;width:0;height:0;overflow:visible;pointer-events:none;';
 
           const cone = document.createElement('div');
           cone.style.cssText = [
@@ -529,606 +600,696 @@ export default function TerritoryMap({
           // anchor:'center' — marker origin is at GPS coordinate (dot center)
           const mkr = new mgl.Marker({ element: el, anchor: 'center', pitchAlignment: 'map' });
           (mkr.getElement() as HTMLElement).style.zIndex = '1';
-          const ctrl = geolocateRef.current as unknown as { _userLocationDotMarker?: import('maplibre-gl').Marker } | null;
+          const ctrl = geolocateRef.current as unknown as {
+            _userLocationDotMarker?: import('maplibre-gl').Marker;
+          } | null;
           const dotEl = ctrl?._userLocationDotMarker?.getElement() as HTMLElement | undefined;
           if (dotEl) dotEl.style.zIndex = '3';
           coneMkr = mkr;
           return coneMkr;
         };
 
-      const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
-        if (usingAOS) return;
-        const raw = getTiltCompensatedHeading(e);
-        if (raw !== null) {
-          headingAngle = raw;
-          hasHeading = true;
-        }
-      };
-
-      type AOSType = {
-        new (opts: {
-          frequency: number;
-          referenceFrame?: string;
-        }): {
-          start(): void;
-          stop(): void;
-          onreading: (() => void) | null;
-          onerror: ((e: unknown) => void) | null;
-          quaternion: readonly [number, number, number, number];
+        const onOrientation = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
+          if (usingAOS) return;
+          const raw = getTiltCompensatedHeading(e);
+          if (raw !== null) {
+            headingAngle = raw;
+            hasHeading = true;
+          }
         };
-      };
-      const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as
-        | AOSType
-        | undefined;
-      let aosSensor: InstanceType<AOSType> | null = null;
 
-      const renderHeading = () => {
-        // Only rotate — never add/remove marker in rAF loop
-        if (hasHeading && hasPos && coneMkr) {
-          const bearing = map.getBearing();
-          const angle = (headingAngle - bearing + 360) % 360;
-          if (innerCone && Math.abs(angle - lastHeadingAngle) > 0.5) {
-            innerCone.style.transformOrigin = '50% 100%';
+        type AOSType = {
+          new (opts: {
+            frequency: number;
+            referenceFrame?: string;
+          }): {
+            start(): void;
+            stop(): void;
+            onreading: (() => void) | null;
+            onerror: ((e: unknown) => void) | null;
+            quaternion: readonly [number, number, number, number];
+          };
+        };
+        const AOS = (window as unknown as Record<string, unknown>).AbsoluteOrientationSensor as
+          | AOSType
+          | undefined;
+        let aosSensor: InstanceType<AOSType> | null = null;
+
+        const renderHeading = () => {
+          // Only rotate — never add/remove marker in rAF loop
+          if (hasHeading && hasPos && coneMkr) {
+            const bearing = map.getBearing();
+            const angle = (headingAngle - bearing + 360) % 360;
+            if (innerCone && Math.abs(angle - lastHeadingAngle) > 0.5) {
+              innerCone.style.transformOrigin = '50% 100%';
               innerCone.style.transform = `rotate(${angle}deg)`;
-            lastHeadingAngle = angle;
+              lastHeadingAngle = angle;
+            }
           }
-        }
-        headingRafId = requestAnimationFrame(renderHeading);
-      };
+          headingRafId = requestAnimationFrame(renderHeading);
+        };
 
-      // Create + add cone marker only on first GPS fix, then just update position
-      geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
-        userLng = e.coords.longitude;
-        userLat = e.coords.latitude;
-        if (!hasPos) {
-          // First fix: create marker and add to map
-          const mkr = createConeMarker();
-          mkr.setLngLat([userLng, userLat]).addTo(map);
-          hasPos = true;
-        } else {
-          // Subsequent fixes: just move it
-          coneMkr?.setLngLat([userLng, userLat]);
-        }
-      });
+        // Create + add cone marker only on first GPS fix, then just update position
+        geolocate.on('geolocate', (e: { coords: GeolocationCoordinates }) => {
+          userLng = e.coords.longitude;
+          userLat = e.coords.latitude;
+          if (!hasPos) {
+            // First fix: create marker and add to map
+            const mkr = createConeMarker();
+            mkr.setLngLat([userLng, userLat]).addTo(map);
+            hasPos = true;
+          } else {
+            // Subsequent fixes: just move it
+            coneMkr?.setLngLat([userLng, userLat]);
+          }
+        });
 
-      const startHeading = () => {
-        headingRafId = requestAnimationFrame(renderHeading);
-        // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
-        const ctrl = geolocateRef.current as unknown as {
-          _userLocationDotMarker?: import('maplibre-gl').Marker;
-          _accuracyCircleMarker?: import('maplibre-gl').Marker;
-        } | null;
-        ctrl?._userLocationDotMarker?.setPitchAlignment('map');
-        ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
-        window.addEventListener('deviceorientationabsolute', onOrientation as EventListener, true);
-        window.addEventListener('deviceorientation', onOrientation as EventListener, true);
-        if (AOS) {
-          try {
-            aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
-            aosSensor.onreading = () => {
-              if (aosSensor) {
-                headingAngle = getHeadingFromQuaternion(aosSensor.quaternion);
-                hasHeading = true;
-                usingAOS = true;
-              }
-            };
-            aosSensor.onerror = () => {
-              usingAOS = false;
+        const startHeading = () => {
+          headingRafId = requestAnimationFrame(renderHeading);
+          // Set dot + accuracy circle to tilt with map (pitchAlignment:'map')
+          const ctrl = geolocateRef.current as unknown as {
+            _userLocationDotMarker?: import('maplibre-gl').Marker;
+            _accuracyCircleMarker?: import('maplibre-gl').Marker;
+          } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('map');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('map');
+          window.addEventListener(
+            'deviceorientationabsolute',
+            onOrientation as EventListener,
+            true
+          );
+          window.addEventListener('deviceorientation', onOrientation as EventListener, true);
+          if (AOS) {
+            try {
+              aosSensor = new AOS({ frequency: 60, referenceFrame: 'screen' });
+              aosSensor.onreading = () => {
+                if (aosSensor) {
+                  headingAngle = getHeadingFromQuaternion(aosSensor.quaternion);
+                  hasHeading = true;
+                  usingAOS = true;
+                }
+              };
+              aosSensor.onerror = () => {
+                usingAOS = false;
+                aosSensor = null;
+              };
+              aosSensor.start();
+            } catch {
               aosSensor = null;
-            };
-            aosSensor.start();
-          } catch {
-            aosSensor = null;
+            }
           }
-        }
-        type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
-        const DOE = DeviceOrientationEvent as DOE;
-        if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
-      };
+          type DOE = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<string> };
+          const DOE = DeviceOrientationEvent as DOE;
+          if (typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
+        };
 
-      const stopHeading = () => {
-        cancelAnimationFrame(headingRafId);
-        coneMkr?.remove();
-        coneMkr = null;
-        innerCone = null;
-        lastHeadingAngle = -1;
-        hasHeading = false;
-        usingAOS = false;
-        hasPos = false;
-        const ctrl = geolocateRef.current as unknown as {
-          _userLocationDotMarker?: import('maplibre-gl').Marker;
-          _accuracyCircleMarker?: import('maplibre-gl').Marker;
-        } | null;
-        ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
-        ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
-        aosSensor?.stop();
-        aosSensor = null;
-        window.removeEventListener(
-          'deviceorientationabsolute',
-          onOrientation as EventListener,
-          true
-        );
-        window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
-      };
+        const stopHeading = () => {
+          cancelAnimationFrame(headingRafId);
+          coneMkr?.remove();
+          coneMkr = null;
+          innerCone = null;
+          lastHeadingAngle = -1;
+          hasHeading = false;
+          usingAOS = false;
+          hasPos = false;
+          const ctrl = geolocateRef.current as unknown as {
+            _userLocationDotMarker?: import('maplibre-gl').Marker;
+            _accuracyCircleMarker?: import('maplibre-gl').Marker;
+          } | null;
+          ctrl?._userLocationDotMarker?.setPitchAlignment('viewport');
+          ctrl?._accuracyCircleMarker?.setPitchAlignment('viewport');
+          aosSensor?.stop();
+          aosSensor = null;
+          window.removeEventListener(
+            'deviceorientationabsolute',
+            onOrientation as EventListener,
+            true
+          );
+          window.removeEventListener('deviceorientation', onOrientation as EventListener, true);
+        };
 
-      geolocate.on('trackuserlocationstart', () => {
-        map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
-        startHeading();
-      });
-      // userlocationlostfocus = map panned (background state) — keep cone
-      // trackuserlocationend = user explicitly turned off — remove cone
-      geolocate.on('trackuserlocationend', () => {
-        const state = (geolocate as unknown as { _watchState?: string })._watchState;
-        if (!state || state === 'OFF') {
-          map.easeTo({ pitch: 0, duration: 400 });
-          stopHeading();
-        }
+        geolocate.on('trackuserlocationstart', () => {
+          map.easeTo({ pitch: 45, duration: 600 }); // tilt to 3D like Google Maps
+          startHeading();
+        });
+        // userlocationlostfocus = map panned (background state) — keep cone
+        // trackuserlocationend = user explicitly turned off — remove cone
+        geolocate.on('trackuserlocationend', () => {
+          const state = (geolocate as unknown as { _watchState?: string })._watchState;
+          if (!state || state === 'OFF') {
+            map.easeTo({ pitch: 0, duration: 400 });
+            stopHeading();
+          }
+        });
       });
     });
-  });
 
-  return () => {
-    destroyed = true;
+    return () => {
+      destroyed = true;
+      for (const m of markersRef.current) m.remove();
+      markersRef.current = [];
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+    const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
+    map.setStyle(style.url);
+    // watchPosition continues after style change — markers re-added on next GPS fix
+  }, [mapStyle, mapReady]);
+
+  // ── Reactive boundary rendering ───────────────────────────────────────────
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mapReady+styleSeq triggers
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    // Helper: upsert a geojson source
+    const upsertSource = (id: string, data: GeoJSON.GeoJSON) => {
+      const src = map.getSource(id) as import('maplibre-gl').GeoJSONSource | undefined;
+      if (src) {
+        src.setData(data);
+      } else {
+        map.addSource(id, { type: 'geojson', data });
+      }
+    };
+
+    // ── Active territory boundary fill + line ─────────────────────────────
+    if (boundary) {
+      try {
+        const geo = JSON.parse(boundary);
+
+        // Build mask for spotlight (world minus territory interior)
+        // Handle both raw geometry and GeoJSON Feature format
+        const geoData = geo?.geometry ?? geo;
+        let outerRings: [number, number][][] = [];
+        if (geoData?.type === 'Polygon') {
+          const ring = geoData.coordinates[0] as [number, number][];
+          if (ring?.length >= 3) outerRings = [ring];
+        } else if (geoData?.type === 'MultiPolygon') {
+          outerRings = (geoData.coordinates as [number, number][][][])
+            .map((poly) => poly[0])
+            .filter((r) => r?.length >= 3);
+        }
+
+        if (outerRings.length > 0) {
+          // worldOuter is counterclockwise (right-hand rule, exterior).
+          // GeoJSON holes must be clockwise; ensure each inner ring is CW
+          // so that MapLibre's nonzero fill rule properly punches holes.
+          const worldOuter: [number, number][] = [
+            [-180, -90],
+            [180, -90],
+            [180, 90],
+            [-180, 90],
+            [-180, -90],
+          ];
+          const ringSignedArea = (ring: [number, number][]) => {
+            let area = 0;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+              area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+            }
+            return area / 2;
+          };
+          // Positive signed area = CCW → reverse to CW for hole
+          const ensureCW = (ring: [number, number][]): [number, number][] =>
+            ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
+
+          // Each territory ring becomes a CW hole in the spotlight mask so that
+          // MapLibre's nonzero winding rule punches through the dimming layer.
+          // Using individual holes (one per polygon) keeps each polygon's spotlight
+          // exact — no imaginary shapes connecting separate polygons.
+          const holeRings: [number, number][][] = outerRings.map(ensureCW);
+
+          const maskGeo: GeoJSON.Feature<GeoJSON.Polygon> = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [worldOuter, ...holeRings],
+            },
+            properties: {},
+          };
+          upsertSource('spotlight-mask', maskGeo);
+          if (!map.getLayer('spotlight-fill')) {
+            map.addLayer({
+              id: 'spotlight-fill',
+              type: 'fill',
+              source: 'spotlight-mask',
+              paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
+            });
+          }
+        }
+
+        // Active boundary line — reuse the already-resolved geoData
+        upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
+        if (!map.getLayer('active-boundary-fill')) {
+          map.addLayer({
+            id: 'active-boundary-fill',
+            type: 'fill',
+            source: 'active-boundary',
+            paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
+          });
+        }
+        if (!map.getLayer('active-boundary-line')) {
+          map.addLayer({
+            id: 'active-boundary-line',
+            type: 'line',
+            source: 'active-boundary',
+            paint: { 'line-color': '#3b82f6', 'line-width': 2.5 },
+          });
+        }
+      } catch {
+        // ignore malformed boundary
+      }
+    } else {
+      // No boundary — remove layers if they exist
+      for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      for (const id of ['spotlight-mask', 'active-boundary']) {
+        if (map.getSource(id)) map.removeSource(id);
+      }
+    }
+
+    // ── Context (other territory) boundaries ─────────────────────────
+    for (const tb of allBoundaries) {
+      try {
+        const geo = JSON.parse(tb.boundary);
+        const geoData = geo?.geometry ?? geo;
+        const srcId = `ctx-boundary-${tb.id}`;
+        upsertSource(srcId, { type: 'Feature', geometry: geoData, properties: {} });
+        if (!map.getLayer(`${srcId}-fill`))
+          map.addLayer({
+            id: `${srcId}-fill`,
+            type: 'fill',
+            source: srcId,
+            paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 },
+          });
+        if (!map.getLayer(`${srcId}-line`))
+          map.addLayer({
+            id: `${srcId}-line`,
+            type: 'line',
+            source: srcId,
+            paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] },
+          });
+      } catch {
+        /* skip */
+      }
+    }
+  }, [boundary, allBoundaries, mapReady, styleSeq]);
+
+  // ── Hide/show stored boundary layers while in drawing mode ─────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+    const vis = isDrawing ? 'none' : 'visible';
+    for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+    }
+  }, [isDrawing, mapReady]);
+
+  // ── Household markers effect ──────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    // Clear existing markers
     for (const m of markersRef.current) m.remove();
     markersRef.current = [];
-    if (mapInstance.current) {
-      mapInstance.current.remove();
-      mapInstance.current = null;
-    }
-  };
-}
-, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
-useEffect(() => {
-  const map = mapInstance.current;
-  if (!map || !mapReady) return;
-  const style = MAP_STYLES.find((s) => s.id === mapStyle) ?? MAP_STYLES[0];
-  map.setStyle(style.url);
-  // watchPosition continues after style change — markers re-added on next GPS fix
-}, [mapStyle, mapReady]);
+    const validPts = households.filter((h) => h.latitude && h.longitude);
+    if (!validPts.length) return;
 
-// ── Reactive boundary rendering ───────────────────────────────────────────
-// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady+styleSeq triggers
-useEffect(() => {
-  const map = mapInstance.current;
-  if (!map || !mapReady) return;
+    import('maplibre-gl').then((mgl) => {
+      if (!mapInstance.current) return;
 
-  // Helper: upsert a geojson source
-  const upsertSource = (id: string, data: object) => {
-    const src = map.getSource(id) as import('maplibre-gl').GeoJSONSource | undefined;
-    if (src) {
-      src.setData(data as any);
-    } else {
-      map.addSource(id, { type: 'geojson', data: data as any });
-    }
-  };
+      const index = new Supercluster<{
+        id: string;
+        address: string;
+        status: string;
+        type: string;
+        lastVisitDate: string;
+        lastVisitOutcome: string;
+        notes: string;
+      }>({
+        radius: 40,
+        maxZoom: 18,
+        minPoints: 2,
+      });
 
-  // ── Active territory boundary fill + line ─────────────────────────────
-  if (boundary) {
-    try {
-      const geo = JSON.parse(boundary);
-
-      // Build mask for spotlight (world minus territory interior)
-      // Handle both raw geometry and GeoJSON Feature format
-      const geoData = geo?.geometry ?? geo;
-      let outerRings: [number, number][][] = [];
-      if (geoData?.type === 'Polygon') {
-        const ring = geoData.coordinates[0] as [number, number][];
-        if (ring?.length >= 3) outerRings = [ring];
-      } else if (geoData?.type === 'MultiPolygon') {
-        outerRings = (geoData.coordinates as [number, number][][][])
-          .map((poly) => poly[0])
-          .filter((r) => r?.length >= 3);
-      }
-
-      if (outerRings.length > 0) {
-        // worldOuter is counterclockwise (right-hand rule, exterior).
-        // GeoJSON holes must be clockwise; ensure each inner ring is CW
-        // so that MapLibre's nonzero fill rule properly punches holes.
-        const worldOuter: [number, number][] = [
-          [-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90],
-        ];
-        const ringSignedArea = (ring: [number, number][]) => {
-          let area = 0;
-          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-            area += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
-          }
-          return area / 2;
-        };
-        // Positive signed area = CCW → reverse to CW for hole
-        const ensureCW = (ring: [number, number][]): [number, number][] =>
-          ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
-
-        // Each territory ring becomes a CW hole in the spotlight mask so that
-        // MapLibre's nonzero winding rule punches through the dimming layer.
-        // Using individual holes (one per polygon) keeps each polygon's spotlight
-        // exact — no imaginary shapes connecting separate polygons.
-        const holeRings: [number, number][][] = outerRings.map(ensureCW);
-
-        const maskGeo = {
-          type: 'Feature',
+      index.load(
+        validPts.map((h) => ({
+          type: 'Feature' as const,
           geometry: {
-            type: 'Polygon',
-            coordinates: [worldOuter, ...holeRings],
+            type: 'Point' as const,
+            coordinates: [Number(h.longitude), Number(h.latitude)],
           },
-          properties: {},
-        };
-        upsertSource('spotlight-mask', maskGeo);
-        if (!map.getLayer('spotlight-fill')) {
-          map.addLayer({
-            id: 'spotlight-fill', type: 'fill', source: 'spotlight-mask',
-            paint: { 'fill-color': '#64748b', 'fill-opacity': 0.35 },
-          });
-        }
-      }
+          properties: {
+            id: h.id,
+            address: h.address,
+            status: h.status ?? 'not_visited',
+            type: h.type ?? 'house',
+            lastVisitDate: h.lastVisitDate ?? '',
+            lastVisitOutcome: h.lastVisitOutcome ?? '',
+            notes: h.notes ?? '',
+          },
+        }))
+      );
 
-      // Active boundary line — reuse the already-resolved geoData
-      upsertSource('active-boundary', { type: 'Feature', geometry: geoData, properties: {} });
-      if (!map.getLayer('active-boundary-fill')) {
-        map.addLayer({
-          id: 'active-boundary-fill', type: 'fill', source: 'active-boundary',
-          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 },
-        });
-      }
-      if (!map.getLayer('active-boundary-line')) {
-        map.addLayer({
-          id: 'active-boundary-line', type: 'line', source: 'active-boundary',
-          paint: { 'line-color': '#3b82f6', 'line-width': 2.5 },
-        });
-      }
-    } catch {
-      // ignore malformed boundary
-    }
-  } else {
-    // No boundary — remove layers if they exist
-    for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
-      if (map.getLayer(id)) map.removeLayer(id);
-    }
-    for (const id of ['spotlight-mask', 'active-boundary']) {
-      if (map.getSource(id)) map.removeSource(id);
-    }
-  }
+      function renderMarkers() {
+        const m = mapInstance.current;
+        if (!m) return;
 
-  // ── Context (other territory) boundaries ─────────────────────────
-  for (const tb of allBoundaries) {
-    try {
-      const geo = JSON.parse(tb.boundary);
-      const geoData = geo?.geometry ?? geo;
-      const srcId = `ctx-boundary-${tb.id}`;
-      upsertSource(srcId, { type: 'Feature', geometry: geoData, properties: {} });
-      if (!map.getLayer(`${srcId}-fill`))
-        map.addLayer({ id: `${srcId}-fill`, type: 'fill', source: srcId,
-          paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.05 } });
-      if (!map.getLayer(`${srcId}-line`))
-        map.addLayer({ id: `${srcId}-line`, type: 'line', source: srcId,
-          paint: { 'line-color': '#94a3b8', 'line-width': 1.5, 'line-dasharray': [4, 4] } });
-    } catch { /* skip */ }
-  }
-}, [boundary, allBoundaries, mapReady, styleSeq]);
+        // Clear
+        for (const mk of markersRef.current) mk.remove();
+        markersRef.current = [];
 
-// ── Hide/show stored boundary layers while in drawing mode ─────────────
-useEffect(() => {
-  const map = mapInstance.current;
-  if (!map || !mapReady) return;
-  const vis = isDrawing ? 'none' : 'visible';
-  for (const id of ['spotlight-fill', 'active-boundary-fill', 'active-boundary-line']) {
-    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
-  }
-}, [isDrawing, mapReady]);
+        const bounds = m.getBounds();
+        const bbox: [number, number, number, number] = [
+          bounds.getWest(),
+          bounds.getSouth(),
+          bounds.getEast(),
+          bounds.getNorth(),
+        ];
+        const zoom = Math.floor(m.getZoom());
+        const clusters = index.getClusters(bbox, zoom);
 
-// ── Household markers effect ──────────────────────────────────────────────
-// biome-ignore lint/correctness/useExhaustiveDependencies: mapReady is trigger
-useEffect(() => {
-  const map = mapInstance.current;
-  if (!map || !mapReady) return;
+        for (const feature of clusters) {
+          const [lng, lat] = feature.geometry.coordinates;
+          const props = feature.properties as Record<string, unknown>;
 
-  // Clear existing markers
-  for (const m of markersRef.current) m.remove();
-  markersRef.current = [];
+          const el = document.createElement('div');
+          el.style.cssText = 'cursor:pointer;touch-action:manipulation;';
 
-  const validPts = households.filter((h) => h.latitude && h.longitude);
-  if (!validPts.length) return;
-
-  import('maplibre-gl').then((mgl) => {
-    if (!mapInstance.current) return;
-
-    const index = new Supercluster<{ id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string }>({
-      radius: 40,
-      maxZoom: 18,
-      minPoints: 2,
-    });
-
-    index.load(
-      validPts.map((h) => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [Number(h.longitude), Number(h.latitude)],
-        },
-        properties: {
-          id: h.id,
-          address: h.address,
-          status: h.status ?? 'not_visited',
-          type: h.type ?? 'house',
-          lastVisitDate: h.lastVisitDate ?? '',
-          lastVisitOutcome: h.lastVisitOutcome ?? '',
-          notes: h.notes ?? '',
-        },
-      }))
-    );
-
-    function renderMarkers() {
-      const m = mapInstance.current;
-      if (!m) return;
-
-      // Clear
-      for (const mk of markersRef.current) mk.remove();
-      markersRef.current = [];
-
-      const bounds = m.getBounds();
-      const bbox: [number, number, number, number] = [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ];
-      const zoom = Math.floor(m.getZoom());
-      const clusters = index.getClusters(bbox, zoom);
-
-      for (const feature of clusters) {
-        const [lng, lat] = feature.geometry.coordinates;
-        const props = feature.properties as Record<string, unknown>;
-
-        const el = document.createElement('div');
-        el.style.cssText = 'cursor:pointer;touch-action:manipulation;';
-
-        if (props.cluster) {
-          const count = props.point_count as number;
-          const clusterId = props.cluster_id as number;
-          const leaves = index.getLeaves(clusterId, 1);
-          const rep = leaves[0]?.properties as
-            | { status: string; type: string; address: string }
-            | undefined;
-          const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
-          const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
-          const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
-          el.innerHTML = makePinHtml(color, icon, label, count, isDark);
-          const flyToCluster = () => {
-            m.flyTo({
-              center: [lng, lat],
-              zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
-              duration: 400,
-            });
-          };
-          // Listen for both click (desktop) and touchend (mobile) to handle
-          // cases where MapLibre's touch handlers call e.preventDefault(),
-          // which blocks the browser's synthesized click from touch.
-          // Guard flag prevents double-firing on devices that fire both events.
-          let clusterTouchStartX = 0, clusterTouchStartY = 0;
-          let clusterTouchHandled = false;
-          el.addEventListener('touchstart', (e) => {
-            clusterTouchStartX = e.changedTouches[0].clientX;
-            clusterTouchStartY = e.changedTouches[0].clientY;
-            clusterTouchHandled = false;
-          }, { passive: true });
-          el.addEventListener('touchend', (e) => {
-            const t = e.changedTouches[0];
-            if (Math.abs(t.clientX - clusterTouchStartX) < 10 && Math.abs(t.clientY - clusterTouchStartY) < 10) {
-              clusterTouchHandled = true;
+          if (props.cluster) {
+            const count = props.point_count as number;
+            const clusterId = props.cluster_id as number;
+            const leaves = index.getLeaves(clusterId, 1);
+            const rep = leaves[0]?.properties as
+              | { status: string; type: string; address: string }
+              | undefined;
+            const color = STATUS_COLOR[rep?.status ?? 'not_visited'] ?? DEFAULT_COLOR;
+            const icon = TYPE_SVG[rep?.type ?? 'house'] ?? DEFAULT_SVG;
+            const label = (rep?.address ?? '').split(' ').slice(0, 3).join(' ');
+            el.innerHTML = makePinHtml(color, icon, label, count, isDark);
+            const flyToCluster = () => {
+              m.flyTo({
+                center: [lng, lat],
+                zoom: Math.min(index.getClusterExpansionZoom(clusterId), 18),
+                duration: 400,
+              });
+            };
+            // Listen for both click (desktop) and touchend (mobile) to handle
+            // cases where MapLibre's touch handlers call e.preventDefault(),
+            // which blocks the browser's synthesized click from touch.
+            // Guard flag prevents double-firing on devices that fire both events.
+            let clusterTouchStartX = 0,
+              clusterTouchStartY = 0;
+            let clusterTouchHandled = false;
+            el.addEventListener(
+              'touchstart',
+              (e) => {
+                clusterTouchStartX = e.changedTouches[0].clientX;
+                clusterTouchStartY = e.changedTouches[0].clientY;
+                clusterTouchHandled = false;
+              },
+              { passive: true }
+            );
+            el.addEventListener(
+              'touchend',
+              (e) => {
+                const t = e.changedTouches[0];
+                if (
+                  Math.abs(t.clientX - clusterTouchStartX) < 10 &&
+                  Math.abs(t.clientY - clusterTouchStartY) < 10
+                ) {
+                  clusterTouchHandled = true;
+                  flyToCluster();
+                  requestAnimationFrame(() =>
+                    requestAnimationFrame(() => {
+                      clusterTouchHandled = false;
+                    })
+                  );
+                }
+              },
+              { passive: true }
+            );
+            el.addEventListener('click', () => {
+              if (clusterTouchHandled) return;
               flyToCluster();
-              requestAnimationFrame(() => requestAnimationFrame(() => { clusterTouchHandled = false; }));
-            }
-          }, { passive: true });
-          el.addEventListener('click', () => {
-            if (clusterTouchHandled) return;
-            flyToCluster();
-          });
-        } else {
-          const {
-            id,
-            address,
-            status,
-            type: hType,
-            lastVisitDate,
-            lastVisitOutcome,
-            notes,
-          } = props as { id: string; address: string; status: string; type: string; lastVisitDate: string; lastVisitOutcome: string; notes: string };
-          const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
-          const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
-          const label = address.split(' ').slice(0, 3).join(' ');
-          el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
-
-          const showPopup = () => {
-            const onHClick = onClickRef.current;
-            const onViewDetails = onHouseholdViewDetailsRef.current;
-            const onDeleteRequest = onHouseholdDeleteRequestRef.current;
-            const fmtEnum = (s: string) => s.replace(/_/g, ' ');
-            // Format last visit date
-            const visitDateStr = lastVisitDate
-              ? (() => {
-                  try {
-                    const d = new Date(lastVisitDate);
-                    if (Number.isNaN(d.getTime())) return '';
-                    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                  } catch {
-                    return '';
-                  }
-                })()
-              : '';
-            const trimmedNotes = notes?.trim() ?? '';
-            const notesSnippet = trimmedNotes.length > 80 ? trimmedNotes.slice(0, 80) + '\u2026' : trimmedNotes;
-
-            // Close any existing popup so only one is open at a time
-            if (activePopupRef.current) {
-              activePopupRef.current.remove();
-              activePopupRef.current = null;
-            }
-
-            // Show popup — closeOnClick:false prevents the map's click handler
-            // from immediately closing it after the marker tap is processed.
-            const popup = new mgl.Popup({
-              closeButton: true,
-              closeOnClick: false,
-              className: 'territory-popup',
-              offset: [0, -38],
-              maxWidth: '300px',
-            })
-              .setHTML(
-                [
-                  '<div style="padding:4px 2px;font-family:inherit;min-width:220px">',
-                  // Address
-                  '<p style="font-weight:700;margin:0 0 8px;font-size:14px;line-height:1.4;color:#0f172a">',
-                  escHtml(address),
-                  '</p>',
-                  // Status badge
-                  '<div style="margin-bottom:8px">',
-                  '<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:9999px;background:' +
-                    color + '22;color:' + color + ';text-transform:capitalize;font-weight:600;">' +
-                    escHtml(fmtEnum(status)) + '</span>',
-                  '</div>',
-                  // Last visit
-                  visitDateStr
-                    ? '<p style="margin:0 0 6px;font-size:12px;color:#64748b">' +
-                        '<span style="font-weight:600;color:#475569">Last visit:</span> ' + escHtml(visitDateStr) +
-                        (lastVisitOutcome ? ' &mdash; <span style="text-transform:capitalize">' + escHtml(fmtEnum(lastVisitOutcome)) + '</span>' : '') +
-                      '</p>'
-                    : '',
-                  // Notes
-                  notesSnippet
-                    ? '<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">' + escHtml(notesSnippet) + '</p>'
-                    : '',
-                  // Action buttons
-                  '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">',
-                  // Log Visit button
-                  onHClick
-                    ? [
-                        '<button onclick="window.__mapLogVisit(\'' +
-                          id +
-                          "','" +
-                          address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
-                          '\')"',
-                        ' style="flex:1;min-width:80px;padding:8px 4px;background:' + color +
-                          ';color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
-                        'Log Visit</button>',
-                      ].join('')
-                    : '',
-                  // View Details button
-                  onViewDetails
-                    ? [
-                        '<button onclick="window.__mapViewDetails(\'' + id + '\')"',
-                        ' style="flex:1;min-width:80px;padding:8px 4px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
-                        'View Full Details</button>',
-                      ].join('')
-                    : '',
-                  // Delete button
-                  onDeleteRequest
-                    ? [
-                        '<button onclick="window.__mapDeleteRequest(\'' + id + '\')"',
-                        ' style="padding:8px 10px;background:#fff1f2;color:#e11d48;border:1px solid #fecdd3;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
-                        'Delete</button>',
-                      ].join('')
-                    : '',
-                  '</div>',
-                  '</div>',
-                ].join('')
-              )
-              .setLngLat([lng, lat])
-              .addTo(m);
-
-            activePopupRef.current = popup;
-            popup.on('close', () => {
-              if (activePopupRef.current === popup) activePopupRef.current = null;
             });
+          } else {
+            const {
+              id,
+              address,
+              status,
+              type: hType,
+              lastVisitDate,
+              lastVisitOutcome,
+              notes,
+            } = props as {
+              id: string;
+              address: string;
+              status: string;
+              type: string;
+              lastVisitDate: string;
+              lastVisitOutcome: string;
+              notes: string;
+            };
+            const color = STATUS_COLOR[status] ?? DEFAULT_COLOR;
+            const icon = TYPE_SVG[hType] ?? DEFAULT_SVG;
+            const label = address.split(' ').slice(0, 3).join(' ');
+            el.innerHTML = makePinHtml(color, icon, label, undefined, isDark);
 
-            if (onHClick) {
-              (window as unknown as Record<string, unknown>).__mapLogVisit = (
-                hId: string,
-                hAddr: string
-              ) => {
-                popup.remove();
-                onHClick(hId, hAddr);
-              };
-            }
-            if (onViewDetails) {
-              (window as unknown as Record<string, unknown>).__mapViewDetails = (hId: string) => {
-                popup.remove();
-                onViewDetails(hId);
-              };
-            }
-            if (onDeleteRequest) {
-              (window as unknown as Record<string, unknown>).__mapDeleteRequest = (hId: string) => {
-                popup.remove();
-                onDeleteRequest(hId);
-              };
-            }
-          };
+            const showPopup = () => {
+              const onHClick = onClickRef.current;
+              const onViewDetails = onHouseholdViewDetailsRef.current;
+              const onDeleteRequest = onHouseholdDeleteRequestRef.current;
+              const fmtEnum = (s: string) => s.replace(/_/g, ' ');
+              // Format last visit date
+              const visitDateStr = lastVisitDate
+                ? (() => {
+                    try {
+                      const d = new Date(lastVisitDate);
+                      if (Number.isNaN(d.getTime())) return '';
+                      return d.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      });
+                    } catch {
+                      return '';
+                    }
+                  })()
+                : '';
+              const trimmedNotes = notes?.trim() ?? '';
+              const notesSnippet =
+                trimmedNotes.length > 80 ? `${trimmedNotes.slice(0, 80)}\u2026` : trimmedNotes;
 
-          // Listen for both click (desktop) and touchend (mobile) because
-          // MapLibre's internal touch handlers may call e.preventDefault() on
-          // the map canvas touchend, preventing the browser from synthesising a
-          // click event for touch taps on HTML marker overlays.
-          // The touchHandled flag prevents double-firing when the browser also
-          // fires a synthesised click after the touchend.
-          let touchStartX = 0, touchStartY = 0;
-          let touchHandled = false;
-          const handleMarkerTap = () => {
-            if (effectiveInteractionModeRef.current === 'remove' && onHouseholdRemoveRef.current) {
-              // Remove mode: delete the household
+              // Close any existing popup so only one is open at a time
               if (activePopupRef.current) {
                 activePopupRef.current.remove();
                 activePopupRef.current = null;
               }
-              onHouseholdRemoveRef.current(id);
-            } else if (directHouseholdClickRef.current && onClickRef.current) {
-              // directHouseholdClick: skip the MapLibre popup and call the
-              // callback immediately so the React bottom sheet can open.
-              if (activePopupRef.current) {
-                activePopupRef.current.remove();
-                activePopupRef.current = null;
+
+              // Show popup — closeOnClick:false prevents the map's click handler
+              // from immediately closing it after the marker tap is processed.
+              const popup = new mgl.Popup({
+                closeButton: true,
+                closeOnClick: false,
+                className: 'territory-popup',
+                offset: [0, -38],
+                maxWidth: '300px',
+              })
+                .setHTML(
+                  [
+                    '<div style="padding:4px 2px;font-family:inherit;min-width:220px">',
+                    // Address
+                    '<p style="font-weight:700;margin:0 0 8px;font-size:14px;line-height:1.4;color:#0f172a">',
+                    escHtml(address),
+                    '</p>',
+                    // Status badge
+                    '<div style="margin-bottom:8px">',
+                    '<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:9999px;background:' +
+                      color +
+                      '22;color:' +
+                      color +
+                      ';text-transform:capitalize;font-weight:600;">' +
+                      escHtml(fmtEnum(status)) +
+                      '</span>',
+                    '</div>',
+                    // Last visit
+                    visitDateStr
+                      ? '<p style="margin:0 0 6px;font-size:12px;color:#64748b">' +
+                        '<span style="font-weight:600;color:#475569">Last visit:</span> ' +
+                        escHtml(visitDateStr) +
+                        (lastVisitOutcome
+                          ? ` &mdash; <span style="text-transform:capitalize">${escHtml(fmtEnum(lastVisitOutcome))}</span>`
+                          : '') +
+                        '</p>'
+                      : '',
+                    // Notes
+                    notesSnippet
+                      ? `<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">${escHtml(notesSnippet)}</p>`
+                      : '',
+                    // Action buttons
+                    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">',
+                    // Log Visit button
+                    onHClick
+                      ? [
+                          '<button onclick="window.__mapLogVisit(\'' +
+                            id +
+                            "','" +
+                            address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
+                            '\')"',
+                          ' style="flex:1;min-width:80px;padding:8px 4px;background:' +
+                            color +
+                            ';color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                          'Log Visit</button>',
+                        ].join('')
+                      : '',
+                    // View Details button
+                    onViewDetails
+                      ? [
+                          `<button onclick="window.__mapViewDetails('${id}')"`,
+                          ' style="flex:1;min-width:80px;padding:8px 4px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                          'View Full Details</button>',
+                        ].join('')
+                      : '',
+                    // Delete button
+                    onDeleteRequest
+                      ? [
+                          `<button onclick="window.__mapDeleteRequest('${id}')"`,
+                          ' style="padding:8px 10px;background:#fff1f2;color:#e11d48;border:1px solid #fecdd3;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                          'Delete</button>',
+                        ].join('')
+                      : '',
+                    '</div>',
+                    '</div>',
+                  ].join('')
+                )
+                .setLngLat([lng, lat])
+                .addTo(m);
+
+              activePopupRef.current = popup;
+              popup.on('close', () => {
+                if (activePopupRef.current === popup) activePopupRef.current = null;
+              });
+
+              if (onHClick) {
+                (window as unknown as Record<string, unknown>).__mapLogVisit = (
+                  hId: string,
+                  hAddr: string
+                ) => {
+                  popup.remove();
+                  onHClick(hId, hAddr);
+                };
               }
-              onClickRef.current(id, address);
-            } else {
-              showPopup();
-            }
-          };
-          el.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].clientX;
-            touchStartY = e.changedTouches[0].clientY;
-            touchHandled = false;
-          }, { passive: true });
-          el.addEventListener('touchend', (e) => {
-            const t = e.changedTouches[0];
-            if (Math.abs(t.clientX - touchStartX) < 10 && Math.abs(t.clientY - touchStartY) < 10) {
-              touchHandled = true;
+              if (onViewDetails) {
+                (window as unknown as Record<string, unknown>).__mapViewDetails = (hId: string) => {
+                  popup.remove();
+                  onViewDetails(hId);
+                };
+              }
+              if (onDeleteRequest) {
+                (window as unknown as Record<string, unknown>).__mapDeleteRequest = (
+                  hId: string
+                ) => {
+                  popup.remove();
+                  onDeleteRequest(hId);
+                };
+              }
+            };
+
+            // Listen for both click (desktop) and touchend (mobile) because
+            // MapLibre's internal touch handlers may call e.preventDefault() on
+            // the map canvas touchend, preventing the browser from synthesising a
+            // click event for touch taps on HTML marker overlays.
+            // The touchHandled flag prevents double-firing when the browser also
+            // fires a synthesised click after the touchend.
+            let touchStartX = 0,
+              touchStartY = 0;
+            let touchHandled = false;
+            const handleMarkerTap = () => {
+              if (
+                effectiveInteractionModeRef.current === 'remove' &&
+                onHouseholdRemoveRef.current
+              ) {
+                // Remove mode: delete the household
+                if (activePopupRef.current) {
+                  activePopupRef.current.remove();
+                  activePopupRef.current = null;
+                }
+                onHouseholdRemoveRef.current(id);
+              } else if (directHouseholdClickRef.current && onClickRef.current) {
+                // directHouseholdClick: skip the MapLibre popup and call the
+                // callback immediately so the React bottom sheet can open.
+                if (activePopupRef.current) {
+                  activePopupRef.current.remove();
+                  activePopupRef.current = null;
+                }
+                onClickRef.current(id, address);
+              } else {
+                showPopup();
+              }
+            };
+            el.addEventListener(
+              'touchstart',
+              (e) => {
+                touchStartX = e.changedTouches[0].clientX;
+                touchStartY = e.changedTouches[0].clientY;
+                touchHandled = false;
+              },
+              { passive: true }
+            );
+            el.addEventListener(
+              'touchend',
+              (e) => {
+                const t = e.changedTouches[0];
+                if (
+                  Math.abs(t.clientX - touchStartX) < 10 &&
+                  Math.abs(t.clientY - touchStartY) < 10
+                ) {
+                  touchHandled = true;
+                  handleMarkerTap();
+                  // Reset after click fires (two rAFs so the click handler can check)
+                  requestAnimationFrame(() =>
+                    requestAnimationFrame(() => {
+                      touchHandled = false;
+                    })
+                  );
+                }
+              },
+              { passive: true }
+            );
+            el.addEventListener('click', () => {
+              if (touchHandled) return; // already handled by touchend above
               handleMarkerTap();
-              // Reset after click fires (two rAFs so the click handler can check)
-              requestAnimationFrame(() => requestAnimationFrame(() => { touchHandled = false; }));
-            }
-          }, { passive: true });
-          el.addEventListener('click', () => {
-            if (touchHandled) return; // already handled by touchend above
-            handleMarkerTap();
-          });
+            });
+          }
+
+          const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([lng, lat])
+            .addTo(m);
+          markersRef.current.push(marker);
         }
-
-        const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([lng, lat])
-          .addTo(m);
-        markersRef.current.push(marker);
       }
-    }
 
-    renderMarkers();
-    map?.off('moveend', renderMarkers);
-    map?.on('moveend', renderMarkers);
-  });
-}, [households, mapReady, isDark]);
+      renderMarkers();
+      map?.off('moveend', renderMarkers);
+      map?.on('moveend', renderMarkers);
+    });
+  }, [households, mapReady, isDark]);
 
   // ─── Drawing: sync layers whenever rings/activeRing change ───────────────
   useEffect(() => {
     const map = mapInstance.current;
     if (!map || !mapReady) return;
+    void styleSeq;
 
     const setData = (src: string, data: GeoJSON.FeatureCollection) => {
       const s = map.getSource(src) as import('maplibre-gl').GeoJSONSource | undefined;
@@ -1146,11 +1307,16 @@ useEffect(() => {
 
     setData('draw-active', {
       type: 'FeatureCollection',
-      features: activeRing.length >= 2 ? [{
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: activeRing },
-        properties: {},
-      }] : [],
+      features:
+        activeRing.length >= 2
+          ? [
+              {
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: activeRing },
+                properties: {},
+              },
+            ]
+          : [],
     });
 
     setData('draw-points', {
@@ -1229,14 +1395,16 @@ useEffect(() => {
         for (let si = 0; si < n; si++) {
           const a = map.project(ring[si]);
           const b = map.project(ring[(si + 1) % n]);
-          const dx = b.x - a.x, dy = b.y - a.y;
+          const dx = b.x - a.x,
+            dy = b.y - a.y;
           const lenSq = dx * dx + dy * dy;
           let t = 0;
           if (lenSq > 0) {
             t = ((clickPx.x - a.x) * dx + (clickPx.y - a.y) * dy) / lenSq;
             t = Math.max(0, Math.min(1, t));
           }
-          const cx = a.x + t * dx, cy = a.y + t * dy;
+          const cx = a.x + t * dx,
+            cy = a.y + t * dy;
           const dist = Math.sqrt((clickPx.x - cx) ** 2 + (clickPx.y - cy) ** 2);
           if (dist < bestDist) {
             bestDist = dist;
@@ -1281,7 +1449,7 @@ useEffect(() => {
 
     // ── Desktop: add point on click (add mode) or insert vertex on edge (edit mode) ──
     const onDesktopClick = (e: import('maplibre-gl').MapMouseEvent) => {
-      if ((e.originalEvent as any)?.pointerType === 'touch') return;
+      if (isTouchPointerEvent(e.originalEvent)) return;
       if (dragJustEndedRef.current) return;
       if (drawMode === 'add') {
         addPoint(e.lngLat);
@@ -1297,7 +1465,9 @@ useEffect(() => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
-      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
+      const features = map.queryRenderedFeatures(point, {
+        layers: ['draw-completed-vertices-circle'],
+      });
       if (features.length === 0) return;
       const props = features[0].properties as Record<string, unknown>;
       const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
@@ -1312,10 +1482,12 @@ useEffect(() => {
     // a pan on the same mousedown that begins a vertex drag.
     const onCanvasMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return; // left-click only
-      if ((e as any).pointerType === 'touch') return;
+      if (isTouchPointerEvent(e)) return;
       const rect = canvas.getBoundingClientRect();
       const point: [number, number] = [e.clientX - rect.left, e.clientY - rect.top];
-      const features = map.queryRenderedFeatures(point, { layers: ['draw-completed-vertices-circle'] });
+      const features = map.queryRenderedFeatures(point, {
+        layers: ['draw-completed-vertices-circle'],
+      });
       if (features.length > 0) {
         const props = features[0].properties as Record<string, unknown>;
         const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
@@ -1336,11 +1508,13 @@ useEffect(() => {
         const { ring, vertex } = dragVertexRef.current;
         const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
         setDrawRings((prev) =>
-          prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+          prev.map((r, ri) => (ri === ring ? r.map((v, vi) => (vi === vertex ? pt : v)) : r))
         );
       } else {
         // Hover cursor change
-        const features = map.queryRenderedFeatures(e.point, { layers: ['draw-completed-vertices-circle'] });
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ['draw-completed-vertices-circle'],
+        });
         canvas.style.cursor = features.length > 0 ? 'grab' : 'crosshair';
       }
     };
@@ -1348,7 +1522,9 @@ useEffect(() => {
     // rAF IDs used in onMouseUp — tracked here for cleanup on unmount
     let suppressClickRaf1 = 0;
     let suppressClickRaf2 = 0;
-    const clearDragJustEnded = () => { dragJustEndedRef.current = false; };
+    const clearDragJustEnded = () => {
+      dragJustEndedRef.current = false;
+    };
 
     const onMouseUp = () => {
       if (dragVertexRef.current) {
@@ -1366,7 +1542,8 @@ useEffect(() => {
 
     // ── Mobile: touch start (detect vertex) / move (drag vertex) / end (add point) ─
     const canvas = map.getCanvas();
-    let touchStartX = 0, touchStartY = 0;
+    let touchStartX = 0,
+      touchStartY = 0;
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     const cancelLongPress = () => {
       if (longPressTimer !== null) {
@@ -1381,7 +1558,9 @@ useEffect(() => {
       const rect = canvas.getBoundingClientRect();
       const x = touchStartX - rect.left;
       const y = touchStartY - rect.top;
-      const features = map.queryRenderedFeatures([x, y], { layers: ['draw-completed-vertices-circle'] });
+      const features = map.queryRenderedFeatures([x, y], {
+        layers: ['draw-completed-vertices-circle'],
+      });
       if (features.length > 0) {
         const props = features[0].properties as Record<string, unknown>;
         const ringIdx = typeof props?.ringIdx === 'number' ? props.ringIdx : -1;
@@ -1397,7 +1576,11 @@ useEffect(() => {
         if (drawMode === 'edit') {
           longPressTimer = setTimeout(() => {
             longPressTimer = null;
-            if (dragVertexRef.current && dragVertexRef.current.ring === ringIdx && dragVertexRef.current.vertex === vertexIdx) {
+            if (
+              dragVertexRef.current &&
+              dragVertexRef.current.ring === ringIdx &&
+              dragVertexRef.current.vertex === vertexIdx
+            ) {
               removeVertex(ringIdx, vertexIdx);
               longPressHandledRef.current = true;
               dragVertexRef.current = null;
@@ -1419,7 +1602,7 @@ useEffect(() => {
       const pt: [number, number] = [lngLat.lng, lngLat.lat];
       const { ring, vertex } = dragVertexRef.current;
       setDrawRings((prev) =>
-        prev.map((r, ri) => ri === ring ? r.map((v, vi) => vi === vertex ? pt : v) : r)
+        prev.map((r, ri) => (ri === ring ? r.map((v, vi) => (vi === vertex ? pt : v)) : r))
       );
     };
     const onTouchEnd = (e: TouchEvent) => {
@@ -1433,7 +1616,7 @@ useEffect(() => {
       if (dragVertexRef.current) {
         dragVertexRef.current = null;
         canvas.style.touchAction = ''; // restore scroll
-        map.dragPan.enable();          // restore map panning
+        map.dragPan.enable(); // restore map panning
         return;
       }
       // Otherwise treat as a tap-to-add-point (add mode) or edge vertex insert (edit mode)
@@ -1483,7 +1666,7 @@ useEffect(() => {
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isDrawing, drawMode, mapReady]);
+  }, [isDrawing, drawMode, mapReady, initialDrawingRings]);
 
   // ─── Drawing: fire onDrawingComplete when drawing mode is turned off ─────
   const prevIsDrawing = useRef(isDrawing);
@@ -1491,9 +1674,10 @@ useEffect(() => {
     if (prevIsDrawing.current && !isDrawing) {
       const rings = drawRingsRef.current;
       if (rings.length > 0) {
-        const geojson = rings.length === 1
-          ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
-          : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
+        const geojson =
+          rings.length === 1
+            ? { type: 'Polygon', coordinates: [[...rings[0], rings[0][0]]] }
+            : { type: 'MultiPolygon', coordinates: rings.map((r) => [[...r, r[0]]]) };
         onDrawingCompleteRef.current?.(geojson);
       }
     }
@@ -1531,7 +1715,7 @@ useEffect(() => {
           const body = document.createElementNS(ns, 'path');
           body.setAttribute(
             'd',
-            'M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z',
+            'M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z'
           );
           body.setAttribute('fill', '#ef4444');
           const dot = document.createElementNS(ns, 'circle');
@@ -1624,7 +1808,7 @@ useEffect(() => {
       )}
 
       {effectiveInteractionMode === 'add' && !pendingPin && !isDrawing && (
-        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100] pointer-events-none">
+        <div className="absolute bottom-16 inset-x-0 z-100 flex justify-center pointer-events-none">
           <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
             Tap map to place a household
           </div>
@@ -1632,7 +1816,7 @@ useEffect(() => {
       )}
 
       {effectiveInteractionMode === 'add' && pendingPin && (
-        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100]">
+        <div className="absolute bottom-16 inset-x-0 z-100 flex justify-center">
           <button
             type="button"
             onClick={() => {

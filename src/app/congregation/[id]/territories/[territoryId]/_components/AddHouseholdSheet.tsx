@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
-import { createHousehold } from '@/lib/db/households';
-import { queueHousehold } from '@/lib/visits-store';
+import { createHousehold } from '@/lib/local-first';
 
 interface AddHouseholdSheetProps {
   lat: number;
@@ -42,19 +41,7 @@ export function AddHouseholdSheet({
         congregationId,
       });
 
-      await queueHousehold({
-        address: values.address,
-        streetName: values.streetName,
-        city: values.city,
-        type: 'house',
-        notes: values.notes?.trim() || null,
-        latitude: String(lat),
-        longitude: String(lng),
-        territoryId,
-        congregationId,
-      });
-
-      toast.success(`Household added successfully: ${household.name}`);
+      toast.success(`Household added successfully: ${household.address}`);
       onSuccess?.();
       onClose();
     } catch (error) {

@@ -41,7 +41,13 @@ import {
   type LogVisitFormData,
   type AddHouseholdFormData,
 } from '@/schemas/visit';
-import { queueVisit, queueHousehold, queueHouseholdDelete, queueVisitDelete, registerVisitSync } from '@/lib/visits-store';
+import {
+  queueVisit,
+  queueHousehold,
+  queueHouseholdDelete,
+  queueVisitDelete,
+  registerVisitSync,
+} from '@/lib/visits-store';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -119,7 +125,6 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss via click
-    // biome-ignore lint/a11y/useKeyWithClickEvents: intentional overlay dismiss
     <div className="fixed inset-0 z-50 flex justify-end" role="presentation" onClick={onClose}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss on click */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
@@ -337,7 +342,7 @@ function LogVisitDialog({ open, household, onClose, onSaved }: LogVisitDialogPro
       nextVisitNotes: values.nextVisitNotes,
     };
     const pendingId = await queueVisit(payload);
-    // Don't await sync — resolve form immediately, SW syncs in background
+    // Don't await sync - resolve form immediately while Local-First sync runs.
     void registerVisitSync().catch(() => {});
     onSaved(pendingId);
     reset();
@@ -515,7 +520,7 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
 
   const onSubmit = async (values: AddHouseholdFormData) => {
     const pendingId = await queueHousehold(values as Record<string, unknown>);
-    // Don't await sync — resolve form immediately, SW syncs in background
+    // Don't await sync - resolve form immediately while Local-First sync runs.
     void registerVisitSync().catch(() => {});
     onSaved(pendingId);
     reset();
@@ -775,7 +780,7 @@ export default function HouseholdsClient() {
 
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1" style={{ minWidth: 200 }}>
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -814,7 +819,7 @@ export default function HouseholdsClient() {
             <p className="text-sm text-muted-foreground">No households yet.</p>
           </div>
         ) : (
-        <div className="space-y-3">
+          <div className="space-y-3">
             {filtered.map((h) => (
               <SwipeToReveal
                 key={h.id}
@@ -843,7 +848,10 @@ export default function HouseholdsClient() {
                   <button
                     type="button"
                     className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                    onClick={() => { setSwipedId(null); setSelectedHousehold(h); }}
+                    onClick={() => {
+                      setSwipedId(null);
+                      setSelectedHousehold(h);
+                    }}
                   >
                     <p className="font-medium text-sm truncate">
                       {h.houseNumber ? `${h.houseNumber} ` : ''}
@@ -864,7 +872,8 @@ export default function HouseholdsClient() {
                       )}
                       {visitCountByHousehold[h.id] ? (
                         <span className="text-xs text-muted-foreground">
-                          {visitCountByHousehold[h.id]} visit{visitCountByHousehold[h.id] > 1 ? 's' : ''}
+                          {visitCountByHousehold[h.id]} visit
+                          {visitCountByHousehold[h.id] > 1 ? 's' : ''}
                         </span>
                       ) : null}
                       {h.lastVisitDate && (

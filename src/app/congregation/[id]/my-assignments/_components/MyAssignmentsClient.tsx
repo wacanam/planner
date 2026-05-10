@@ -15,6 +15,7 @@ import {
   useCongregationTerritories,
   useCongregationTerritoryRequests,
   useTerritoryDetail,
+  useHouseholds,
 } from '@/hooks';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
@@ -32,11 +33,13 @@ import {
   type LogVisitFormValues,
 } from '@/components/households/log-visit-form';
 import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
-import { createVisit } from '@/lib/db/visits';
-import { createEncounter } from '@/lib/db/encounters';
-import { bulkUpsertHouseholds, deleteHousehold, getHouseholdById } from '@/lib/db/households';
-import { useIDBHouseholds } from '@/hooks/use-idb-households';
-import type { HouseholdRecord } from '@/lib/db/types';
+import {
+  bulkUpsertHouseholds,
+  createEncounter,
+  createVisit,
+  deleteHousehold,
+  getHouseholdById,
+} from '@/lib/local-first';
 
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -133,7 +136,7 @@ function DeleteConfirmDialog({
     try {
       const existing = await getHouseholdById(householdId);
       if (!existing) {
-        throw new Error(`Household ${householdId} was not found in local IndexedDB`);
+        throw new Error(`Household ${householdId} was not found in the local-first store`);
       }
       await deleteHousehold(householdId);
       await queueHouseholdDelete(householdId);
@@ -220,7 +223,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     ? (allPinsData ?? boundaryHouseholdsData ?? [])
     : (boundaryHouseholdsData ?? []);
 
-  const { households: idbHouseholds } = useIDBHouseholds();
+  const { households: localHouseholds } = useHouseholds();
   const lastSyncSignatureRef = useRef<string>('');
   const serverHouseholdsSignature = useMemo(
     () =>
@@ -229,11 +232,10 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   );
 
   useEffect(() => {
-    const mapped: HouseholdRecord[] = serverHouseholds
+    const mapped = serverHouseholds
       .filter((household) => household.latitude != null && household.longitude != null)
       .map((household) => ({
         id: household.id,
-        name: household.address ?? 'Unnamed household',
         address: household.address ?? '',
         streetName: household.streetName ?? null,
         city: household.city ?? null,
@@ -254,14 +256,16 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     });
   }, [serverHouseholds, serverHouseholdsSignature, territory.id, territory.congregationId]);
 
-  const households: HouseholdMapItem[] = idbHouseholds.map((household) => ({
-    id: household.id,
-    address: household.address,
-    streetName: household.streetName ?? null,
-    city: household.city ?? '',
-    latitude: household.latitude,
-    longitude: household.longitude,
-  }));
+  const households: HouseholdMapItem[] = localHouseholds
+    .filter((household) => household.latitude != null && household.longitude != null)
+    .map((household) => ({
+      id: household.id,
+      address: household.address,
+      streetName: household.streetName ?? null,
+      city: household.city ?? '',
+      latitude: Number(household.latitude),
+      longitude: Number(household.longitude),
+    }));
 
   const logVisitHousehold = households.find((h) => h.id === logVisitHouseholdId) ?? null;
 
@@ -270,7 +274,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 z-[9000] bg-background flex flex-col">
+    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 9000 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
         <div className="min-w-0">

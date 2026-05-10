@@ -1,60 +1,122 @@
-import { useEffect, useState } from 'react';
-import useSWR, { type SWRConfiguration } from 'swr';
-import { apiClient } from '@/lib/api-client';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  clearPendingEncounter,
-  getPendingEncounters,
-  queueEncounter,
-  registerVisitSync,
-} from '@/lib/visits-store';
+  createEncounter,
+  getLocalFirstDB,
+  requestLocalFirstSync,
+  syncLocalFirst,
+  toEncounterView,
+} from '@/lib/local-first';
+import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import type { Encounter } from '@/types/api';
-import { mergePendingEncounters } from './use-pending-merge';
 
-export function useVisitEncounters(visitId: string | null, options?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
-    visitId ? `/api/visits/${visitId}/encounters` : null,
-    (url: string) => apiClient.get<Encounter[]>(url),
-    options
-  );
-
-  return {
-    encounters: data ?? [],
-    isLoading,
-    error: error?.message ?? null,
-    mutate,
-  };
+function sortEncounters(encounters: (Encounter & { _pending?: boolean })[]) {
+  return [...encounters].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-export function useMyEncounters(options?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
-    '/api/profile/encounters',
-    (url: string) => apiClient.get<Encounter[]>(url),
-    options
-  );
+function useEncounterRecords(visitId?: string | null) {
   const [encounters, setEncounters] = useState<(Encounter & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    const database = await getLocalFirstDB();
+    const [encounterDocuments, householdDocuments, visitDocuments] = await Promise.all([
+      database.encounters.find().exec(),
+      database.households.find().exec(),
+      database.visits.find().exec(),
+    ]);
+    const households = new Map(
+      householdDocuments.map((document) => {
+        const household = document.toMutableJSON() as LocalHousehold;
+        return [household.id, household] as const;
+      })
+    );
+    const visits = new Map(
+      visitDocuments.map((document) => {
+        const visit = document.toMutableJSON() as LocalVisit;
+        return [visit.id, visit] as const;
+      })
+    );
+
+    setEncounters(
+      sortEncounters(
+        encounterDocuments
+          .map((document) => document.toMutableJSON() as LocalEncounter)
+          .filter((encounter) => !encounter.deletedAt)
+          .filter((encounter) => (visitId ? encounter.visitId === visitId : true))
+          .map((encounter) =>
+            toEncounterView(
+              encounter,
+              encounter.householdId ? households.get(encounter.householdId) : null,
+              encounter.visitId ? visits.get(encounter.visitId) : null
+            )
+          )
+      )
+    );
+    setError(null);
+  }, [visitId]);
 
   useEffect(() => {
-    (async () => {
-      const merged = await mergePendingEncounters(data ?? []);
-      setEncounters(merged);
-    })();
-  }, [data]);
+    let cancelled = false;
+    let encounterSubscription: { unsubscribe: () => void } | null = null;
+    let householdSubscription: { unsubscribe: () => void } | null = null;
+    let visitSubscription: { unsubscribe: () => void } | null = null;
 
-  return {
-    encounters,
-    isLoading,
-    error: error?.message ?? null,
-    mutate,
-  };
+    const start = async () => {
+      try {
+        const database = await getLocalFirstDB();
+        if (cancelled) return;
+        await refresh();
+        encounterSubscription = database.encounters.$.subscribe(() => void refresh());
+        householdSubscription = database.households.$.subscribe(() => void refresh());
+        visitSubscription = database.visits.$.subscribe(() => void refresh());
+        requestLocalFirstSync();
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void start();
+    return () => {
+      cancelled = true;
+      encounterSubscription?.unsubscribe();
+      householdSubscription?.unsubscribe();
+      visitSubscription?.unsubscribe();
+    };
+  }, [refresh]);
+
+  const mutate = useCallback(async () => {
+    await syncLocalFirst();
+    await refresh();
+  }, [refresh]);
+
+  return { encounters, isLoading, error, mutate };
+}
+
+export function useVisitEncounters(visitId: string | null) {
+  return useEncounterRecords(visitId);
+}
+
+export function useMyEncounters() {
+  return useEncounterRecords();
 }
 
 export function useAddEncounter() {
   const addEncounter = async (data: Record<string, unknown>, visitId?: string | null) => {
-    const payload = visitId ? { ...data, visitId } : data;
-    const pendingId = await queueEncounter(payload);
-    await registerVisitSync();
-    return pendingId;
+    const encounter = await createEncounter({
+      ...data,
+      visitId: visitId ?? (data.visitId as string | null | undefined) ?? null,
+      response: String(data.response ?? 'other'),
+    });
+    requestLocalFirstSync();
+    return encounter.id;
   };
 
-  return { addEncounter, getPendingEncounters, clearPendingEncounter };
+  return {
+    addEncounter,
+    getPendingEncounters: async () => [],
+    clearPendingEncounter: async () => undefined,
+  };
 }

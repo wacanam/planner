@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 
-/**
- * GeoJSON Polygon or MultiPolygon geometry
- */
-export interface GeoJSONGeometry {
-  type: 'Polygon' | 'MultiPolygon';
-  coordinates: number[][][] | number[][][][];
+export type GeoJSONGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+
+interface LeafletGeoJSONLayer {
+  toGeoJSON?: () => GeoJSON.Feature;
+}
+
+interface LeafletLayerGroupLike {
+  eachLayer: (callback: (layer: LeafletGeoJSONLayer) => void) => void;
 }
 
 /**
@@ -176,12 +178,12 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
  * @param geometry - GeoJSON geometry to validate
  * @returns true if valid, false otherwise
  */
-export function validateGeoJSON(geometry: any): geometry is GeoJSONGeometry {
+export function validateGeoJSON(geometry: unknown): geometry is GeoJSONGeometry {
   if (!geometry || typeof geometry !== 'object') return false;
 
-  const { type, coordinates } = geometry;
+  const { type, coordinates } = geometry as { type?: unknown; coordinates?: unknown };
 
-  if (!['Polygon', 'MultiPolygon'].includes(type)) {
+  if (typeof type !== 'string' || !['Polygon', 'MultiPolygon'].includes(type)) {
     return false;
   }
 
@@ -191,38 +193,36 @@ export function validateGeoJSON(geometry: any): geometry is GeoJSONGeometry {
 
   // Validate Polygon
   if (type === 'Polygon') {
-    const rings = coordinates as number[][][];
-    if (!Array.isArray(rings[0]) || !Array.isArray(rings[0][0])) {
-      return false;
-    }
-    // Check min 3 points per ring
-    if (rings[0].length < 4) return false; // 3 unique + 1 closing
-    return true;
+    const rings = coordinates as unknown[];
+    return isLinearRing(rings[0]);
   }
 
   // Validate MultiPolygon
   if (type === 'MultiPolygon') {
-    const polygons = coordinates as number[][][][];
-    return polygons.every((poly) => {
-      if (!Array.isArray(poly[0]) || !Array.isArray(poly[0][0])) {
-        return false;
-      }
-      return poly[0].length >= 4; // 3 unique + 1 closing
-    });
+    const polygons = coordinates as unknown[];
+    return polygons.every((polygon) => Array.isArray(polygon) && isLinearRing(polygon[0]));
   }
 
   return false;
+}
+
+function isPosition(value: unknown): value is GeoJSON.Position {
+  return Array.isArray(value) && value.length >= 2 && value.every((part) => typeof part === 'number');
+}
+
+function isLinearRing(value: unknown): value is GeoJSON.Position[] {
+  return Array.isArray(value) && value.length >= 4 && value.every(isPosition);
 }
 
 /**
  * Convert Leaflet Draw output to GeoJSON MultiPolygon
  * (Kept for backwards compatibility)
  */
-export function leafletDrawToGeoJSON(layers: any): GeoJSONGeometry | null {
-  const features: any[] = [];
+export function leafletDrawToGeoJSON(layers: LeafletLayerGroupLike): GeoJSONGeometry | null {
+  const features: GeoJSON.Feature[] = [];
 
   try {
-    layers.eachLayer((layer: any) => {
+    layers.eachLayer((layer) => {
       if (layer.toGeoJSON) {
         features.push(layer.toGeoJSON());
       }
@@ -231,8 +231,8 @@ export function leafletDrawToGeoJSON(layers: any): GeoJSONGeometry | null {
     if (features.length === 0) return null;
 
     const coordinates = features
-      .filter((f) => f.geometry?.type === 'Polygon')
-      .map((f) => f.geometry.coordinates);
+      .filter((feature): feature is GeoJSON.Feature<GeoJSON.Polygon> => feature.geometry?.type === 'Polygon')
+      .map((feature) => feature.geometry.coordinates);
 
     if (coordinates.length === 0) return null;
 
@@ -265,7 +265,7 @@ export function geoJsonToLeafletFeatures(
           type: 'Feature',
           geometry: boundary,
           properties: {},
-        } as any,
+        },
       ],
     };
   }
@@ -273,14 +273,14 @@ export function geoJsonToLeafletFeatures(
   if (boundary.type === 'MultiPolygon') {
     return {
       type: 'FeatureCollection',
-      features: (boundary.coordinates as number[][][][]).map((coords) => ({
+      features: boundary.coordinates.map((coords): GeoJSON.Feature<GeoJSON.Polygon> => ({
         type: 'Feature',
         geometry: {
           type: 'Polygon',
           coordinates: coords,
         },
         properties: {},
-      })) as any,
+      })),
     };
   }
 

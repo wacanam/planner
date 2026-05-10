@@ -1,248 +1,217 @@
-import { writeToIDB, readFromIDB } from '@/lib/idb-store';
-import { mergePendingVisits, mergePendingHouseholds } from './use-pending-merge';
-import { useEffect, useState } from 'react';
-import useSWR from 'swr';
-import { apiClient } from '@/lib/api-client';
-import type { Visit, Household } from '@/types/api';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  getLocalFirstDB,
+  requestLocalFirstSync,
+  syncLocalFirst,
+  toHouseholdView,
+  toVisitView,
+} from '@/lib/local-first';
+import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
+import type { Household, Visit } from '@/types/api';
 
-function ensureArrayData<T>(value: unknown): T[] {
-  if (Array.isArray(value)) return value;
-  if (
-    value &&
-    typeof value === 'object' &&
-    'data' in value &&
-    Array.isArray((value as { data?: unknown }).data)
-  ) {
-    return (value as { data: T[] }).data;
-  }
-  return [];
-}
+type DataSource = 'server' | 'cache';
 
-/**
- * Fetch visits from API, fall back to IDB cache when offline.
- * Updates IDB cache on each successful API fetch.
- */
-export function useMyVisits(
-  filters?: { householdId?: string; assignmentId?: string }
-) {
-  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
-  const [dataSource, setDataSource] = useState<'server' | 'cache'>('server');
-
-  const { data: rawData, isLoading, error, mutate } = useSWR<Visit[]>(
-    '/api/visits',
-    async (url: string) => {
-      try {
-        const result = await apiClient.get<Visit[]>(url);
-        await writeToIDB('visits-cache', 'my-visits', result, 'sw');
-        setDataSource('server');
-        return result;
-      } catch (apiErr) {
-        console.warn('[useMyVisits] API fetch failed, falling back to IDB cache:', apiErr);
-        // Offline or API error — try IDB cache
-        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch((idbErr) => {
-          console.warn('[useMyVisits] IDB fallback read failed:', idbErr);
-          return null;
-        });
-        if (cached !== null) {
-          setDataSource('cache');
-          return ensureArrayData<Visit>(cached);
-        }
-        return [];
-      }
-    },
-    { revalidateOnFocus: false }
-  );
+function useDataSource(): DataSource {
+  const [source, setSource] = useState<DataSource>('server');
 
   useEffect(() => {
-    (async () => {
-      const raw = ensureArrayData<Visit>(rawData ?? []);
-      const merged = await mergePendingVisits(raw);
-      const filtered = merged.filter((visit) => {
+    const update = () => setSource(navigator.onLine ? 'server' : 'cache');
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+
+  return source;
+}
+
+function sortVisits(visits: (Visit & { _pending?: boolean })[]) {
+  return [...visits].sort((left, right) => right.visitDate.localeCompare(left.visitDate));
+}
+
+export function useMyVisits(filters?: { householdId?: string; assignmentId?: string }) {
+  const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const dataSource = useDataSource();
+
+  const refresh = useCallback(async () => {
+    const database = await getLocalFirstDB();
+    const [visitDocuments, householdDocuments] = await Promise.all([
+      database.visits.find().exec(),
+      database.households.find().exec(),
+    ]);
+    const households = new Map(
+      householdDocuments.map((document) => {
+        const household = document.toMutableJSON() as LocalHousehold;
+        return [household.id, household] as const;
+      })
+    );
+
+    const mapped = visitDocuments
+      .map((document) => document.toMutableJSON() as LocalVisit)
+      .filter((visit) => !visit.deletedAt)
+      .filter((visit) => {
         if (filters?.householdId && visit.householdId !== filters.householdId) return false;
         if (filters?.assignmentId && visit.assignmentId !== filters.assignmentId) return false;
         return true;
-      });
-      setVisits(filtered);
-    })();
-  }, [rawData, filters?.assignmentId, filters?.householdId]);
+      })
+      .map((visit) => toVisitView(visit, households.get(visit.householdId)));
 
-  // Listen for SW sync events to refresh
+    setVisits(sortVisits(mapped));
+    setError(null);
+  }, [filters?.assignmentId, filters?.householdId]);
+
   useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      const { type } = (e.data ?? {}) as { type?: string };
-      if (type === 'VISIT_SYNCED' || type === 'CACHE_UPDATED') {
-        void mutate();
-      }
-    };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [mutate]);
+    let cancelled = false;
+    let visitSubscription: { unsubscribe: () => void } | null = null;
+    let householdSubscription: { unsubscribe: () => void } | null = null;
 
-  return {
-    visits,
-    isLoading,
-    error,
-    dataSource,
-    mutate,
-  };
-}
-
-/**
- * Read visits for a specific household.
- * Fetches from API and falls back to IDB cache when offline.
- */
-export function useHouseholdVisits(householdId: string | null) {
-  const [visits, setVisits] = useState<(Visit & { publisherName?: string; _pending?: boolean })[]>([]);
-
-  const { data: rawData, isLoading, error, mutate } = useSWR<Visit[]>(
-    householdId ? `/api/visits?householdId=${householdId}` : null,
-    async (url: string) => {
+    const start = async () => {
       try {
-        const result = await apiClient.get<Visit[]>(url);
-        return result;
-      } catch (apiErr) {
-        console.warn('[useHouseholdVisits] API fetch failed, falling back to IDB cache:', apiErr);
-        // Offline — try full visits cache and filter
-        const cached = await readFromIDB<Visit[]>('visits-cache', 'my-visits').catch((idbErr) => {
-          console.warn('[useHouseholdVisits] IDB fallback read failed:', idbErr);
-          return null;
-        });
-        const all = ensureArrayData<Visit>(cached ?? []);
-        return all.filter((v) => v.householdId === householdId);
-      }
-    },
-    { revalidateOnFocus: false }
-  );
-
-  useEffect(() => {
-    (async () => {
-      const raw = ensureArrayData<Visit>(rawData ?? []);
-      const merged = await mergePendingVisits(raw);
-      const filtered = merged.filter((v) => v.householdId === householdId);
-      setVisits(filtered as (Visit & { publisherName?: string; _pending?: boolean })[]);
-    })();
-  }, [rawData, householdId]);
-
-  // Listen for SW sync events to refresh
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      const { type } = (e.data ?? {}) as { type?: string };
-      if (type === 'VISIT_SYNCED' || type === 'CACHE_UPDATED') {
-        void mutate();
+        const database = await getLocalFirstDB();
+        if (cancelled) return;
+        await refresh();
+        visitSubscription = database.visits.$.subscribe(() => void refresh());
+        householdSubscription = database.households.$.subscribe(() => void refresh());
+        requestLocalFirstSync();
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [mutate]);
 
-  return {
-    visits,
-    isLoading,
-    error,
-    mutate,
-  };
+    void start();
+    return () => {
+      cancelled = true;
+      visitSubscription?.unsubscribe();
+      householdSubscription?.unsubscribe();
+    };
+  }, [refresh]);
+
+  const mutate = useCallback(async () => {
+    await syncLocalFirst();
+    await refresh();
+  }, [refresh]);
+
+  return { visits, isLoading, error, dataSource, mutate };
 }
 
-/**
- * Read territory visits ONLY from IDB cache.
- * Reactive: updates when IDB changes.
- */
+export function useHouseholdVisits(householdId: string | null) {
+  return useMyVisits(householdId ? { householdId } : undefined);
+}
+
 export function useTerritoryVisits(territoryId: string | null) {
-  const cacheKey = territoryId ? `territory-${territoryId}` : 'territory-null';
   const [visits, setVisits] = useState<(Visit & { _pending?: boolean })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setIsLoading(true);
+  const refresh = useCallback(async () => {
+    const database = await getLocalFirstDB();
+    const [visitDocuments, householdDocuments] = await Promise.all([
+      database.visits.find().exec(),
+      database.households.find().exec(),
+    ]);
+    const households = new Map(
+      householdDocuments
+        .map((document) => document.toMutableJSON() as LocalHousehold)
+        .filter((household) => !territoryId || household.territoryId === territoryId)
+        .map((household) => [household.id, household] as const)
+    );
+
+    setVisits(
+      sortVisits(
+        visitDocuments
+          .map((document) => document.toMutableJSON() as LocalVisit)
+          .filter((visit) => !visit.deletedAt && households.has(visit.householdId))
+          .map((visit) => toVisitView(visit, households.get(visit.householdId)))
+      )
+    );
     setError(null);
-    (async () => {
+  }, [territoryId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let visitSubscription: { unsubscribe: () => void } | null = null;
+    let householdSubscription: { unsubscribe: () => void } | null = null;
+
+    const start = async () => {
       try {
-        const cached = await readFromIDB<Visit[]>('visits-cache', cacheKey);
-        const raw = ensureArrayData<Visit>(cached ?? []);
-        if (territoryId && raw.length > 0) {
-          const merged = await mergePendingVisits(raw);
-          setVisits(merged);
-        } else {
-          setVisits([]);
-        }
+        const database = await getLocalFirstDB();
+        if (cancelled) return;
+        await refresh();
+        visitSubscription = database.visits.$.subscribe(() => void refresh());
+        householdSubscription = database.households.$.subscribe(() => void refresh());
       } catch (err) {
-        console.warn('[useTerritoryVisits] IDB read failed:', err);
-        setError(String(err));
-        setVisits([]);
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [cacheKey, territoryId]);
-
-  return {
-    visits,
-    isLoading,
-    error,
-    dataSource: ('cache' as 'server' | 'cache'),
-  };
-}
-
-/**
- * Fetch households from API, fall back to IDB cache when offline.
- * Updates IDB cache on each successful API fetch.
- * Pending households merged in automatically.
- */
-export function useHouseholds() {
-  const [households, setHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
-  const [dataSource, setDataSource] = useState<'server' | 'cache'>('server');
-
-  const { data: rawData, isLoading, error, mutate } = useSWR<Household[]>(
-    '/api/households',
-    async (url: string) => {
-      try {
-        const result = await apiClient.get<Household[]>(url);
-        await writeToIDB('households-cache', 'all', result, 'sw');
-        setDataSource('server');
-        return result;
-      } catch (apiErr) {
-        console.warn('[useHouseholds] API fetch failed, falling back to IDB cache:', apiErr);
-        // Offline or API error — try IDB cache
-        const cached = await readFromIDB<Household[]>('households-cache', 'all').catch((idbErr) => {
-          console.warn('[useHouseholds] IDB fallback read failed:', idbErr);
-          return null;
-        });
-        if (cached !== null) {
-          setDataSource('cache');
-          return ensureArrayData<Household>(cached);
-        }
-        return [];
-      }
-    },
-    { revalidateOnFocus: false }
-  );
-
-  useEffect(() => {
-    (async () => {
-      const raw = ensureArrayData<Household>(rawData ?? []);
-      const merged = await mergePendingHouseholds(raw);
-      setHouseholds(merged);
-    })();
-  }, [rawData]);
-
-  // Listen for SW sync events to refresh
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      const { type } = (e.data ?? {}) as { type?: string };
-      if (type === 'HOUSEHOLD_SYNCED' || type === 'CACHE_UPDATED') {
-        void mutate();
+        if (!cancelled) setIsLoading(false);
       }
     };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [mutate]);
 
-  return {
-    households,
-    isLoading,
-    error,
-    dataSource,
-    mutate,
-  };
+    void start();
+    return () => {
+      cancelled = true;
+      visitSubscription?.unsubscribe();
+      householdSubscription?.unsubscribe();
+    };
+  }, [refresh]);
+
+  return { visits, isLoading, error, dataSource: 'cache' as DataSource };
+}
+
+export function useHouseholds() {
+  const [households, setHouseholds] = useState<(Household & { _pending?: boolean })[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const dataSource = useDataSource();
+
+  const refresh = useCallback(async () => {
+    const database = await getLocalFirstDB();
+    const documents = await database.households.find().exec();
+    setHouseholds(
+      documents
+        .map((document) => document.toMutableJSON() as LocalHousehold)
+        .filter((household) => !household.deletedAt)
+        .map(toHouseholdView)
+        .sort((left, right) => left.address.localeCompare(right.address))
+    );
+    setError(null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    const start = async () => {
+      try {
+        const database = await getLocalFirstDB();
+        if (cancelled) return;
+        await refresh();
+        subscription = database.households.$.subscribe(() => void refresh());
+        requestLocalFirstSync();
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void start();
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
+  }, [refresh]);
+
+  const mutate = useCallback(async () => {
+    await syncLocalFirst();
+    await refresh();
+  }, [refresh]);
+
+  return { households, isLoading, error, dataSource, mutate };
 }

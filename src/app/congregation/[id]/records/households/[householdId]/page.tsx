@@ -6,19 +6,21 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getHouseholdById } from '@/lib/db/households';
-import { getVisitsByHousehold } from '@/lib/db/visits';
-import { getEncountersByHousehold } from '@/lib/db/encounters';
-import type { EncounterRecord, HouseholdRecord, VisitRecord } from '@/lib/db/types';
+import {
+  getEncountersByHousehold,
+  getHouseholdById,
+  getVisitsByHousehold,
+} from '@/lib/local-first';
+import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 
 export default function HouseholdDetailPage() {
   const params = useParams<{ id: string; householdId: string }>();
   const congregationId = params?.id;
   const householdId = params?.householdId;
 
-  const [household, setHousehold] = useState<HouseholdRecord | null>(null);
-  const [visits, setVisits] = useState<VisitRecord[]>([]);
-  const [encounters, setEncounters] = useState<EncounterRecord[]>([]);
+  const [household, setHousehold] = useState<LocalHousehold | null>(null);
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
 
   useEffect(() => {
     if (!householdId) return;
@@ -47,15 +49,21 @@ export default function HouseholdDetailPage() {
       </Button>
 
       {!household ? (
-        <p className="text-sm text-muted-foreground">Household not found in local IndexedDB.</p>
+        <p className="text-sm text-muted-foreground">
+          Household not found in the local-first store.
+        </p>
       ) : (
         <>
           <div className="rounded-xl border p-4">
-            <h1 className="text-lg font-semibold">{household.name}</h1>
+            <h1 className="text-lg font-semibold">{household.address}</h1>
             <p className="text-sm text-muted-foreground mt-1">{household.address}</p>
             <div className="mt-3 flex gap-2">
-              <Badge variant="outline">Members: {household.membersCount}</Badge>
-              <Badge variant="outline">{household.latitude.toFixed(5)}, {household.longitude.toFixed(5)}</Badge>
+              <Badge variant="outline">Occupants: {household.occupantsCount ?? 1}</Badge>
+              {household.latitude && household.longitude ? (
+                <Badge variant="outline">
+                  {Number(household.latitude).toFixed(5)}, {Number(household.longitude).toFixed(5)}
+                </Badge>
+              ) : null}
             </div>
             {household.notes ? <p className="mt-3 text-sm">{household.notes}</p> : null}
           </div>
@@ -67,8 +75,12 @@ export default function HouseholdDetailPage() {
             ) : (
               visits.map((visit) => (
                 <div key={visit.id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium capitalize">{visit.outcome.replace(/_/g, ' ')}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(visit.visitDate).toLocaleString()}</p>
+                  <p className="text-sm font-medium capitalize">
+                    {visit.outcome.replace(/_/g, ' ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(visit.visitDate).toLocaleString()}
+                  </p>
                   {visit.notes ? <p className="text-sm mt-1">{visit.notes}</p> : null}
                 </div>
               ))
@@ -82,7 +94,7 @@ export default function HouseholdDetailPage() {
             ) : (
               encounters.map((encounter) => (
                 <div key={encounter.id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium">{encounter.name}</p>
+                  <p className="text-sm font-medium">{encounter.name ?? 'Unknown person'}</p>
                   <p className="text-xs text-muted-foreground">{encounter.response}</p>
                   {encounter.notes ? <p className="text-sm mt-1">{encounter.notes}</p> : null}
                 </div>

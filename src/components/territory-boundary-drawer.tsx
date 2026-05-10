@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { type GeoJSONGeometry, useTerritoryBoundary, validateGeoJSON } from '@/hooks/use-territory-boundary';
+import { type GeoJSONGeometry, useTerritoryBoundary } from '@/hooks/use-territory-boundary';
 import { X, Trash2, Save, Undo2, CheckCircle2, Info } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,18 +26,18 @@ const MIN_RING_POINTS = 3;
 
 const SRC = {
   polygons: 'boundary-polygons',
-  active:   'boundary-active',
-  points:   'boundary-points',
-  preview:  'boundary-preview',
+  active: 'boundary-active',
+  points: 'boundary-points',
+  preview: 'boundary-preview',
 } as const;
 
 const LAYER = {
-  polygonsFill:    'boundary-polygons-fill',
-  polygonsLine:    'boundary-polygons-line',
-  activeLine:      'boundary-active-line',
+  polygonsFill: 'boundary-polygons-fill',
+  polygonsLine: 'boundary-polygons-line',
+  activeLine: 'boundary-active-line',
   activeClosingLine: 'boundary-active-closing',
-  points:          'boundary-points-circle',
-  pointsFirst:     'boundary-points-first',
+  points: 'boundary-points-circle',
+  pointsFirst: 'boundary-points-first',
 } as const;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -64,14 +64,18 @@ function activeRingToFeatureCollection(ring: LngLat[]): GeoJSON.FeatureCollectio
         properties: {},
       },
       // Closing line back to first point (preview)
-      ...(ring.length >= 3 ? [{
-        type: 'Feature' as const,
-        geometry: {
-          type: 'LineString' as const,
-          coordinates: [ring[ring.length - 1], ring[0]],
-        },
-        properties: {},
-      }] : []),
+      ...(ring.length >= 3
+        ? [
+            {
+              type: 'Feature' as const,
+              geometry: {
+                type: 'LineString' as const,
+                coordinates: [ring[ring.length - 1], ring[0]],
+              },
+              properties: {},
+            },
+          ]
+        : []),
     ],
   };
 }
@@ -128,17 +132,17 @@ export function TerritoryBoundaryDrawer({
   onBoundarySaved,
 }: TerritoryBoundaryDrawerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef       = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
   const lastClickRef = useRef<number>(0);
 
-  const [rings, setRings]             = useState<Ring[]>([]);
-  const [activeRing, setActiveRing]   = useState<LngLat[]>([]);
-  const [mapReady, setMapReady]       = useState(false);
-  const [isSaving, setIsSaving]       = useState(false);
-  const [saved, setSaved]             = useState(false);
-  const [notice, setNotice]           = useState<string | null>(null);
+  const [rings, setRings] = useState<Ring[]>([]);
+  const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const { boundary, isLoading, saveBoundary, fetchBoundary } = useTerritoryBoundary();
+  const { boundary, saveBoundary, fetchBoundary } = useTerritoryBoundary();
 
   // ── Map init ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,22 +157,46 @@ export function TerritoryBoundaryDrawer({
 
     m.once('load', () => {
       // ── Sources ──────────────────────────────────────────────────────────
-      m.addSource(SRC.polygons, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      m.addSource(SRC.active,   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-      m.addSource(SRC.points,   { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      m.addSource(SRC.polygons, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      m.addSource(SRC.active, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+      m.addSource(SRC.points, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
 
       // ── Completed polygon layers ──────────────────────────────────────────
-      m.addLayer({ id: LAYER.polygonsFill, type: 'fill', source: SRC.polygons,
-        paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 } });
-      m.addLayer({ id: LAYER.polygonsLine, type: 'line', source: SRC.polygons,
-        paint: { 'line-color': '#059669', 'line-width': 2.5 } });
+      m.addLayer({
+        id: LAYER.polygonsFill,
+        type: 'fill',
+        source: SRC.polygons,
+        paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 },
+      });
+      m.addLayer({
+        id: LAYER.polygonsLine,
+        type: 'line',
+        source: SRC.polygons,
+        paint: { 'line-color': '#059669', 'line-width': 2.5 },
+      });
 
       // ── Active ring layer ─────────────────────────────────────────────────
-      m.addLayer({ id: LAYER.activeLine, type: 'line', source: SRC.active,
-        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 1] } });
+      m.addLayer({
+        id: LAYER.activeLine,
+        type: 'line',
+        source: SRC.active,
+        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 1] },
+      });
 
       // ── Points layer ──────────────────────────────────────────────────────
-      m.addLayer({ id: LAYER.points, type: 'circle', source: SRC.points,
+      m.addLayer({
+        id: LAYER.points,
+        type: 'circle',
+        source: SRC.points,
         filter: ['==', ['get', 'isFirst'], false],
         paint: {
           'circle-radius': 5,
@@ -178,7 +206,10 @@ export function TerritoryBoundaryDrawer({
         },
       });
       // First point highlighted differently
-      m.addLayer({ id: LAYER.pointsFirst, type: 'circle', source: SRC.points,
+      m.addLayer({
+        id: LAYER.pointsFirst,
+        type: 'circle',
+        source: SRC.points,
         filter: ['==', ['get', 'isFirst'], true],
         paint: {
           'circle-radius': 7,
@@ -222,8 +253,8 @@ export function TerritoryBoundaryDrawer({
     const m = mapRef.current;
     if (!m || !mapReady) return;
     setSource(m, SRC.polygons, ringsToFeatureCollection(rings));
-    setSource(m, SRC.active,   activeRingToFeatureCollection(activeRing));
-    setSource(m, SRC.points,   pointsToFeatureCollection(activeRing));
+    setSource(m, SRC.active, activeRingToFeatureCollection(activeRing));
+    setSource(m, SRC.points, pointsToFeatureCollection(activeRing));
   }, [rings, activeRing, mapReady]);
 
   // ── Map click handler ────────────────────────────────────────────────────
@@ -295,7 +326,6 @@ export function TerritoryBoundaryDrawer({
   const undoPoint = () => setActiveRing((p) => p.slice(0, -1));
   const cancelRing = () => setActiveRing([]);
   const removeLastRing = () => setRings((p) => p.slice(0, -1));
-  const clearAll = () => { setRings([]); setActiveRing([]); };
 
   const commitCurrentRing = () => {
     if (activeRing.length < MIN_RING_POINTS) {
@@ -328,10 +358,10 @@ export function TerritoryBoundaryDrawer({
 
   // ── Render ────────────────────────────────────────────────────────────────
   const totalPoints = rings.reduce((n, r) => n + r.length, 0) + activeRing.length;
-  const canSave     = rings.length > 0 && activeRing.length === 0;
+  const canSave = rings.length > 0 && activeRing.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[2500] flex flex-col bg-black/10">
+    <div className="fixed inset-0 z-2500 flex flex-col bg-black/10">
       {/* Map */}
       <div ref={containerRef} className="absolute inset-0" />
 
@@ -354,8 +384,8 @@ export function TerritoryBoundaryDrawer({
             {activeRing.length > 0
               ? `${activeRing.length} pts — double-click or press Enter to close`
               : rings.length > 0
-              ? `${rings.length} polygon${rings.length > 1 ? 's' : ''} · ${totalPoints} pts total`
-              : 'Click on the map to start drawing'}
+                ? `${rings.length} polygon${rings.length > 1 ? 's' : ''} · ${totalPoints} pts total`
+                : 'Click on the map to start drawing'}
           </p>
         </div>
 
@@ -380,7 +410,7 @@ export function TerritoryBoundaryDrawer({
       {/* Notice toast */}
       {notice && (
         <div className="relative z-10 mx-auto mt-3 max-w-sm px-4 py-2 bg-amber-50 dark:bg-amber-900/80 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-100 text-xs rounded-lg shadow-md flex items-center gap-2">
-          <Info className="w-3.5 h-3.5 flex-shrink-0" />
+          <Info className="w-3.5 h-3.5 shrink-0" />
           {notice}
         </div>
       )}

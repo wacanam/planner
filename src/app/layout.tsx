@@ -7,8 +7,8 @@ import { StandaloneAuthHeader } from '@/components/standalone-auth-header';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { Providers } from './providers';
 import { OfflineIndicator } from '@/components/offline-indicator';
-import { IDBDebugDialog } from '@/components/idb-debug-dialog';
-import { ServiceWorkerRegistrar } from './ServiceWorkerRegistrar';
+import { LocalFirstDebugDialog } from '@/components/local-first-debug-dialog';
+import { ServiceWorkerCleanup } from './ServiceWorkerCleanup';
 import { Toaster } from '@/components/ui/sonner';
 
 const geistSans = Geist({
@@ -67,8 +67,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <IDBDebugDialog />
-      <ServiceWorkerRegistrar />
+          <LocalFirstDebugDialog />
+          <ServiceWorkerCleanup />
           <Providers>
             <OfflineIndicator />
             <Header />

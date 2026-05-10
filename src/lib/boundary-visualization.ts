@@ -3,7 +3,7 @@
  * Displays saved boundaries on MapLibre GL maps
  */
 
-import maplibregl from 'maplibre-gl';
+import type maplibregl from 'maplibre-gl';
 
 export interface BoundaryLayer {
   id: string;

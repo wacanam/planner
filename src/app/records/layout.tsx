@@ -3,11 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Clock, Users, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { SyncNowButton } from '@/components/sync-now-button';
+import { useLocalFirstStatus } from '@/hooks/use-local-first-status';
 import { cn } from '@/lib/utils';
-import { getDB } from '@/lib/offline-store';
 
 const tabs = [
   { href: '/records/households', label: 'Households', icon: Home },
@@ -15,45 +14,9 @@ const tabs = [
   { href: '/records/encounters', label: 'Encounters', icon: Users },
 ] as const;
 
-const PENDING_STORES = ['pending-households', 'pending-visits', 'pending-encounters'];
-
 export default function RecordsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isOnline, setIsOnline] = useState(true);
-  const [pendingCount, setPendingCount] = useState(0);
-
-  useEffect(() => {
-    setIsOnline(navigator.onLine);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const checkPending = async () => {
-      try {
-        const db = await getDB();
-        let total = 0;
-        for (const store of PENDING_STORES) {
-          const keys = await db.getAllKeys(store);
-          total += keys.length;
-        }
-        setPendingCount(total);
-      } catch {
-        // IndexedDB may be unavailable (private browsing, quota errors) — treat as zero pending
-        // Not logging to avoid console noise during normal offline/private browsing usage
-      }
-    };
-
-    void checkPending();
-    const interval = window.setInterval(checkPending, 10000);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      window.clearInterval(interval);
-    };
-  }, []);
+  const { isOnline, pendingCount } = useLocalFirstStatus();
 
   return (
     <>
@@ -63,7 +26,7 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
           <div className="sticky top-16 z-50 flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2">
             <WifiOff size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
             <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-              Offline — new records will sync when you reconnect
+              Offline - new records are saved locally
             </span>
           </div>
         )}
