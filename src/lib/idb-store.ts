@@ -64,7 +64,13 @@ async function getDB(): Promise<IDBPDatabase> {
       ];
       for (const store of stores) {
         if (!db.objectStoreNames.contains(store)) {
-          db.createObjectStore(store);
+          // Cache stores and auth don't use keyPath (will provide explicit keys)
+          if (store.endsWith('-cache') || store === 'auth' || store === 'pending-avatars') {
+            db.createObjectStore(store);
+          } else {
+            // Pending writes and entity stores use keyPath 'id'
+            db.createObjectStore(store, { keyPath: 'id' });
+          }
         }
       }
     },

@@ -854,38 +854,50 @@ async function syncVisitsAndHouseholds() {
 
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('ministry-planner', 5);
+    const req = indexedDB.open('ministry-planner', 6);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains('pending-avatars')) {
-        db.createObjectStore('pending-avatars');
-      }
-      if (!db.objectStoreNames.contains('auth')) {
-        db.createObjectStore('auth');
-      }
-      if (!db.objectStoreNames.contains('pending-visits')) {
-        db.createObjectStore('pending-visits');
-      }
-      if (!db.objectStoreNames.contains('pending-households')) {
-        db.createObjectStore('pending-households');
-      }
-      if (!db.objectStoreNames.contains('pending-encounters')) {
-        db.createObjectStore('pending-encounters');
-      }
+      // Cache stores - no keyPath, will use explicit keys
       if (!db.objectStoreNames.contains('visits-cache')) {
         db.createObjectStore('visits-cache');
       }
       if (!db.objectStoreNames.contains('households-cache')) {
         db.createObjectStore('households-cache');
       }
+      // Auth store - no keyPath
+      if (!db.objectStoreNames.contains('auth')) {
+        db.createObjectStore('auth');
+      }
+      // Pending writes and entities - use keyPath 'id'
+      if (!db.objectStoreNames.contains('pending-avatars')) {
+        db.createObjectStore('pending-avatars', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-visits')) {
+        db.createObjectStore('pending-visits', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-households')) {
+        db.createObjectStore('pending-households', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('pending-encounters')) {
+        db.createObjectStore('pending-encounters', { keyPath: 'id' });
+      }
       if (!db.objectStoreNames.contains('pending-household-deletes')) {
-        db.createObjectStore('pending-household-deletes');
+        db.createObjectStore('pending-household-deletes', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('pending-visit-deletes')) {
-        db.createObjectStore('pending-visit-deletes');
+        db.createObjectStore('pending-visit-deletes', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('pending-encounter-deletes')) {
-        db.createObjectStore('pending-encounter-deletes');
+        db.createObjectStore('pending-encounter-deletes', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('households')) {
+        db.createObjectStore('households', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('visits')) {
+        db.createObjectStore('visits', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('encounters')) {
+        db.createObjectStore('encounters', { keyPath: 'id' });
       }
     };
     req.onsuccess = (e) => resolve(wrapDB(e.target.result));

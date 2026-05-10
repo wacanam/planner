@@ -71,7 +71,13 @@ export async function getDB(): Promise<IDBPDatabase> {
     upgrade(db) {
       for (const store of STORES) {
         if (!db.objectStoreNames.contains(store)) {
-          db.createObjectStore(store);
+          // Most stores use keyPath 'id' for entities like households, visits, encounters
+          // Cache stores will provide explicit keys when needed
+          if (store.endsWith('-cache') || store === 'auth' || store === 'pending-avatars') {
+            db.createObjectStore(store);
+          } else {
+            db.createObjectStore(store, { keyPath: 'id' });
+          }
         }
       }
     },
