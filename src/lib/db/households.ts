@@ -40,7 +40,7 @@ export async function createHousehold(input: CreateHouseholdInput): Promise<Hous
 
 export async function upsertHousehold(record: HouseholdRecord): Promise<void> {
   const db = await getPlannerDB();
-  await db.put('households', { ...record, updatedAt: new Date().toISOString() });
+  await db.put('households', { ...record, updatedAt: record.updatedAt ?? new Date().toISOString() });
   dispatchDBChange('households');
 }
 

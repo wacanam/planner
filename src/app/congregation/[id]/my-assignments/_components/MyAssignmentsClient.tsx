@@ -41,6 +41,9 @@ interface HouseholdMapItem {
   address?: string | null;
   streetName?: string | null;
   city?: string | null;
+  membersCount?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
   latitude?: number | null;
   longitude?: number | null;
 }
@@ -214,14 +217,14 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         address: household.address ?? '',
         streetName: household.streetName ?? null,
         city: household.city ?? null,
-        membersCount: 1,
+        membersCount: household.membersCount ?? 1,
         notes: null,
         latitude: Number(household.latitude),
         longitude: Number(household.longitude),
         territoryId: territory.id,
         congregationId: territory.congregationId ?? null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: household.createdAt ?? new Date().toISOString(),
+        updatedAt: household.updatedAt ?? new Date().toISOString(),
       }));
     if (serverHouseholdsSignature === lastSyncSignatureRef.current) return;
     lastSyncSignatureRef.current = serverHouseholdsSignature;
