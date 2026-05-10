@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
@@ -11,7 +11,6 @@ import {
   User,
   Users,
   MapPin,
-  MapPinOff,
   ChevronUp,
   ChevronDown,
   Maximize2,
@@ -26,15 +25,18 @@ import {
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import {
+  HouseholdEncounterSheet,
+  HouseholdLogVisitSheet,
+} from '@/components/households/household-action-sheets';
+import {
   useCongregationMembers,
   useCongregationTerritories,
   useHouseholds,
   useTerritoryAssignments,
   useTerritoryDetail,
 } from '@/hooks';
-import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
-import { deleteHouseholdRecord } from '@/lib/record-writes';
+import type { Household } from '@/types/api';
 
 import {
   useTerritoryBoundary,
@@ -210,6 +212,14 @@ export default function TerritoryDetailView() {
     );
   }, [myRole, sessionUser?.id, sessionUser?.role]);
 
+  const canClearBoundary = React.useMemo(() => {
+    if (!sessionUser?.id) return false;
+    return (
+      myRole === 'service_overseer' ||
+      ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER'].includes(sessionUser.role ?? '')
+    );
+  }, [myRole, sessionUser?.id, sessionUser?.role]);
+
   const {
     territory: territoryResponse,
     isLoading: territoryLoading,
@@ -245,8 +255,7 @@ export default function TerritoryDetailView() {
   const [assignmentExpanded, setAssignmentExpanded] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
-  const [showStylePicker, setShowStylePicker] = useState(false);
-  const [locationOn, setLocationOn] = useState(false);
+  const [locationOn] = useState(false);
   const [showCalibPrompt, setShowCalibPrompt] = useState(false);
   const [drawMode, setDrawMode] = useState<'add' | 'edit' | null>(null);
   const isDrawingBoundary = drawMode !== null;
@@ -257,7 +266,9 @@ export default function TerritoryDetailView() {
   const [pendingPinCoords, setPendingPinCoords] = useState<{ lat: number; lng: number } | null>(
     null
   );
-  const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add' | 'remove'>('view');
+  const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add'>('view');
+  const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
+  const [encounterHouseholdId, setEncounterHouseholdId] = useState<string | null>(null);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -266,7 +277,6 @@ export default function TerritoryDetailView() {
     null
   );
   const mapClearRingsRef = useRef<(() => void) | null>(null);
-  const geolocateTriggerRef = useRef<(() => void) | null>(null);
 
   const handleSaveBoundary = React.useCallback(async () => {
     const geojson = mapGetGeoJSONRef.current?.();
@@ -313,32 +323,16 @@ export default function TerritoryDetailView() {
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
-  const router = useRouter();
-
-  // When a household pin is tapped, navigate to the active assignment visit log
-  // pre-selecting that household via query param. Falls back to my-assignments
-  // list if no active assignment exists.
   const handleHouseholdClick = useCallback(
     (householdId: string) => {
-      const active = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
-      if (active) {
-        router.push(
-          `/congregation/${congregationId}/my-assignments/${active.id}?householdId=${householdId}`
-        );
-      } else {
-        router.push(`/congregation/${congregationId}/my-assignments`);
-      }
+      setLogVisitHouseholdId(householdId);
     },
-    [assignments, congregationId, router]
+    []
   );
 
-  const handleHouseholdRemove = useCallback(async (householdId: string) => {
-    try {
-      await deleteHouseholdRecord(householdId);
-    } catch {
-      /* silently queue for retry */
-    }
-  }, []);
+  const activeAssignment = assignments.find((a) => a.status === 'active' || a.status === 'assigned');
+  const logVisitHousehold = householdsResp.find((household) => household.id === logVisitHouseholdId) ?? null;
+  const encounterHousehold = householdsResp.find((household) => household.id === encounterHouseholdId) ?? null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -376,16 +370,14 @@ export default function TerritoryDetailView() {
                     boundary={territory.boundary}
                     households={householdsInTerritory}
                     onHouseholdClick={handleHouseholdClick}
-                    onHouseholdRemove={handleHouseholdRemove}
+                    onHouseholdAddEncounter={(householdId: string) => setEncounterHouseholdId(householdId)}
                     mapStyle={mapStyle}
+                    onMapStyleChange={setMapStyle}
                     locationOn={locationOn}
                     onCalibrationNeeded={(needed: boolean) => {
                       if (needed) setShowCalibPrompt(true);
                     }}
                     onLocationDotClick={() => setShowCalibPrompt(true)}
-                    onGeolocateReady={(fn: () => void) => {
-                      geolocateTriggerRef.current = fn;
-                    }}
                     allBoundaries={(
                       allTerritoriesData as Array<{
                         id: string;
@@ -398,6 +390,10 @@ export default function TerritoryDetailView() {
                     isDrawing={isDrawingBoundary}
                     drawMode={drawMode ?? 'add'}
                     mapInteractionMode={isDrawingBoundary ? 'view' : mapInteractionMode}
+                    onMapInteractionModeChange={setMapInteractionMode}
+                    pinPreview={pendingPinCoords}
+                    onPinPreviewChange={setPendingPinCoords}
+                    pinPlacement="instant"
                     onHouseholdPinPlaced={(lat: number, lng: number) => {
                       setPendingPinCoords({ lat, lng });
                     }}
@@ -577,11 +573,10 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                  {/* Location toggle — absolute bottom-left, inside map */}
+                  {/* Boundary tools — visible to SO, TS, and admins */}
                   <div
                     className={`absolute left-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}
                   >
-                    {/* Boundary buttons — only visible to SO, TS, and admins */}
                     {canDrawBoundary && !isDrawingBoundary && (
                       <div className="flex flex-col gap-1.5 mb-2">
                         {/* Add polygons */}
@@ -605,7 +600,7 @@ export default function TerritoryDetailView() {
                           </button>
                         )}
                         {/* Clear boundary — shows inline confirmation instead of window.confirm */}
-                        {territory.boundary && !clearConfirmPending && (
+                        {territory.boundary && canClearBoundary && !clearConfirmPending && (
                           <button
                             type="button"
                             onClick={() => setClearConfirmPending(true)}
@@ -615,7 +610,7 @@ export default function TerritoryDetailView() {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
-                        {territory.boundary && clearConfirmPending && (
+                        {territory.boundary && canClearBoundary && clearConfirmPending && (
                           <div className="flex flex-col gap-1 p-2 rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800">
                             <span className="text-xs text-red-600 dark:text-red-400 font-semibold px-0.5">
                               Clear boundary?
@@ -641,142 +636,6 @@ export default function TerritoryDetailView() {
                         )}
                       </div>
                     )}
-                    {/* Location toggle */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!locationOn) {
-                          // Must call trigger() synchronously in the gesture for Safari.
-                          // Call it immediately (may be a no-op if map not ready yet),
-                          // then set state so the useEffect retry loop takes over.
-                          geolocateTriggerRef.current?.();
-
-                          // DeviceOrientation permission (iOS 13+ Safari)
-                          type DOE = typeof DeviceOrientationEvent & {
-                            requestPermission?: () => Promise<string>;
-                          };
-                          const DOE = DeviceOrientationEvent as DOE;
-                          if (typeof DOE.requestPermission === 'function') {
-                            DOE.requestPermission()
-                              .then(() => setLocationOn(true))
-                              .catch(() => setLocationOn(true));
-                          } else {
-                            setLocationOn(true);
-                          }
-                        } else {
-                          setLocationOn(false);
-                        }
-                      }}
-                      title={locationOn ? 'Hide my location' : 'Show my location'}
-                      className={[
-                        'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                        locationOn
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white/10 dark:bg-gray-900/10 text-foreground',
-                      ].join(' ')}
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Map style switcher — absolute bottom-right, inside map */}
-                  <div
-                    className={`absolute right-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}
-                  >
-                    {/* Map interaction mode buttons — above style picker, hidden while drawing */}
-                    {!isDrawingBoundary && (
-                      <div className="flex flex-col gap-1.5 mb-2">
-                        {/* Add household mode */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMapInteractionMode((m) => (m === 'add' ? 'view' : 'add'))
-                          }
-                          title={
-                            mapInteractionMode === 'add'
-                              ? 'Cancel add mode'
-                              : 'Add household (tap map)'
-                          }
-                          className={[
-                            'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                            mapInteractionMode === 'add'
-                              ? 'bg-primary text-white'
-                              : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
-                          ].join(' ')}
-                        >
-                          <MapPin className="w-4 h-4" />
-                        </button>
-                        {/* Remove household mode */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setMapInteractionMode((m) => (m === 'remove' ? 'view' : 'remove'))
-                          }
-                          title={
-                            mapInteractionMode === 'remove'
-                              ? 'Cancel remove mode'
-                              : 'Remove household (tap marker)'
-                          }
-                          className={[
-                            'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-                            mapInteractionMode === 'remove'
-                              ? 'bg-destructive text-white'
-                              : 'bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80',
-                          ].join(' ')}
-                        >
-                          <MapPinOff className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                    {showStylePicker && (
-                      <div className="mb-1 flex flex-col gap-1 items-end">
-                        {MAP_STYLES.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => {
-                              setMapStyle(s.id);
-                              setShowStylePicker(false);
-                            }}
-                            style={{ fontWeight: 600, fontSize: '10px' }}
-                            className={[
-                              'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
-                              mapStyle === s.id
-                                ? 'bg-primary text-white'
-                                : 'bg-white/5 dark:bg-gray-900/10 text-foreground hover:bg-white',
-                            ].join(' ')}
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowStylePicker((p) => !p)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
-                    >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        aria-hidden="true"
-                      >
-                        <path d="M3 6h18M3 12h18M3 18h18" />
-                      </svg>
-                      {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
-                    </button>
                   </div>
 
                   {/* Assignment strip — absolute bottom, inside map */}
@@ -851,8 +710,25 @@ export default function TerritoryDetailView() {
             />
           )}
 
+          <HouseholdLogVisitSheet
+            household={logVisitHousehold as Household | null}
+            assignmentId={activeAssignment?.id ?? null}
+            open={!!logVisitHouseholdId}
+            onOpenChange={(open) => {
+              if (!open) setLogVisitHouseholdId(null);
+            }}
+          />
+
+          <HouseholdEncounterSheet
+            household={encounterHousehold as Household | null}
+            open={!!encounterHouseholdId}
+            onOpenChange={(open) => {
+              if (!open) setEncounterHouseholdId(null);
+            }}
+          />
+
           {/* Manual calibration overlay */}
-          {locationOn && showCalibPrompt && (
+          {showCalibPrompt && (
             <CalibrationOverlay onDone={() => setShowCalibPrompt(false)} />
           )}
         </main>

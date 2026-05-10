@@ -16,6 +16,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { cn } from '@/lib/utils';
 
 interface ResponsiveDialogProps {
   open: boolean;
@@ -39,7 +40,7 @@ export function ResponsiveDialog({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={contentClassName}>
+        <DialogContent className={cn('sm:max-h-[90dvh] sm:overflow-y-auto', contentClassName)}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             {description ? <DialogDescription>{description}</DialogDescription> : null}
@@ -52,12 +53,13 @@ export function ResponsiveDialog({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className={contentClassName}>
-        <SheetHeader>
+      <SheetContent side="bottom" className={cn('p-0', contentClassName)}>
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-muted-foreground/25" />
+        <SheetHeader className="px-5 pb-2 pt-3">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
-        {children}
+        <div className="max-h-[calc(88dvh-7rem)] overflow-y-auto px-5 pb-5">{children}</div>
       </SheetContent>
     </Sheet>
   );

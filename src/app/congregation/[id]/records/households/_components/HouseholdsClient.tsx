@@ -45,6 +45,7 @@ import {
 import {
   deleteHouseholdRecord,
   deleteVisitRecord,
+  saveEncounterRecord,
   saveHouseholdRecord,
   saveVisitRecord,
   updateHouseholdRecord,
@@ -96,6 +97,39 @@ const outcomeLabels: Record<string, string> = {
   moved: 'Moved',
   other: 'Other',
 };
+
+const responseLabels: Record<string, string> = {
+  receptive: 'Receptive',
+  neutral: 'Neutral',
+  not_interested: 'Not Interested',
+  hostile: 'Hostile',
+  do_not_visit: 'Do Not Visit',
+  moved: 'Moved',
+};
+
+function splitNextVisit(value?: string | null, time?: string | null) {
+  if (!value) return { date: undefined, time: time ?? undefined };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value, time: time ?? undefined };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { date: value.slice(0, 10), time: time ?? undefined };
+  const date = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+  return { date, time: time ?? parsed.toTimeString().slice(0, 5) };
+}
+
+function combineNextVisit(date?: string, time?: string) {
+  if (!date) return undefined;
+  return new Date(`${date}T${time || '09:00'}`).toISOString();
+}
+
+function formatNextVisit(value?: string | null, time?: string | null) {
+  if (!value) return '';
+  const parsed = new Date(value.includes('T') ? value : `${value}T${time || '00:00'}`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString([], {
+    dateStyle: 'medium',
+    ...(time || value.includes('T') ? { timeStyle: 'short' as const } : {}),
+  });
+}
 
 // ─── Visit History Drawer ───────────────────────────────────────────────────────
 
@@ -197,7 +231,8 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                 v.literatureLeft ||
                 v.bibleTopicDiscussed ||
                 v.returnVisitPlanned ||
-                v.nextVisitDate;
+                v.nextVisitDate ||
+                v.nextVisitTime;
               return (
                 <div key={v.id} className="rounded-xl border border-border bg-card p-3 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
@@ -291,7 +326,7 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                             <div className="flex gap-2 text-xs">
                               <User size={11} className="mt-0.5 shrink-0 text-muted-foreground" />
                               <span className="text-muted-foreground">
-                                Next: {new Date(v.nextVisitDate).toLocaleDateString()}
+                                Next: {formatNextVisit(v.nextVisitDate, v.nextVisitTime)}
                                 {v.nextVisitNotes ? ` · ${v.nextVisitNotes}` : ''}
                               </span>
                             </div>
@@ -337,16 +372,19 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
     formState: { errors, isSubmitting },
   } = useForm<LogVisitFormData>({
     resolver: zodResolver(logVisitSchema),
-    defaultValues: { returnVisitPlanned: false },
+    defaultValues: { returnVisitPlanned: false, addEncounter: false, encounterResponse: 'neutral' },
   });
 
   const returnVisitPlanned = watch('returnVisitPlanned');
+  const addEncounter = watch('addEncounter');
 
   useEffect(() => {
     if (!open) return;
     reset(
       visit
-        ? {
+        ? (() => {
+            const nextVisit = splitNextVisit(visit.nextVisitDate, visit.nextVisitTime);
+            return {
             outcome: visit.outcome as LogVisitFormData['outcome'],
             householdStatusAfter:
               visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
@@ -354,11 +392,15 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
             literatureLeft: visit.literatureLeft ?? undefined,
             bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
             returnVisitPlanned: visit.returnVisitPlanned,
-            nextVisitDate: visit.nextVisitDate ?? undefined,
+            nextVisitDate: nextVisit.date,
+            nextVisitTime: nextVisit.time,
             nextVisitNotes: visit.nextVisitNotes ?? undefined,
             notes: visit.notes ?? undefined,
-          }
-        : { returnVisitPlanned: false }
+            addEncounter: false,
+            encounterResponse: 'neutral',
+          };
+          })()
+        : { returnVisitPlanned: false, addEncounter: false, encounterResponse: 'neutral' }
     );
   }, [open, reset, visit]);
 
@@ -373,12 +415,28 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
       literatureLeft: values.literatureLeft,
       bibleTopicDiscussed: values.bibleTopicDiscussed,
       returnVisitPlanned: values.returnVisitPlanned ?? false,
-      nextVisitDate: values.nextVisitDate,
+      nextVisitDate: values.returnVisitPlanned
+        ? combineNextVisit(values.nextVisitDate, values.nextVisitTime)
+        : undefined,
+      nextVisitTime: values.returnVisitPlanned ? values.nextVisitTime : undefined,
       nextVisitNotes: values.nextVisitNotes,
     };
     const savedId = visit
       ? await updateVisitRecord(visit.id, payload)
       : await saveVisitRecord(payload);
+    if (!visit && values.addEncounter) {
+      await saveEncounterRecord({
+        visitId: savedId,
+        householdId: household.id,
+        encounterDate: new Date().toISOString(),
+        name: values.encounterName,
+        response: values.encounterResponse ?? 'neutral',
+        topicDiscussed: values.encounterTopicDiscussed,
+        literatureAccepted: values.encounterLiteratureAccepted,
+        returnVisitRequested: values.encounterReturnVisitRequested,
+        notes: values.encounterNotes,
+      });
+    }
     onSaved(savedId);
     reset();
   };
@@ -461,7 +519,9 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
             min={1}
             max={300}
             error={errors.duration?.message}
-            {...register('duration', { valueAsNumber: true })}
+            {...register('duration', {
+              setValueAs: (value) => (value === '' ? undefined : Number(value)),
+            })}
           />
 
           <FormField
@@ -509,6 +569,13 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
                 {...register('nextVisitDate')}
               />
               <FormField
+                label="Next visit time"
+                id="nextVisitTime"
+                type="time"
+                error={errors.nextVisitTime?.message}
+                {...register('nextVisitTime')}
+              />
+              <FormField
                 label="Next visit notes"
                 id="nextVisitNotes"
                 multiline
@@ -517,6 +584,87 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
                 {...register('nextVisitNotes')}
               />
             </>
+          )}
+
+          {!visit && (
+            <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="addEncounter"
+                  className="h-4 w-4 rounded border"
+                  {...register('addEncounter')}
+                />
+                <label htmlFor="addEncounter" className="text-sm font-medium">
+                  Add encounter
+                </label>
+              </div>
+              {addEncounter && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-medium">Response</span>
+                    <Controller
+                      name="encounterResponse"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value ?? 'neutral'} onValueChange={field.onChange}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(responseLabels).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <FormField
+                      label="Name"
+                      id="encounterName"
+                      optional
+                      error={errors.encounterName?.message}
+                      {...register('encounterName')}
+                    />
+                    <FormField
+                      label="Topic"
+                      id="encounterTopicDiscussed"
+                      optional
+                      error={errors.encounterTopicDiscussed?.message}
+                      {...register('encounterTopicDiscussed')}
+                    />
+                  </div>
+                  <FormField
+                    label="Literature"
+                    id="encounterLiteratureAccepted"
+                    optional
+                    error={errors.encounterLiteratureAccepted?.message}
+                    {...register('encounterLiteratureAccepted')}
+                  />
+                  <FormField
+                    label="Encounter notes"
+                    id="encounterNotes"
+                    multiline
+                    rows={2}
+                    optional
+                    error={errors.encounterNotes?.message}
+                    {...register('encounterNotes')}
+                  />
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border"
+                      {...register('encounterReturnVisitRequested')}
+                    />
+                    Return visit requested
+                  </label>
+                </div>
+              )}
+            </div>
           )}
 
           <DialogFooter>
@@ -604,7 +752,7 @@ function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdD
           className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
         >
           <FormField
-            label="Address *"
+            label="Address"
             id="address"
             error={errors.address?.message}
             {...register('address')}
@@ -622,12 +770,12 @@ function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdD
             {...register('unitNumber')}
           />
           <FormField
-            label="Street Name *"
+            label="Street Name"
             id="streetName"
             error={errors.streetName?.message}
             {...register('streetName')}
           />
-          <FormField label="City *" id="city" error={errors.city?.message} {...register('city')} />
+          <FormField label="City" id="city" error={errors.city?.message} {...register('city')} />
           <FormField
             label="Postal Code"
             id="postalCode"

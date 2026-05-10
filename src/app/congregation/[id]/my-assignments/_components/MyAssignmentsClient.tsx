@@ -2,9 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, ChevronUp, MapPin, MapPinOff, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, MapPin, Plus, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
@@ -12,26 +12,18 @@ import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
+  HouseholdEncounterSheet,
+  HouseholdLogVisitSheet,
+} from '@/components/households/household-action-sheets';
+import {
   useCongregationTerritories,
   useCongregationTerritoryRequests,
   useTerritoryDetail,
   useHouseholds,
 } from '@/hooks';
-import { deleteHouseholdRecord } from '@/lib/record-writes';
 import { AddHouseholdSheet } from '../../territories/[territoryId]/_components/AddHouseholdSheet';
-import { MAP_STYLES } from '@/components/territory-map';
 import type { StyleId } from '@/components/territory-map';
-import type { Territory } from '@/types/api';
-import { toast } from 'sonner';
-import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import {
-  LogVisitForm,
-  type AddEncounterFormValues,
-  type LogVisitFormValues,
-} from '@/components/households/log-visit-form';
-import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
-import { createEncounter, createVisit, getHouseholdById } from '@/lib/local-first';
+import type { Household, Territory } from '@/types/api';
 
 // biome-ignore lint/suspicious/noExplicitAny: dynamic import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -49,116 +41,6 @@ interface HouseholdMapItem {
   longitude?: number | null;
 }
 
-// ─── Log Visit Dialog ──────────────────────────────────────────────────────────
-
-function LogVisitSheet({
-  householdId,
-  householdLabel,
-  onClose,
-}: {
-  householdId: string;
-  householdLabel: string;
-  onClose: () => void;
-}) {
-  const [isSubmitting, setSubmitting] = useState(false);
-
-  const onSubmit = async (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => {
-    setSubmitting(true);
-    try {
-      const visit = await createVisit({
-        householdId,
-        outcome: values.outcome,
-        notes: values.notes,
-      });
-
-      for (const encounter of encounters) {
-        await createEncounter({
-          visitId: visit.id,
-          householdId,
-          name: encounter.name,
-          response: encounter.response,
-          notes: encounter.notes,
-        });
-      }
-
-      toast.success('Visit logged successfully');
-      onClose();
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      toast.error(reason);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <ResponsiveDialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title="Log Visit"
-      description={householdLabel}
-      contentClassName="sm:max-w-lg"
-    >
-      <LogVisitForm submitting={isSubmitting} onSubmit={onSubmit} />
-    </ResponsiveDialog>
-  );
-}
-
-// ─── Delete Confirmation Dialog ────────────────────────────────────────────────
-
-function DeleteConfirmDialog({
-  householdId,
-  householdLabel,
-  onClose,
-  onDeleted,
-}: {
-  householdId: string;
-  householdLabel: string;
-  onClose: () => void;
-  onDeleted: () => void;
-}) {
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    setError(null);
-    try {
-      const existing = await getHouseholdById(householdId);
-      if (!existing) {
-        throw new Error(`Household ${householdId} was not found in Firestore records`);
-      }
-      await deleteHouseholdRecord(householdId);
-      onDeleted();
-      toast.success('Household deleted');
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : String(e);
-      setError(reason);
-      toast.error(reason);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  return (
-    <ConfirmDialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title="Delete household?"
-      description={`This removes ${householdLabel} from the shared records. Firestore will sync the change when the device is online.`}
-      confirmLabel={deleting ? 'Deleting…' : 'Delete'}
-      confirmVariant="destructive"
-      loading={deleting}
-      error={error}
-      onConfirm={handleDelete}
-    />
-  );
-}
-
 // ─── InlineMapView ─────────────────────────────────────────────────────────────
 
 interface InlineMapViewProps {
@@ -170,13 +52,11 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const router = useRouter();
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
-  const [mapMode, setMapMode] = useState<'view' | 'add' | 'remove'>('view');
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
-  const [showStylePicker, setShowStylePicker] = useState(false);
 
   // Action states — opened from popup buttons
   const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
-  const [deleteConfirmHouseholdId, setDeleteConfirmHouseholdId] = useState<string | null>(null);
+  const [encounterHouseholdId, setEncounterHouseholdId] = useState<string | null>(null);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
   const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(
@@ -200,10 +80,10 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     }));
 
   const logVisitHousehold = households.find((h) => h.id === logVisitHouseholdId) ?? null;
-
-  const handleDeleted = useCallback(() => {
-    setDeleteConfirmHouseholdId(null);
-  }, []);
+  const logVisitHouseholdRecord =
+    localHouseholds.find((household) => household.id === logVisitHouseholdId) ?? null;
+  const encounterHouseholdRecord =
+    localHouseholds.find((household) => household.id === encounterHouseholdId) ?? null;
 
   return createPortal(
     <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 9000 }}>
@@ -235,71 +115,29 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             boundary={fullTerritory?.boundary ?? territory.boundary}
             households={households}
             mapStyle={mapStyle}
-            mapInteractionMode={mapMode}
+            onMapStyleChange={setMapStyle}
+            mapInteractionMode="add"
+            pinPreview={pendingPin}
+            onPinPreviewChange={setPendingPin}
+            pinPlacement="instant"
+            showPinControl={false}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}
             onHouseholdClick={(id: string) => {
               setLogVisitHouseholdId(id);
             }}
+            onHouseholdAddEncounter={(id: string) => {
+              setEncounterHouseholdId(id);
+            }}
             onHouseholdViewDetails={(id: string) => {
               router.push(`/congregation/${territory.congregationId}/records/households/${id}`);
-            }}
-            onHouseholdDeleteRequest={(id: string) => {
-              setDeleteConfirmHouseholdId(id);
-            }}
-            onHouseholdRemove={(id: string) => {
-              setDeleteConfirmHouseholdId(id);
             }}
             className="w-full h-full"
           />
         )}
 
-        {/* Right-side controls — mode buttons + style picker + show all */}
-        <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-1.5 items-end">
-          {showStylePicker && (
-            <div className="mb-1 flex flex-col gap-1 items-end">
-              {MAP_STYLES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setMapStyle(s.id as StyleId);
-                    setShowStylePicker(false);
-                  }}
-                  style={{ fontWeight: 600, fontSize: '10px' }}
-                  className={[
-                    'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
-                    mapStyle === s.id
-                      ? 'bg-primary text-white'
-                      : 'bg-background/90 text-foreground hover:bg-background',
-                  ].join(' ')}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <PinHouseModeToggle
-            active={mapMode === 'add'}
-            onToggle={() => setMapMode((m) => (m === 'add' ? 'view' : 'add'))}
-          />
-
-          <button
-            type="button"
-            onClick={() => setMapMode((m) => (m === 'remove' ? 'view' : 'remove'))}
-            title={mapMode === 'remove' ? 'Cancel remove mode' : 'Remove household (tap marker)'}
-            className={[
-              'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
-              mapMode === 'remove'
-                ? 'bg-destructive text-destructive-foreground'
-                : 'bg-background/90 text-foreground hover:bg-background',
-            ].join(' ')}
-          >
-            <MapPinOff size={16} />
-          </button>
-
+        <div className="absolute left-3 bottom-4 z-10 flex flex-col gap-2 items-start">
           <label
             htmlFor="show-all-pins"
             className="flex items-center gap-2 bg-background/90 backdrop-blur-sm border border-border rounded-full px-3 py-2 shadow-md cursor-pointer text-xs font-medium select-none"
@@ -313,25 +151,6 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             />
             Show all Households
           </label>
-
-          <button
-            type="button"
-            onClick={() => setShowStylePicker((p) => !p)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background/90 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M3 6h18M3 12h18M3 18h18" />
-            </svg>
-            {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
-          </button>
         </div>
       </div>
 
@@ -350,23 +169,22 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
 
       {/* Log Visit bottom sheet */}
       {logVisitHouseholdId && (
-        <LogVisitSheet
-          householdId={logVisitHouseholdId}
-          householdLabel={logVisitHousehold?.address ?? 'Unnamed Household'}
-          onClose={() => setLogVisitHouseholdId(null)}
+        <HouseholdLogVisitSheet
+          household={(logVisitHouseholdRecord ?? logVisitHousehold) as Household | null}
+          open={!!logVisitHouseholdId}
+          onOpenChange={(open) => {
+            if (!open) setLogVisitHouseholdId(null);
+          }}
         />
       )}
 
-      {/* Delete confirmation dialog */}
-      {deleteConfirmHouseholdId && (
-        <DeleteConfirmDialog
-          householdId={deleteConfirmHouseholdId}
-          householdLabel={
-            households.find((h) => h.id === deleteConfirmHouseholdId)?.address ??
-            deleteConfirmHouseholdId
-          }
-          onClose={() => setDeleteConfirmHouseholdId(null)}
-          onDeleted={handleDeleted}
+      {encounterHouseholdId && (
+        <HouseholdEncounterSheet
+          household={encounterHouseholdRecord}
+          open={!!encounterHouseholdId}
+          onOpenChange={(open) => {
+            if (!open) setEncounterHouseholdId(null);
+          }}
         />
       )}
     </div>,

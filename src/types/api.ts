@@ -227,6 +227,7 @@ export interface Visit {
   bibleTopicDiscussed?: string | null;
   returnVisitPlanned: boolean;
   nextVisitDate?: string | null;
+  nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
   assignmentId?: string | null;
   notes?: string | null;

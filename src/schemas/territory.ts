@@ -8,7 +8,7 @@ export const createTerritorySchema = z.object({
 export type CreateTerritoryFormData = z.infer<typeof createTerritorySchema>;
 
 export const assignTerritorySchema = z.object({
-  userId: z.string().uuid('Please select a publisher'),
+  userId: z.string().optional(),
   dueAt: z.string().optional(),
   notes: z.string().max(2000).optional(),
 });

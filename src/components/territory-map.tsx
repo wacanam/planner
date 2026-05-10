@@ -1,6 +1,8 @@
 'use client';
 
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import { Crosshair, Layers, LocateFixed, MapPinPlus, Minus, Plus, Route } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface HouseholdPoint {
@@ -22,7 +24,9 @@ export interface TerritoryMapProps {
   center?: [number, number];
   className?: string;
   onHouseholdClick?: (id: string, address: string) => void;
+  onHouseholdAddEncounter?: (id: string, address: string) => void;
   mapStyle?: StyleId;
+  onMapStyleChange?: (style: StyleId) => void;
   isDrawing?: boolean;
   drawMode?: 'add' | 'edit';
   onDrawingComplete?: (geojson: { type: string; coordinates: unknown }) => void;
@@ -40,11 +44,15 @@ export interface TerritoryMapProps {
   locationOn?: boolean;
   pinHouseholdMode?: boolean;
   onHouseholdPinPlaced?: (lat: number, lng: number) => void;
+  pinPlacement?: 'instant' | 'confirm';
+  pinPreview?: { lat: number; lng: number } | null;
+  onPinPreviewChange?: (pin: { lat: number; lng: number } | null) => void;
   directHouseholdClick?: boolean;
-  mapInteractionMode?: 'view' | 'add' | 'remove';
-  onHouseholdRemove?: (id: string) => void;
+  mapInteractionMode?: 'view' | 'add';
+  onMapInteractionModeChange?: (mode: 'view' | 'add') => void;
   onHouseholdViewDetails?: (id: string) => void;
-  onHouseholdDeleteRequest?: (id: string) => void;
+  showDefaultControls?: boolean;
+  showPinControl?: boolean;
 }
 
 type LngLat = [number, number];
@@ -230,6 +238,34 @@ function tempPinIcon(api: GoogleApi): google.maps.Icon {
   };
 }
 
+function MapControlButton({
+  title,
+  active,
+  children,
+  onClick,
+}: {
+  title: string;
+  active?: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm shadow-md transition active:scale-95 ${
+        active
+          ? 'border-blue-500 bg-blue-600 text-white'
+          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function pointToSegmentDistanceMeters(point: LngLat, start: LngLat, end: LngLat) {
   const averageLat = ((point[1] + start[1] + end[1]) / 3) * (Math.PI / 180);
   const metersPerLng = Math.cos(averageLat) * 111_320;
@@ -276,10 +312,10 @@ function createInfoWindowContent(params: {
   household: HouseholdPoint & { lat: number; lng: number };
   color: string;
   onLogVisit?: (id: string, address: string) => void;
+  onAddEncounter?: (id: string, address: string) => void;
   onViewDetails?: (id: string) => void;
-  onDeleteRequest?: (id: string) => void;
 }) {
-  const { household, color, onLogVisit, onViewDetails, onDeleteRequest } = params;
+  const { household, color, onLogVisit, onAddEncounter, onViewDetails } = params;
   const wrapper = document.createElement('div');
   wrapper.className = 'min-w-55 max-w-70 space-y-2 p-1 font-sans';
 
@@ -321,8 +357,18 @@ function createInfoWindowContent(params: {
     button.type = 'button';
     button.className = 'rounded-lg px-3 py-2 text-xs font-semibold text-white';
     button.style.background = color;
-    button.textContent = 'Log Visit';
+    button.textContent = 'Visit';
     button.addEventListener('click', () => onLogVisit(household.id, household.address));
+    actions.appendChild(button);
+  }
+
+  if (onAddEncounter) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className =
+      'rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700';
+    button.textContent = 'Encounter';
+    button.addEventListener('click', () => onAddEncounter(household.id, household.address));
     actions.appendChild(button);
   }
 
@@ -331,18 +377,8 @@ function createInfoWindowContent(params: {
     button.type = 'button';
     button.className =
       'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
-    button.textContent = 'View Details';
+    button.textContent = 'Details';
     button.addEventListener('click', () => onViewDetails(household.id));
-    actions.appendChild(button);
-  }
-
-  if (onDeleteRequest) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className =
-      'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600';
-    button.textContent = 'Delete';
-    button.addEventListener('click', () => onDeleteRequest(household.id));
     actions.appendChild(button);
   }
 
@@ -356,7 +392,9 @@ export default function TerritoryMap({
   center,
   className = '',
   onHouseholdClick,
+  onHouseholdAddEncounter,
   mapStyle = DEFAULT_STYLE,
+  onMapStyleChange,
   isDrawing = false,
   drawMode = 'add',
   onDrawingComplete,
@@ -369,11 +407,15 @@ export default function TerritoryMap({
   locationOn = false,
   pinHouseholdMode = false,
   onHouseholdPinPlaced,
+  pinPlacement = 'instant',
+  pinPreview,
+  onPinPreviewChange,
   directHouseholdClick = false,
   mapInteractionMode,
-  onHouseholdRemove,
+  onMapInteractionModeChange,
   onHouseholdViewDetails,
-  onHouseholdDeleteRequest,
+  showDefaultControls = true,
+  showPinControl = true,
 }: TerritoryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -389,9 +431,8 @@ export default function TerritoryMap({
   const drawRingsRef = useRef<LngLat[][]>([]);
   const activeRingRef = useRef<LngLat[]>([]);
   const onHouseholdClickRef = useRef(onHouseholdClick);
-  const onHouseholdRemoveRef = useRef(onHouseholdRemove);
+  const onHouseholdAddEncounterRef = useRef(onHouseholdAddEncounter);
   const onHouseholdViewDetailsRef = useRef(onHouseholdViewDetails);
-  const onHouseholdDeleteRequestRef = useRef(onHouseholdDeleteRequest);
   const onHouseholdPinPlacedRef = useRef(onHouseholdPinPlaced);
   const directHouseholdClickRef = useRef(directHouseholdClick);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
@@ -404,13 +445,14 @@ export default function TerritoryMap({
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [localInteractionMode, setLocalInteractionMode] = useState<'view' | 'add'>('view');
+  const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
 
   onHouseholdClickRef.current = onHouseholdClick;
-  onHouseholdRemoveRef.current = onHouseholdRemove;
+  onHouseholdAddEncounterRef.current = onHouseholdAddEncounter;
   onHouseholdViewDetailsRef.current = onHouseholdViewDetails;
-  onHouseholdDeleteRequestRef.current = onHouseholdDeleteRequest;
   onHouseholdPinPlacedRef.current = onHouseholdPinPlaced;
   directHouseholdClickRef.current = directHouseholdClick;
   onDrawingCompleteRef.current = onDrawingComplete;
@@ -421,9 +463,10 @@ export default function TerritoryMap({
   drawRingsRef.current = drawRings;
   activeRingRef.current = activeRing;
 
-  const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
-  const effectiveInteractionModeRef = useRef(effectiveInteractionMode);
-  effectiveInteractionModeRef.current = effectiveInteractionMode;
+  const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
+  const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
+  const pinPreviewIsControlled = pinPreview !== undefined;
+  const visiblePin = pinPreviewIsControlled ? pinPreview : pendingPin;
   const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
   const initialRingsSignature = useMemo(
     () => JSON.stringify(initialDrawingRings ?? []),
@@ -433,6 +476,43 @@ export default function TerritoryMap({
     () => JSON.parse(initialRingsSignature) as LngLat[][],
     [initialRingsSignature]
   );
+
+  const setVisiblePin = useCallback(
+    (pin: { lat: number; lng: number } | null) => {
+      if (pinPreviewIsControlled) {
+        onPinPreviewChange?.(pin);
+        return;
+      }
+      setPendingPin(pin);
+    },
+    [onPinPreviewChange, pinPreviewIsControlled]
+  );
+
+  const setInteractionMode = useCallback(
+    (mode: 'view' | 'add') => {
+      if (onMapInteractionModeChange) {
+        onMapInteractionModeChange(mode);
+        return;
+      }
+      setLocalInteractionMode(mode);
+    },
+    [onMapInteractionModeChange]
+  );
+
+  const setStyle = useCallback(
+    (style: StyleId) => {
+      if (onMapStyleChange) {
+        onMapStyleChange(style);
+        return;
+      }
+      setLocalMapStyle(style);
+    },
+    [onMapStyleChange]
+  );
+
+  useEffect(() => {
+    setLocalMapStyle(mapStyle);
+  }, [mapStyle]);
 
   const clearBoundaryOverlays = useCallback(() => {
     for (const overlay of boundaryOverlaysRef.current) {
@@ -488,7 +568,7 @@ export default function TerritoryMap({
   useEffect(() => {
     if (!googleApi || !containerRef.current || mapRef.current) return;
 
-    const style = MAP_STYLES.find((item) => item.id === mapStyle) ?? MAP_STYLES[0];
+    const style = MAP_STYLES.find((item) => item.id === activeMapStyle) ?? MAP_STYLES[0];
     const firstPoint = validPoints[0];
     const initialCenter = center
       ? { lat: center[0], lng: center[1] }
@@ -528,15 +608,15 @@ export default function TerritoryMap({
       infoWindowRef.current?.close();
       mapRef.current = null;
     };
-  }, [center, clearBoundaryOverlays, clearDrawingOverlays, googleApi, mapStyle, validPoints]);
+  }, [activeMapStyle, center, clearBoundaryOverlays, clearDrawingOverlays, googleApi, validPoints]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const style = MAP_STYLES.find((item) => item.id === mapStyle) ?? MAP_STYLES[0];
+    const style = MAP_STYLES.find((item) => item.id === activeMapStyle) ?? MAP_STYLES[0];
     map.setMapTypeId(style.mapTypeId);
     map.setOptions({ styles: style.styles });
-  }, [mapStyle]);
+  }, [activeMapStyle]);
 
   useEffect(() => {
     const api = googleApi;
@@ -773,12 +853,6 @@ export default function TerritoryMap({
       });
 
       marker.addListener('click', () => {
-        const mode = effectiveInteractionModeRef.current;
-        if (mode === 'remove' && onHouseholdRemoveRef.current) {
-          infoWindowRef.current?.close();
-          onHouseholdRemoveRef.current(household.id);
-          return;
-        }
         if (directHouseholdClickRef.current && onHouseholdClickRef.current) {
           infoWindowRef.current?.close();
           onHouseholdClickRef.current(household.id, household.address);
@@ -789,8 +863,8 @@ export default function TerritoryMap({
           household,
           color,
           onLogVisit: onHouseholdClickRef.current,
+          onAddEncounter: onHouseholdAddEncounterRef.current,
           onViewDetails: onHouseholdViewDetailsRef.current,
-          onDeleteRequest: onHouseholdDeleteRequestRef.current,
         });
         infoWindowRef.current?.setContent(content);
         infoWindowRef.current?.open({ map, anchor: marker });
@@ -817,13 +891,15 @@ export default function TerritoryMap({
     const listener = map.addListener('click', (event: google.maps.MapMouseEvent) => {
       const position = event.latLng;
       if (!position) return;
-      setPendingPin({ lat: position.lat(), lng: position.lng() });
+      const pin = { lat: position.lat(), lng: position.lng() };
+      setVisiblePin(pin);
+      if (pinPlacement === 'instant') onHouseholdPinPlacedRef.current?.(pin.lat, pin.lng);
     });
     return () => {
       listener.remove();
       map.setOptions({ draggableCursor: null });
     };
-  }, [effectiveInteractionMode, isDrawing, mapReady]);
+  }, [effectiveInteractionMode, isDrawing, mapReady, pinPlacement, setVisiblePin]);
 
   useEffect(() => {
     const api = googleApi;
@@ -831,14 +907,22 @@ export default function TerritoryMap({
     if (!api || !map) return;
     tempPinMarkerRef.current?.setMap(null);
     tempPinMarkerRef.current = null;
-    if (!pendingPin) return;
+    if (!visiblePin) return;
     tempPinMarkerRef.current = new api.maps.Marker({
       map,
-      position: pendingPin,
+      position: visiblePin,
       icon: tempPinIcon(api),
       zIndex: 50,
     });
-  }, [googleApi, pendingPin]);
+  }, [googleApi, visiblePin]);
+
+  useEffect(() => {
+    if (!visiblePin) return;
+    const hasSavedHousehold = validPoints.some(
+      (point) => Math.abs(point.lat - visiblePin.lat) < 0.00001 && Math.abs(point.lng - visiblePin.lng) < 0.00001
+    );
+    if (hasSavedHousehold) setVisiblePin(null);
+  }, [setVisiblePin, validPoints, visiblePin]);
 
   const updateLocation = useCallback(
     (position: GeolocationPosition, pan = false) => {
@@ -897,6 +981,38 @@ export default function TerritoryMap({
     );
   }, [updateLocation]);
 
+  const fitMapToContent = useCallback(() => {
+    const api = googleApi;
+    const map = mapRef.current;
+    if (!api || !map) return;
+
+    const activeBoundary = geometryBounds(api, parseBoundary(boundary));
+    if (activeBoundary && !activeBoundary.isEmpty()) {
+      map.fitBounds(activeBoundary, 56);
+      return;
+    }
+
+    if (validPoints.length > 0) {
+      const bounds = new api.maps.LatLngBounds();
+      for (const point of validPoints) bounds.extend({ lat: point.lat, lng: point.lng });
+      if (!bounds.isEmpty()) map.fitBounds(bounds, 56);
+    }
+  }, [boundary, googleApi, validPoints]);
+
+  const cycleMapStyle = useCallback(() => {
+    const currentIndex = Math.max(
+      0,
+      MAP_STYLES.findIndex((style) => style.id === activeMapStyle)
+    );
+    setStyle(MAP_STYLES[(currentIndex + 1) % MAP_STYLES.length].id);
+  }, [activeMapStyle, setStyle]);
+
+  const zoomBy = useCallback((delta: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.setZoom((map.getZoom() ?? 14) + delta);
+  }, []);
+
   useEffect(() => {
     onGeolocateReady?.(locateOnce);
   }, [locateOnce, onGeolocateReady]);
@@ -935,7 +1051,8 @@ export default function TerritoryMap({
     previousDrawingRef.current = isDrawing;
   }, [isDrawing]);
 
-  const noMapData = !boundary && validPoints.length === 0;
+  const noMapData = !boundary && validPoints.length === 0 && !onHouseholdPinPlaced;
+  const currentStyleLabel = MAP_STYLES.find((style) => style.id === activeMapStyle)?.label ?? 'Map';
 
   return (
     <div className={`relative ${className}`}>
@@ -944,6 +1061,52 @@ export default function TerritoryMap({
         .gm-style .gm-style-iw-d { overflow: hidden !important; }
       `}</style>
       <div ref={containerRef} className="h-full w-full" />
+
+      {showDefaultControls && mapReady && !loadError && (
+        <div className="pointer-events-none absolute right-3 top-3 z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
+          <div className="pointer-events-auto flex flex-col gap-2">
+            {showPinControl && onHouseholdPinPlaced && !isDrawing ? (
+              <MapControlButton
+                title={effectiveInteractionMode === 'add' ? 'Stop pinning' : 'Pin household'}
+                active={effectiveInteractionMode === 'add'}
+                onClick={() => setInteractionMode(effectiveInteractionMode === 'add' ? 'view' : 'add')}
+              >
+                <MapPinPlus className="h-4 w-4" />
+              </MapControlButton>
+            ) : null}
+            <MapControlButton title="My location" active={locationOn} onClick={locateOnce}>
+              <LocateFixed className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton title={`Map style: ${currentStyleLabel}`} onClick={cycleMapStyle}>
+              <Layers className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton title="Fit territory" onClick={fitMapToContent}>
+              <Route className="h-4 w-4" />
+            </MapControlButton>
+          </div>
+          <div className="pointer-events-auto overflow-hidden rounded-full border border-slate-200 bg-white shadow-md">
+            <button
+              type="button"
+              title="Zoom in"
+              aria-label="Zoom in"
+              onClick={() => zoomBy(1)}
+              className="flex h-10 w-10 items-center justify-center text-slate-700 hover:bg-slate-50"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <div className="mx-2 h-px bg-slate-200" />
+            <button
+              type="button"
+              title="Zoom out"
+              aria-label="Zoom out"
+              onClick={() => zoomBy(-1)}
+              className="flex h-10 w-10 items-center justify-center text-slate-700 hover:bg-slate-50"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {loadError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/80 p-4 text-center">
@@ -961,21 +1124,22 @@ export default function TerritoryMap({
         </div>
       )}
 
-      {effectiveInteractionMode === 'add' && !pendingPin && !isDrawing && (
+      {effectiveInteractionMode === 'add' && !visiblePin && !isDrawing && (
         <div className="pointer-events-none absolute inset-x-0 bottom-16 z-100 flex justify-center">
-          <div className="rounded-full bg-black/70 px-4 py-2 text-xs font-medium text-white">
+          <div className="flex items-center gap-2 rounded-full bg-slate-950/80 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
+            <Crosshair className="h-3.5 w-3.5" />
             Tap map to place a household
           </div>
         </div>
       )}
 
-      {effectiveInteractionMode === 'add' && pendingPin && !isDrawing && (
+      {effectiveInteractionMode === 'add' && visiblePin && pinPlacement === 'confirm' && !isDrawing && (
         <div className="absolute inset-x-0 bottom-16 z-100 flex justify-center">
           <button
             type="button"
             onClick={() => {
-              onHouseholdPinPlacedRef.current?.(pendingPin.lat, pendingPin.lng);
-              setPendingPin(null);
+              onHouseholdPinPlacedRef.current?.(visiblePin.lat, visiblePin.lng);
+              setVisiblePin(null);
               tempPinMarkerRef.current?.setMap(null);
               tempPinMarkerRef.current = null;
             }}

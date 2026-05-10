@@ -28,6 +28,7 @@ export interface CreateVisitInput {
   bibleTopicDiscussed?: string | null;
   returnVisitPlanned?: boolean | null;
   nextVisitDate?: string | null;
+  nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
   notes?: string | null;
 }
@@ -74,6 +75,7 @@ export function toVisitView(
     bibleTopicDiscussed: record.bibleTopicDiscussed,
     returnVisitPlanned: record.returnVisitPlanned,
     nextVisitDate: record.nextVisitDate,
+    nextVisitTime: record.nextVisitTime,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
     createdAt: record.createdAt,
@@ -101,6 +103,7 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
     bibleTopicDiscussed: visit.bibleTopicDiscussed ?? null,
     returnVisitPlanned: Boolean(visit.returnVisitPlanned),
     nextVisitDate: visit.nextVisitDate ?? null,
+    nextVisitTime: visit.nextVisitTime ?? null,
     nextVisitNotes: visit.nextVisitNotes ?? null,
     notes: visit.notes ?? null,
     deletedAt: null,
@@ -128,6 +131,7 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
     bibleTopicDiscussed: nullableString(input.bibleTopicDiscussed),
     returnVisitPlanned: Boolean(input.returnVisitPlanned),
     nextVisitDate: nullableString(input.nextVisitDate),
+    nextVisitTime: nullableString(input.nextVisitTime),
     nextVisitNotes: nullableString(input.nextVisitNotes),
     notes: nullableString(input.notes),
     deletedAt: null,
@@ -179,6 +183,7 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
   }
   if (input.returnVisitPlanned !== undefined) updates.returnVisitPlanned = Boolean(input.returnVisitPlanned);
   if (input.nextVisitDate !== undefined) updates.nextVisitDate = nullableString(input.nextVisitDate);
+  if (input.nextVisitTime !== undefined) updates.nextVisitTime = nullableString(input.nextVisitTime);
   if (input.nextVisitNotes !== undefined) updates.nextVisitNotes = nullableString(input.nextVisitNotes);
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
   if (input.assignmentId !== undefined) updates.assignmentId = nullableString(input.assignmentId);
@@ -242,6 +247,7 @@ export function visitPayload(record: LocalVisit, householdServerId: string) {
     bibleTopicDiscussed: record.bibleTopicDiscussed,
     returnVisitPlanned: record.returnVisitPlanned,
     nextVisitDate: record.nextVisitDate,
+    nextVisitTime: record.nextVisitTime,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
   };

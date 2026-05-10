@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const addHouseholdSchema = z.object({
-  address: z.string().min(1, 'Address is required').max(255),
+  address: z.string().max(255).optional(),
   houseNumber: z.string().max(50).optional(),
   unitNumber: z.string().max(50).optional(),
-  streetName: z.string().min(1, 'Street name is required').max(255),
-  city: z.string().min(1, 'City is required').max(255),
+  streetName: z.string().max(255).optional(),
+  city: z.string().max(255).optional(),
   postalCode: z.string().max(20).optional(),
   country: z.string().max(100).optional(),
   type: z.enum([
@@ -49,7 +49,17 @@ export const logVisitSchema = z.object({
   bibleTopicDiscussed: z.string().max(255).optional(),
   returnVisitPlanned: z.boolean().optional(),
   nextVisitDate: z.string().optional(),
+  nextVisitTime: z.string().optional(),
   nextVisitNotes: z.string().max(500).optional(),
+  addEncounter: z.boolean().optional(),
+  encounterName: z.string().max(120).optional(),
+  encounterResponse: z
+    .enum(['receptive', 'neutral', 'not_interested', 'hostile', 'do_not_visit', 'moved'])
+    .optional(),
+  encounterTopicDiscussed: z.string().max(255).optional(),
+  encounterLiteratureAccepted: z.string().max(255).optional(),
+  encounterReturnVisitRequested: z.boolean().optional(),
+  encounterNotes: z.string().max(1000).optional(),
   notes: z.string().max(1000).optional(),
 });
 export type LogVisitFormData = z.infer<typeof logVisitSchema>;

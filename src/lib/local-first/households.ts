@@ -124,8 +124,11 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
 
 function createLocalHouseholdRecord(input: CreateHouseholdInput, id = createClientId()): LocalHousehold {
   const now = nowIso();
-  const address = input.address.trim();
-  const streetName = nullableString(input.streetName) ?? address;
+  const latitude = nullableString(input.latitude);
+  const longitude = nullableString(input.longitude);
+  const coordinateLabel = latitude && longitude ? `Pinned household ${latitude}, ${longitude}` : 'Pinned household';
+  const address = nullableString(input.address) ?? nullableString(input.name) ?? coordinateLabel;
+  const streetName = nullableString(input.streetName) ?? '';
   const city = nullableString(input.city) ?? '';
   return {
     id,
@@ -139,8 +142,8 @@ function createLocalHouseholdRecord(input: CreateHouseholdInput, id = createClie
     city,
     postalCode: nullableString(input.postalCode),
     country: nullableString(input.country),
-    latitude: nullableString(input.latitude),
-    longitude: nullableString(input.longitude),
+    latitude,
+    longitude,
     type: nullableString(input.type) ?? 'house',
     floor: nullableNumber(input.floor),
     occupantsCount: nullableNumber(input.occupantsCount ?? input.membersCount),
@@ -194,7 +197,7 @@ export async function updateHousehold(
   input: Partial<CreateHouseholdInput>
 ): Promise<void> {
   const updates: Record<string, unknown> = { updatedAt: nowIso() };
-  if (input.address !== undefined) updates.address = input.address.trim();
+  if (input.address !== undefined) updates.address = nullableString(input.address) ?? 'Pinned household';
   if (input.houseNumber !== undefined) updates.houseNumber = nullableString(input.houseNumber);
   if (input.unitNumber !== undefined) updates.unitNumber = nullableString(input.unitNumber);
   if (input.streetName !== undefined) updates.streetName = nullableString(input.streetName);

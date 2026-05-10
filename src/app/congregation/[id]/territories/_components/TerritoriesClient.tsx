@@ -372,14 +372,31 @@ export default function CongregationTerritoriesPage() {
       });
       setAssignSuccess('Territory assigned successfully!');
       setTimeout(() => {
-        setAssignOpen(false);
-        setAssignSuccess('');
-        assignForm.reset();
+        handleAssignOpenChange(false);
       }, 1200);
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
     }
   }
+
+  function handleAssignOpenChange(open: boolean) {
+    setAssignOpen(open);
+    if (!open) {
+      assignForm.reset();
+      setAssignSuccess('');
+      setAssignError('');
+      setAssignTerritory(null);
+      setAssignType('publisher');
+      setAssignGroupId('');
+      setMemberSearch('');
+      setGroupSearch('');
+      setComboboxOpen(false);
+      setGroupComboboxOpen(false);
+    }
+  }
+
+  const selectedMember = members.find((member) => member.userId === assignForm.watch('userId'));
+  const selectedGroup = groups.find((group) => group.id === assignGroupId);
 
   function openReturnDialog(territory: Territory) {
     setReturnTerritory(territory);
@@ -975,14 +992,7 @@ export default function CongregationTerritoriesPage() {
       {/* Assign Territory dialog */}
       <Dialog
         open={assignOpen}
-        onOpenChange={(open) => {
-          setAssignOpen(open);
-          if (!open) {
-            assignForm.reset();
-            setAssignSuccess('');
-            setAssignError('');
-          }
-        }}
+        onOpenChange={handleAssignOpenChange}
       >
         <DialogContent>
           <DialogHeader>
@@ -1041,16 +1051,22 @@ export default function CongregationTerritoriesPage() {
                   <Input
                     placeholder="Search publishers…"
                     value={memberSearch}
+                    onFocus={() => setComboboxOpen(true)}
                     onChange={(e) => {
                       setMemberSearch(e.target.value);
                       assignForm.setValue('userId', '');
-                      setComboboxOpen(e.target.value.length > 0);
+                      setComboboxOpen(true);
                     }}
                     autoComplete="off"
                   />
-                  {comboboxOpen && memberSearch.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                  {selectedMember && !comboboxOpen && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selected {selectedMember.user?.name ?? 'publisher'}
+                    </p>
+                  )}
+                  {comboboxOpen && (
+                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
                         {filteredMembers.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
                             {debouncedMemberSearch
@@ -1067,8 +1083,7 @@ export default function CongregationTerritoriesPage() {
                                   ? 'bg-primary/10 text-primary'
                                   : ''
                               }`}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
+                              onClick={() => {
                                 assignForm.setValue('userId', m.userId);
                                 setMemberSearch(m.user?.name ?? '');
                                 setComboboxOpen(false);
@@ -1098,16 +1113,22 @@ export default function CongregationTerritoriesPage() {
                   <Input
                     placeholder="Search groups…"
                     value={groupSearch}
+                    onFocus={() => setGroupComboboxOpen(true)}
                     onChange={(e) => {
                       setGroupSearch(e.target.value);
                       setAssignGroupId('');
-                      setGroupComboboxOpen(e.target.value.length > 0);
+                      setGroupComboboxOpen(true);
                     }}
                     autoComplete="off"
                   />
-                  {groupComboboxOpen && groupSearch.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                  {selectedGroup && !groupComboboxOpen && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selected {selectedGroup.name}
+                    </p>
+                  )}
+                  {groupComboboxOpen && (
+                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
                         {filteredGroups.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
                             {debouncedGroupSearch
@@ -1122,8 +1143,7 @@ export default function CongregationTerritoriesPage() {
                               className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${
                                 assignGroupId === g.id ? 'bg-primary/10 text-primary' : ''
                               }`}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
+                              onClick={() => {
                                 setAssignGroupId(g.id);
                                 setGroupSearch(g.name);
                                 setGroupComboboxOpen(false);
@@ -1160,7 +1180,7 @@ export default function CongregationTerritoriesPage() {
               />
             </div>
             <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
+              <Button type="button" variant="ghost" onClick={() => handleAssignOpenChange(false)}>
                 Cancel
               </Button>
               <Button

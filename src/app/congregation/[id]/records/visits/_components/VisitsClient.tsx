@@ -27,6 +27,16 @@ const outcomeLabels: Record<string, string> = {
   other: 'Other',
 };
 
+function formatNextVisit(value?: string | null, time?: string | null) {
+  if (!value) return '';
+  const parsed = new Date(value.includes('T') ? value : `${value}T${time || '00:00'}`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString([], {
+    dateStyle: 'medium',
+    ...(time || value.includes('T') ? { timeStyle: 'short' as const } : {}),
+  });
+}
+
 function VisitCard({
   visit,
 }: {
@@ -39,7 +49,8 @@ function VisitCard({
     visit.literatureLeft ||
     visit.bibleTopicDiscussed ||
     visit.returnVisitPlanned ||
-    visit.nextVisitDate;
+    visit.nextVisitDate ||
+    visit.nextVisitTime;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
@@ -106,7 +117,7 @@ function VisitCard({
                 <div className="flex gap-2 text-xs">
                   <User size={12} className="mt-0.5 shrink-0 text-muted-foreground" />
                   <span className="text-muted-foreground">
-                    Next visit: {new Date(visit.nextVisitDate).toLocaleDateString()}
+                    Next visit: {formatNextVisit(visit.nextVisitDate, visit.nextVisitTime)}
                     {visit.nextVisitNotes ? ` · ${visit.nextVisitNotes}` : ''}
                   </span>
                 </div>

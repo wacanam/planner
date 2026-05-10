@@ -24,6 +24,7 @@ export async function saveVisitRecord(data: Record<string, unknown>): Promise<st
     bibleTopicDiscussed: (data.bibleTopicDiscussed as string | null | undefined) ?? null,
     returnVisitPlanned: Boolean(data.returnVisitPlanned),
     nextVisitDate: (data.nextVisitDate as string | null | undefined) ?? null,
+    nextVisitTime: (data.nextVisitTime as string | null | undefined) ?? null,
     nextVisitNotes: (data.nextVisitNotes as string | null | undefined) ?? null,
     notes: (data.notes as string | null | undefined) ?? null,
   });
@@ -32,6 +33,7 @@ export async function saveVisitRecord(data: Record<string, unknown>): Promise<st
 
 export async function saveHouseholdRecord(data: Record<string, unknown>): Promise<string> {
   const household = await createHousehold({
+    name: (data.name as string | undefined) ?? undefined,
     address: String(data.address ?? ''),
     houseNumber: (data.houseNumber as string | null | undefined) ?? null,
     unitNumber: (data.unitNumber as string | null | undefined) ?? null,
