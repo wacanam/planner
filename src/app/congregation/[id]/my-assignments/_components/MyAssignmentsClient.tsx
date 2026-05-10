@@ -41,6 +41,7 @@ interface HouseholdMapItem {
   address?: string | null;
   streetName?: string | null;
   city?: string | null;
+  notes?: string | null;
   membersCount?: number | null;
   createdAt?: string;
   updatedAt?: string;
@@ -218,7 +219,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         streetName: household.streetName ?? null,
         city: household.city ?? null,
         membersCount: household.membersCount ?? 1,
-        notes: null,
+        notes: household.notes ?? null,
         latitude: Number(household.latitude),
         longitude: Number(household.longitude),
         territoryId: territory.id,
@@ -237,7 +238,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const households: HouseholdMapItem[] = idbHouseholds.map((household) => ({
     id: household.id,
     address: household.address,
-    streetName: household.streetName ?? household.address,
+    streetName: household.streetName ?? null,
     city: household.city ?? '',
     latitude: household.latitude,
     longitude: household.longitude,
