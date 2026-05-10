@@ -130,7 +130,7 @@ export function withOfflineCache<T>(
         // Fire-and-forget: refresh cache in background
         fetcher(url)
           .then((fresh) => cacheData(cacheStore, cacheKey, fresh))
-          .catch(() => {}); // Silent failure on offline/API errors
+          .catch(() => { }); // Silent failure on offline/API errors
         return cached;
       }
     } catch (err) {
