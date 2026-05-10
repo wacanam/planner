@@ -4,7 +4,18 @@ import Link from 'next/link';
 import { MapPin } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
-const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/dashboard'];
+const DASHBOARD_PREFIXES = [
+  '/admin',
+  '/congregation',
+  '/dashboard',
+  '/records',
+  '/profile',
+  '/notifications',
+  '/onboarding',
+  '/territories',
+  '/no-congregation',
+  '/auth',
+];
 
 export function Footer() {
   const pathname = usePathname();

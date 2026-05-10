@@ -666,6 +666,138 @@ async function syncVisitsAndHouseholds() {
     }
   }
 
+  // Sync pending household deletes
+  const pendingHouseholdDeletes = await db.getAll('pending-household-deletes');
+  swDebug('Pending household deletes loaded', { count: pendingHouseholdDeletes.length });
+  for (const entry of pendingHouseholdDeletes) {
+    const householdId = isObject(entry.data) ? entry.data.householdId : null;
+    if (typeof householdId !== 'string') {
+      await db.delete('pending-household-deletes', entry.id);
+      continue;
+    }
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const res = await fetch(`/api/households/${householdId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok || res.status === 404) {
+          await db.delete('pending-household-deletes', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'HOUSEHOLD_DELETE_SYNCED', householdId });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try { token = await requestFreshToken(); } catch { throw new Error('Token refresh failed'); }
+          attempt++;
+        } else {
+          const details = await readErrorDetails(res);
+          throw new Error(`DELETE /api/households/${householdId} failed: ${res.status} ${details}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Sync pending visit deletes
+  const pendingVisitDeletes = await db.getAll('pending-visit-deletes');
+  swDebug('Pending visit deletes loaded', { count: pendingVisitDeletes.length });
+  for (const entry of pendingVisitDeletes) {
+    const visitId = isObject(entry.data) ? entry.data.visitId : null;
+    if (typeof visitId !== 'string') {
+      await db.delete('pending-visit-deletes', entry.id);
+      continue;
+    }
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const res = await fetch(`/api/visits/${visitId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok || res.status === 404) {
+          await db.delete('pending-visit-deletes', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'VISIT_DELETE_SYNCED', visitId });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try { token = await requestFreshToken(); } catch { throw new Error('Token refresh failed'); }
+          attempt++;
+        } else {
+          const details = await readErrorDetails(res);
+          throw new Error(`DELETE /api/visits/${visitId} failed: ${res.status} ${details}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Sync pending encounter deletes
+  const pendingEncounterDeletes = await db.getAll('pending-encounter-deletes');
+  swDebug('Pending encounter deletes loaded', { count: pendingEncounterDeletes.length });
+  for (const entry of pendingEncounterDeletes) {
+    const encounterId = isObject(entry.data) ? entry.data.encounterId : null;
+    if (typeof encounterId !== 'string') {
+      await db.delete('pending-encounter-deletes', entry.id);
+      continue;
+    }
+    let attempt = 0;
+    const MAX_ATTEMPTS = 3;
+    const BACKOFF_MS = [2000, 5000, 10000];
+    let success = false;
+    while (!success && attempt < MAX_ATTEMPTS) {
+      try {
+        const res = await fetch(`/api/encounters/${encounterId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok || res.status === 404) {
+          await db.delete('pending-encounter-deletes', entry.id);
+          const allClients = await self.clients.matchAll({ type: 'window' });
+          for (const client of allClients) {
+            client.postMessage({ type: 'ENCOUNTER_DELETE_SYNCED', encounterId });
+          }
+          success = true;
+        } else if (res.status === 401) {
+          try { token = await requestFreshToken(); } catch { throw new Error('Token refresh failed'); }
+          attempt++;
+        } else {
+          const details = await readErrorDetails(res);
+          throw new Error(`DELETE /api/encounters/${encounterId} failed: ${res.status} ${details}`);
+        }
+      } catch (err) {
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
   // ────── After all syncs complete, refresh the read caches from API ────────────
   try {
     swTrace('log', '[SW] Syncs complete, refreshing caches from API...');
@@ -722,7 +854,7 @@ async function syncVisitsAndHouseholds() {
 
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('ministry-planner', 4);
+    const req = indexedDB.open('ministry-planner', 5);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('pending-avatars')) {
@@ -745,6 +877,15 @@ function openIDB() {
       }
       if (!db.objectStoreNames.contains('households-cache')) {
         db.createObjectStore('households-cache');
+      }
+      if (!db.objectStoreNames.contains('pending-household-deletes')) {
+        db.createObjectStore('pending-household-deletes');
+      }
+      if (!db.objectStoreNames.contains('pending-visit-deletes')) {
+        db.createObjectStore('pending-visit-deletes');
+      }
+      if (!db.objectStoreNames.contains('pending-encounter-deletes')) {
+        db.createObjectStore('pending-encounter-deletes');
       }
     };
     req.onsuccess = (e) => resolve(wrapDB(e.target.result));

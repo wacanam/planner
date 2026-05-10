@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Home,
   Plus,
@@ -12,10 +12,11 @@ import {
   BookOpen,
   FileText,
   User,
+  Trash2,
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useHouseholds, useHouseholdVisits } from '@/hooks';
+import { useHouseholds, useHouseholdVisits, useMyVisits } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +41,7 @@ import {
   type LogVisitFormData,
   type AddHouseholdFormData,
 } from '@/schemas/visit';
-import { queueVisit, queueHousehold, registerVisitSync } from '@/lib/visits-store';
+import { queueVisit, queueHousehold, queueHouseholdDelete, queueVisitDelete, registerVisitSync } from '@/lib/visits-store';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -99,8 +100,22 @@ interface VisitHistoryDrawerProps {
 function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDrawerProps) {
   const { visits, isLoading } = useHouseholdVisits(household?.id ?? null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deletingVisitId, setDeletingVisitId] = useState<string | null>(null);
+  const [deletedVisitIds, setDeletedVisitIds] = useState<Set<string>>(new Set());
+
+  const handleDeleteVisit = async (visitId: string) => {
+    setDeletingVisitId(visitId);
+    try {
+      await queueVisitDelete(visitId);
+      setDeletedVisitIds((prev) => new Set(prev).add(visitId));
+    } finally {
+      setDeletingVisitId(null);
+    }
+  };
 
   if (!household) return null;
+
+  const visibleVisits = visits.filter((v) => !deletedVisitIds.has(v.id));
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismiss via click
@@ -152,7 +167,7 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
         {/* Visit history */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Visit History ({isLoading ? '…' : visits.length})
+            Visit History ({isLoading ? '…' : visibleVisits.length})
           </h3>
 
           {isLoading ? (
@@ -161,13 +176,13 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                 <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
               ))}
             </div>
-          ) : visits.length === 0 ? (
+          ) : visibleVisits.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <Clock size={32} className="text-muted-foreground/30 mb-2" />
               <p className="text-xs text-muted-foreground">No visits recorded yet.</p>
             </div>
           ) : (
-            visits.map((v) => {
+            visibleVisits.map((v) => {
               const isExpanded = expandedId === v.id;
               const hasDetails =
                 v.notes ||
@@ -189,12 +204,23 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
                         <p className="text-xs text-muted-foreground">{v.duration} min</p>
                       )}
                     </div>
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 text-xs ${outcomeColors[v.outcome] ?? ''}`}
-                    >
-                      {outcomeLabels[v.outcome] ?? v.outcome}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${outcomeColors[v.outcome] ?? ''}`}
+                      >
+                        {outcomeLabels[v.outcome] ?? v.outcome}
+                      </Badge>
+                      <button
+                        type="button"
+                        disabled={deletingVisitId === v.id}
+                        onClick={() => void handleDeleteVisit(v.id)}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        aria-label="Delete visit"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
 
                   {v.returnVisitPlanned && (
@@ -603,6 +629,81 @@ function AddHouseholdDialog({ open, onClose, onSaved }: AddHouseholdDialogProps)
   );
 }
 
+// ─── Swipe To Reveal ─────────────────────────────────────────────────────────
+
+interface SwipeToRevealProps {
+  id: string;
+  swipedId: string | null;
+  onSwipe: (id: string | null) => void;
+  actions: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function SwipeToReveal({ id, swipedId, onSwipe, actions, children }: SwipeToRevealProps) {
+  const isRevealed = swipedId === id;
+  const startXRef = useRef<number>(0);
+  const draggingRef = useRef(false);
+  const [offset, setOffset] = useState(0);
+  const ACTION_WIDTH = 72;
+  const THRESHOLD = 40;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    draggingRef.current = true;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!draggingRef.current) return;
+    const dx = startXRef.current - e.touches[0].clientX;
+    if (isRevealed) {
+      setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH + dx)));
+    } else {
+      setOffset(Math.max(0, Math.min(ACTION_WIDTH, dx)));
+    }
+  };
+
+  const onTouchEnd = () => {
+    draggingRef.current = false;
+    if (offset > THRESHOLD) {
+      setOffset(ACTION_WIDTH);
+      onSwipe(id);
+    } else {
+      setOffset(0);
+      if (isRevealed) onSwipe(null);
+    }
+  };
+
+  // Sync offset when external state changes
+  useEffect(() => {
+    if (!isRevealed) setOffset(0);
+    else setOffset(ACTION_WIDTH);
+  }, [isRevealed]);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Action slot (behind the card, right-aligned) */}
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: ACTION_WIDTH }}
+      >
+        {actions}
+      </div>
+      {/* Card content */}
+      <div
+        style={{
+          transform: `translateX(-${offset}px)`,
+          transition: draggingRef.current ? 'none' : 'transform 0.2s ease',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export default function HouseholdsClient() {
@@ -611,24 +712,31 @@ export default function HouseholdsClient() {
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [swipedId, setSwipedId] = useState<string | null>(null);
 
   const { households, isLoading, dataSource, mutate } = useHouseholds();
+  const { visits: allVisits } = useMyVisits();
 
-  // Listen for SW sync messages — revalidate list on sync
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      const { type } = (e.data ?? {}) as { type?: string };
-      if (
-        type === 'VISIT_SYNCED' ||
-        type === 'HOUSEHOLD_SYNCED' ||
-        type === 'CACHE_UPDATED'
-      ) {
-        void mutate();
-      }
-    };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [mutate]);
+  // Count visits per household
+  const visitCountByHousehold = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const v of allVisits) {
+      counts[v.householdId] = (counts[v.householdId] ?? 0) + 1;
+    }
+    return counts;
+  }, [allVisits]);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await queueHouseholdDelete(id);
+      setSwipedId(null);
+      void mutate();
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     let list = households as Household[];
@@ -706,52 +814,79 @@ export default function HouseholdsClient() {
             <p className="text-sm text-muted-foreground">No households yet.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+        <div className="space-y-3">
             {filtered.map((h) => (
-              <div
+              <SwipeToReveal
                 key={h.id}
-                className="rounded-2xl border border-border bg-card p-4 flex items-start justify-between gap-3"
+                id={h.id}
+                swipedId={swipedId}
+                onSwipe={setSwipedId}
+                actions={
+                  <button
+                    type="button"
+                    disabled={deletingId === h.id}
+                    onClick={() => void handleDelete(h.id)}
+                    className="flex flex-col items-center justify-center w-full bg-destructive text-destructive-foreground rounded-r-2xl text-xs font-medium gap-1 disabled:opacity-50"
+                  >
+                    {deletingId === h.id ? (
+                      <span>…</span>
+                    ) : (
+                      <>
+                        <Trash2 size={16} />
+                        <span>Delete</span>
+                      </>
+                    )}
+                  </button>
+                }
               >
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                  onClick={() => setSelectedHousehold(h)}
-                >
-                  <p className="font-medium text-sm truncate">
-                    {h.houseNumber ? `${h.houseNumber} ` : ''}
-                    {h.address}, {h.streetName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {h.city}
-                    {h.postalCode ? `, ${h.postalCode}` : ''}
-                  </p>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    <Badge variant="outline" className={statusColors[h.status] ?? ''}>
-                      {statusLabels[h.status] ?? h.status}
-                    </Badge>
-                    {h.type && h.type !== 'house' && (
-                      <Badge variant="outline" className="capitalize text-xs">
-                        {h.type.replace('_', ' ')}
+                <div className="border border-border bg-card p-4 flex items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                    onClick={() => { setSwipedId(null); setSelectedHousehold(h); }}
+                  >
+                    <p className="font-medium text-sm truncate">
+                      {h.houseNumber ? `${h.houseNumber} ` : ''}
+                      {h.address}, {h.streetName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {h.city}
+                      {h.postalCode ? `, ${h.postalCode}` : ''}
+                    </p>
+                    <div className="flex gap-2 mt-2 flex-wrap items-center">
+                      <Badge variant="outline" className={statusColors[h.status] ?? ''}>
+                        {statusLabels[h.status] ?? h.status}
                       </Badge>
-                    )}
-                    {h.lastVisitDate && (
-                      <span className="text-xs text-muted-foreground">
-                        Last {timeAgo(h.lastVisitDate)}
-                      </span>
-                    )}
-                  </div>
-                </button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLogVisitHousehold(h);
-                  }}
-                >
-                  Log Visit
-                </Button>
-              </div>
+                      {h.type && h.type !== 'house' && (
+                        <Badge variant="outline" className="capitalize text-xs">
+                          {h.type.replace('_', ' ')}
+                        </Badge>
+                      )}
+                      {visitCountByHousehold[h.id] ? (
+                        <span className="text-xs text-muted-foreground">
+                          {visitCountByHousehold[h.id]} visit{visitCountByHousehold[h.id] > 1 ? 's' : ''}
+                        </span>
+                      ) : null}
+                      {h.lastVisitDate && (
+                        <span className="text-xs text-muted-foreground">
+                          · Last {timeAgo(h.lastVisitDate)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLogVisitHousehold(h);
+                    }}
+                  >
+                    Log Visit
+                  </Button>
+                </div>
+              </SwipeToReveal>
             ))}
           </div>
         )}

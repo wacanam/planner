@@ -38,7 +38,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 // ─── DB config — add new stores here, bump version ───────────────────────────
 
 const DB_NAME = 'ministry-planner';
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 const STORES = [
   // Existing
@@ -51,6 +51,10 @@ const STORES = [
   'pending-households',
   'pending-visits',
   'pending-encounters',
+  // Delete queues
+  'pending-household-deletes',
+  'pending-visit-deletes',
+  'pending-encounter-deletes',
 ] as const;
 
 export type StoreName = (typeof STORES)[number];

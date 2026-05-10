@@ -11,6 +11,7 @@ import { UserRole } from '@/db';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 import { SyncNowButton } from '@/components/sync-now-button';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
 
 function _roleLabel(role: UserRole): string {
   switch (role) {
@@ -104,78 +105,62 @@ export function DashboardHeader({ congregationId, congregationName }: DashboardH
   })();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href={homeHref} className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-              <MapPin size={16} className="text-primary" />
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-bold text-foreground tracking-tight text-sm">
-                Ministry Planner
-              </span>
-              {congregationName && (
-                <span className="text-[11px] text-muted-foreground leading-none">
-                  {congregationName}
+    <>
+      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link href={homeHref} className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                <MapPin size={16} className="text-primary" />
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="font-bold text-foreground tracking-tight text-sm">
+                  Ministry Planner
                 </span>
-              )}
-            </div>
-          </Link>
-
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all',
-                  pathname === link.href || pathname.startsWith(`${link.href}/`)
-                    ? 'text-primary bg-primary/10 font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
+                {congregationName && (
+                  <span className="text-[11px] text-muted-foreground leading-none">
+                    {congregationName}
+                  </span>
                 )}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+              </div>
+            </Link>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            <SyncNowButton />
-            <NotificationBell />
-            <ThemeToggle />
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all',
+                    pathname === link.href || pathname.startsWith(`${link.href}/`)
+                      ? 'text-primary bg-primary/10 font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
+                  )}
+                >
+                  {link.icon}
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
 
-            {/* User avatar dropdown */}
-            <UserAvatarDropdown name={user.name ?? ''} />
+            {/* Right side */}
+            <div className="flex items-center gap-2">
+              <SyncNowButton />
+              <NotificationBell />
+              <ThemeToggle />
+
+              {/* User avatar dropdown */}
+              <UserAvatarDropdown name={user.name ?? ''} />
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Mobile nav */}
-        {navLinks.length > 0 && (
-          <div className="md:hidden pb-2 flex gap-1 overflow-x-auto">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-all',
-                  pathname === link.href || pathname.startsWith(`${link.href}/`)
-                    ? 'text-primary bg-primary/10 font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/20'
-                )}
-              >
-                {link.icon}
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-    </header>
+      {/* Mobile bottom tab bar */}
+      <BottomTabBar congregationId={congregationId} />
+    </>
   );
 }
 

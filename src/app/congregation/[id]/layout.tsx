@@ -14,7 +14,7 @@ export default function CongregationLayout({ children }: { children: React.React
   return (
     <>
       <DashboardHeader congregationId={congregationId} congregationName={congregationName} />
-      <div className="flex-1 flex flex-col">{children}</div>
+      <div className="flex-1 flex flex-col pb-20 md:pb-0">{children}</div>
     </>
   );
 }

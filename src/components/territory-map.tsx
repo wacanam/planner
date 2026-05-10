@@ -58,6 +58,26 @@ export interface TerritoryMapProps {
   onCalibrationNeeded?: (needed: boolean) => void;
   onGeolocateReady?: (fn: () => void) => void;
   locationOn?: boolean;
+  // Pin household mode
+  pinHouseholdMode?: boolean;
+  onHouseholdPinPlaced?: (lat: number, lng: number) => void;
+  /** When true, tapping a household marker calls onHouseholdClick(id) directly
+   *  without showing the MapLibre popup first. Use in contexts where a React
+   *  bottom sheet handles the actions (e.g. InlineMapView). */
+  directHouseholdClick?: boolean;
+  /**
+   * Map interaction mode:
+   * - 'view'   (default) — normal marker click → popup or onHouseholdClick
+   * - 'add'    — single tap on empty map area drops a pin → onHouseholdPinPlaced
+   * - 'remove' — tap on a household marker calls onHouseholdRemove(id)
+   */
+  mapInteractionMode?: 'view' | 'add' | 'remove';
+  /** Called in 'remove' mode when user taps a household marker */
+  onHouseholdRemove?: (id: string) => void;
+  /** Called when user clicks "View Details" in the marker popup */
+  onHouseholdViewDetails?: (id: string) => void;
+  /** Called when user clicks "Delete" in the marker popup (shows confirmation in parent) */
+  onHouseholdDeleteRequest?: (id: string) => void;
 }
 
 // ─── Map styles ───────────────────────────────────────────────────────────────
@@ -198,6 +218,13 @@ export default function TerritoryMap({
   onDrawingStateChange,
   onDrawingActions,
   initialDrawingRings,
+  pinHouseholdMode = false,
+  onHouseholdPinPlaced,
+  directHouseholdClick = false,
+  mapInteractionMode,
+  onHouseholdRemove,
+  onHouseholdViewDetails,
+  onHouseholdDeleteRequest,
 }: TerritoryMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import('maplibre-gl').Map | null>(null);
@@ -205,8 +232,27 @@ export default function TerritoryMap({
   const geolocateRef = useRef<import('maplibre-gl').GeolocateControl | null>(null);
   const onClickRef = useRef(onHouseholdClick);
   onClickRef.current = onHouseholdClick;
+  const directHouseholdClickRef = useRef(directHouseholdClick);
+  directHouseholdClickRef.current = directHouseholdClick;
+  const mapInteractionModeRef = useRef(mapInteractionMode);
+  mapInteractionModeRef.current = mapInteractionMode;
+  const onHouseholdRemoveRef = useRef(onHouseholdRemove);
+  onHouseholdRemoveRef.current = onHouseholdRemove;
+  const onHouseholdViewDetailsRef = useRef(onHouseholdViewDetails);
+  onHouseholdViewDetailsRef.current = onHouseholdViewDetails;
+  const onHouseholdDeleteRequestRef = useRef(onHouseholdDeleteRequest);
+  onHouseholdDeleteRequestRef.current = onHouseholdDeleteRequest;
+  // Derive effective interaction mode — mapInteractionMode takes precedence over legacy pinHouseholdMode
+  const effectiveInteractionMode = mapInteractionMode ?? (pinHouseholdMode ? 'add' : 'view');
+  const effectiveInteractionModeRef = useRef(effectiveInteractionMode);
+  effectiveInteractionModeRef.current = effectiveInteractionMode;
   // Track the currently open household popup so only one is shown at a time
   const activePopupRef = useRef<import('maplibre-gl').Popup | null>(null);
+  // Pin household mode
+  const [pendingPin, setPendingPin] = useState<[number, number] | null>(null);
+  const pinMarkerRef = useRef<import('maplibre-gl').Marker | null>(null);
+  const onHouseholdPinPlacedRef = useRef(onHouseholdPinPlaced);
+  onHouseholdPinPlacedRef.current = onHouseholdPinPlaced;
 
   // ── Drawing state ─────────────────────────────────────────────────────────
   type LngLat = [number, number];
@@ -895,6 +941,8 @@ useEffect(() => {
 
           const showPopup = () => {
             const onHClick = onClickRef.current;
+            const onViewDetails = onHouseholdViewDetailsRef.current;
+            const onDeleteRequest = onHouseholdDeleteRequestRef.current;
             const fmtEnum = (s: string) => s.replace(/_/g, ' ');
             // Format last visit date
             const visitDateStr = lastVisitDate
@@ -950,6 +998,8 @@ useEffect(() => {
                   notesSnippet
                     ? '<p style="margin:0 0 8px;font-size:12px;color:#64748b;font-style:italic;line-height:1.4">' + escHtml(notesSnippet) + '</p>'
                     : '',
+                  // Action buttons
+                  '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">',
                   // Log Visit button
                   onHClick
                     ? [
@@ -958,11 +1008,28 @@ useEffect(() => {
                           "','" +
                           address.replace(/\\/g, '\\\\').replace(/'/g, "\\'") +
                           '\')"',
-                        ' style="margin-top:6px;width:100%;padding:9px 0;background:' + color +
-                          ';color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.01em;">',
+                        ' style="flex:1;min-width:80px;padding:8px 4px;background:' + color +
+                          ';color:white;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
                         'Log Visit</button>',
                       ].join('')
                     : '',
+                  // View Details button
+                  onViewDetails
+                    ? [
+                        '<button onclick="window.__mapViewDetails(\'' + id + '\')"',
+                        ' style="flex:1;min-width:80px;padding:8px 4px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                        'View Details</button>',
+                      ].join('')
+                    : '',
+                  // Delete button
+                  onDeleteRequest
+                    ? [
+                        '<button onclick="window.__mapDeleteRequest(\'' + id + '\')"',
+                        ' style="padding:8px 10px;background:#fff1f2;color:#e11d48;border:1px solid #fecdd3;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;">',
+                        '🗑</button>',
+                      ].join('')
+                    : '',
+                  '</div>',
                   '</div>',
                 ].join('')
               )
@@ -983,6 +1050,18 @@ useEffect(() => {
                 onHClick(hId, hAddr);
               };
             }
+            if (onViewDetails) {
+              (window as unknown as Record<string, unknown>).__mapViewDetails = (hId: string) => {
+                popup.remove();
+                onViewDetails(hId);
+              };
+            }
+            if (onDeleteRequest) {
+              (window as unknown as Record<string, unknown>).__mapDeleteRequest = (hId: string) => {
+                popup.remove();
+                onDeleteRequest(hId);
+              };
+            }
           };
 
           // Listen for both click (desktop) and touchend (mobile) because
@@ -993,6 +1072,26 @@ useEffect(() => {
           // fires a synthesised click after the touchend.
           let touchStartX = 0, touchStartY = 0;
           let touchHandled = false;
+          const handleMarkerTap = () => {
+            if (effectiveInteractionModeRef.current === 'remove' && onHouseholdRemoveRef.current) {
+              // Remove mode: delete the household
+              if (activePopupRef.current) {
+                activePopupRef.current.remove();
+                activePopupRef.current = null;
+              }
+              onHouseholdRemoveRef.current(id);
+            } else if (directHouseholdClickRef.current && onClickRef.current) {
+              // directHouseholdClick: skip the MapLibre popup and call the
+              // callback immediately so the React bottom sheet can open.
+              if (activePopupRef.current) {
+                activePopupRef.current.remove();
+                activePopupRef.current = null;
+              }
+              onClickRef.current(id, address);
+            } else {
+              showPopup();
+            }
+          };
           el.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].clientX;
             touchStartY = e.changedTouches[0].clientY;
@@ -1002,14 +1101,14 @@ useEffect(() => {
             const t = e.changedTouches[0];
             if (Math.abs(t.clientX - touchStartX) < 10 && Math.abs(t.clientY - touchStartY) < 10) {
               touchHandled = true;
-              showPopup();
+              handleMarkerTap();
               // Reset after click fires (two rAFs so the click handler can check)
               requestAnimationFrame(() => requestAnimationFrame(() => { touchHandled = false; }));
             }
           }, { passive: true });
           el.addEventListener('click', () => {
             if (touchHandled) return; // already handled by touchend above
-            showPopup();
+            handleMarkerTap();
           });
         }
 
@@ -1401,6 +1500,70 @@ useEffect(() => {
     prevIsDrawing.current = isDrawing;
   }, [isDrawing]);
 
+  // ─── Pin household mode: click map to drop a pin (no long-press) ────────
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (!map || !mapReady) return;
+
+    if (effectiveInteractionMode !== 'add' || isDrawing) {
+      pinMarkerRef.current?.remove();
+      pinMarkerRef.current = null;
+      setPendingPin(null);
+      if (!isDrawing) map.getCanvas().style.cursor = '';
+      return;
+    }
+
+    map.getCanvas().style.cursor = 'crosshair';
+
+    const placePinAt = (lat: number, lng: number) => {
+      setPendingPin([lat, lng]);
+      if (pinMarkerRef.current) {
+        pinMarkerRef.current.setLngLat([lng, lat]);
+      } else {
+        import('maplibre-gl').then((mgl) => {
+          if (!mapInstance.current) return;
+          const ns = 'http://www.w3.org/2000/svg';
+          const svg = document.createElementNS(ns, 'svg');
+          svg.setAttribute('width', '28');
+          svg.setAttribute('height', '36');
+          svg.setAttribute('viewBox', '0 0 26 34');
+          svg.style.filter = 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))';
+          const body = document.createElementNS(ns, 'path');
+          body.setAttribute(
+            'd',
+            'M13 2 C6.4 2 2 6.8 2 13 C2 19.5 7 24 11 26 A2.2 2.2 0 0 0 15 26 C19 24 24 19.5 24 13 C24 6.8 19.6 2 13 2 Z',
+          );
+          body.setAttribute('fill', '#ef4444');
+          const dot = document.createElementNS(ns, 'circle');
+          dot.setAttribute('cx', '13');
+          dot.setAttribute('cy', '13');
+          dot.setAttribute('r', '5');
+          dot.setAttribute('fill', 'white');
+          svg.appendChild(body);
+          svg.appendChild(dot);
+          const el = document.createElement('div');
+          el.appendChild(svg);
+          const marker = new mgl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat([lng, lat])
+            .addTo(mapInstance.current);
+          pinMarkerRef.current = marker;
+        });
+      }
+    };
+
+    // Single tap/click on map canvas drops a pin
+    const handleMapClick = (e: { lngLat: { lat: number; lng: number } }) => {
+      placePinAt(e.lngLat.lat, e.lngLat.lng);
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+      map.getCanvas().style.cursor = '';
+    };
+  }, [effectiveInteractionMode, mapReady, isDrawing]);
+
   return (
     <div className={`relative ${className}`}>
       <link
@@ -1457,6 +1620,32 @@ useEffect(() => {
           <p className="text-[11px] text-muted-foreground/70 mt-0.5">
             Add a boundary or household coordinates
           </p>
+        </div>
+      )}
+
+      {effectiveInteractionMode === 'add' && !pendingPin && !isDrawing && (
+        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100] pointer-events-none">
+          <div className="px-4 py-2 bg-black/70 text-white rounded-full text-xs font-medium">
+            Tap map to place a household
+          </div>
+        </div>
+      )}
+
+      {effectiveInteractionMode === 'add' && pendingPin && (
+        <div className="absolute bottom-16 inset-x-0 flex justify-center z-[100]">
+          <button
+            type="button"
+            onClick={() => {
+              const [lat, lng] = pendingPin;
+              onHouseholdPinPlacedRef.current?.(lat, lng);
+              setPendingPin(null);
+              pinMarkerRef.current?.remove();
+              pinMarkerRef.current = null;
+            }}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-full font-semibold text-sm shadow-lg"
+          >
+            ✓ Confirm Pin
+          </button>
         </div>
       )}
     </div>

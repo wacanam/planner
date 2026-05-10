@@ -68,6 +68,26 @@ export async function clearPendingEncounter(id: string): Promise<void> {
   return clearPendingWrite('pending-encounters', id);
 }
 
+// ─── Queue pending deletes ────────────────────────────────────────────────────
+
+export async function queueHouseholdDelete(householdId: string): Promise<string> {
+  const id = await queueWrite('pending-household-deletes', { householdId });
+  await registerSync('visits-sync');
+  return id;
+}
+
+export async function queueVisitDelete(visitId: string): Promise<string> {
+  const id = await queueWrite('pending-visit-deletes', { visitId });
+  await registerSync('visits-sync');
+  return id;
+}
+
+export async function queueEncounterDelete(encounterId: string): Promise<string> {
+  const id = await queueWrite('pending-encounter-deletes', { encounterId });
+  await registerSync('visits-sync');
+  return id;
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 export function hasPendingVisitsFlag(): boolean {
