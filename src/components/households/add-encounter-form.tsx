@@ -1,19 +1,15 @@
 'use client';
 
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
+const nativeSelectClassName =
+  'flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const schema = z.object({
   name: z.string().max(120).optional(),
@@ -38,7 +34,6 @@ export function AddEncounterForm({
   onSubmit,
 }: AddEncounterFormProps) {
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -69,25 +64,14 @@ export function AddEncounterForm({
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="encounter-response">Response</Label>
-        <Controller
-          name="response"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="encounter-response">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="receptive">Receptive</SelectItem>
-                <SelectItem value="neutral">Neutral</SelectItem>
-                <SelectItem value="not_interested">Not interested</SelectItem>
-                <SelectItem value="hostile">Hostile</SelectItem>
-                <SelectItem value="do_not_visit">Do not visit</SelectItem>
-                <SelectItem value="moved">Moved</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        />
+        <select id="encounter-response" className={nativeSelectClassName} {...register('response')}>
+          <option value="receptive">Receptive</option>
+          <option value="neutral">Neutral</option>
+          <option value="not_interested">Not interested</option>
+          <option value="hostile">Hostile</option>
+          <option value="do_not_visit">Do not visit</option>
+          <option value="moved">Moved</option>
+        </select>
         {errors.response ? (
           <p className="text-xs text-destructive">{errors.response.message}</p>
         ) : null}

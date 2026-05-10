@@ -1,23 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   AddEncounterForm,
   type AddEncounterFormValues,
 } from '@/components/households/add-encounter-form';
+
+const nativeSelectClassName =
+  'flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2';
 
 const schema = z.object({
   outcome: z.enum(['answered', 'not_home', 'return_visit', 'do_not_visit', 'moved', 'other']),
@@ -66,7 +62,6 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
   const [showEncounterForm, setShowEncounterForm] = useState(false);
 
   const {
-    control,
     register,
     handleSubmit,
     watch,
@@ -87,31 +82,28 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
       values.returnVisitPlanned && values.nextVisitDate
         ? new Date(`${values.nextVisitDate}T${values.nextVisitTime || '09:00'}`).toISOString()
         : undefined;
-    await onSubmit({ ...values, nextVisitDate }, encounters);
+    await onSubmit(
+      {
+        ...values,
+        householdStatusAfter:
+          values.householdStatusAfter === 'keep' ? undefined : values.householdStatusAfter,
+        nextVisitDate,
+      },
+      encounters
+    );
   };
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit(handleFormSubmit)}>
       <div className="space-y-1.5">
         <Label htmlFor="log-outcome">Outcome</Label>
-        <Controller
-          name="outcome"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="log-outcome">
-                <SelectValue placeholder="Select outcome" />
-              </SelectTrigger>
-              <SelectContent>
-                {outcomes.map((outcome) => (
-                  <SelectItem key={outcome.value} value={outcome.value}>
-                    {outcome.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
+        <select id="log-outcome" className={nativeSelectClassName} {...register('outcome')}>
+          {outcomes.map((outcome) => (
+            <option key={outcome.value} value={outcome.value}>
+              {outcome.label}
+            </option>
+          ))}
+        </select>
         {errors.outcome ? (
           <p className="text-xs text-destructive">{errors.outcome.message}</p>
         ) : null}
@@ -120,28 +112,19 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="log-status">Household status</Label>
-          <Controller
-            name="householdStatusAfter"
-            control={control}
-            render={({ field }) => (
-              <Select
-                value={field.value ?? 'keep'}
-                onValueChange={(value) => field.onChange(value === 'keep' ? undefined : value)}
-              >
-                <SelectTrigger id="log-status">
-                  <SelectValue placeholder="Keep current" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="keep">Keep current</SelectItem>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
+          <select
+            id="log-status"
+            className={nativeSelectClassName}
+            defaultValue="keep"
+            {...register('householdStatusAfter')}
+          >
+            <option value="keep">Keep current</option>
+            {statusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="log-duration">Duration</Label>

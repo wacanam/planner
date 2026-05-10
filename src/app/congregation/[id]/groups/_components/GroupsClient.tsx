@@ -139,30 +139,10 @@ export default function CongregationGroupsPage() {
     setMembersError('');
     setMembersSaving(true);
     try {
-      const newMemberIds = selectedMemberIds;
-
-      // Enforce one-group-per-member: remove newly-added members from any other group first
-      const addedIds = newMemberIds.filter(
-        (uid) => !membersTarget.members.some((m) => m.userId === uid)
-      );
-      if (addedIds.length > 0) {
-        const otherGroups = groups.filter((g) => g.id !== membersTarget.id);
-        await Promise.all(
-          otherGroups
-            .filter((g) => g.members.some((m) => addedIds.includes(m.userId)))
-            .map((g) =>
-              updateGroup({
-                id: g.id,
-                members: g.members.filter((m) => !addedIds.includes(m.userId)),
-              })
-            )
-        );
-      }
-
       await updateGroup({
         id: membersTarget.id,
         members: members
-          .filter((member) => newMemberIds.includes(member.userId))
+          .filter((member) => selectedMemberIds.includes(member.userId))
           .map((member) => ({
             id: member.id,
             userId: member.userId,
@@ -437,10 +417,10 @@ export default function CongregationGroupsPage() {
             ) : (
               members.map((member) => {
                 const selected = selectedMemberIds.includes(member.userId);
-                // Find which other group this member currently belongs to
-                const otherGroup = groups.find(
-                  (g) =>
-                    g.id !== membersTarget?.id && g.members.some((m) => m.userId === member.userId)
+                const currentGroup = groups.find(
+                  (group) =>
+                    group.id !== membersTarget?.id &&
+                    group.members.some((groupMember) => groupMember.userId === member.userId)
                 );
                 return (
                   <button
@@ -448,7 +428,11 @@ export default function CongregationGroupsPage() {
                     type="button"
                     onClick={() => toggleMember(member.userId)}
                     className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-                      selected ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60'
+                      selected
+                        ? 'border-primary bg-primary/10'
+                        : currentGroup
+                          ? 'border-amber-300 bg-amber-50/70 hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10 dark:hover:bg-amber-900/20'
+                          : 'border-border hover:bg-muted/60'
                     }`}
                   >
                     <span className="min-w-0">
@@ -456,19 +440,16 @@ export default function CongregationGroupsPage() {
                         {member.user?.name ?? 'Unnamed member'}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {otherGroup && !selected
-                          ? `In: ${otherGroup.name} — will be moved`
-                          : (member.user?.email ?? member.congregationRole ?? 'Publisher')}
+                        {member.user?.email ?? member.congregationRole ?? 'Publisher'}
                       </span>
+                      {!selected && currentGroup ? (
+                        <span className="mt-0.5 block truncate text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                          In {currentGroup.name}
+                        </span>
+                      ) : null}
                     </span>
-                    <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${
-                        otherGroup && !selected
-                          ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
-                          : ''
-                      }`}
-                    >
-                      {selected ? 'Assigned' : otherGroup ? 'Move here' : 'Add'}
+                    <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium">
+                      {selected ? 'Assigned' : currentGroup ? 'Move' : 'Add'}
                     </span>
                   </button>
                 );

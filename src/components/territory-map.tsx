@@ -1,6 +1,5 @@
 'use client';
 
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import {
   Crosshair,
   Layers,
@@ -16,12 +15,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface HouseholdPoint {
   id: string;
-  address: string;
+  address?: string | null;
+  streetName?: string | null;
+  city?: string | null;
   latitude?: string | number | null;
   longitude?: string | number | null;
   status?: string | null;
   type?: string | null;
   occupantsCount?: number | null;
+  membersCount?: number | null;
   lastVisitDate?: string | null;
   lastVisitOutcome?: string | null;
   notes?: string | null;
@@ -67,7 +69,11 @@ export interface TerritoryMapProps {
 
 type LngLat = [number, number];
 type GoogleApi = typeof google;
-type ParsedGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+type GeoJsonPosition = [number, number, ...number[]];
+type ParsedGeometry =
+  | { type: 'Polygon'; coordinates: GeoJsonPosition[][] }
+  | { type: 'MultiPolygon'; coordinates: GeoJsonPosition[][][] };
+type ParsedFeature = { type?: string; geometry?: ParsedGeometry | null };
 
 declare global {
   interface Window {
@@ -167,7 +173,7 @@ function loadGoogleMaps(): Promise<GoogleApi> {
 function parseBoundary(boundary?: string | null): ParsedGeometry | null {
   if (!boundary) return null;
   try {
-    const parsed = JSON.parse(boundary) as GeoJSON.Feature | ParsedGeometry;
+    const parsed = JSON.parse(boundary) as ParsedFeature | ParsedGeometry;
     const geometry = 'geometry' in parsed ? parsed.geometry : parsed;
     if (!geometry || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) return null;
     return geometry as ParsedGeometry;
@@ -221,52 +227,65 @@ function statusLabel(value?: string | null) {
   return (value ?? 'not_visited').replace(/_/g, ' ');
 }
 
-// Soft Google Maps-style teardrop pin with house icon
+function householdLabel(household: Pick<HouseholdPoint, 'address' | 'streetName' | 'city'>) {
+  const address = household.address?.trim();
+  if (address) return address;
+  const locality = [household.streetName, household.city].filter(Boolean).join(', ');
+  return locality || 'Unnamed household';
+}
+
+function formatHouseholdType(value?: string | null) {
+  return value ? value.replace(/_/g, ' ') : 'Household';
+}
+
+function orientationHeading(event: DeviceOrientationEvent & { webkitCompassHeading?: number }) {
+  const compassHeading = event.webkitCompassHeading;
+  const rawHeading =
+    typeof compassHeading === 'number'
+      ? compassHeading
+      : typeof event.alpha === 'number'
+        ? 360 - event.alpha
+        : null;
+  if (rawHeading === null) return null;
+  const screenAngle =
+    window.screen.orientation?.angle ??
+    (window as typeof window & { orientation?: number }).orientation ??
+    0;
+  return (((rawHeading + screenAngle) % 360) + 360) % 360;
+}
+
 function markerIcon(api: GoogleApi, color: string): google.maps.Icon {
-  // House icon path (simplified home outline)
-  const housePath = `M17,8.5 L9,15 L9,24 L14,24 L14,19 L20,19 L20,24 L25,24 L25,15 Z
-    M13.5,13 L17,10 L20.5,13`;
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-      <filter id="ds" x="-20%" y="-10%" width="140%" height="130%">
-        <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.28)"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46">
+      <filter id="shadow" x="-25%" y="-15%" width="150%" height="150%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.22"/>
       </filter>
-      <!-- Soft teardrop: round top, tapered bottom point -->
-      <path d="M18 3 C9.7 3 4 9.2 4 17 C4 24.5 10 32 14.8 37.8 C16 39.3 16.7 40.5 18 42 C19.3 40.5 20 39.3 21.2 37.8 C26 32 32 24.5 32 17 C32 9.2 26.3 3 18 3 Z"
-        fill="white" filter="url(#ds)"/>
-      <path d="M18 5 C10.8 5 6 10.6 6 17 C6 23.8 11.5 31 16.1 36.4 C17 37.5 17.5 38.3 18 39.5 C18.5 38.3 19 37.5 19.9 36.4 C24.5 31 30 23.8 30 17 C30 10.6 25.2 5 18 5 Z"
-        fill="${color}"/>
-      <!-- House icon in white -->
-      <g fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="10,17 18,11 26,17"/>
-        <rect x="12" y="17" width="12" height="9" rx="0.5"/>
-        <rect x="15.5" y="20" width="5" height="6" rx="0.5"/>
-      </g>
+      <path filter="url(#shadow)" d="M19 3.25C10.8 3.25 5 9.1 5 17.25c0 9.1 8.1 18.8 12.4 23.4a2.2 2.2 0 0 0 3.2 0C24.9 36.05 33 26.35 33 17.25 33 9.1 27.2 3.25 19 3.25Z" fill="white"/>
+      <path d="M19 5.75c-6.75 0-11.5 4.8-11.5 11.5 0 7.25 6.2 15.55 11.5 21.25 5.3-5.7 11.5-14 11.5-21.25 0-6.7-4.75-11.5-11.5-11.5Z" fill="${color}"/>
+      <path d="M13.1 17.15 19 12.2l5.9 4.95v6.7c0 .48-.39.88-.88.88h-3.08v-4.35h-3.88v4.35h-3.08a.88.88 0 0 1-.88-.88v-6.7Z" fill="white"/>
+      <path d="M11.95 17.55 19 11.65l7.05 5.9" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new api.maps.Size(36, 48),
-    anchor: new api.maps.Point(18, 46),
+    scaledSize: new api.maps.Size(38, 46),
+    anchor: new api.maps.Point(19, 43),
   };
 }
 
 function tempPinIcon(api: GoogleApi): google.maps.Icon {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-      <filter id="ds" x="-20%" y="-10%" width="140%" height="130%">
-        <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.28)"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46">
+      <filter id="shadow" x="-25%" y="-15%" width="150%" height="150%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.25"/>
       </filter>
-      <path d="M18 3 C9.7 3 4 9.2 4 17 C4 24.5 10 32 14.8 37.8 C16 39.3 16.7 40.5 18 42 C19.3 40.5 20 39.3 21.2 37.8 C26 32 32 24.5 32 17 C32 9.2 26.3 3 18 3 Z"
-        fill="white" filter="url(#ds)"/>
-      <path d="M18 5 C10.8 5 6 10.6 6 17 C6 23.8 11.5 31 16.1 36.4 C17 37.5 17.5 38.3 18 39.5 C18.5 38.3 19 37.5 19.9 36.4 C24.5 31 30 23.8 30 17 C30 10.6 25.2 5 18 5 Z"
-        fill="#ef4444"/>
-      <circle cx="18" cy="17" r="4.5" fill="white" opacity="0.9"/>
-      <circle cx="18" cy="17" r="2" fill="#ef4444"/>
+      <path filter="url(#shadow)" d="M19 3.25C10.8 3.25 5 9.1 5 17.25c0 9.1 8.1 18.8 12.4 23.4a2.2 2.2 0 0 0 3.2 0C24.9 36.05 33 26.35 33 17.25 33 9.1 27.2 3.25 19 3.25Z" fill="#ef4444"/>
+      <path d="M13.1 17.15 19 12.2l5.9 4.95v6.7c0 .48-.39.88-.88.88h-3.08v-4.35h-3.88v4.35h-3.08a.88.88 0 0 1-.88-.88v-6.7Z" fill="white"/>
+      <path d="M11.95 17.55 19 11.65l7.05 5.9" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new api.maps.Size(36, 48),
-    anchor: new api.maps.Point(18, 46),
+    scaledSize: new api.maps.Size(38, 46),
+    anchor: new api.maps.Point(19, 43),
   };
 }
 
@@ -296,117 +315,6 @@ function MapControlButton({
       {children}
     </button>
   );
-}
-
-// ─── Heading beam overlay using a CSS cone ────────────────────────────────────
-function HeadingBeam({
-  map,
-  googleApi,
-  location,
-  heading,
-}: {
-  map: google.maps.Map | null;
-  googleApi: GoogleApi | null;
-  location: { lat: number; lng: number };
-  heading: number;
-}) {
-  const divRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<google.maps.OverlayView | null>(null);
-
-  useEffect(() => {
-    if (!map || !googleApi) return;
-
-    class BeamOverlay extends googleApi.maps.OverlayView {
-      private div: HTMLDivElement | null = null;
-      private pos: google.maps.LatLng;
-
-      constructor(pos: google.maps.LatLng) {
-        super();
-        this.pos = pos;
-      }
-
-      onAdd() {
-        this.div = document.createElement('div');
-        this.div.style.cssText = `
-          position: absolute;
-          width: 0;
-          height: 0;
-          pointer-events: none;
-        `;
-        const panes = this.getPanes();
-        panes?.overlayMouseTarget.appendChild(this.div);
-      }
-
-      draw() {
-        if (!this.div) return;
-        const proj = this.getProjection();
-        const point = proj.fromLatLngToDivPixel(this.pos);
-        if (point) {
-          this.div.style.left = `${point.x}px`;
-          this.div.style.top = `${point.y}px`;
-        }
-      }
-
-      onRemove() {
-        this.div?.parentNode?.removeChild(this.div);
-        this.div = null;
-      }
-
-      getDiv() {
-        return this.div;
-      }
-
-      updatePosition(pos: google.maps.LatLng) {
-        this.pos = pos;
-        this.draw();
-      }
-    }
-
-    const latLng = new googleApi.maps.LatLng(location.lat, location.lng);
-    const overlay = new BeamOverlay(latLng);
-    overlay.setMap(map);
-    overlayRef.current = overlay;
-
-    return () => {
-      overlay.setMap(null);
-      overlayRef.current = null;
-    };
-  }, [map, googleApi, location.lat, location.lng]);
-
-  // Update beam direction via the DOM div
-  useEffect(() => {
-    const overlay = overlayRef.current as
-      | (google.maps.OverlayView & { getDiv(): HTMLDivElement | null })
-      | null;
-    if (!overlay) return;
-    const div = overlay.getDiv();
-    if (!div) return;
-
-    // Remove previous beam
-    while (div.firstChild) div.removeChild(div.firstChild);
-
-    const beam = document.createElement('div');
-    beam.style.cssText = `
-      position: absolute;
-      left: -40px;
-      top: -80px;
-      width: 80px;
-      height: 80px;
-      transform-origin: 50% 100%;
-      transform: rotate(${heading}deg);
-      pointer-events: none;
-      background: conic-gradient(
-        from -20deg at 50% 100%,
-        rgba(37,99,235,0.55) 0deg,
-        rgba(37,99,235,0.12) 40deg,
-        transparent 40deg
-      );
-      border-radius: 50% 50% 0 0;
-    `;
-    div.appendChild(beam);
-  }, [heading]);
-
-  return null;
 }
 
 function pointToSegmentDistanceMeters(point: LngLat, start: LngLat, end: LngLat) {
@@ -460,142 +368,88 @@ function createInfoWindowContent(params: {
 }) {
   const { household, color, onLogVisit, onAddEncounter, onViewDetails } = params;
   const wrapper = document.createElement('div');
-  wrapper.className = 'min-w-60 max-w-72 font-sans';
-  wrapper.style.cssText = 'font-family: system-ui, sans-serif;';
+  wrapper.className = 'min-w-64 max-w-80 space-y-3 p-1 font-sans';
 
-  // ── Header row: colored indicator + address ────────────────────────────────
-  const header = document.createElement('div');
-  header.style.cssText = `
-    display: flex; align-items: flex-start; gap: 8px;
-    padding: 2px 0 8px;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 8px;
-  `;
-
-  const dot = document.createElement('div');
-  dot.style.cssText = `
-    width: 10px; height: 10px; border-radius: 50%;
-    background: ${color}; margin-top: 3px; flex-shrink: 0;
-  `;
-  header.appendChild(dot);
-
-  const titleBlock = document.createElement('div');
-  titleBlock.style.cssText = 'min-width: 0; flex: 1;';
+  const label = householdLabel(household);
+  const occupants = household.occupantsCount ?? household.membersCount;
 
   const title = document.createElement('p');
-  title.style.cssText =
-    'margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.3; word-break: break-word;';
-  title.textContent = household.address || 'Unnamed household';
-  titleBlock.appendChild(title);
+  title.className = 'text-sm font-bold leading-snug text-slate-950';
+  title.textContent = label;
+  wrapper.appendChild(title);
 
-  // Type badge
-  if (household.type) {
-    const typeBadge = document.createElement('span');
-    typeBadge.style.cssText =
-      'font-size: 10px; color: #64748b; font-weight: 500; text-transform: capitalize;';
-    typeBadge.textContent = household.type.replace(/_/g, ' ');
-    titleBlock.appendChild(typeBadge);
-  }
+  const detailGrid = document.createElement('div');
+  detailGrid.className = 'grid grid-cols-2 gap-1.5 text-[11px]';
+  wrapper.appendChild(detailGrid);
 
-  header.appendChild(titleBlock);
-  wrapper.appendChild(header);
-
-  // ── Info grid ──────────────────────────────────────────────────────────────
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;';
-
-  // Status pill
-  const statusRow = document.createElement('div');
-  statusRow.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-  const status = document.createElement('span');
-  status.style.cssText = `
-    display: inline-flex; align-items: center;
-    border-radius: 20px; padding: 3px 10px;
-    font-size: 11px; font-weight: 600; text-transform: capitalize;
-    background: ${color}1a; color: ${color};
-  `;
-  status.textContent = statusLabel(household.status);
-  statusRow.appendChild(status);
-  grid.appendChild(statusRow);
-
-  // Occupants count
-  if (household.occupantsCount != null && household.occupantsCount > 0) {
-    const row = document.createElement('div');
-    row.style.cssText =
-      'font-size: 11px; color: #475569; display: flex; align-items: center; gap: 4px;';
-    row.innerHTML = `<span style="font-weight:600;color:#0f172a">${household.occupantsCount}</span> occupant${household.occupantsCount !== 1 ? 's' : ''}`;
-    grid.appendChild(row);
-  }
-
-  // Last visit
-  if (household.lastVisitDate) {
-    const date = new Date(household.lastVisitDate);
-    if (!Number.isNaN(date.getTime())) {
-      const row = document.createElement('div');
-      row.style.cssText = 'font-size: 11px; color: #475569;';
-      const outcome = household.lastVisitOutcome
-        ? ` · ${statusLabel(household.lastVisitOutcome)}`
-        : '';
-      row.innerHTML = `<span style="color:#64748b">Last visit:</span> <strong style="color:#0f172a">${date.toLocaleDateString()}</strong>${outcome ? `<span style="color:#64748b">${outcome}</span>` : ''}`;
-      grid.appendChild(row);
+  const addDetail = (labelText: string, valueText: string, accent?: boolean) => {
+    const item = document.createElement('div');
+    item.className = 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2';
+    const itemLabel = document.createElement('p');
+    itemLabel.className = 'text-[10px] font-medium uppercase text-slate-500';
+    itemLabel.textContent = labelText;
+    const itemValue = document.createElement('p');
+    itemValue.className = 'mt-0.5 truncate font-semibold capitalize text-slate-900';
+    if (accent) {
+      itemValue.style.color = color;
     }
+    itemValue.textContent = valueText;
+    item.append(itemLabel, itemValue);
+    detailGrid.appendChild(item);
+  };
+
+  addDetail('Status', statusLabel(household.status), true);
+  addDetail('Type', formatHouseholdType(household.type));
+  if (typeof occupants === 'number') addDetail('Occupants', String(occupants));
+  if (household.city?.trim()) addDetail('Area', household.city.trim());
+
+  if (household.lastVisitDate) {
+    const visit = document.createElement('p');
+    visit.className = 'rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900';
+    const date = new Date(household.lastVisitDate);
+    visit.textContent = Number.isNaN(date.getTime())
+      ? ''
+      : `Last visit: ${date.toLocaleDateString()}${household.lastVisitOutcome ? ` - ${statusLabel(household.lastVisitOutcome)}` : ''}`;
+    if (visit.textContent) wrapper.appendChild(visit);
   }
 
-  // Notes
   if (household.notes?.trim()) {
     const notes = document.createElement('p');
-    notes.style.cssText =
-      'margin: 2px 0 0; font-size: 11px; font-style: italic; color: #64748b; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;';
+    notes.className = 'line-clamp-3 text-xs italic leading-relaxed text-slate-600';
     notes.textContent = household.notes.trim();
-    grid.appendChild(notes);
+    wrapper.appendChild(notes);
   }
 
-  wrapper.appendChild(grid);
-
-  // ── Actions ────────────────────────────────────────────────────────────────
   const actions = document.createElement('div');
-  actions.style.cssText =
-    'display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; border-top: 1px solid #f1f5f9;';
+  actions.className = 'flex flex-wrap gap-1.5 pt-1';
   wrapper.appendChild(actions);
 
   if (onLogVisit) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.style.cssText = `
-      flex: 1; min-width: 0;
-      border: none; border-radius: 10px;
-      padding: 8px 12px; font-size: 12px; font-weight: 600;
-      color: white; background: ${color}; cursor: pointer;
-    `;
-    button.textContent = 'Log Visit';
-    button.addEventListener('click', () => onLogVisit(household.id, household.address));
+    button.className = 'rounded-lg px-3 py-2 text-xs font-semibold text-white';
+    button.style.background = color;
+    button.textContent = 'Visit';
+    button.addEventListener('click', () => onLogVisit(household.id, label));
     actions.appendChild(button);
   }
 
   if (onAddEncounter) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.style.cssText = `
-      flex: 1; min-width: 0;
-      border: 1px solid #bfdbfe; border-radius: 10px;
-      padding: 8px 12px; font-size: 12px; font-weight: 600;
-      color: #1d4ed8; background: #eff6ff; cursor: pointer;
-    `;
+    button.className =
+      'rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700';
     button.textContent = 'Encounter';
-    button.addEventListener('click', () => onAddEncounter(household.id, household.address));
+    button.addEventListener('click', () => onAddEncounter(household.id, label));
     actions.appendChild(button);
   }
 
   if (onViewDetails) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.style.cssText = `
-      width: 100%;
-      border: 1px solid #e2e8f0; border-radius: 10px;
-      padding: 6px 12px; font-size: 11px; font-weight: 500;
-      color: #475569; background: #f8fafc; cursor: pointer; margin-top: 2px;
-    `;
-    button.textContent = 'View Details';
+    button.className =
+      'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
+    button.textContent = 'Details';
     button.addEventListener('click', () => onViewDetails(household.id));
     actions.appendChild(button);
   }
@@ -637,7 +491,6 @@ export default function TerritoryMap({
 }: TerritoryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
-  const clustererRef = useRef<MarkerClusterer | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const boundaryOverlaysRef = useRef<google.maps.MVCObject[]>([]);
   const drawingOverlaysRef = useRef<google.maps.MVCObject[]>([]);
@@ -645,7 +498,11 @@ export default function TerritoryMap({
   const tempPinMarkerRef = useRef<google.maps.Marker | null>(null);
   const locationMarkerRef = useRef<google.maps.Marker | null>(null);
   const locationCircleRef = useRef<google.maps.Circle | null>(null);
+  const headingBeamRef = useRef<google.maps.Polygon | null>(null);
   const locationWatchRef = useRef<number | null>(null);
+  const headingLocationWatchRef = useRef<number | null>(null);
+  const lastLocationRef = useRef<google.maps.LatLngLiteral | null>(null);
+  const headingRef = useRef<number | null>(null);
   const drawRingsRef = useRef<LngLat[][]>([]);
   const activeRingRef = useRef<LngLat[]>([]);
   const onHouseholdClickRef = useRef(onHouseholdClick);
@@ -659,11 +516,6 @@ export default function TerritoryMap({
   const onLocationDotClickRef = useRef(onLocationDotClick);
   const onCalibrationNeededRef = useRef(onCalibrationNeeded);
 
-  const headingBeamRef = useRef<HTMLDivElement | null>(null);
-  const headingOverlayRef = useRef<google.maps.OverlayView | null>(null);
-  const compassHeadingRef = useRef<number | null>(null);
-  const orientationListenerRef = useRef<((e: Event) => void) | null>(null);
-
   const [googleApi, setGoogleApi] = useState<GoogleApi | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -671,8 +523,6 @@ export default function TerritoryMap({
   const [localInteractionMode, setLocalInteractionMode] = useState<'view' | 'add'>('view');
   const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
   const [headingBeamActive, setHeadingBeamActive] = useState(false);
-  const [currentHeading, setCurrentHeading] = useState<number | null>(null);
-  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
 
@@ -823,13 +673,15 @@ export default function TerritoryMap({
     return () => {
       if (locationWatchRef.current !== null)
         navigator.geolocation.clearWatch(locationWatchRef.current);
-      clustererRef.current?.clearMarkers();
+      if (headingLocationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(headingLocationWatchRef.current);
       markersRef.current.forEach((marker) => {
         marker.setMap(null);
       });
       tempPinMarkerRef.current?.setMap(null);
       locationMarkerRef.current?.setMap(null);
       locationCircleRef.current?.setMap(null);
+      headingBeamRef.current?.setMap(null);
       clearBoundaryOverlays();
       clearDrawingOverlays();
       infoWindowRef.current?.close();
@@ -882,7 +734,7 @@ export default function TerritoryMap({
     }
 
     const activeGeometry = parseBoundary(boundary);
-    if (activeGeometry) {
+    if (activeGeometry && !isDrawing) {
       renderGeometry(activeGeometry, {
         strokeColor: '#2563eb',
         strokeOpacity: 0.95,
@@ -894,7 +746,15 @@ export default function TerritoryMap({
     }
 
     return clearBoundaryOverlays;
-  }, [allBoundaries, boundary, clearBoundaryOverlays, googleApi, mapReady, renderGeometry]);
+  }, [
+    allBoundaries,
+    boundary,
+    clearBoundaryOverlays,
+    googleApi,
+    isDrawing,
+    mapReady,
+    renderGeometry,
+  ]);
 
   useEffect(() => {
     if (!isDrawing) {
@@ -934,7 +794,9 @@ export default function TerritoryMap({
     if (!api || !map || !mapReady) return;
     clearDrawingOverlays();
 
-    for (const ring of drawRings) {
+    const ringPolygons: Array<google.maps.Polygon | undefined> = [];
+
+    drawRings.forEach((ring, ringIndex) => {
       const polygon = new api.maps.Polygon({
         map,
         paths: ringToLatLng([...ring, ring[0]]),
@@ -945,8 +807,9 @@ export default function TerritoryMap({
         fillOpacity: 0.24,
         zIndex: 5,
       });
+      ringPolygons[ringIndex] = polygon;
       drawingOverlaysRef.current.push(polygon);
-    }
+    });
 
     if (activeRing.length > 0) {
       const activeLine = new api.maps.Polyline({
@@ -995,6 +858,18 @@ export default function TerritoryMap({
           },
         });
         marker.addListener('drag', () => {
+          const position = marker.getPosition();
+          if (!position) return;
+          const polygon = ringPolygons[ringIndex];
+          if (!polygon) return;
+          const nextPath = ring.map((point, currentVertexIndex) =>
+            currentVertexIndex === vertexIndex
+              ? { lat: position.lat(), lng: position.lng() }
+              : { lat: point[1], lng: point[0] }
+          );
+          polygon.setPath([...nextPath, nextPath[0]]);
+        });
+        marker.addListener('dragend', () => {
           const position = marker.getPosition();
           if (!position) return;
           setDrawRings((current) =>
@@ -1063,26 +938,30 @@ export default function TerritoryMap({
     const api = googleApi;
     const map = mapRef.current;
     if (!api || !map || !mapReady) return;
-    clustererRef.current?.clearMarkers();
     markersRef.current.forEach((marker) => {
       marker.setMap(null);
     });
     markersRef.current = [];
     infoWindowRef.current?.close();
 
-    const markers = validPoints.map((household) => {
+    const markers = validPoints.map((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
-      const marker = new api.maps.Marker({
+      const label = householdLabel(household);
+      const markerOptions: google.maps.MarkerOptions = {
+        map,
         position: { lat: household.lat, lng: household.lng },
         icon: markerIcon(api, color),
-        title: household.address,
+        title: label,
         optimized: true,
-      });
+        zIndex: 100 + index,
+        collisionBehavior: api.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
+      };
+      const marker = new api.maps.Marker(markerOptions);
 
       marker.addListener('click', () => {
         if (directHouseholdClickRef.current && onHouseholdClickRef.current) {
           infoWindowRef.current?.close();
-          onHouseholdClickRef.current(household.id, household.address);
+          onHouseholdClickRef.current(household.id, label);
           return;
         }
 
@@ -1101,10 +980,8 @@ export default function TerritoryMap({
     });
 
     markersRef.current = markers;
-    clustererRef.current = new MarkerClusterer({ map, markers });
 
     return () => {
-      clustererRef.current?.clearMarkers();
       markers.forEach((marker) => {
         marker.setMap(null);
       });
@@ -1153,13 +1030,63 @@ export default function TerritoryMap({
     if (hasSavedHousehold) setVisiblePin(null);
   }, [setVisiblePin, validPoints, visiblePin]);
 
+  const updateHeadingBeam = useCallback(
+    (
+      coords: google.maps.LatLngLiteral | null = lastLocationRef.current,
+      nextHeading: number | null = headingRef.current
+    ) => {
+      const api = googleApi;
+      const map = mapRef.current;
+      if (!api || !map || !coords || nextHeading === null || !headingBeamActive) {
+        headingBeamRef.current?.setMap(null);
+        return;
+      }
+
+      const origin = new api.maps.LatLng(coords.lat, coords.lng);
+      const zoom = map.getZoom() ?? 16;
+      const beamLengthMeters = Math.max(60, Math.min(130, 180 - zoom * 5));
+      const beamWidthDegrees = 26;
+      const left = api.maps.geometry.spherical.computeOffset(
+        origin,
+        beamLengthMeters * 0.7,
+        nextHeading - beamWidthDegrees
+      );
+      const tip = api.maps.geometry.spherical.computeOffset(origin, beamLengthMeters, nextHeading);
+      const right = api.maps.geometry.spherical.computeOffset(
+        origin,
+        beamLengthMeters * 0.7,
+        nextHeading + beamWidthDegrees
+      );
+      const path = [coords, left.toJSON(), tip.toJSON(), right.toJSON()];
+
+      if (!headingBeamRef.current) {
+        headingBeamRef.current = new api.maps.Polygon({
+          map,
+          paths: path,
+          clickable: false,
+          strokeColor: '#2563eb',
+          strokeOpacity: 0.34,
+          strokeWeight: 1,
+          fillColor: '#2563eb',
+          fillOpacity: 0.2,
+          zIndex: 90,
+        });
+        return;
+      }
+
+      headingBeamRef.current.setMap(map);
+      headingBeamRef.current.setPath(path);
+    },
+    [googleApi, headingBeamActive]
+  );
+
   const updateLocation = useCallback(
     (position: GeolocationPosition, pan = false) => {
       const api = googleApi;
       const map = mapRef.current;
       if (!api || !map) return;
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
-      setCurrentLocation(coords);
+      lastLocationRef.current = coords;
       if (!locationMarkerRef.current) {
         locationMarkerRef.current = new api.maps.Marker({
           map,
@@ -1168,11 +1095,11 @@ export default function TerritoryMap({
           zIndex: 100,
           icon: {
             path: api.maps.SymbolPath.CIRCLE,
-            scale: 8,
+            scale: 7,
             fillColor: '#2563eb',
             fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 2.5,
+            strokeWeight: 3,
           },
         });
         locationMarkerRef.current.addListener('click', () => onLocationDotClickRef.current?.());
@@ -1197,9 +1124,10 @@ export default function TerritoryMap({
       }
 
       if (pan) map.panTo(coords);
+      updateHeadingBeam(coords);
       onCalibrationNeededRef.current?.(false);
     },
-    [googleApi]
+    [googleApi, updateHeadingBeam]
   );
 
   const locateOnce = useCallback(() => {
@@ -1210,6 +1138,36 @@ export default function TerritoryMap({
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 5_000 }
     );
   }, [updateLocation]);
+
+  const requestHeadingPermission = useCallback(async () => {
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return false;
+    const OrientationEvent = window.DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    if (typeof OrientationEvent.requestPermission !== 'function') return true;
+    try {
+      return (await OrientationEvent.requestPermission()) === 'granted';
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const toggleHeadingBeam = useCallback(() => {
+    if (headingBeamActive) {
+      setHeadingBeamActive(false);
+      headingBeamRef.current?.setMap(null);
+      return;
+    }
+
+    void requestHeadingPermission().then((granted) => {
+      if (!granted) {
+        onCalibrationNeededRef.current?.(true);
+        return;
+      }
+      setHeadingBeamActive(true);
+      locateOnce();
+    });
+  }, [headingBeamActive, locateOnce, requestHeadingPermission]);
 
   const fitMapToContent = useCallback(() => {
     const api = googleApi;
@@ -1272,6 +1230,54 @@ export default function TerritoryMap({
     };
   }, [locateOnce, locationOn, updateLocation]);
 
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    if (!headingBeamActive || locationOn) {
+      if (headingLocationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(headingLocationWatchRef.current);
+      headingLocationWatchRef.current = null;
+      return;
+    }
+
+    locateOnce();
+    headingLocationWatchRef.current = navigator.geolocation.watchPosition(
+      (position) => updateLocation(position),
+      () => onCalibrationNeededRef.current?.(true),
+      { enableHighAccuracy: true, maximumAge: 3_000 }
+    );
+
+    return () => {
+      if (headingLocationWatchRef.current !== null)
+        navigator.geolocation.clearWatch(headingLocationWatchRef.current);
+      headingLocationWatchRef.current = null;
+    };
+  }, [headingBeamActive, locateOnce, locationOn, updateLocation]);
+
+  useEffect(() => {
+    if (!headingBeamActive) {
+      headingBeamRef.current?.setMap(null);
+      return;
+    }
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const nextHeading = orientationHeading(event);
+      if (nextHeading === null) return;
+      headingRef.current = nextHeading;
+      updateHeadingBeam(lastLocationRef.current, nextHeading);
+    };
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
+    window.addEventListener('deviceorientation', handleOrientation as EventListener, true);
+    return () => {
+      window.removeEventListener(
+        'deviceorientationabsolute',
+        handleOrientation as EventListener,
+        true
+      );
+      window.removeEventListener('deviceorientation', handleOrientation as EventListener, true);
+    };
+  }, [headingBeamActive, updateHeadingBeam]);
+
   const previousDrawingRef = useRef(isDrawing);
   useEffect(() => {
     if (previousDrawingRef.current && !isDrawing) {
@@ -1281,82 +1287,8 @@ export default function TerritoryMap({
     previousDrawingRef.current = isDrawing;
   }, [isDrawing]);
 
-  // Cleanup orientation listener on unmount
-  useEffect(() => {
-    return () => {
-      const listener = orientationListenerRef.current;
-      if (listener) {
-        const eventTarget = window as unknown as EventTarget;
-        eventTarget.removeEventListener('deviceorientationabsolute', listener, true);
-        eventTarget.removeEventListener('deviceorientation', listener, true);
-        orientationListenerRef.current = null;
-      }
-    };
-  }, []);
-
   const noMapData = !boundary && validPoints.length === 0 && !onHouseholdPinPlaced;
   const currentStyleLabel = MAP_STYLES.find((style) => style.id === activeMapStyle)?.label ?? 'Map';
-
-  // Toggle heading beam — requests DeviceOrientationEvent permission on iOS 13+
-  const toggleHeadingBeam = useCallback(() => {
-    if (headingBeamActive) {
-      setHeadingBeamActive(false);
-      setCurrentHeading(null);
-      if (orientationListenerRef.current) {
-        const eventTarget = window as unknown as EventTarget;
-        eventTarget.removeEventListener(
-          'deviceorientationabsolute',
-          orientationListenerRef.current,
-          true
-        );
-        eventTarget.removeEventListener('deviceorientation', orientationListenerRef.current, true);
-        orientationListenerRef.current = null;
-      }
-      return;
-    }
-    const startListening = () => {
-      setHeadingBeamActive(true);
-      const handler = (e: Event) => {
-        const evt = e as DeviceOrientationEvent & {
-          webkitCompassHeading?: number;
-          alpha: number | null;
-        };
-        // iOS provides webkitCompassHeading (0=N, clockwise); Android absolute gives alpha
-        let heading: number | null = null;
-        if (evt.webkitCompassHeading != null) {
-          heading = evt.webkitCompassHeading;
-        } else if (evt.absolute && evt.alpha != null) {
-          heading = (360 - evt.alpha) % 360;
-        }
-        if (heading !== null) {
-          compassHeadingRef.current = heading;
-          setCurrentHeading(heading);
-        }
-      };
-      orientationListenerRef.current = handler;
-      // Use deviceorientationabsolute when available (Android Chrome), else fall back to deviceorientation
-      const eventTarget = window as unknown as EventTarget;
-      const useAbsolute = 'ondeviceorientationabsolute' in window;
-      eventTarget.addEventListener(
-        useAbsolute ? 'deviceorientationabsolute' : 'deviceorientation',
-        handler,
-        true
-      );
-    };
-    // Request iOS 13+ permission
-    const DevOrient = DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<string>;
-    };
-    if (typeof DevOrient.requestPermission === 'function') {
-      DevOrient.requestPermission()
-        .then((state) => {
-          if (state === 'granted') startListening();
-        })
-        .catch(() => {});
-    } else {
-      startListening();
-    }
-  }, [headingBeamActive]);
 
   return (
     <div className={`relative ${className}`}>
@@ -1366,19 +1298,9 @@ export default function TerritoryMap({
       `}</style>
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Heading beam — rendered as a CSS cone above the location dot */}
-      {headingBeamActive && currentLocation && currentHeading !== null && mapReady && (
-        <HeadingBeam
-          map={mapRef.current}
-          googleApi={googleApi}
-          location={currentLocation}
-          heading={currentHeading}
-        />
-      )}
-
       {showDefaultControls && mapReady && !loadError && (
-        <div className="pointer-events-none absolute right-3 bottom-20 z-[1050] flex flex-col items-end gap-2">
-          <div className="pointer-events-auto flex flex-col gap-1.5">
+        <div className="pointer-events-none absolute right-3 bottom-24 z-50 flex flex-col items-end gap-2 sm:right-4 sm:bottom-6">
+          <div className="pointer-events-auto flex flex-col gap-2">
             {showPinControl && onHouseholdPinPlaced && !isDrawing ? (
               <MapControlButton
                 title={effectiveInteractionMode === 'add' ? 'Stop pinning' : 'Pin household'}
@@ -1390,15 +1312,15 @@ export default function TerritoryMap({
                 <MapPinPlus className="h-4 w-4" />
               </MapControlButton>
             ) : null}
+            <MapControlButton title="My location" active={locationOn} onClick={locateOnce}>
+              <LocateFixed className="h-4 w-4" />
+            </MapControlButton>
             <MapControlButton
-              title={headingBeamActive ? 'Hide heading' : 'Show heading'}
+              title="Heading beam"
               active={headingBeamActive}
               onClick={toggleHeadingBeam}
             >
               <Navigation className="h-4 w-4" />
-            </MapControlButton>
-            <MapControlButton title="My location" onClick={locateOnce}>
-              <LocateFixed className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton title={`Map style: ${currentStyleLabel}`} onClick={cycleMapStyle}>
               <Layers className="h-4 w-4" />

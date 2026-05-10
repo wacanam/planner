@@ -93,19 +93,54 @@ export function useCreateGroup(congregationId: string) {
   return { create, isCreating };
 }
 
-export function useUpdateGroup(_congregationId: string) {
+export function useUpdateGroup(congregationId: string) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const update = useCallback(async (arg: { id: string; name?: string; members?: GroupMember[] }) => {
-    setIsUpdating(true);
-    try {
-      const updates: Record<string, unknown> = {};
-      if (arg.name !== undefined) updates.name = arg.name.trim();
-      if (arg.members !== undefined) updates.members = arg.members;
-      await updateDoc(groupDocument(arg.id), updates);
-    } finally {
-      setIsUpdating(false);
-    }
-  }, []);
+  const update = useCallback(
+    async (arg: { id: string; name?: string; members?: GroupMember[] }) => {
+      setIsUpdating(true);
+      try {
+        const updates: Record<string, unknown> = {};
+        if (arg.name !== undefined) updates.name = arg.name.trim();
+        if (arg.members !== undefined) updates.members = arg.members;
+        if (Object.keys(updates).length === 0) return;
+
+        if (arg.members === undefined) {
+          await updateDoc(groupDocument(arg.id), updates);
+          return;
+        }
+
+        const firestore = getPlannerFirestore();
+        const selectedUserIds = new Set(arg.members.map((member) => member.userId));
+        const groupSnapshot = await getDocs(
+          query(groupCollection(), where('congregationId', '==', congregationId))
+        );
+        const batch = writeBatch(firestore);
+        let targetFound = false;
+
+        for (const document of groupSnapshot.docs) {
+          if (document.id === arg.id) {
+            targetFound = true;
+            batch.update(document.ref, updates);
+            continue;
+          }
+
+          const group = groupFromData(document.id, document.data() as Partial<Group>);
+          const filteredMembers = group.members.filter(
+            (member) => !selectedUserIds.has(member.userId)
+          );
+          if (filteredMembers.length !== group.members.length) {
+            batch.update(document.ref, { members: filteredMembers });
+          }
+        }
+
+        if (!targetFound) batch.update(groupDocument(arg.id), updates);
+        await batch.commit();
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [congregationId]
+  );
   return { update, isUpdating };
 }
 

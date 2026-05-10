@@ -3,7 +3,10 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 
-export type GeoJSONGeometry = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+type GeoJSONPosition = [number, number, ...number[]];
+export type GeoJSONGeometry =
+  | { type: 'Polygon'; coordinates: GeoJSONPosition[][] }
+  | { type: 'MultiPolygon'; coordinates: GeoJSONPosition[][][] };
 
 /**
  * Territory boundary with metadata
@@ -210,11 +213,11 @@ export function validateGeoJSON(geometry: unknown): geometry is GeoJSONGeometry 
   return false;
 }
 
-function isPosition(value: unknown): value is GeoJSON.Position {
+function isPosition(value: unknown): value is GeoJSONPosition {
   return Array.isArray(value) && value.length >= 2 && value.every((part) => typeof part === 'number');
 }
 
-function isLinearRing(value: unknown): value is GeoJSON.Position[] {
+function isLinearRing(value: unknown): value is GeoJSONPosition[] {
   return Array.isArray(value) && value.length >= 4 && value.every(isPosition);
 }
 

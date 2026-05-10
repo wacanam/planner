@@ -15,16 +15,18 @@ interface TerritoryBoundaryEditorProps {
 
 type DrawingActions = Parameters<NonNullable<TerritoryMapProps['onDrawingActions']>>[0];
 type LngLat = [number, number];
+type BoundaryPosition = [number, number, ...number[]];
+type BoundaryRing = BoundaryPosition[];
 
 function boundaryToRings(boundary: GeoJSONGeometry | null): LngLat[][] {
   if (!boundary) return [];
   if (boundary.type === 'Polygon') {
-    return boundary.coordinates.map((ring) =>
+    return boundary.coordinates.map((ring: BoundaryRing) =>
       ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat)
     );
   }
-  return boundary.coordinates.flatMap((polygon) =>
-    polygon.map((ring) => ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat))
+  return boundary.coordinates.flatMap((polygon: BoundaryRing[]) =>
+    polygon.map((ring: BoundaryRing) => ring.slice(0, -1).map(([lng, lat]) => [lng, lat] as LngLat))
   );
 }
 

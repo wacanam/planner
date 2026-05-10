@@ -35,6 +35,11 @@ interface HouseholdMapItem {
   city?: string | null;
   notes?: string | null;
   membersCount?: number | null;
+  occupantsCount?: number | null;
+  status?: string | null;
+  type?: string | null;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
   createdAt?: string;
   updatedAt?: string;
   latitude?: number | null;
@@ -53,6 +58,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [showAllPins, setShowAllPins] = useState(false);
   const [mapStyle, setMapStyle] = useState<StyleId>('streets');
+  const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add'>('add');
 
   // Action states — opened from popup buttons
   const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
@@ -75,6 +81,12 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
       address: household.address,
       streetName: household.streetName ?? null,
       city: household.city ?? '',
+      notes: household.notes ?? null,
+      occupantsCount: household.occupantsCount ?? null,
+      status: household.status ?? null,
+      type: household.type ?? null,
+      lastVisitDate: household.lastVisitDate ?? null,
+      lastVisitOutcome: household.lastVisitOutcome ?? null,
       latitude: Number(household.latitude),
       longitude: Number(household.longitude),
     }));
@@ -86,7 +98,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     localHouseholds.find((household) => household.id === encounterHouseholdId) ?? null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 1800 }}>
+    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 9000 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
         <div className="min-w-0">
@@ -116,11 +128,11 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             households={households}
             mapStyle={mapStyle}
             onMapStyleChange={setMapStyle}
-            mapInteractionMode="add"
+            mapInteractionMode={mapInteractionMode}
+            onMapInteractionModeChange={setMapInteractionMode}
             pinPreview={pendingPin}
             onPinPreviewChange={setPendingPin}
             pinPlacement="instant"
-            showPinControl={false}
             onHouseholdPinPlaced={(lat: number, lng: number) => {
               setPendingPin({ lat, lng });
             }}
