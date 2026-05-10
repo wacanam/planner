@@ -86,7 +86,7 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
     localHouseholds.find((household) => household.id === encounterHouseholdId) ?? null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 9000 }}>
+    <div className="fixed inset-0 bg-background flex flex-col" style={{ zIndex: 1800 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-background z-10 shrink-0">
         <div className="min-w-0">

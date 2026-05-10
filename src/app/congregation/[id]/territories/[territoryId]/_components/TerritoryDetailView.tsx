@@ -360,7 +360,7 @@ export default function TerritoryDetailView() {
         </div>
       ) : (
         <main
-          className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-2000' : ' h-dvh pb-14 md:pb-0 relative'}`}
+          className={`min-w-0 w-full flex flex-col overflow-hidden${mapFullscreen ? ' fixed inset-0 z-[2000]' : ' h-dvh relative'}`}
         >
           <div className="flex-1 min-h-0">
             {/* Map — full prominence, stats + assignment as overlays */}
@@ -515,12 +515,12 @@ export default function TerritoryDetailView() {
                     </>
                   )}
 
-                  {/* Fullscreen toggle — right center */}
-                  <div className="absolute top-1/2 right-0 -translate-y-1/2 z-1001 p-2 pointer-events-auto">
+                  {/* Fullscreen toggle — top-right corner */}
+                  <div className="absolute top-3 right-3 z-[1050] pointer-events-auto">
                     <button
                       type="button"
                       onClick={() => setMapFullscreen((p) => !p)}
-                      className="flex items-center justify-center w-8 h-8 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-lg shadow-sm"
+                      className="flex items-center justify-center w-8 h-8 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-xl shadow-md"
                     >
                       {mapFullscreen ? (
                         <Minimize2 className="h-4 w-4 text-foreground" />
@@ -531,15 +531,20 @@ export default function TerritoryDetailView() {
                   </div>
 
                   {/* Back button + title overlay — top-left of map */}
-                  <div className="absolute top-0 left-0 z-1001 p-3 pointer-events-auto">
-                    <div className="flex items-center gap-2 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-2 py-1.5 shadow-sm">
-                      <Button asChild variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                  <div className="absolute top-3 left-3 z-[1050] pointer-events-auto">
+                    <div className="flex items-center gap-1.5 bg-white dark:bg-gray-900 rounded-2xl px-2 py-1.5 shadow-md border border-slate-100 dark:border-gray-700">
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 rounded-xl"
+                      >
                         <Link href={backHref}>
                           <ArrowLeft className="h-4 w-4" />
                         </Link>
                       </Button>
                       <div className="min-w-0 pr-1">
-                        <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5">
+                        <p className="text-[9px] text-muted-foreground font-medium leading-none mb-0.5 uppercase tracking-wide">
                           Territory
                         </p>
                         <p className="text-xs font-bold text-foreground truncate leading-tight max-w-45">
@@ -549,105 +554,98 @@ export default function TerritoryDetailView() {
                     </div>
                   </div>
 
-                  {/* Draw Boundary button — inline map control, right side */}
-                  {/* Rendered in the fixed bottom-left cluster below */}
-                  {/* Top HUD — stats + coverage bar (below back button) */}
-                  <div className="absolute top-14 left-0 right-0 z-1000 px-3 pointer-events-none">
-                    <div className="bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px] rounded-xl px-3 py-2 shadow-sm space-y-1.5">
-                      {/* Stats row */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[11px] font-semibold text-foreground">
-                            {householdsInTerritory.length}{' '}
-                            <span className="text-muted-foreground font-normal">households</span>
-                          </span>
+                  {/* ── Stats HUD ─ compact row below back button ───────────────────────────── */}
+                  <div className="absolute top-[3.25rem] left-3 z-[1050] pointer-events-none">
+                    <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-xl px-3 py-1.5 shadow-md border border-slate-100 dark:border-gray-700">
+                      <span className="text-[11px] font-semibold text-foreground">
+                        {householdsInTerritory.length}
+                        <span className="text-muted-foreground font-normal ml-1">hh</span>
+                      </span>
+                      <div className="w-px h-3 bg-border" />
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-14 h-1.5 bg-muted/70 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{
+                              width: `${Math.min(100, Number(territory.coveragePercent))}%`,
+                            }}
+                          />
                         </div>
                         <span className="text-[11px] font-bold text-foreground tabular-nums">
-                          {Number(territory.coveragePercent).toFixed(1)}% covered
+                          {Number(territory.coveragePercent).toFixed(0)}%
                         </span>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, Number(territory.coveragePercent))}%` }}
-                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Boundary tools — visible to SO, TS, and admins */}
-                  <div
-                    className={`absolute left-3 z-1200 transition-all duration-200 ${assignmentExpanded ? 'bottom-28' : 'bottom-12'}`}
-                  >
-                    {canDrawBoundary && !isDrawingBoundary && (
-                      <div className="flex flex-col gap-1.5 mb-2">
-                        {/* Add polygons */}
+                  {/* ── Boundary tools — right side, above map controls ───────────────── */}
+                  {canDrawBoundary && !isDrawingBoundary && (
+                    <div className="absolute right-3 bottom-[14rem] z-[1200] flex flex-col gap-1.5 pointer-events-auto">
+                      {/* Add polygons */}
+                      <button
+                        type="button"
+                        onClick={() => setDrawMode('add')}
+                        title="Draw boundary"
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 shadow-md text-foreground hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      {/* Edit existing boundary */}
+                      {territory.boundary && (
                         <button
                           type="button"
-                          onClick={() => setDrawMode('add')}
-                          title="Draw boundary (add polygons)"
-                          className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                          onClick={() => setDrawMode('edit')}
+                          title="Edit boundary vertices"
+                          className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 shadow-md text-foreground hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
-                        {/* Edit existing boundary (only if one exists) */}
-                        {territory.boundary && (
+                      )}
+                      {/* Clear boundary */}
+                      {territory.boundary && canClearBoundary && !clearConfirmPending && (
+                        <button
+                          type="button"
+                          onClick={() => setClearConfirmPending(true)}
+                          title="Clear boundary"
+                          className="flex items-center justify-center w-10 h-10 rounded-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 shadow-md text-destructive hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {territory.boundary && canClearBoundary && clearConfirmPending && (
+                        <div className="flex flex-col gap-1 p-2 rounded-2xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800 min-w-[6rem]">
+                          <span className="text-[10px] text-red-600 dark:text-red-400 font-semibold px-0.5">
+                            Clear boundary?
+                          </span>
                           <button
                             type="button"
-                            onClick={() => setDrawMode('edit')}
-                            title="Edit boundary vertices"
-                            className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-foreground hover:bg-white/80"
+                            onClick={() => {
+                              setClearConfirmPending(false);
+                              handleClearBoundary();
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600"
                           >
-                            <Pencil className="w-4 h-4" />
+                            Clear
                           </button>
-                        )}
-                        {/* Clear boundary — shows inline confirmation instead of window.confirm */}
-                        {territory.boundary && canClearBoundary && !clearConfirmPending && (
                           <button
                             type="button"
-                            onClick={() => setClearConfirmPending(true)}
-                            title="Clear boundary"
-                            className="flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all bg-white/10 dark:bg-gray-900/10 text-destructive hover:bg-red-100"
+                            onClick={() => setClearConfirmPending(false)}
+                            className="text-xs px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-gray-800 text-foreground hover:bg-slate-200 dark:hover:bg-gray-700"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Cancel
                           </button>
-                        )}
-                        {territory.boundary && canClearBoundary && clearConfirmPending && (
-                          <div className="flex flex-col gap-1 p-2 rounded-xl shadow-lg bg-white dark:bg-gray-900 border border-red-200 dark:border-red-800">
-                            <span className="text-xs text-red-600 dark:text-red-400 font-semibold px-0.5">
-                              Clear boundary?
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClearConfirmPending(false);
-                                handleClearBoundary();
-                              }}
-                              className="text-xs px-3 py-1 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600"
-                            >
-                              Clear
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setClearConfirmPending(false)}
-                              className="text-xs px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-foreground hover:bg-gray-200 dark:hover:bg-gray-700"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Assignment strip — absolute bottom, inside map */}
+                  {/* Assignment strip — absolute bottom, inside map, above bottom nav */}
                   {(() => {
                     const active = assignments.find((a) => a.status === 'active');
                     if (!active) return null;
                     return (
-                      <div className="absolute bottom-0 left-0 right-0 z-1100">
-                        <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/5 dark:bg-gray-900/10 backdrop-blur-[2px]">
+                      <div className="absolute bottom-14 left-0 right-0 z-[1100] md:bottom-0">
+                        <div className="border-t border-blue-200/30 dark:border-blue-900/20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
                           <button
                             type="button"
                             onClick={() => setAssignmentExpanded((p) => !p)}

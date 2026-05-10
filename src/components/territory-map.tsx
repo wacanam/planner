@@ -1,7 +1,16 @@
 'use client';
 
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
-import { Crosshair, Layers, LocateFixed, MapPinPlus, Minus, Plus, Route } from 'lucide-react';
+import {
+  Crosshair,
+  Layers,
+  LocateFixed,
+  MapPinPlus,
+  Minus,
+  Navigation,
+  Plus,
+  Route,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -12,6 +21,7 @@ export interface HouseholdPoint {
   longitude?: string | number | null;
   status?: string | null;
   type?: string | null;
+  occupantsCount?: number | null;
   lastVisitDate?: string | null;
   lastVisitOutcome?: string | null;
   notes?: string | null;
@@ -211,30 +221,52 @@ function statusLabel(value?: string | null) {
   return (value ?? 'not_visited').replace(/_/g, ' ');
 }
 
+// Soft Google Maps-style teardrop pin with house icon
 function markerIcon(api: GoogleApi, color: string): google.maps.Icon {
+  // House icon path (simplified home outline)
+  const housePath = `M17,8.5 L9,15 L9,24 L14,24 L14,19 L20,19 L20,24 L25,24 L25,15 Z
+    M13.5,13 L17,10 L20.5,13`;
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
-      <path d="M17 2C8.7 2 3 8 3 16.2c0 9.8 9.5 20.6 13 24.1.6.6 1.4.6 2 0 3.5-3.5 13-14.3 13-24.1C31 8 25.3 2 17 2z" fill="white" opacity=".96"/>
-      <path d="M17 4.5C10.2 4.5 5.5 9.4 5.5 16.2c0 8 7.4 17.3 11.5 21.8 4.1-4.5 11.5-13.8 11.5-21.8C28.5 9.4 23.8 4.5 17 4.5z" fill="${color}"/>
-      <circle cx="17" cy="16.5" r="6.2" fill="white" opacity=".94"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
+      <filter id="ds" x="-20%" y="-10%" width="140%" height="130%">
+        <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.28)"/>
+      </filter>
+      <!-- Soft teardrop: round top, tapered bottom point -->
+      <path d="M18 3 C9.7 3 4 9.2 4 17 C4 24.5 10 32 14.8 37.8 C16 39.3 16.7 40.5 18 42 C19.3 40.5 20 39.3 21.2 37.8 C26 32 32 24.5 32 17 C32 9.2 26.3 3 18 3 Z"
+        fill="white" filter="url(#ds)"/>
+      <path d="M18 5 C10.8 5 6 10.6 6 17 C6 23.8 11.5 31 16.1 36.4 C17 37.5 17.5 38.3 18 39.5 C18.5 38.3 19 37.5 19.9 36.4 C24.5 31 30 23.8 30 17 C30 10.6 25.2 5 18 5 Z"
+        fill="${color}"/>
+      <!-- House icon in white -->
+      <g fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="10,17 18,11 26,17"/>
+        <rect x="12" y="17" width="12" height="9" rx="0.5"/>
+        <rect x="15.5" y="20" width="5" height="6" rx="0.5"/>
+      </g>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new api.maps.Size(34, 44),
-    anchor: new api.maps.Point(17, 42),
+    scaledSize: new api.maps.Size(36, 48),
+    anchor: new api.maps.Point(18, 46),
   };
 }
 
 function tempPinIcon(api: GoogleApi): google.maps.Icon {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
-      <path d="M17 2C8.7 2 3 8 3 16.2c0 9.8 9.5 20.6 13 24.1.6.6 1.4.6 2 0 3.5-3.5 13-14.3 13-24.1C31 8 25.3 2 17 2z" fill="#ef4444"/>
-      <circle cx="17" cy="16.5" r="6.2" fill="white"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
+      <filter id="ds" x="-20%" y="-10%" width="140%" height="130%">
+        <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.28)"/>
+      </filter>
+      <path d="M18 3 C9.7 3 4 9.2 4 17 C4 24.5 10 32 14.8 37.8 C16 39.3 16.7 40.5 18 42 C19.3 40.5 20 39.3 21.2 37.8 C26 32 32 24.5 32 17 C32 9.2 26.3 3 18 3 Z"
+        fill="white" filter="url(#ds)"/>
+      <path d="M18 5 C10.8 5 6 10.6 6 17 C6 23.8 11.5 31 16.1 36.4 C17 37.5 17.5 38.3 18 39.5 C18.5 38.3 19 37.5 19.9 36.4 C24.5 31 30 23.8 30 17 C30 10.6 25.2 5 18 5 Z"
+        fill="#ef4444"/>
+      <circle cx="18" cy="17" r="4.5" fill="white" opacity="0.9"/>
+      <circle cx="18" cy="17" r="2" fill="#ef4444"/>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new api.maps.Size(34, 44),
-    anchor: new api.maps.Point(17, 42),
+    scaledSize: new api.maps.Size(36, 48),
+    anchor: new api.maps.Point(18, 46),
   };
 }
 
@@ -264,6 +296,117 @@ function MapControlButton({
       {children}
     </button>
   );
+}
+
+// ─── Heading beam overlay using a CSS cone ────────────────────────────────────
+function HeadingBeam({
+  map,
+  googleApi,
+  location,
+  heading,
+}: {
+  map: google.maps.Map | null;
+  googleApi: GoogleApi | null;
+  location: { lat: number; lng: number };
+  heading: number;
+}) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<google.maps.OverlayView | null>(null);
+
+  useEffect(() => {
+    if (!map || !googleApi) return;
+
+    class BeamOverlay extends googleApi.maps.OverlayView {
+      private div: HTMLDivElement | null = null;
+      private pos: google.maps.LatLng;
+
+      constructor(pos: google.maps.LatLng) {
+        super();
+        this.pos = pos;
+      }
+
+      onAdd() {
+        this.div = document.createElement('div');
+        this.div.style.cssText = `
+          position: absolute;
+          width: 0;
+          height: 0;
+          pointer-events: none;
+        `;
+        const panes = this.getPanes();
+        panes?.overlayMouseTarget.appendChild(this.div);
+      }
+
+      draw() {
+        if (!this.div) return;
+        const proj = this.getProjection();
+        const point = proj.fromLatLngToDivPixel(this.pos);
+        if (point) {
+          this.div.style.left = `${point.x}px`;
+          this.div.style.top = `${point.y}px`;
+        }
+      }
+
+      onRemove() {
+        this.div?.parentNode?.removeChild(this.div);
+        this.div = null;
+      }
+
+      getDiv() {
+        return this.div;
+      }
+
+      updatePosition(pos: google.maps.LatLng) {
+        this.pos = pos;
+        this.draw();
+      }
+    }
+
+    const latLng = new googleApi.maps.LatLng(location.lat, location.lng);
+    const overlay = new BeamOverlay(latLng);
+    overlay.setMap(map);
+    overlayRef.current = overlay;
+
+    return () => {
+      overlay.setMap(null);
+      overlayRef.current = null;
+    };
+  }, [map, googleApi, location.lat, location.lng]);
+
+  // Update beam direction via the DOM div
+  useEffect(() => {
+    const overlay = overlayRef.current as
+      | (google.maps.OverlayView & { getDiv(): HTMLDivElement | null })
+      | null;
+    if (!overlay) return;
+    const div = overlay.getDiv();
+    if (!div) return;
+
+    // Remove previous beam
+    while (div.firstChild) div.removeChild(div.firstChild);
+
+    const beam = document.createElement('div');
+    beam.style.cssText = `
+      position: absolute;
+      left: -40px;
+      top: -80px;
+      width: 80px;
+      height: 80px;
+      transform-origin: 50% 100%;
+      transform: rotate(${heading}deg);
+      pointer-events: none;
+      background: conic-gradient(
+        from -20deg at 50% 100%,
+        rgba(37,99,235,0.55) 0deg,
+        rgba(37,99,235,0.12) 40deg,
+        transparent 40deg
+      );
+      border-radius: 50% 50% 0 0;
+    `;
+    div.appendChild(beam);
+  }, [heading]);
+
+  return null;
 }
 
 function pointToSegmentDistanceMeters(point: LngLat, start: LngLat, end: LngLat) {
@@ -317,47 +460,114 @@ function createInfoWindowContent(params: {
 }) {
   const { household, color, onLogVisit, onAddEncounter, onViewDetails } = params;
   const wrapper = document.createElement('div');
-  wrapper.className = 'min-w-55 max-w-70 space-y-2 p-1 font-sans';
+  wrapper.className = 'min-w-60 max-w-72 font-sans';
+  wrapper.style.cssText = 'font-family: system-ui, sans-serif;';
+
+  // ── Header row: colored indicator + address ────────────────────────────────
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 2px 0 8px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 8px;
+  `;
+
+  const dot = document.createElement('div');
+  dot.style.cssText = `
+    width: 10px; height: 10px; border-radius: 50%;
+    background: ${color}; margin-top: 3px; flex-shrink: 0;
+  `;
+  header.appendChild(dot);
+
+  const titleBlock = document.createElement('div');
+  titleBlock.style.cssText = 'min-width: 0; flex: 1;';
 
   const title = document.createElement('p');
-  title.className = 'text-sm font-bold leading-snug text-slate-950';
+  title.style.cssText =
+    'margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.3; word-break: break-word;';
   title.textContent = household.address || 'Unnamed household';
-  wrapper.appendChild(title);
+  titleBlock.appendChild(title);
 
-  const status = document.createElement('span');
-  status.className = 'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize';
-  status.style.background = `${color}22`;
-  status.style.color = color;
-  status.textContent = statusLabel(household.status);
-  wrapper.appendChild(status);
-
-  if (household.lastVisitDate) {
-    const visit = document.createElement('p');
-    visit.className = 'text-xs text-slate-600';
-    const date = new Date(household.lastVisitDate);
-    visit.textContent = Number.isNaN(date.getTime())
-      ? ''
-      : `Last visit: ${date.toLocaleDateString()}${household.lastVisitOutcome ? ` - ${statusLabel(household.lastVisitOutcome)}` : ''}`;
-    if (visit.textContent) wrapper.appendChild(visit);
+  // Type badge
+  if (household.type) {
+    const typeBadge = document.createElement('span');
+    typeBadge.style.cssText =
+      'font-size: 10px; color: #64748b; font-weight: 500; text-transform: capitalize;';
+    typeBadge.textContent = household.type.replace(/_/g, ' ');
+    titleBlock.appendChild(typeBadge);
   }
 
+  header.appendChild(titleBlock);
+  wrapper.appendChild(header);
+
+  // ── Info grid ──────────────────────────────────────────────────────────────
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;';
+
+  // Status pill
+  const statusRow = document.createElement('div');
+  statusRow.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+  const status = document.createElement('span');
+  status.style.cssText = `
+    display: inline-flex; align-items: center;
+    border-radius: 20px; padding: 3px 10px;
+    font-size: 11px; font-weight: 600; text-transform: capitalize;
+    background: ${color}1a; color: ${color};
+  `;
+  status.textContent = statusLabel(household.status);
+  statusRow.appendChild(status);
+  grid.appendChild(statusRow);
+
+  // Occupants count
+  if (household.occupantsCount != null && household.occupantsCount > 0) {
+    const row = document.createElement('div');
+    row.style.cssText =
+      'font-size: 11px; color: #475569; display: flex; align-items: center; gap: 4px;';
+    row.innerHTML = `<span style="font-weight:600;color:#0f172a">${household.occupantsCount}</span> occupant${household.occupantsCount !== 1 ? 's' : ''}`;
+    grid.appendChild(row);
+  }
+
+  // Last visit
+  if (household.lastVisitDate) {
+    const date = new Date(household.lastVisitDate);
+    if (!Number.isNaN(date.getTime())) {
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size: 11px; color: #475569;';
+      const outcome = household.lastVisitOutcome
+        ? ` · ${statusLabel(household.lastVisitOutcome)}`
+        : '';
+      row.innerHTML = `<span style="color:#64748b">Last visit:</span> <strong style="color:#0f172a">${date.toLocaleDateString()}</strong>${outcome ? `<span style="color:#64748b">${outcome}</span>` : ''}`;
+      grid.appendChild(row);
+    }
+  }
+
+  // Notes
   if (household.notes?.trim()) {
     const notes = document.createElement('p');
-    notes.className = 'line-clamp-3 text-xs italic leading-relaxed text-slate-600';
+    notes.style.cssText =
+      'margin: 2px 0 0; font-size: 11px; font-style: italic; color: #64748b; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;';
     notes.textContent = household.notes.trim();
-    wrapper.appendChild(notes);
+    grid.appendChild(notes);
   }
 
+  wrapper.appendChild(grid);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
   const actions = document.createElement('div');
-  actions.className = 'flex flex-wrap gap-1.5 pt-1';
+  actions.style.cssText =
+    'display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; border-top: 1px solid #f1f5f9;';
   wrapper.appendChild(actions);
 
   if (onLogVisit) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'rounded-lg px-3 py-2 text-xs font-semibold text-white';
-    button.style.background = color;
-    button.textContent = 'Visit';
+    button.style.cssText = `
+      flex: 1; min-width: 0;
+      border: none; border-radius: 10px;
+      padding: 8px 12px; font-size: 12px; font-weight: 600;
+      color: white; background: ${color}; cursor: pointer;
+    `;
+    button.textContent = 'Log Visit';
     button.addEventListener('click', () => onLogVisit(household.id, household.address));
     actions.appendChild(button);
   }
@@ -365,8 +575,12 @@ function createInfoWindowContent(params: {
   if (onAddEncounter) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className =
-      'rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700';
+    button.style.cssText = `
+      flex: 1; min-width: 0;
+      border: 1px solid #bfdbfe; border-radius: 10px;
+      padding: 8px 12px; font-size: 12px; font-weight: 600;
+      color: #1d4ed8; background: #eff6ff; cursor: pointer;
+    `;
     button.textContent = 'Encounter';
     button.addEventListener('click', () => onAddEncounter(household.id, household.address));
     actions.appendChild(button);
@@ -375,9 +589,13 @@ function createInfoWindowContent(params: {
   if (onViewDetails) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className =
-      'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
-    button.textContent = 'Details';
+    button.style.cssText = `
+      width: 100%;
+      border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 6px 12px; font-size: 11px; font-weight: 500;
+      color: #475569; background: #f8fafc; cursor: pointer; margin-top: 2px;
+    `;
+    button.textContent = 'View Details';
     button.addEventListener('click', () => onViewDetails(household.id));
     actions.appendChild(button);
   }
@@ -441,12 +659,20 @@ export default function TerritoryMap({
   const onLocationDotClickRef = useRef(onLocationDotClick);
   const onCalibrationNeededRef = useRef(onCalibrationNeeded);
 
+  const headingBeamRef = useRef<HTMLDivElement | null>(null);
+  const headingOverlayRef = useRef<google.maps.OverlayView | null>(null);
+  const compassHeadingRef = useRef<number | null>(null);
+  const orientationListenerRef = useRef<((e: Event) => void) | null>(null);
+
   const [googleApi, setGoogleApi] = useState<GoogleApi | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [localInteractionMode, setLocalInteractionMode] = useState<'view' | 'add'>('view');
   const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
+  const [headingBeamActive, setHeadingBeamActive] = useState(false);
+  const [currentHeading, setCurrentHeading] = useState<number | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
 
@@ -933,6 +1159,7 @@ export default function TerritoryMap({
       const map = mapRef.current;
       if (!api || !map) return;
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setCurrentLocation(coords);
       if (!locationMarkerRef.current) {
         locationMarkerRef.current = new api.maps.Marker({
           map,
@@ -941,11 +1168,11 @@ export default function TerritoryMap({
           zIndex: 100,
           icon: {
             path: api.maps.SymbolPath.CIRCLE,
-            scale: 7,
+            scale: 8,
             fillColor: '#2563eb',
             fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 3,
+            strokeWeight: 2.5,
           },
         });
         locationMarkerRef.current.addListener('click', () => onLocationDotClickRef.current?.());
@@ -1054,8 +1281,82 @@ export default function TerritoryMap({
     previousDrawingRef.current = isDrawing;
   }, [isDrawing]);
 
+  // Cleanup orientation listener on unmount
+  useEffect(() => {
+    return () => {
+      const listener = orientationListenerRef.current;
+      if (listener) {
+        const eventTarget = window as unknown as EventTarget;
+        eventTarget.removeEventListener('deviceorientationabsolute', listener, true);
+        eventTarget.removeEventListener('deviceorientation', listener, true);
+        orientationListenerRef.current = null;
+      }
+    };
+  }, []);
+
   const noMapData = !boundary && validPoints.length === 0 && !onHouseholdPinPlaced;
   const currentStyleLabel = MAP_STYLES.find((style) => style.id === activeMapStyle)?.label ?? 'Map';
+
+  // Toggle heading beam — requests DeviceOrientationEvent permission on iOS 13+
+  const toggleHeadingBeam = useCallback(() => {
+    if (headingBeamActive) {
+      setHeadingBeamActive(false);
+      setCurrentHeading(null);
+      if (orientationListenerRef.current) {
+        const eventTarget = window as unknown as EventTarget;
+        eventTarget.removeEventListener(
+          'deviceorientationabsolute',
+          orientationListenerRef.current,
+          true
+        );
+        eventTarget.removeEventListener('deviceorientation', orientationListenerRef.current, true);
+        orientationListenerRef.current = null;
+      }
+      return;
+    }
+    const startListening = () => {
+      setHeadingBeamActive(true);
+      const handler = (e: Event) => {
+        const evt = e as DeviceOrientationEvent & {
+          webkitCompassHeading?: number;
+          alpha: number | null;
+        };
+        // iOS provides webkitCompassHeading (0=N, clockwise); Android absolute gives alpha
+        let heading: number | null = null;
+        if (evt.webkitCompassHeading != null) {
+          heading = evt.webkitCompassHeading;
+        } else if (evt.absolute && evt.alpha != null) {
+          heading = (360 - evt.alpha) % 360;
+        }
+        if (heading !== null) {
+          compassHeadingRef.current = heading;
+          setCurrentHeading(heading);
+        }
+      };
+      orientationListenerRef.current = handler;
+      // Use deviceorientationabsolute when available (Android Chrome), else fall back to deviceorientation
+      const eventTarget = window as unknown as EventTarget;
+      const useAbsolute = 'ondeviceorientationabsolute' in window;
+      eventTarget.addEventListener(
+        useAbsolute ? 'deviceorientationabsolute' : 'deviceorientation',
+        handler,
+        true
+      );
+    };
+    // Request iOS 13+ permission
+    const DevOrient = DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<string>;
+    };
+    if (typeof DevOrient.requestPermission === 'function') {
+      DevOrient.requestPermission()
+        .then((state) => {
+          if (state === 'granted') startListening();
+        })
+        .catch(() => {});
+    } else {
+      startListening();
+    }
+  }, [headingBeamActive]);
 
   return (
     <div className={`relative ${className}`}>
@@ -1065,9 +1366,19 @@ export default function TerritoryMap({
       `}</style>
       <div ref={containerRef} className="h-full w-full" />
 
+      {/* Heading beam — rendered as a CSS cone above the location dot */}
+      {headingBeamActive && currentLocation && currentHeading !== null && mapReady && (
+        <HeadingBeam
+          map={mapRef.current}
+          googleApi={googleApi}
+          location={currentLocation}
+          heading={currentHeading}
+        />
+      )}
+
       {showDefaultControls && mapReady && !loadError && (
-        <div className="pointer-events-none absolute right-3 top-3 z-40 flex flex-col items-end gap-2 sm:right-4 sm:top-4">
-          <div className="pointer-events-auto flex flex-col gap-2">
+        <div className="pointer-events-none absolute right-3 bottom-20 z-[1050] flex flex-col items-end gap-2">
+          <div className="pointer-events-auto flex flex-col gap-1.5">
             {showPinControl && onHouseholdPinPlaced && !isDrawing ? (
               <MapControlButton
                 title={effectiveInteractionMode === 'add' ? 'Stop pinning' : 'Pin household'}
@@ -1079,7 +1390,14 @@ export default function TerritoryMap({
                 <MapPinPlus className="h-4 w-4" />
               </MapControlButton>
             ) : null}
-            <MapControlButton title="My location" active={locationOn} onClick={locateOnce}>
+            <MapControlButton
+              title={headingBeamActive ? 'Hide heading' : 'Show heading'}
+              active={headingBeamActive}
+              onClick={toggleHeadingBeam}
+            >
+              <Navigation className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton title="My location" onClick={locateOnce}>
               <LocateFixed className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton title={`Map style: ${currentStyleLabel}`} onClick={cycleMapStyle}>
