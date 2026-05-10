@@ -10,7 +10,12 @@ import { useSession } from 'next-auth/react';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Button } from '@/components/ui/button';
-import { useCongregationTerritories, useCongregationTerritoryRequests, useTerritoryDetail } from '@/hooks';
+import { Badge } from '@/components/ui/badge';
+import {
+  useCongregationTerritories,
+  useCongregationTerritoryRequests,
+  useTerritoryDetail,
+} from '@/hooks';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
 import { queueHouseholdDelete } from '@/lib/visits-store';
@@ -21,15 +26,15 @@ import type { Territory } from '@/types/api';
 import { toast } from 'sonner';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { LogVisitForm, type AddEncounterFormValues, type LogVisitFormValues } from '@/components/households/log-visit-form';
+import {
+  LogVisitForm,
+  type AddEncounterFormValues,
+  type LogVisitFormValues,
+} from '@/components/households/log-visit-form';
 import { PinHouseModeToggle } from '@/components/households/pin-house-mode-toggle';
 import { createVisit } from '@/lib/db/visits';
 import { createEncounter } from '@/lib/db/encounters';
-import {
-  bulkUpsertHouseholds,
-  deleteHousehold,
-  getHouseholdById,
-} from '@/lib/db/households';
+import { bulkUpsertHouseholds, deleteHousehold, getHouseholdById } from '@/lib/db/households';
 import { useIDBHouseholds } from '@/hooks/use-idb-households';
 import type { HouseholdRecord } from '@/lib/db/types';
 
@@ -55,7 +60,11 @@ function LogVisitSheet({
   householdId,
   householdLabel,
   onClose,
-}: { householdId: string; householdLabel: string; onClose: () => void }) {
+}: {
+  householdId: string;
+  householdLabel: string;
+  onClose: () => void;
+}) {
   const [isSubmitting, setSubmitting] = useState(false);
 
   const onSubmit = async (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => {
@@ -109,7 +118,12 @@ function DeleteConfirmDialog({
   householdLabel,
   onClose,
   onDeleted,
-}: { householdId: string; householdLabel: string; onClose: () => void; onDeleted: () => void }) {
+}: {
+  householdId: string;
+  householdLabel: string;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,7 +185,9 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const [deleteConfirmHouseholdId, setDeleteConfirmHouseholdId] = useState<string | null>(null);
 
   // Load the FULL territory detail to get the boundary (the list API omits it)
-  const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(territory.id);
+  const { territory: fullTerritory, isLoading: territoryLoading } = useTerritoryDetail(
+    territory.id
+  );
 
   // Build boundary-filtered households API key
   const boundaryStr = fullTerritory?.boundary ?? null;
@@ -182,7 +198,9 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
       const geoData = geo?.geometry ?? geo;
       if (!geoData?.type || !geoData?.coordinates) return null;
       return `/api/households?boundary=${encodeURIComponent(JSON.stringify(geoData))}`;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }, [boundaryStr]);
 
   const allPinsKey = showAllPins ? '/api/households' : null;
@@ -205,7 +223,8 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
   const { households: idbHouseholds } = useIDBHouseholds();
   const lastSyncSignatureRef = useRef<string>('');
   const serverHouseholdsSignature = useMemo(
-    () => `${serverHouseholds.length}:${serverHouseholds.map((household) => household.id).join('|')}`,
+    () =>
+      `${serverHouseholds.length}:${serverHouseholds.map((household) => household.id).join('|')}`,
     [serverHouseholds]
   );
 
@@ -308,7 +327,10 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
                 <button
                   key={s.id}
                   type="button"
-                  onClick={() => { setMapStyle(s.id as StyleId); setShowStylePicker(false); }}
+                  onClick={() => {
+                    setMapStyle(s.id as StyleId);
+                    setShowStylePicker(false);
+                  }}
                   style={{ fontWeight: 600, fontSize: '10px' }}
                   className={[
                     'px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-[2px] transition-all',
@@ -323,11 +345,14 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             </div>
           )}
 
-          <PinHouseModeToggle active={mapMode === 'add'} onToggle={() => setMapMode((m) => (m === 'add' ? 'view' : 'add'))} />
+          <PinHouseModeToggle
+            active={mapMode === 'add'}
+            onToggle={() => setMapMode((m) => (m === 'add' ? 'view' : 'add'))}
+          />
 
           <button
             type="button"
-            onClick={() => setMapMode((m) => m === 'remove' ? 'view' : 'remove')}
+            onClick={() => setMapMode((m) => (m === 'remove' ? 'view' : 'remove'))}
             title={mapMode === 'remove' ? 'Cancel remove mode' : 'Remove household (tap marker)'}
             className={[
               'flex items-center justify-center w-9 h-9 rounded-full shadow-md backdrop-blur-[2px] transition-all',
@@ -358,8 +383,16 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
             onClick={() => setShowStylePicker((p) => !p)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-background/90 backdrop-blur-[2px] shadow-sm text-[10px] font-semibold text-foreground"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
             </svg>
             {MAP_STYLES.find((s) => s.id === mapStyle)?.label ?? 'Map'}
           </button>
@@ -373,7 +406,9 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
           territoryId={territory.id}
           congregationId={territory.congregationId ?? ''}
           onClose={() => setPendingPin(null)}
-          onSuccess={() => { setPendingPin(null); }}
+          onSuccess={() => {
+            setPendingPin(null);
+          }}
         />
       )}
 
@@ -391,8 +426,8 @@ function InlineMapView({ territory, onClose }: InlineMapViewProps) {
         <DeleteConfirmDialog
           householdId={deleteConfirmHouseholdId}
           householdLabel={
-            households.find((h) => h.id === deleteConfirmHouseholdId)?.address
-            ?? deleteConfirmHouseholdId
+            households.find((h) => h.id === deleteConfirmHouseholdId)?.address ??
+            deleteConfirmHouseholdId
           }
           onClose={() => setDeleteConfirmHouseholdId(null)}
           onDeleted={handleDeleted}
@@ -445,7 +480,9 @@ export default function MyAssignmentsClient() {
   }
 
   const firstName = sessionUser?.name?.split(' ')[0] ?? 'Publisher';
-  const mapOpenTerritory = mapOpenTerritoryId ? territories.find((t) => t.id === mapOpenTerritoryId) ?? null : null;
+  const mapOpenTerritory = mapOpenTerritoryId
+    ? (territories.find((t) => t.id === mapOpenTerritoryId) ?? null)
+    : null;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -600,10 +637,7 @@ export default function MyAssignmentsClient() {
 
       {/* Inline map overlay — full screen */}
       {mapOpenTerritory && (
-        <InlineMapView
-          territory={mapOpenTerritory}
-          onClose={() => setMapOpenTerritoryId(null)}
-        />
+        <InlineMapView territory={mapOpenTerritory} onClose={() => setMapOpenTerritoryId(null)} />
       )}
     </ProtectedPage>
   );

@@ -7,8 +7,17 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AddEncounterForm, type AddEncounterFormValues } from '@/components/households/add-encounter-form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AddEncounterForm,
+  type AddEncounterFormValues,
+} from '@/components/households/add-encounter-form';
 
 const schema = z.object({
   outcome: z.string().min(1, 'Outcome is required'),
@@ -16,6 +25,7 @@ const schema = z.object({
 });
 
 export type LogVisitFormValues = z.infer<typeof schema>;
+export type { AddEncounterFormValues };
 
 const outcomes = [
   { value: 'not_home', label: 'Not Home' },
@@ -27,7 +37,10 @@ const outcomes = [
 
 interface LogVisitFormProps {
   submitting?: boolean;
-  onSubmit: (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => Promise<void> | void;
+  onSubmit: (
+    values: LogVisitFormValues,
+    encounters: AddEncounterFormValues[]
+  ) => Promise<void> | void;
 }
 
 export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps) {
@@ -48,7 +61,10 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
   });
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(async (values) => onSubmit(values, encounters))}>
+    <form
+      className="space-y-4"
+      onSubmit={handleSubmit(async (values) => onSubmit(values, encounters))}
+    >
       <div className="space-y-1.5">
         <Label htmlFor="log-outcome">Outcome</Label>
         <Controller
@@ -69,7 +85,9 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
             </Select>
           )}
         />
-        {errors.outcome ? <p className="text-xs text-destructive">{errors.outcome.message}</p> : null}
+        {errors.outcome ? (
+          <p className="text-xs text-destructive">{errors.outcome.message}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
@@ -80,7 +98,12 @@ export function LogVisitForm({ submitting = false, onSubmit }: LogVisitFormProps
       <div className="space-y-2 rounded-lg border p-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">Encounters ({encounters.length})</p>
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowEncounterForm((prev) => !prev)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowEncounterForm((prev) => !prev)}
+          >
             {showEncounterForm ? 'Hide' : 'Add Encounter'}
           </Button>
         </div>

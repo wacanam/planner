@@ -13,7 +13,7 @@ const schema = z.object({
   address: z.string().min(1, 'Address is required'),
   streetName: z.string().min(1, 'Street name is required'),
   city: z.string().min(1, 'City is required'),
-  membersCount: z.coerce.number().int().min(1, 'Members must be at least 1'),
+  membersCount: z.number().int().min(1, 'Members must be at least 1'),
   notes: z.string().optional(),
 });
 
@@ -43,7 +43,8 @@ export function HouseholdForm({
       address: defaultValues?.address ?? '',
       streetName: defaultValues?.streetName ?? '',
       city: defaultValues?.city ?? '',
-      membersCount: defaultValues?.membersCount ?? 1,
+      membersCount:
+        typeof defaultValues?.membersCount === 'number' ? defaultValues.membersCount : 1,
       notes: defaultValues?.notes ?? '',
     },
   });
@@ -59,19 +60,30 @@ export function HouseholdForm({
       <div className="space-y-1.5">
         <Label htmlFor="household-address">Address</Label>
         <Input id="household-address" {...register('address')} />
-        {errors.address ? <p className="text-xs text-destructive">{errors.address.message}</p> : null}
+        {errors.address ? (
+          <p className="text-xs text-destructive">{errors.address.message}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="household-members">Members count</Label>
-        <Input id="household-members" type="number" min={1} {...register('membersCount')} />
-        {errors.membersCount ? <p className="text-xs text-destructive">{errors.membersCount.message}</p> : null}
+        <Input
+          id="household-members"
+          type="number"
+          min={1}
+          {...register('membersCount', { valueAsNumber: true })}
+        />
+        {errors.membersCount ? (
+          <p className="text-xs text-destructive">{errors.membersCount.message}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="household-street-name">Street name</Label>
         <Input id="household-street-name" {...register('streetName')} />
-        {errors.streetName ? <p className="text-xs text-destructive">{errors.streetName.message}</p> : null}
+        {errors.streetName ? (
+          <p className="text-xs text-destructive">{errors.streetName.message}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
