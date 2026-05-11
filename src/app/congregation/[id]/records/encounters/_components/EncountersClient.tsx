@@ -67,7 +67,7 @@ function LogEncounterDialog({
   const onSubmit = async (values: AddEncounterFormValues) => {
     const payload = {
       householdId: householdId || null,
-      encounterDate: encounter?.visitDate ?? new Date().toISOString(),
+      encounterDate: encounter ? encounter.visitDate ?? encounter.createdAt : new Date().toISOString(),
       name: values.name,
       response: values.response,
       topicDiscussed: values.topicDiscussed,

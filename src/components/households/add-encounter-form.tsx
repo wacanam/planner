@@ -121,7 +121,11 @@ export function AddEncounterForm({
         disabled={submitting}
         onClick={embedded ? () => void submitEncounter() : undefined}
       >
-        {submitting ? 'Saving…' : submitLabel ?? 'Add Encounter'}
+        {submitting
+          ? (submitLabel ?? 'Add Encounter').toLowerCase().includes('save')
+            ? 'Updating…'
+            : 'Adding…'
+          : submitLabel ?? 'Add Encounter'}
       </Button>
     </>
   );

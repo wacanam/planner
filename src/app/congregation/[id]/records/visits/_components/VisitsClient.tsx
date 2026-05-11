@@ -55,7 +55,7 @@ function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value, time: time ?? undefined };
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return { date: value.slice(0, 10), time: time ?? undefined };
+  if (Number.isNaN(parsed.getTime())) return { date: undefined, time: time ?? undefined };
   const date = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
   return { date, time: time ?? parsed.toTimeString().slice(0, 5) };
 }
