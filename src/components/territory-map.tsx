@@ -570,7 +570,6 @@ export default function TerritoryMap({
 }: TerritoryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<google.maps.Marker[]>([]);
   const markerMapRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const boundaryOverlaysRef = useRef<google.maps.MVCObject[]>([]);
   const drawingOverlaysRef = useRef<google.maps.MVCObject[]>([]);
@@ -1142,9 +1141,6 @@ export default function TerritoryMap({
 
       currentMap.set(household.id, marker);
     });
-
-    // keep markersRef in sync for cleanup
-    markersRef.current = [...currentMap.values()];
 
     return () => {
       // cleanup is managed by the diff above; full cleanup on unmount is in the map init effect

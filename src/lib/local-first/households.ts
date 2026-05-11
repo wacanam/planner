@@ -230,7 +230,7 @@ export async function applyRemoteHouseholds(households: Household[]): Promise<nu
   await bulkUpsertHouseholds(
     households.map((household) => ({
       id: household.id,
-      name: household.name,
+      name: household.name ?? undefined,
       address: household.address,
       houseNumber: household.houseNumber,
       unitNumber: household.unitNumber,
