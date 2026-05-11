@@ -27,7 +27,6 @@ import {
   Check,
   Save,
   Trash2,
-  Pencil,
   Plus,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -53,7 +52,7 @@ import {
 } from '@/hooks/use-territory-boundary';
 import { AddHouseholdSheet } from './AddHouseholdSheet';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { deleteHousehold } from '@/lib/local-first';
+import { deleteHousehold, updateHousehold } from '@/lib/local-first';
 import { toast } from 'sonner';
 // Dynamic import because the Google Maps SDK requires browser APIs.
 // biome-ignore lint/suspicious/noExplicitAny: dynamic map import
@@ -405,6 +404,15 @@ export default function TerritoryDetailView() {
                     onHouseholdDeleteRequest={(householdId: string) =>
                       setDeleteHouseholdId(householdId)
                     }
+                    onHouseholdMove={async (householdId: string, lat: number, lng: number) => {
+                      try {
+                        await updateHousehold(householdId, { latitude: lat, longitude: lng });
+                        toast.success('Pinned household location updated');
+                      } catch (error) {
+                        const reason = error instanceof Error ? error.message : String(error);
+                        toast.error(`Failed to update household location: ${reason}`);
+                      }
+                    }}
                     mapStyle={mapStyle}
                     onMapStyleChange={setMapStyle}
                     locationOn={locationOn}
@@ -492,7 +500,7 @@ export default function TerritoryDetailView() {
                             type="button"
                             onClick={() => {
                               setClearConfirmPending(false);
-                              setDrawMode('add');
+                              setDrawMode(territory.boundary ? 'edit' : 'add');
                             }}
                             title="Draw boundary"
                             aria-label="Draw boundary"
@@ -500,20 +508,6 @@ export default function TerritoryDetailView() {
                           >
                             <Plus className="h-4 w-4" />
                           </button>
-                          {territory.boundary && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClearConfirmPending(false);
-                                setDrawMode('edit');
-                              }}
-                              title="Edit boundary"
-                              aria-label="Edit boundary"
-                              className={mapToolButtonClass}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                          )}
                           {territory.boundary && canClearBoundary && (
                             <button
                               type="button"
@@ -538,7 +532,7 @@ export default function TerritoryDetailView() {
                         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm text-white">
                           <span className="text-xs font-semibold truncate">
                             {drawMode === 'edit'
-                              ? `✏️ Drag to move · Tap edge to add · Long-press vertex to remove`
+                              ? `✏️ Drag to move · Tap edge to add · Tap/right-click vertex to remove`
                               : drawActivePoints > 0
                                 ? `📍 ${drawActivePoints} pts — tap ✓ to close`
                                 : drawRingCount > 0

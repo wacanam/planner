@@ -39,7 +39,10 @@ import {
 import { FormField } from '@/components/ui/form-field';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
-import { HouseholdEncounterSheet } from '@/components/households/household-action-sheets';
+import {
+  HouseholdEncounterSheet,
+  HouseholdLogVisitSheet,
+} from '@/components/households/household-action-sheets';
 import {
   logVisitSchema,
   type LogVisitFormData,
@@ -756,6 +759,20 @@ export default function HouseholdsClient() {
     return counts;
   }, [allVisits]);
 
+  const latestVisitIdByHousehold = useMemo(() => {
+    const latest: Record<string, { id: string; at: string }> = {};
+    for (const visit of allVisits) {
+      const at = visit.visitDate ?? visit.createdAt ?? '';
+      const current = latest[visit.householdId];
+      if (!current || at > current.at) {
+        latest[visit.householdId] = { id: visit.id, at };
+      }
+    }
+    return Object.fromEntries(
+      Object.entries(latest).map(([householdId, item]) => [householdId, item.id])
+    ) as Record<string, string>;
+  }, [allVisits]);
+
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
@@ -955,18 +972,17 @@ export default function HouseholdsClient() {
         />
       )}
 
-      {/* Log visit dialog */}
-      <LogVisitDialog
-        open={!!logVisitHousehold}
+      <HouseholdLogVisitSheet
         household={logVisitHousehold}
-        onClose={() => setLogVisitHousehold(null)}
-        onSaved={() => {
-          setLogVisitHousehold(null);
+        open={!!logVisitHousehold}
+        onOpenChange={(open) => {
+          if (!open) setLogVisitHousehold(null);
         }}
       />
 
       <HouseholdEncounterSheet
         household={encounterHousehold}
+        visitId={encounterHousehold ? latestVisitIdByHousehold[encounterHousehold.id] : null}
         open={!!encounterHousehold}
         onOpenChange={(open) => {
           if (!open) setEncounterHousehold(null);

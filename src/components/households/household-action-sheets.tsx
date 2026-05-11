@@ -15,6 +15,7 @@ interface HouseholdSheetProps {
   household: Household | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  visitId?: string | null;
 }
 
 interface HouseholdLogVisitSheetProps extends HouseholdSheetProps {
@@ -92,7 +93,12 @@ export function HouseholdLogVisitSheet({
   );
 }
 
-export function HouseholdEncounterSheet({ household, open, onOpenChange }: HouseholdSheetProps) {
+export function HouseholdEncounterSheet({
+  household,
+  open,
+  onOpenChange,
+  visitId,
+}: HouseholdSheetProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: AddEncounterFormValues) => {
@@ -101,6 +107,7 @@ export function HouseholdEncounterSheet({ household, open, onOpenChange }: House
     setSubmitting(true);
     try {
       await createEncounter({
+        visitId,
         householdId: household.id,
         encounterDate: new Date().toISOString(),
         name: values.name,

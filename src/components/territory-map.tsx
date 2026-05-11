@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Building2,
   Crosshair,
   Eye,
   EyeOff,
@@ -11,8 +10,6 @@ import {
   Minus,
   Navigation,
   Plus,
-  RotateCcw,
-  RotateCw,
   Route,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -70,6 +67,7 @@ export interface TerritoryMapProps {
   onMapInteractionModeChange?: (mode: 'view' | 'add') => void;
   onHouseholdViewDetails?: (id: string) => void;
   onHouseholdDeleteRequest?: (id: string) => void;
+  onHouseholdMove?: (id: string, lat: number, lng: number) => void;
   showDefaultControls?: boolean;
   showPinControl?: boolean;
 }
@@ -109,10 +107,23 @@ const DARK_MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f172a' }] },
 ];
 
+const CLEAN_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+];
+
 export const MAP_STYLES = [
   { id: 'streets', label: 'Street', mapTypeId: 'roadmap' as google.maps.MapTypeId, styles: null },
   { id: 'bright', label: 'Hybrid', mapTypeId: 'hybrid' as google.maps.MapTypeId, styles: null },
   { id: 'positron', label: 'Terrain', mapTypeId: 'terrain' as google.maps.MapTypeId, styles: null },
+  {
+    id: 'clean',
+    label: 'Clean',
+    mapTypeId: 'roadmap' as google.maps.MapTypeId,
+    styles: CLEAN_MAP_STYLES,
+  },
   {
     id: 'dark',
     label: 'Dark',
@@ -128,8 +139,7 @@ const MARKER_LABEL_MAX_WIDTH = 280;
 const MARKER_LABEL_MIN_WIDTH = 72;
 const MARKER_LABEL_CHAR_WIDTH = 9;
 const MARKER_PIN_AND_PADDING_WIDTH = 42;
-const TILT_MODE_HEADING = 20;
-const ROTATION_STEP_DEGREES = 30;
+const EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS = 40;
 const STATUS_COLOR: Record<string, string> = {
   not_visited: '#64748b',
   not_home: '#f59e0b',
@@ -565,6 +575,7 @@ export default function TerritoryMap({
   onMapInteractionModeChange,
   onHouseholdViewDetails,
   onHouseholdDeleteRequest,
+  onHouseholdMove,
   showDefaultControls = true,
   showPinControl = true,
 }: TerritoryMapProps) {
@@ -588,6 +599,7 @@ export default function TerritoryMap({
   const onHouseholdAddEncounterRef = useRef(onHouseholdAddEncounter);
   const onHouseholdViewDetailsRef = useRef(onHouseholdViewDetails);
   const onHouseholdDeleteRequestRef = useRef(onHouseholdDeleteRequest);
+  const onHouseholdMoveRef = useRef(onHouseholdMove);
   const onHouseholdPinPlacedRef = useRef(onHouseholdPinPlaced);
   const directHouseholdClickRef = useRef(directHouseholdClick);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
@@ -603,7 +615,6 @@ export default function TerritoryMap({
   const [localInteractionMode, setLocalInteractionMode] = useState<'view' | 'add'>('view');
   const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
   const [headingBeamActive, setHeadingBeamActive] = useState(false);
-  const [tiltActive, setTiltActive] = useState(false);
   const [showOutsideBoundary, setShowOutsideBoundary] = useState(true);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
@@ -612,6 +623,7 @@ export default function TerritoryMap({
   onHouseholdAddEncounterRef.current = onHouseholdAddEncounter;
   onHouseholdViewDetailsRef.current = onHouseholdViewDetails;
   onHouseholdDeleteRequestRef.current = onHouseholdDeleteRequest;
+  onHouseholdMoveRef.current = onHouseholdMove;
   onHouseholdPinPlacedRef.current = onHouseholdPinPlaced;
   directHouseholdClickRef.current = directHouseholdClick;
   onDrawingCompleteRef.current = onDrawingComplete;
@@ -623,6 +635,7 @@ export default function TerritoryMap({
   activeRingRef.current = activeRing;
 
   const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
+  const initialMapStyleRef = useRef(activeMapStyle);
   const effectiveInteractionMode =
     mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
   const pinPreviewIsControlled = pinPreview !== undefined;
@@ -735,7 +748,7 @@ export default function TerritoryMap({
   useEffect(() => {
     if (!googleApi || !containerRef.current || mapRef.current) return;
 
-    const style = MAP_STYLES.find((item) => item.id === activeMapStyle) ?? MAP_STYLES[0];
+    const style = MAP_STYLES.find((item) => item.id === initialMapStyleRef.current) ?? MAP_STYLES[0];
     const firstPoint = validPoints[0];
     const initialCenter = center
       ? { lat: center[0], lng: center[1] }
@@ -751,8 +764,11 @@ export default function TerritoryMap({
       clickableIcons: false,
       fullscreenControl: false,
       mapTypeControl: false,
+      rotateControl: true,
       streetViewControl: false,
       gestureHandling: 'greedy',
+      tiltInteractionEnabled: true,
+      headingInteractionEnabled: true,
       controlSize: 30,
     });
 
@@ -778,7 +794,7 @@ export default function TerritoryMap({
       infoWindowRef.current?.close();
       mapRef.current = null;
     };
-  }, [activeMapStyle, center, clearBoundaryOverlays, clearDrawingOverlays, googleApi, validPoints]);
+  }, [center, clearBoundaryOverlays, clearDrawingOverlays, googleApi, validPoints]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -787,17 +803,6 @@ export default function TerritoryMap({
     map.setMapTypeId(style.mapTypeId);
     map.setOptions({ styles: style.styles });
   }, [activeMapStyle]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    map.setTilt(tiltActive ? 45 : 0);
-    if (tiltActive) {
-      map.setHeading(TILT_MODE_HEADING);
-    } else {
-      map.setHeading(0);
-    }
-  }, [mapReady, tiltActive]);
 
   useEffect(() => {
     const api = googleApi;
@@ -996,31 +1001,16 @@ export default function TerritoryMap({
               .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
           );
         });
-
-        // Mobile long-press to delete vertex (>= 500 ms)
-        const markerDiv = marker as google.maps.Marker & {
-          __longPressTimer?: ReturnType<typeof setTimeout>;
-        };
-        api.maps.event.addDomListener(marker as unknown as Element, 'touchstart', () => {
-          markerDiv.__longPressTimer = setTimeout(() => {
-            setDrawRings((current) =>
-              current
-                .map((currentRing, currentRingIndex) => {
-                  if (currentRingIndex !== ringIndex) return currentRing;
-                  if (currentRing.length <= 3) return null;
-                  return currentRing.filter(
-                    (_, currentVertexIndex) => currentVertexIndex !== vertexIndex
-                  );
-                })
-                .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
-            );
-          }, 500);
-        });
-        api.maps.event.addDomListener(marker as unknown as Element, 'touchend', () => {
-          clearTimeout(markerDiv.__longPressTimer);
-        });
-        api.maps.event.addDomListener(marker as unknown as Element, 'touchmove', () => {
-          clearTimeout(markerDiv.__longPressTimer);
+        marker.addListener('click', () => {
+          setDrawRings((current) =>
+            current
+              .map((currentRing, currentRingIndex) => {
+                if (currentRingIndex !== ringIndex) return currentRing;
+                if (currentRing.length <= 3) return null;
+                return currentRing.filter((_, currentVertexIndex) => currentVertexIndex !== vertexIndex);
+              })
+              .filter((ringValue): ringValue is LngLat[] => Boolean(ringValue))
+          );
         });
         drawingOverlaysRef.current.push(marker);
       });
@@ -1044,7 +1034,7 @@ export default function TerritoryMap({
       }
 
       const nearest = nearestRingSegment(drawRingsRef.current, point);
-      if (!nearest || nearest.distance > 25) return;
+      if (!nearest || nearest.distance > EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS) return;
       setDrawRings((current) =>
         current.map((ring, ringIndex) => {
           if (ringIndex !== nearest.ringIndex) return ring;
@@ -1089,8 +1079,10 @@ export default function TerritoryMap({
         existing.setPosition({ lat: household.lat, lng: household.lng });
         existing.setIcon(markerIcon(api, color, label));
         existing.setTitle(label);
+        existing.setDraggable(effectiveInteractionMode === 'add');
         // Re-register click with current household snapshot
         api.maps.event.clearListeners(existing, 'click');
+        api.maps.event.clearListeners(existing, 'dragend');
         existing.addListener('click', () => {
           if (directHouseholdClickRef.current && onHouseholdClickRef.current) {
             infoWindowRef.current?.close();
@@ -1108,6 +1100,11 @@ export default function TerritoryMap({
           infoWindowRef.current?.setContent(content);
           infoWindowRef.current?.open({ map, anchor: existing });
         });
+        existing.addListener('dragend', () => {
+          const position = existing.getPosition();
+          if (!position) return;
+          onHouseholdMoveRef.current?.(household.id, position.lat(), position.lng());
+        });
         return;
       }
 
@@ -1116,6 +1113,7 @@ export default function TerritoryMap({
         position: { lat: household.lat, lng: household.lng },
         icon: markerIcon(api, color, label),
         title: label,
+        draggable: effectiveInteractionMode === 'add',
         optimized: true,
         zIndex: 100 + index,
         collisionBehavior: api.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
@@ -1138,6 +1136,11 @@ export default function TerritoryMap({
         infoWindowRef.current?.setContent(content);
         infoWindowRef.current?.open({ map, anchor: marker });
       });
+      marker.addListener('dragend', () => {
+        const position = marker.getPosition();
+        if (!position) return;
+        onHouseholdMoveRef.current?.(household.id, position.lat(), position.lng());
+      });
 
       currentMap.set(household.id, marker);
     });
@@ -1145,7 +1148,7 @@ export default function TerritoryMap({
     return () => {
       // cleanup is managed by the diff above; full cleanup on unmount is in the map init effect
     };
-  }, [googleApi, mapReady, visibleHouseholdPoints]);
+  }, [effectiveInteractionMode, googleApi, mapReady, visibleHouseholdPoints]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1361,13 +1364,6 @@ export default function TerritoryMap({
     map.setZoom((map.getZoom() ?? 14) + delta);
   }, []);
 
-  const rotateBy = useCallback((delta: number) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const currentHeading = map.getHeading() ?? 0;
-    map.setHeading((currentHeading + delta + 360) % 360);
-  }, []);
-
   useEffect(() => {
     onGeolocateReady?.(locateOnce);
   }, [locateOnce, onGeolocateReady]);
@@ -1470,7 +1466,11 @@ export default function TerritoryMap({
           <div className="pointer-events-auto flex flex-col gap-2">
             {showPinControl && onHouseholdPinPlaced && !isDrawing ? (
               <MapControlButton
-                title={effectiveInteractionMode === 'add' ? 'Stop pinning' : 'Pin household'}
+                title={
+                  effectiveInteractionMode === 'add'
+                    ? 'Stop pinning/moving households'
+                    : 'Pin or move household'
+                }
                 active={effectiveInteractionMode === 'add'}
                 onClick={() =>
                   setInteractionMode(effectiveInteractionMode === 'add' ? 'view' : 'add')
@@ -1488,19 +1488,6 @@ export default function TerritoryMap({
               onClick={toggleHeadingBeam}
             >
               <Navigation className="h-4 w-4" />
-            </MapControlButton>
-            <MapControlButton
-              title={tiltActive ? 'Disable 3D tilt' : 'Enable 3D tilt'}
-              active={tiltActive}
-              onClick={() => setTiltActive((current) => !current)}
-            >
-              <Building2 className="h-4 w-4" />
-            </MapControlButton>
-            <MapControlButton title="Rotate map left" onClick={() => rotateBy(-ROTATION_STEP_DEGREES)}>
-              <RotateCcw className="h-4 w-4" />
-            </MapControlButton>
-            <MapControlButton title="Rotate map right" onClick={() => rotateBy(ROTATION_STEP_DEGREES)}>
-              <RotateCw className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton
               title={showOutsideBoundary ? 'Hide households outside boundary' : 'Show households outside boundary'}
