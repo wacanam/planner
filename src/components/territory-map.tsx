@@ -635,7 +635,6 @@ export default function TerritoryMap({
   activeRingRef.current = activeRing;
 
   const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
-  const initialMapStyleRef = useRef(activeMapStyle);
   const effectiveInteractionMode =
     mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
   const pinPreviewIsControlled = pinPreview !== undefined;
@@ -748,7 +747,7 @@ export default function TerritoryMap({
   useEffect(() => {
     if (!googleApi || !containerRef.current || mapRef.current) return;
 
-    const style = MAP_STYLES.find((item) => item.id === initialMapStyleRef.current) ?? MAP_STYLES[0];
+    const style = MAP_STYLES.find((item) => item.id === DEFAULT_STYLE) ?? MAP_STYLES[0];
     const firstPoint = validPoints[0];
     const initialCenter = center
       ? { lat: center[0], lng: center[1] }
