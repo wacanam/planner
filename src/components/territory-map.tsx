@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Building2,
   Crosshair,
   Layers,
   LocateFixed,
@@ -63,6 +64,7 @@ export interface TerritoryMapProps {
   mapInteractionMode?: 'view' | 'add';
   onMapInteractionModeChange?: (mode: 'view' | 'add') => void;
   onHouseholdViewDetails?: (id: string) => void;
+  onHouseholdDeleteRequest?: (id: string) => void;
   showDefaultControls?: boolean;
   showPinControl?: boolean;
 }
@@ -256,9 +258,17 @@ function orientationHeading(event: DeviceOrientationEvent & { webkitCompassHeadi
   return (((rawHeading - screenAngle) % 360) + 360) % 360;
 }
 
-function markerIcon(api: GoogleApi, color: string): google.maps.Icon {
+function markerIcon(api: GoogleApi, color: string, label: string): google.maps.Icon {
+  const safeLabel = label
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const textWidth = Math.min(280, Math.max(72, safeLabel.length * 9));
+  const iconWidth = 44 + textWidth;
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="46" viewBox="0 0 38 46">
+    <svg xmlns="http://www.w3.org/2000/svg" width="${iconWidth}" height="46" viewBox="0 0 ${iconWidth} 46">
       <filter id="shadow" x="-25%" y="-15%" width="150%" height="150%">
         <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.22"/>
       </filter>
@@ -266,10 +276,12 @@ function markerIcon(api: GoogleApi, color: string): google.maps.Icon {
       <path d="M19 5.75c-6.75 0-11.5 4.8-11.5 11.5 0 7.25 6.2 15.55 11.5 21.25 5.3-5.7 11.5-14 11.5-21.25 0-6.7-4.75-11.5-11.5-11.5Z" fill="${color}"/>
       <path d="M13.1 17.15 19 12.2l5.9 4.95v6.7c0 .48-.39.88-.88.88h-3.08v-4.35h-3.88v4.35h-3.08a.88.88 0 0 1-.88-.88v-6.7Z" fill="white"/>
       <path d="M11.95 17.55 19 11.65l7.05 5.9" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="42" y="20" fill="${color}" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700"
+            stroke="white" stroke-width="3" paint-order="stroke fill"> ${safeLabel} </text>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new api.maps.Size(38, 46),
+    scaledSize: new api.maps.Size(iconWidth, 46),
     anchor: new api.maps.Point(19, 43),
   };
 }
@@ -367,8 +379,9 @@ function createInfoWindowContent(params: {
   onLogVisit?: (id: string, address: string) => void;
   onAddEncounter?: (id: string, address: string) => void;
   onViewDetails?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
-  const { household, color, onLogVisit, onAddEncounter, onViewDetails } = params;
+  const { household, color, onLogVisit, onAddEncounter, onViewDetails, onDelete } = params;
   const wrapper = document.createElement('div');
   wrapper.className = 'min-w-64 max-w-80 space-y-3 p-1 font-sans';
 
@@ -451,8 +464,18 @@ function createInfoWindowContent(params: {
     button.type = 'button';
     button.className =
       'rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-950';
-    button.textContent = 'Details';
+    button.textContent = 'View Full Details';
     button.addEventListener('click', () => onViewDetails(household.id));
+    actions.appendChild(button);
+  }
+
+  if (onDelete) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className =
+      'rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700';
+    button.textContent = 'Delete';
+    button.addEventListener('click', () => onDelete(household.id));
     actions.appendChild(button);
   }
 
@@ -488,6 +511,7 @@ export default function TerritoryMap({
   mapInteractionMode,
   onMapInteractionModeChange,
   onHouseholdViewDetails,
+  onHouseholdDeleteRequest,
   showDefaultControls = true,
   showPinControl = true,
 }: TerritoryMapProps) {
@@ -511,6 +535,7 @@ export default function TerritoryMap({
   const onHouseholdClickRef = useRef(onHouseholdClick);
   const onHouseholdAddEncounterRef = useRef(onHouseholdAddEncounter);
   const onHouseholdViewDetailsRef = useRef(onHouseholdViewDetails);
+  const onHouseholdDeleteRequestRef = useRef(onHouseholdDeleteRequest);
   const onHouseholdPinPlacedRef = useRef(onHouseholdPinPlaced);
   const directHouseholdClickRef = useRef(directHouseholdClick);
   const onDrawingCompleteRef = useRef(onDrawingComplete);
@@ -526,12 +551,14 @@ export default function TerritoryMap({
   const [localInteractionMode, setLocalInteractionMode] = useState<'view' | 'add'>('view');
   const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
   const [headingBeamActive, setHeadingBeamActive] = useState(false);
+  const [tiltActive, setTiltActive] = useState(false);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
 
   onHouseholdClickRef.current = onHouseholdClick;
   onHouseholdAddEncounterRef.current = onHouseholdAddEncounter;
   onHouseholdViewDetailsRef.current = onHouseholdViewDetails;
+  onHouseholdDeleteRequestRef.current = onHouseholdDeleteRequest;
   onHouseholdPinPlacedRef.current = onHouseholdPinPlaced;
   directHouseholdClickRef.current = directHouseholdClick;
   onDrawingCompleteRef.current = onDrawingComplete;
@@ -700,6 +727,17 @@ export default function TerritoryMap({
     map.setMapTypeId(style.mapTypeId);
     map.setOptions({ styles: style.styles });
   }, [activeMapStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    map.setTilt(tiltActive ? 45 : 0);
+    if (tiltActive) {
+      map.setHeading(20);
+    } else {
+      map.setHeading(0);
+    }
+  }, [mapReady, tiltActive]);
 
   useEffect(() => {
     const api = googleApi;
@@ -990,7 +1028,7 @@ export default function TerritoryMap({
       if (existing) {
         // Update position and icon in case data changed
         existing.setPosition({ lat: household.lat, lng: household.lng });
-        existing.setIcon(markerIcon(api, color));
+        existing.setIcon(markerIcon(api, color, label));
         existing.setTitle(label);
         // Re-register click with current household snapshot
         api.maps.event.clearListeners(existing, 'click');
@@ -1006,6 +1044,7 @@ export default function TerritoryMap({
             onLogVisit: onHouseholdClickRef.current,
             onAddEncounter: onHouseholdAddEncounterRef.current,
             onViewDetails: onHouseholdViewDetailsRef.current,
+            onDelete: onHouseholdDeleteRequestRef.current,
           });
           infoWindowRef.current?.setContent(content);
           infoWindowRef.current?.open({ map, anchor: existing });
@@ -1016,7 +1055,7 @@ export default function TerritoryMap({
       const marker = new api.maps.Marker({
         map,
         position: { lat: household.lat, lng: household.lng },
-        icon: markerIcon(api, color),
+        icon: markerIcon(api, color, label),
         title: label,
         optimized: true,
         zIndex: 100 + index,
@@ -1035,6 +1074,7 @@ export default function TerritoryMap({
           onLogVisit: onHouseholdClickRef.current,
           onAddEncounter: onHouseholdAddEncounterRef.current,
           onViewDetails: onHouseholdViewDetailsRef.current,
+          onDelete: onHouseholdDeleteRequestRef.current,
         });
         infoWindowRef.current?.setContent(content);
         infoWindowRef.current?.open({ map, anchor: marker });
@@ -1385,6 +1425,13 @@ export default function TerritoryMap({
               onClick={toggleHeadingBeam}
             >
               <Navigation className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton
+              title={tiltActive ? 'Disable 3D tilt' : 'Enable 3D tilt'}
+              active={tiltActive}
+              onClick={() => setTiltActive((current) => !current)}
+            >
+              <Building2 className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton title={`Map style: ${currentStyleLabel}`} onClick={cycleMapStyle}>
               <Layers className="h-4 w-4" />

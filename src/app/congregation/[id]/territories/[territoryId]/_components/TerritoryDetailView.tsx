@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +52,9 @@ import {
   type GeoJSONGeometry,
 } from '@/hooks/use-territory-boundary';
 import { AddHouseholdSheet } from './AddHouseholdSheet';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { deleteHousehold } from '@/lib/local-first';
+import { toast } from 'sonner';
 // Dynamic import because the Google Maps SDK requires browser APIs.
 // biome-ignore lint/suspicious/noExplicitAny: dynamic map import
 const TerritoryMap = dynamic(() => import('@/components/territory-map'), { ssr: false }) as any;
@@ -195,6 +198,7 @@ export default function TerritoryDetailView() {
     id: string;
     territoryId: string;
   }>();
+  const router = useRouter();
 
   const { data: session } = useSession();
   const sessionUser = session?.user as
@@ -266,6 +270,9 @@ export default function TerritoryDetailView() {
   const [mapInteractionMode, setMapInteractionMode] = useState<'view' | 'add'>('view');
   const [logVisitHouseholdId, setLogVisitHouseholdId] = useState<string | null>(null);
   const [encounterHouseholdId, setEncounterHouseholdId] = useState<string | null>(null);
+  const [deleteHouseholdId, setDeleteHouseholdId] = useState<string | null>(null);
+  const [deletingHousehold, setDeletingHousehold] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -333,6 +340,25 @@ export default function TerritoryDetailView() {
     householdsResp.find((household) => household.id === logVisitHouseholdId) ?? null;
   const encounterHousehold =
     householdsResp.find((household) => household.id === encounterHouseholdId) ?? null;
+  const householdToDelete =
+    householdsResp.find((household) => household.id === deleteHouseholdId) ?? null;
+
+  const handleDeleteHousehold = useCallback(async () => {
+    if (!deleteHouseholdId) return;
+    setDeletingHousehold(true);
+    setDeleteError(null);
+    try {
+      await deleteHousehold(deleteHouseholdId);
+      toast.success('Pinned household deleted');
+      setDeleteHouseholdId(null);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      setDeleteError(reason);
+      toast.error(reason);
+    } finally {
+      setDeletingHousehold(false);
+    }
+  }, [deleteHouseholdId]);
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -372,6 +398,14 @@ export default function TerritoryDetailView() {
                     onHouseholdClick={handleHouseholdClick}
                     onHouseholdAddEncounter={(householdId: string) =>
                       setEncounterHouseholdId(householdId)
+                    }
+                    onHouseholdViewDetails={(householdId: string) =>
+                      router.push(
+                        `/congregation/${congregationId}/records/households/${householdId}`
+                      )
+                    }
+                    onHouseholdDeleteRequest={(householdId: string) =>
+                      setDeleteHouseholdId(householdId)
                     }
                     mapStyle={mapStyle}
                     onMapStyleChange={setMapStyle}
@@ -738,6 +772,27 @@ export default function TerritoryDetailView() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <ConfirmDialog
+            open={Boolean(deleteHouseholdId)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setDeleteHouseholdId(null);
+                setDeleteError(null);
+              }
+            }}
+            title="Delete household?"
+            description={
+              householdToDelete
+                ? `Remove ${householdToDelete.address || 'this pinned household'} from your local-first records?`
+                : 'Remove this pinned household from your local-first records?'
+            }
+            confirmLabel={deletingHousehold ? 'Deleting…' : 'Delete'}
+            confirmVariant="destructive"
+            loading={deletingHousehold}
+            error={deleteError}
+            onConfirm={handleDeleteHousehold}
+          />
         </main>
       )}
     </ProtectedPage>
