@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -25,12 +26,16 @@ export type AddEncounterFormValues = z.infer<typeof schema>;
 interface AddEncounterFormProps {
   submitting?: boolean;
   embedded?: boolean;
+  initialValues?: Partial<AddEncounterFormValues>;
+  submitLabel?: string;
   onSubmit: (values: AddEncounterFormValues) => Promise<void> | void;
 }
 
 export function AddEncounterForm({
   submitting = false,
   embedded = false,
+  initialValues,
+  submitLabel,
   onSubmit,
 }: AddEncounterFormProps) {
   const {
@@ -54,6 +59,18 @@ export function AddEncounterForm({
     await onSubmit(values);
     reset();
   });
+
+  useEffect(() => {
+    if (!initialValues) return;
+    reset({
+      name: initialValues.name ?? '',
+      response: initialValues.response ?? 'neutral',
+      topicDiscussed: initialValues.topicDiscussed ?? '',
+      literatureAccepted: initialValues.literatureAccepted ?? '',
+      returnVisitRequested: initialValues.returnVisitRequested ?? false,
+      notes: initialValues.notes ?? '',
+    });
+  }, [initialValues, reset]);
 
   const fields = (
     <>
@@ -104,7 +121,7 @@ export function AddEncounterForm({
         disabled={submitting}
         onClick={embedded ? () => void submitEncounter() : undefined}
       >
-        {submitting ? 'Adding…' : 'Add Encounter'}
+        {submitting ? 'Saving…' : submitLabel ?? 'Add Encounter'}
       </Button>
     </>
   );

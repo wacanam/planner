@@ -1,9 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { Clock, ChevronDown, ChevronUp, BookOpen, User, FileText } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useState } from 'react';
+import { Clock, ChevronDown, ChevronUp, BookOpen, User, FileText, Pencil } from 'lucide-react';
+import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useMyVisits } from '@/hooks';
+import { updateVisitRecord } from '@/lib/record-writes';
+import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import { timeAgo } from '@/lib/time-ago';
 import type { Visit } from '@/types/api';
 
@@ -37,10 +51,239 @@ function formatNextVisit(value?: string | null, time?: string | null) {
   });
 }
 
+function splitNextVisit(value?: string | null, time?: string | null) {
+  if (!value) return { date: undefined, time: time ?? undefined };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value, time: time ?? undefined };
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return { date: value.slice(0, 10), time: time ?? undefined };
+  const date = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+  return { date, time: time ?? parsed.toTimeString().slice(0, 5) };
+}
+
+function combineNextVisit(date?: string, time?: string) {
+  if (!date) return undefined;
+  return new Date(`${date}T${time || '09:00'}`).toISOString();
+}
+
+const statusLabels: Record<string, string> = {
+  new: 'New',
+  active: 'Active',
+  not_home: 'Not Home',
+  return_visit: 'Return Visit',
+  do_not_visit: 'Do Not Visit',
+  moved: 'Moved',
+  inactive: 'Inactive',
+};
+
+function EditVisitSheet({
+  visit,
+  open,
+  onClose,
+}: {
+  visit: (Visit & { householdAddress?: string; householdCity?: string }) | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<LogVisitFormData>({
+    resolver: zodResolver(logVisitSchema),
+    defaultValues: { returnVisitPlanned: false, addEncounter: false, encounterResponse: 'neutral' },
+  });
+
+  useEffect(() => {
+    if (!open || !visit) return;
+    const nextVisit = splitNextVisit(visit.nextVisitDate, visit.nextVisitTime);
+    reset({
+      outcome: visit.outcome as LogVisitFormData['outcome'],
+      householdStatusAfter: visit.householdStatusAfter as LogVisitFormData['householdStatusAfter'],
+      duration: visit.duration ?? undefined,
+      literatureLeft: visit.literatureLeft ?? undefined,
+      bibleTopicDiscussed: visit.bibleTopicDiscussed ?? undefined,
+      returnVisitPlanned: visit.returnVisitPlanned,
+      nextVisitDate: nextVisit.date,
+      nextVisitTime: nextVisit.time,
+      nextVisitNotes: visit.nextVisitNotes ?? undefined,
+      notes: visit.notes ?? undefined,
+      addEncounter: false,
+      encounterResponse: 'neutral',
+    });
+  }, [open, reset, visit]);
+
+  const onSubmit = async (values: LogVisitFormData) => {
+    if (!visit) return;
+    await updateVisitRecord(visit.id, {
+      outcome: values.outcome,
+      householdStatusAfter: values.householdStatusAfter,
+      duration: values.duration,
+      literatureLeft: values.literatureLeft,
+      bibleTopicDiscussed: values.bibleTopicDiscussed,
+      returnVisitPlanned: values.returnVisitPlanned ?? false,
+      nextVisitDate: values.returnVisitPlanned
+        ? combineNextVisit(values.nextVisitDate, values.nextVisitTime)
+        : undefined,
+      nextVisitTime: values.returnVisitPlanned ? values.nextVisitTime : undefined,
+      nextVisitNotes: values.nextVisitNotes,
+      notes: values.notes,
+    });
+    onClose();
+  };
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) onClose();
+      }}
+      title="Edit Visit"
+      description={
+        visit ? [visit.householdAddress, visit.householdCity].filter(Boolean).join(', ') : undefined
+      }
+      contentClassName="sm:max-w-md"
+    >
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
+      >
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium">Outcome *</span>
+          <Controller
+            name="outcome"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select outcome…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(outcomeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.outcome && <p className="text-xs text-destructive">{errors.outcome.message}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium">Update Household Status</span>
+          <Controller
+            name="householdStatusAfter"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value ?? ''} onValueChange={(value) => field.onChange(value || undefined)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Keep current status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(statusLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+
+        <FormField
+          label="Duration (minutes)"
+          id="visitDuration"
+          type="number"
+          min={1}
+          max={300}
+          error={errors.duration?.message}
+          {...register('duration', { setValueAs: (value) => (value === '' ? undefined : Number(value)) })}
+        />
+
+        <FormField
+          label="Literature Left"
+          id="visitLiterature"
+          error={errors.literatureLeft?.message}
+          {...register('literatureLeft')}
+        />
+
+        <FormField
+          label="Bible Topic Discussed"
+          id="visitTopic"
+          error={errors.bibleTopicDiscussed?.message}
+          {...register('bibleTopicDiscussed')}
+        />
+
+        <FormField
+          label="Notes"
+          id="visitNotes"
+          multiline
+          rows={3}
+          error={errors.notes?.message}
+          {...register('notes')}
+        />
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="visitReturnPlanned"
+            className="h-4 w-4 rounded border"
+            {...register('returnVisitPlanned')}
+          />
+          <label htmlFor="visitReturnPlanned" className="text-sm font-medium">
+            Return visit planned
+          </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField
+            label="Next Visit Date"
+            id="visitNextDate"
+            type="date"
+            error={errors.nextVisitDate?.message}
+            {...register('nextVisitDate')}
+          />
+          <FormField
+            label="Next Visit Time"
+            id="visitNextTime"
+            type="time"
+            error={errors.nextVisitTime?.message}
+            {...register('nextVisitTime')}
+          />
+        </div>
+
+        <FormField
+          label="Next Visit Notes"
+          id="visitNextNotes"
+          multiline
+          rows={2}
+          error={errors.nextVisitNotes?.message}
+          {...register('nextVisitNotes')}
+        />
+
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    </ResponsiveDialog>
+  );
+}
+
 function VisitCard({
   visit,
+  onEdit,
 }: {
   visit: Visit & { householdAddress?: string; householdCity?: string };
+  onEdit: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -64,9 +307,21 @@ function VisitCard({
             <p className="text-xs text-muted-foreground">{visit.householdCity}</p>
           )}
         </div>
-        <Badge variant="outline" className={`shrink-0 ${outcomeColors[visit.outcome] ?? ''}`}>
-          {outcomeLabels[visit.outcome] ?? visit.outcome}
-        </Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8"
+            onClick={onEdit}
+            aria-label="Edit visit"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Badge variant="outline" className={`shrink-0 ${outcomeColors[visit.outcome] ?? ''}`}>
+            {outcomeLabels[visit.outcome] ?? visit.outcome}
+          </Badge>
+        </div>
       </div>
 
       {/* Meta row */}
@@ -133,6 +388,9 @@ function VisitCard({
 export default function VisitsClient() {
   const { visits, isLoading, error } = useMyVisits();
   const [outcomeFilter, setOutcomeFilter] = useState('all');
+  const [editingVisit, setEditingVisit] = useState<
+    (Visit & { householdAddress?: string; householdCity?: string }) | null
+  >(null);
 
   const filtered =
     outcomeFilter === 'all' ? visits : visits.filter((v) => v.outcome === outcomeFilter);
@@ -190,10 +448,19 @@ export default function VisitsClient() {
             <VisitCard
               key={v.id}
               visit={v as Visit & { householdAddress?: string; householdCity?: string }}
+              onEdit={() =>
+                setEditingVisit(v as Visit & { householdAddress?: string; householdCity?: string })
+              }
             />
           ))}
         </div>
       )}
+
+      <EditVisitSheet
+        visit={editingVisit}
+        open={!!editingVisit}
+        onClose={() => setEditingVisit(null)}
+      />
     </div>
   );
 }

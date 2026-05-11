@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   Layers,
-  LocateFixed,
   MapPinPlus,
   Minus,
   Navigation,
@@ -778,10 +777,11 @@ export default function TerritoryMap({
       fullscreenControl: false,
       mapTypeControl: false,
       streetViewControl: false,
-      gestureHandling: 'greedy',
+      gestureHandling: 'cooperative',
       tiltInteractionEnabled: true,
       headingInteractionEnabled: true,
       tilt: 45,
+      isFractionalZoomEnabled: true,
       controlSize: 30,
     });
 
@@ -814,7 +814,12 @@ export default function TerritoryMap({
     if (!map) return;
     const style = MAP_STYLES.find((item) => item.id === activeMapStyle) ?? MAP_STYLES[0];
     map.setMapTypeId(style.mapTypeId);
-    map.setOptions({ styles: style.styles });
+    map.setOptions({
+      styles: style.styles,
+      tiltInteractionEnabled: true,
+      headingInteractionEnabled: true,
+    });
+    if ((map.getTilt?.() ?? 0) < 45) map.setTilt(45);
   }, [activeMapStyle]);
 
   useEffect(() => {
@@ -1336,13 +1341,12 @@ export default function TerritoryMap({
     }
   }, []);
 
-  const toggleHeadingBeam = useCallback(() => {
+  const toggleNavigationAssist = useCallback(() => {
     if (headingBeamActive) {
       setHeadingBeamActive(false);
       headingBeamRef.current?.setMap(null);
       return;
     }
-
     void requestHeadingPermission().then((granted) => {
       if (!granted) {
         onCalibrationNeededRef.current?.(true);
@@ -1500,24 +1504,16 @@ export default function TerritoryMap({
                 <MapPinPlus className="h-4 w-4" />
               </MapControlButton>
             ) : null}
-            <MapControlButton title="My location" active={locationOn} onClick={locateOnce}>
-              <LocateFixed className="h-4 w-4" />
-            </MapControlButton>
-            <MapControlButton
-              title="Heading beam"
-              active={headingBeamActive}
-              onClick={toggleHeadingBeam}
-            >
-              <Navigation className="h-4 w-4" />
-            </MapControlButton>
             <MapControlButton
               title={
-                activeMapStyle === 'clean' ? 'Disable clean base map' : 'Show clean base map'
+                headingBeamActive
+                  ? 'Stop navigation assist'
+                  : 'Find current location + heading direction'
               }
-              active={activeMapStyle === 'clean'}
-              onClick={() => setStyle(activeMapStyle === 'clean' ? 'streets' : 'clean')}
+              active={headingBeamActive || locationOn}
+              onClick={toggleNavigationAssist}
             >
-              <Layers className="h-4 w-4" />
+              <Navigation className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton
               title={showOutsideBoundary ? 'Hide households outside boundary' : 'Show households outside boundary'}

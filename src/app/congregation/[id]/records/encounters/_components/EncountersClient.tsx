@@ -1,27 +1,20 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Pencil, Trash2, Plus, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import { FormField } from '@/components/ui/form-field';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  AddEncounterForm,
+  type AddEncounterFormValues,
+} from '@/components/households/add-encounter-form';
 import { useHouseholds, useMyEncounters } from '@/hooks';
 import {
   deleteEncounterRecord,
   saveEncounterRecord,
   updateEncounterRecord,
 } from '@/lib/record-writes';
-import { type RecordEncounterFormData, recordEncounterSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
 
 const responseColors: Record<string, string> = {
@@ -40,15 +33,6 @@ const responseLabels: Record<string, string> = {
   hostile: 'Hostile',
   do_not_visit: 'Do Not Visit',
   moved: 'Moved',
-};
-
-const DEFAULT_VALUES: Partial<RecordEncounterFormData> = {
-  householdId: '',
-  encounterDate: new Date().toISOString().slice(0, 10),
-  gender: 'unknown',
-  role: 'unknown',
-  bibleStudyInterest: false,
-  returnVisitRequested: false,
 };
 
 function householdLabel(household: Household) {
@@ -72,180 +56,84 @@ function LogEncounterDialog({
   onOpenChange,
   onSaved,
 }: LogEncounterDialogProps) {
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<RecordEncounterFormData>({
-    resolver: zodResolver(recordEncounterSchema),
-    defaultValues: DEFAULT_VALUES,
-  });
-
-  const onSubmit = async (values: RecordEncounterFormData) => {
-    const payload = {
-      ...values,
-      householdId: values.householdId || null,
-    };
-
-    if (encounter) {
-      await updateEncounterRecord(encounter.id, payload);
-    } else {
-      await saveEncounterRecord(payload);
-    }
-    onSaved();
-    reset(DEFAULT_VALUES);
-    onOpenChange(false);
-  };
+  const [submitting, setSubmitting] = useState(false);
+  const [householdId, setHouseholdId] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    reset(
-      encounter
-        ? {
-            householdId: encounter.householdId ?? '',
-            encounterDate: (encounter.visitDate ?? encounter.createdAt).slice(0, 10),
-            name: encounter.name ?? undefined,
-            gender: (encounter.gender as RecordEncounterFormData['gender']) ?? 'unknown',
-            role: (encounter.role as RecordEncounterFormData['role']) ?? 'unknown',
-            response: encounter.response as RecordEncounterFormData['response'],
-            topicDiscussed: encounter.topicDiscussed ?? undefined,
-            literatureAccepted: encounter.literatureAccepted ?? undefined,
-            bibleStudyInterest: encounter.bibleStudyInterest,
-            returnVisitRequested: encounter.returnVisitRequested,
-            notes: encounter.notes ?? undefined,
-          }
-        : DEFAULT_VALUES
-    );
-  }, [encounter, open, reset]);
+    setHouseholdId(encounter?.householdId ?? '');
+  }, [encounter, open]);
+
+  const onSubmit = async (values: AddEncounterFormValues) => {
+    const payload = {
+      householdId: householdId || null,
+      encounterDate: encounter?.visitDate ?? new Date().toISOString(),
+      name: values.name,
+      response: values.response,
+      topicDiscussed: values.topicDiscussed,
+      literatureAccepted: values.literatureAccepted,
+      returnVisitRequested: values.returnVisitRequested,
+      notes: values.notes,
+    };
+
+    setSubmitting(true);
+    try {
+      if (encounter) {
+        await updateEncounterRecord(encounter.id, payload);
+      } else {
+        await saveEncounterRecord(payload);
+      }
+      onSaved();
+      onOpenChange(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <ResponsiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={encounter ? 'Edit Encounter' : 'Log Encounter'}
-      description="Record a ministry conversation even if it happened outside an assignment or without a visit."
+      title={encounter ? 'Edit Encounter' : 'Add Encounter'}
+      description="Record conversation details and optionally link to a household."
       contentClassName="sm:max-w-lg"
     >
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="max-h-[calc(90vh-200px)] space-y-4 overflow-y-auto pr-4"
-      >
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">Response *</span>
-            <Controller
-              name="response"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select response..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(responseLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.response && (
-              <p className="text-xs text-destructive">{errors.response.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">Linked Household</span>
-            <Controller
-              name="householdId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  value={field.value || 'none'}
-                  onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No linked household" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No linked household</SelectItem>
-                    {households.map((household) => (
-                      <SelectItem key={household.id} value={household.id}>
-                        {householdLabel(household)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          <FormField
-            label="Encounter Date"
-            id="encounterDate"
-            type="date"
-            error={errors.encounterDate?.message}
-            {...register('encounterDate')}
-          />
-
-          <FormField
-            label="Name"
-            id="encounterName"
-            optional
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <FormField
-            label="Topic Discussed"
-            id="encounterTopic"
-            optional
-            error={errors.topicDiscussed?.message}
-            {...register('topicDiscussed')}
-          />
-
-          <FormField
-            label="Literature Accepted"
-            id="encounterLiterature"
-            optional
-            error={errors.literatureAccepted?.message}
-            {...register('literatureAccepted')}
-          />
-
-          <FormField
-            label="Notes"
-            id="encounterNotes"
-            multiline
-            rows={4}
-            optional
-            error={errors.notes?.message}
-            {...register('notes')}
-          />
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="returnVisitRequested"
-              className="h-4 w-4 rounded border"
-              {...register('returnVisitRequested')}
-            />
-            <label htmlFor="returnVisitRequested" className="text-sm font-medium">
-              Return visit requested
-            </label>
-          </div>
-
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {encounter ? 'Save Changes' : 'Save Encounter'}
-          </Button>
+      <div className="max-h-[calc(90vh-200px)] space-y-4 overflow-y-auto pr-4">
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium">Linked Household</span>
+          <select
+            value={householdId || 'none'}
+            onChange={(event) =>
+              setHouseholdId(event.target.value === 'none' ? '' : event.target.value)
+            }
+            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="none">No linked household</option>
+            {households.map((household) => (
+              <option key={household.id} value={household.id}>
+                {householdLabel(household)}
+              </option>
+            ))}
+          </select>
         </div>
-      </form>
+        <AddEncounterForm
+          submitting={submitting}
+          submitLabel={encounter ? 'Save Changes' : 'Add Encounter'}
+          initialValues={
+            encounter
+              ? {
+                  name: encounter.name ?? undefined,
+                  response: encounter.response as AddEncounterFormValues['response'],
+                  topicDiscussed: encounter.topicDiscussed ?? undefined,
+                  literatureAccepted: encounter.literatureAccepted ?? undefined,
+                  returnVisitRequested: encounter.returnVisitRequested,
+                  notes: encounter.notes ?? undefined,
+                }
+              : undefined
+          }
+          onSubmit={onSubmit}
+        />
+      </div>
     </ResponsiveDialog>
   );
 }

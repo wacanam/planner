@@ -26,9 +26,9 @@ import {
   Undo2,
   Check,
   Save,
-  Trash2,
-  Pencil,
+  Route,
   Plus,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
@@ -508,7 +508,7 @@ export default function TerritoryDetailView() {
                             className={mapToolButtonClass}
                           >
                             {territory.boundary ? (
-                              <Pencil className="h-4 w-4" />
+                              <Route className="h-4 w-4" />
                             ) : (
                               <Plus className="h-4 w-4" />
                             )}
@@ -521,7 +521,7 @@ export default function TerritoryDetailView() {
                               aria-label="Clear boundary"
                               className={`${mapToolButtonClass} text-destructive hover:bg-destructive/10`}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <X className="h-4 w-4" />
                             </button>
                           )}
                         </div>
