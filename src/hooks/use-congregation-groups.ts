@@ -1,30 +1,167 @@
-import useSWR, { type SWRConfiguration } from 'swr';
-import useSWRMutation from 'swr/mutation';
-import { apiClient } from '@/lib/api-client';
-import type { Group } from '@/types/api';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import type { Group, GroupMember } from '@/types/api';
 
-export function useCongregationGroups(
-  congregationId: string | null | undefined,
-  options?: SWRConfiguration
-) {
-  const { data, error, isLoading, mutate } = useSWR<Group[]>(
-    congregationId ? `/api/congregations/${congregationId}/groups` : null,
-    (url) => apiClient.get<Group[]>(url),
-    { revalidateOnFocus: false, ...options }
-  );
+function groupCollection() {
+  return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.groups);
+}
+
+function groupDocument(id: string) {
+  return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.groups, id);
+}
+
+function groupFromData(id: string, data: Partial<Group>): Group {
   return {
-    groups: data ?? [],
-    data: data ?? [],
-    isLoading,
-    error: error?.message ?? null,
-    mutate,
+    id,
+    congregationId: data.congregationId ?? '',
+    name: data.name ?? 'Unnamed group',
+    createdAt: data.createdAt ?? nowIso(),
+    members: data.members ?? [],
   };
 }
 
+export function useCongregationGroups(congregationId: string | null | undefined) {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoading, setIsLoading] = useState(Boolean(congregationId));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!congregationId) {
+      setGroups([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    const groupQuery = query(groupCollection(), where('congregationId', '==', congregationId));
+    return onSnapshot(
+      groupQuery,
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setGroups(
+          snapshot.docs
+            .map((document) => groupFromData(document.id, document.data() as Partial<Group>))
+            .sort((left, right) => left.name.localeCompare(right.name))
+        );
+        setError(null);
+        setIsLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setIsLoading(false);
+      }
+    );
+  }, [congregationId]);
+
+  return { groups, data: groups, isLoading, error };
+}
+
 export function useCreateGroup(congregationId: string) {
-  const { trigger, isMutating } = useSWRMutation(
-    `/api/congregations/${congregationId}/groups`,
-    (url: string, { arg }: { arg: Record<string, unknown> }) => apiClient.post(url, arg)
+  const [isCreating, setIsCreating] = useState(false);
+  const create = useCallback(
+    async (arg: Record<string, unknown>) => {
+      setIsCreating(true);
+      try {
+        const id = createClientId();
+        await setDoc(groupDocument(id), {
+          id,
+          congregationId,
+          name: String(arg.name ?? 'Unnamed group'),
+          createdAt: nowIso(),
+          members: [],
+        } satisfies Group);
+        return { id };
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    [congregationId]
   );
-  return { create: trigger, isCreating: isMutating };
+  return { create, isCreating };
+}
+
+export function useUpdateGroup(congregationId: string) {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const update = useCallback(
+    async (arg: { id: string; name?: string; members?: GroupMember[] }) => {
+      setIsUpdating(true);
+      try {
+        const updates: Record<string, unknown> = {};
+        if (arg.name !== undefined) updates.name = arg.name.trim();
+        if (arg.members !== undefined) updates.members = arg.members;
+        if (Object.keys(updates).length === 0) return;
+
+        if (arg.members === undefined) {
+          await updateDoc(groupDocument(arg.id), updates);
+          return;
+        }
+
+        const firestore = getPlannerFirestore();
+        const selectedUserIds = new Set(arg.members.map((member) => member.userId));
+        const groupSnapshot = await getDocs(
+          query(groupCollection(), where('congregationId', '==', congregationId))
+        );
+        const batch = writeBatch(firestore);
+        let targetFound = false;
+
+        for (const document of groupSnapshot.docs) {
+          if (document.id === arg.id) {
+            targetFound = true;
+            batch.update(document.ref, updates);
+            continue;
+          }
+
+          const group = groupFromData(document.id, document.data() as Partial<Group>);
+          const filteredMembers = group.members.filter(
+            (member) => !selectedUserIds.has(member.userId)
+          );
+          if (filteredMembers.length !== group.members.length) {
+            batch.update(document.ref, { members: filteredMembers });
+          }
+        }
+
+        if (!targetFound) batch.update(groupDocument(arg.id), updates);
+        await batch.commit();
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [congregationId]
+  );
+  return { update, isUpdating };
+}
+
+export function useDeleteGroup(_congregationId: string) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const remove = useCallback(async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const firestore = getPlannerFirestore();
+      const assignments = await getDocs(
+        query(collection(firestore, FIRESTORE_COLLECTIONS.assignments), where('serviceGroupId', '==', id))
+      );
+      const batch = writeBatch(firestore);
+      for (const assignment of assignments.docs) {
+        batch.update(assignment.ref, { serviceGroupId: null, groupName: null, updatedAt: nowIso() });
+      }
+      if (!assignments.empty) await batch.commit();
+      await deleteDoc(groupDocument(id));
+    } finally {
+      setIsDeleting(false);
+    }
+  }, []);
+  return { remove, isDeleting };
 }

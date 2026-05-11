@@ -154,7 +154,7 @@ export function NotificationBell() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  const { notifications: allNotifications, unreadCount, mutate } = useNotifications();
+  const { notifications: allNotifications, unreadCount } = useNotifications();
   const { markRead } = useMarkNotificationsRead();
 
   const notifications = allNotifications.slice(0, 10);
@@ -187,7 +187,6 @@ export function NotificationBell() {
   const markAsRead = async (ids: string[]) => {
     try {
       await markRead({ ids });
-      await mutate();
     } catch {
       // silently fail
     }
@@ -196,7 +195,6 @@ export function NotificationBell() {
   const markAllAsRead = async () => {
     try {
       await markRead({});
-      await mutate();
     } catch {
       // silently fail
     }
@@ -226,15 +224,16 @@ export function NotificationBell() {
         {/* Backdrop */}
         <button
           type="button"
-          className="fixed inset-0 z-[199] bg-black/40 cursor-default"
+          className="fixed inset-0 bg-black/40 cursor-default"
+          style={{ zIndex: 199 }}
           onClick={() => setOpen(false)}
           aria-label="Close notifications"
         />
         {/* Sheet — fixed to bottom of viewport */}
         <div
           ref={sheetRef}
-          className="fixed bottom-0 left-0 right-0 z-[200] bg-background rounded-t-2xl border-t border-border shadow-xl sheet-slide-up flex flex-col"
-          style={{ maxHeight: '85vh' }}
+          className="fixed bottom-0 left-0 right-0 bg-background rounded-t-2xl border-t border-border shadow-xl sheet-slide-up flex flex-col"
+          style={{ zIndex: 200, maxHeight: '85vh' }}
         >
           {/* Drag handle */}
           <div className="flex justify-center pt-3 pb-1">
@@ -259,7 +258,10 @@ export function NotificationBell() {
         >
           <Bell size={18} />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-0.5 leading-none">
+            <span
+              className="absolute -top-0.5 -right-0.5 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-0.5 leading-none"
+              style={{ minWidth: 16 }}
+            >
               {badgeLabel}
             </span>
           )}

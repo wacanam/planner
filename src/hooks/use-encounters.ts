@@ -1,60 +1,93 @@
-import { useEffect, useState } from 'react';
-import useSWR, { type SWRConfiguration } from 'swr';
-import { apiClient } from '@/lib/api-client';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  clearPendingEncounter,
-  getPendingEncounters,
-  queueEncounter,
-  registerVisitSync,
-} from '@/lib/visits-store';
+  createEncounter,
+  toEncounterView,
+  watchEncounters,
+  watchHouseholds,
+  watchVisits,
+} from '@/lib/local-first';
+import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import type { Encounter } from '@/types/api';
-import { mergePendingEncounters } from './use-pending-merge';
 
-export function useVisitEncounters(visitId: string | null, options?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
-    visitId ? `/api/visits/${visitId}/encounters` : null,
-    (url: string) => apiClient.get<Encounter[]>(url),
-    options
-  );
-
-  return {
-    encounters: data ?? [],
-    isLoading,
-    error: error?.message ?? null,
-    mutate,
-  };
+function sortEncounters(encounters: Encounter[]) {
+  return [...encounters].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-export function useMyEncounters(options?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useSWR<Encounter[]>(
-    '/api/profile/encounters',
-    (url: string) => apiClient.get<Encounter[]>(url),
-    options
-  );
-  const [encounters, setEncounters] = useState<(Encounter & { _pending?: boolean })[]>([]);
+function useEncounterRecords(visitId?: string | null) {
+  const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
+  const [households, setHouseholds] = useState<LocalHousehold[]>([]);
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const merged = await mergePendingEncounters(data ?? []);
-      setEncounters(merged);
-    })();
-  }, [data]);
+    setIsLoading(true);
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setIsLoading(false);
+    };
+    const unsubscribeEncounters = watchEncounters(
+      visitId ? { visitId } : undefined,
+      (records) => {
+        setEncounters(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
+    const unsubscribeHouseholds = watchHouseholds(undefined, setHouseholds, handleError);
+    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    return () => {
+      unsubscribeEncounters();
+      unsubscribeHouseholds();
+      unsubscribeVisits();
+    };
+  }, [visitId]);
 
-  return {
-    encounters,
-    isLoading,
-    error: error?.message ?? null,
-    mutate,
-  };
+  const householdMap = useMemo(
+    () => new Map(households.map((household) => [household.id, household] as const)),
+    [households]
+  );
+  const visitMap = useMemo(
+    () => new Map(visits.map((visit) => [visit.id, visit] as const)),
+    [visits]
+  );
+  const mappedEncounters = useMemo(
+    () =>
+      sortEncounters(
+        encounters.map((encounter) =>
+          toEncounterView(
+            encounter,
+            encounter.householdId ? householdMap.get(encounter.householdId) : null,
+            encounter.visitId ? visitMap.get(encounter.visitId) : null
+          )
+        )
+      ),
+    [encounters, householdMap, visitMap]
+  );
+
+  return { encounters: mappedEncounters, isLoading, error };
+}
+
+export function useVisitEncounters(visitId: string | null) {
+  return useEncounterRecords(visitId);
+}
+
+export function useMyEncounters() {
+  return useEncounterRecords();
 }
 
 export function useAddEncounter() {
   const addEncounter = async (data: Record<string, unknown>, visitId?: string | null) => {
-    const payload = visitId ? { ...data, visitId } : data;
-    const pendingId = await queueEncounter(payload);
-    await registerVisitSync();
-    return pendingId;
+    const encounter = await createEncounter({
+      ...data,
+      visitId: visitId ?? (data.visitId as string | null | undefined) ?? null,
+      response: String(data.response ?? 'other'),
+    });
+    return encounter.id;
   };
 
-  return { addEncounter, getPendingEncounters, clearPendingEncounter };
+  return {
+    addEncounter,
+  };
 }

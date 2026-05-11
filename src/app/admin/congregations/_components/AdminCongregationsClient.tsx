@@ -19,9 +19,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UserRole } from '@/db';
-import { apiClient } from '@/lib/api-client';
-import { useCongregations } from '@/hooks';
+import { UserRole } from '@/lib/roles';
+import {
+  useCongregations,
+  useCreateCongregation,
+  useDeleteCongregation,
+  useUpdateCongregation,
+} from '@/hooks';
 import type { Congregation } from '@/types/api';
 import {
   createCongregationSchema,
@@ -31,7 +35,8 @@ import {
 } from '@/schemas';
 
 export default function AdminCongregationsPage() {
-  const { congregations, isLoading: loading, mutate: mutateCongregations } = useCongregations();
+  const { congregations, isLoading: loading } = useCongregations();
+  const { create: createCongregation } = useCreateCongregation();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -58,6 +63,7 @@ export default function AdminCongregationsPage() {
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Congregation | null>(null);
+  const { update: updateCongregation } = useUpdateCongregation(editTarget?.id ?? '');
   const editForm = useForm<UpdateCongregationFormData>({
     resolver: zodResolver(updateCongregationSchema),
     defaultValues: { name: '', city: '', country: '' },
@@ -66,19 +72,19 @@ export default function AdminCongregationsPage() {
   // Delete dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Congregation | null>(null);
+  const { remove: removeCongregation } = useDeleteCongregation(deleteTarget?.id ?? '');
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
     try {
-      await apiClient.post('/api/congregations', {
+      await createCongregation({
         name: data.name,
         city: data.city,
         country: data.country,
       });
       setCreateOpen(false);
       createForm.reset();
-      await mutateCongregations();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create congregation');
     }
@@ -93,13 +99,12 @@ export default function AdminCongregationsPage() {
   async function handleEdit(data: UpdateCongregationFormData) {
     if (!editTarget) return;
     try {
-      await apiClient.patch(`/api/congregations/${editTarget.id}`, {
+      await updateCongregation({
         name: data.name,
         city: data.city,
         country: data.country,
       });
       setEditOpen(false);
-      await mutateCongregations();
     } catch {
       // ignore
     }
@@ -109,9 +114,8 @@ export default function AdminCongregationsPage() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     try {
-      await apiClient.delete(`/api/congregations/${deleteTarget.id}`);
+      await removeCongregation();
       setDeleteOpen(false);
-      await mutateCongregations();
     } catch {
       // ignore
     } finally {
@@ -171,7 +175,7 @@ export default function AdminCongregationsPage() {
               </p>
             </div>
           ) : (
-            <table className="w-full text-sm min-w-[640px]">
+            <table className="w-full text-sm" style={{ minWidth: 640 }}>
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">

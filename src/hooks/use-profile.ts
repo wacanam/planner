@@ -1,44 +1,107 @@
-import useSWR from 'swr';
-import useSWRMutation from 'swr/mutation';
-import { apiClient } from '@/lib/api-client';
-import type { SWRConfiguration } from 'swr';
+import { useCallback, useEffect, useState } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import {
+  changeUserPassword,
+  fileToDataUrl,
+  updateUserProfile,
+  useAuthSession,
+} from '@/lib/firebase/auth';
 import type { User } from '@/types/api';
 
-const fetcher = (url: string) => apiClient.get<User>(url);
+function userDocument(userId: string) {
+  return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, userId);
+}
 
-export function useProfile(options?: SWRConfiguration) {
-  const { data, error, isLoading, mutate } = useSWR<User>('/api/profile', fetcher, options);
-  return { profile: data ?? null, isLoading, error: error?.message ?? null, mutate };
+function userFromData(id: string, data: Partial<User>): User {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: data.name ?? 'Member',
+    email: data.email ?? '',
+    role: data.role ?? 'USER',
+    congregationId: data.congregationId ?? null,
+    isActive: data.isActive ?? true,
+    avatarUrl: data.avatarUrl ?? null,
+    createdAt: data.createdAt ?? now,
+    updatedAt: data.updatedAt ?? now,
+  };
+}
+
+export function useProfile() {
+  const { data: session, status } = useAuthSession();
+  const [profile, setProfile] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(status === 'loading');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId) {
+      setProfile(null);
+      setIsLoading(status === 'loading');
+      return;
+    }
+
+    setIsLoading(true);
+    return onSnapshot(
+      userDocument(userId),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setProfile(snapshot.exists() ? userFromData(snapshot.id, snapshot.data() as Partial<User>) : null);
+        setError(null);
+        setIsLoading(false);
+      },
+      (err) => {
+        setError(err.message);
+        setIsLoading(false);
+      }
+    );
+  }, [session?.user.id, status]);
+
+  return { profile, isLoading, error };
 }
 
 export function useUpdateProfile() {
-  const { trigger, isMutating } = useSWRMutation(
-    '/api/profile',
-    (_url: string, { arg }: { arg: { name: string } }) => apiClient.patch('/api/profile', arg)
-  );
-  return { update: trigger, isUpdating: isMutating };
+  const [isUpdating, setIsUpdating] = useState(false);
+  const update = useCallback(async (arg: { name: string }) => {
+    setIsUpdating(true);
+    try {
+      await updateUserProfile({ name: arg.name });
+    } finally {
+      setIsUpdating(false);
+    }
+  }, []);
+  return { update, isUpdating };
 }
 
 export function useChangePassword() {
-  const { trigger, isMutating } = useSWRMutation(
-    '/api/profile/change-password',
-    (_url: string, { arg }: { arg: { currentPassword: string; newPassword: string } }) =>
-      apiClient.post('/api/profile/change-password', arg)
+  const [isChanging, setIsChanging] = useState(false);
+  const changePassword = useCallback(
+    async (arg: { currentPassword: string; newPassword: string }) => {
+      setIsChanging(true);
+      try {
+        await changeUserPassword(arg);
+      } finally {
+        setIsChanging(false);
+      }
+    },
+    []
   );
-  return { changePassword: trigger, isChanging: isMutating };
+  return { changePassword, isChanging };
 }
 
-export function useUploadAvatar() {
-  const { trigger, isMutating } = useSWRMutation(
-    '/api/profile/avatar',
-    async (_url: string, { arg }: { arg: { file: File } }) => {
-      const formData = new FormData();
-      formData.append('file', arg.file);
-      // Don't set Content-Type — axios sets it with boundary automatically
-      return apiClient.post<{ avatarUrl: string }>('/api/profile/avatar', formData, {
-        headers: { 'Content-Type': undefined },
-      });
+export function useUpdateAvatar() {
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+  const updateAvatar = useCallback(async (arg: { file: File }) => {
+    setIsUpdatingAvatar(true);
+    try {
+      const avatarUrl = await fileToDataUrl(arg.file);
+      await updateUserProfile({ avatarUrl });
+      return { avatarUrl };
+    } finally {
+      setIsUpdatingAvatar(false);
     }
-  );
-  return { upload: trigger, isUploading: isMutating };
+  }, []);
+  return { updateAvatar, isUpdatingAvatar };
 }

@@ -1,23 +1,21 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Camera, Loader2, CloudOff } from 'lucide-react';
-import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/use-profile';
+import { Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
+import {
+  useProfile,
+  useUpdateProfile,
+  useChangePassword,
+  useUpdateAvatar,
+} from '@/hooks/use-profile';
 import { FormField } from '@/components/ui/form-field';
 import { Button } from '@/components/ui/button';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { updateProfileSchema, changePasswordSchema } from '@/schemas/profile';
 import type { UpdateProfileFormData, ChangePasswordFormData } from '@/schemas/profile';
-import {
-  storePendingAvatarBlob,
-  getPendingAvatarBlob,
-  hasPendingAvatarFlag,
-  setPendingAvatarFlag,
-  registerAvatarSync,
-} from '@/lib/avatar-store';
 
 // ─── Password strength ────────────────────────────────────────────────────────
 
@@ -97,9 +95,10 @@ function AvatarCircle({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProfileClient() {
-  const { profile, isLoading, mutate } = useProfile();
+  const { profile, isLoading } = useProfile();
   const { update } = useUpdateProfile();
   const { changePassword } = useChangePassword();
+  const { updateAvatar, isUpdatingAvatar } = useUpdateAvatar();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [cropImgSrc, setCropImgSrc] = useState('');
@@ -107,66 +106,6 @@ export default function ProfileClient() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [offlineMsg, setOfflineMsg] = useState('');
   const [uploadError, setUploadError] = useState('');
-
-  // ── Debug state (temporary) ───────────────────────────────────────────────
-  // ── IDB pending avatar — checked AFTER profile loads (userId known) ──────
-  const [hasPending, setHasPending] = useState(false);
-  useEffect(() => {
-    if (!profile?.id) return;
-    const flag = hasPendingAvatarFlag(profile.id);
-    setHasPending(flag);
-  }, [profile?.id]);
-
-  // Load IDB blob → object URL when pending flag is true
-  useEffect(() => {
-    if (!profile?.id || !hasPending) return;
-    let objectUrl = '';
-    getPendingAvatarBlob(profile.id).then((blob) => {
-      if (!blob) {
-        setPendingAvatarFlag(profile.id, false);
-        setHasPending(false);
-        return;
-      }
-      objectUrl = URL.createObjectURL(blob);
-      setPreviewUrl(objectUrl);
-      setOfflineMsg('Photo saved locally · pending cloud sync');
-    });
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [profile?.id, hasPending]);
-
-  // trySyncPending: re-register sync tag so SW picks it up when online
-  const trySyncPending = useCallback(async () => {
-    if (!navigator.onLine) return;
-    await registerAvatarSync();
-  }, []);
-
-  useEffect(() => {
-    if (hasPending) trySyncPending();
-  }, [hasPending, trySyncPending]);
-  useEffect(() => {
-    const h = () => {
-      if (hasPending) trySyncPending();
-    };
-    window.addEventListener('online', h);
-    return () => window.removeEventListener('online', h);
-  }, [hasPending, trySyncPending]);
-
-  // Listen for SW postMessage when avatar sync completes
-  useEffect(() => {
-    if (!profile?.id) return;
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'AVATAR_SYNCED' && event.data?.userId === profile.id) {
-        setPendingAvatarFlag(profile.id, false);
-        setHasPending(false);
-        setOfflineMsg('');
-        void mutate(); // refresh profile to get new avatarUrl
-      }
-    };
-    navigator.serviceWorker?.addEventListener('message', handler);
-    return () => navigator.serviceWorker?.removeEventListener('message', handler);
-  }, [profile?.id, mutate]);
 
   // ── File → crop ──────────────────────────────────────────────────────────
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -184,21 +123,18 @@ export default function ProfileClient() {
 
   async function handleCropComplete(file: File) {
     if (!profile?.id) return;
-
-    // 1. Show local preview immediately
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-
-    // 2. Always store to IDB first — offline-first, no network needed
-    await storePendingAvatarBlob(profile.id, file);
-    setPendingAvatarFlag(profile.id, true);
-    setHasPending(true);
-    setOfflineMsg('Photo saved locally · registering sync…');
-
-    // 3. Register Background Sync — SW will upload when online
-    await registerAvatarSync();
-    setOfflineMsg('Photo saved locally · will sync to cloud automatically');
-    setUploadError('');
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      const result = await updateAvatar({ file });
+      setPreviewUrl(result.avatarUrl);
+      setOfflineMsg(
+        navigator.onLine ? 'Photo saved.' : 'Photo saved locally and will sync automatically.'
+      );
+      setUploadError('');
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Photo update failed.');
+    }
   }
 
   // ── Name form ────────────────────────────────────────────────────────────
@@ -213,7 +149,6 @@ export default function ProfileClient() {
     setNameError('');
     try {
       await update({ name: data.name });
-      await mutate();
       setNameSuccess('Name updated.');
     } catch (e) {
       setNameError(e instanceof Error ? e.message : 'Failed.');
@@ -291,6 +226,7 @@ export default function ProfileClient() {
             url={displayUrl}
             name={profile.name}
             size={72}
+            loading={isUpdatingAvatar}
             onClick={() => fileInputRef.current?.click()}
           />
           <div className="min-w-0">
@@ -316,23 +252,7 @@ export default function ProfileClient() {
           </TooltipProvider>
         )}
 
-        {uploadError &&
-          (uploadError.toLowerCase().includes('not configured') ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-default">
-                    <CloudOff size={13} /> Cloud sync unavailable
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Profile picture sync is not configured yet. Your photo is saved locally.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <p className="text-xs text-destructive">{uploadError}</p>
-          ))}
+        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
       </div>
 
       {/* ── Update Name card ── */}
@@ -369,7 +289,8 @@ export default function ProfileClient() {
               type="button"
               tabIndex={-1}
               onClick={() => setShowCurrent((v) => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+              className="absolute right-3 text-muted-foreground hover:text-foreground"
+              style={{ top: 34 }}
             >
               {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
@@ -387,7 +308,8 @@ export default function ProfileClient() {
               type="button"
               tabIndex={-1}
               onClick={() => setShowNew((v) => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+              className="absolute right-3 text-muted-foreground hover:text-foreground"
+              style={{ top: 34 }}
             >
               {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>
@@ -420,7 +342,8 @@ export default function ProfileClient() {
               type="button"
               tabIndex={-1}
               onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 top-[34px] text-muted-foreground hover:text-foreground"
+              className="absolute right-3 text-muted-foreground hover:text-foreground"
+              style={{ top: 34 }}
             >
               {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
             </button>

@@ -1,11 +1,21 @@
 'use client';
 
-import { CheckCircle, Clock, MapPin, Plus, Search, UserPlus, RotateCcw } from 'lucide-react';
+import {
+  CheckCircle,
+  Clock,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  UserPlus,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
@@ -23,8 +33,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiClient } from '@/lib/api-client';
-import { CongregationRole, UserRole } from '@/db';
 import type { Territory, TerritoryRequest } from '@/types/api';
 import {
   useCongregationTerritories,
@@ -33,7 +41,11 @@ import {
   useCongregationGroups,
   useCreateTerritory,
   useCreateTerritoryRequest,
+  useCreateAssignment,
   useReviewTerritoryRequest,
+  useUpdateTerritory,
+  useDeleteTerritory,
+  useDeleteTerritoryRequest,
 } from '@/hooks';
 import {
   createTerritorySchema,
@@ -65,18 +77,14 @@ export default function CongregationTerritoriesPage() {
     | { id?: string; role?: string; congregationId?: string }
     | undefined;
 
-  const {
-    data: territoriesData,
-    isLoading: territoriesLoading,
-    mutate: mutateTerritories,
-  } = useCongregationTerritories(congregationId);
+  const { data: territoriesData, isLoading: territoriesLoading } =
+    useCongregationTerritories(congregationId);
   const territories = territoriesData;
 
-  const {
-    data: requestsData,
-    isLoading: requestsLoading,
-    mutate: mutateRequests,
-  } = useCongregationTerritoryRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
+    congregationId,
+    'pending'
+  );
   const requests = requestsData;
 
   const { data: membersRaw } = useCongregationMembers(congregationId);
@@ -94,6 +102,10 @@ export default function CongregationTerritoriesPage() {
   const { create: createTerritory } = useCreateTerritory(congregationId);
   const { request: createTerritoryRequest } = useCreateTerritoryRequest(congregationId);
   const { reviewRequest } = useReviewTerritoryRequest(congregationId);
+  const { create: createAssignment } = useCreateAssignment();
+  const { update: updateTerritory } = useUpdateTerritory();
+  const { remove: deleteTerritory } = useDeleteTerritory();
+  const { remove: deleteTerritoryRequest } = useDeleteTerritoryRequest();
 
   const myRole = (() => {
     if (!sessionUser?.id) return '';
@@ -102,14 +114,24 @@ export default function CongregationTerritoriesPage() {
   })();
 
   const isOverseer =
-    myRole === CongregationRole.SERVICE_OVERSEER ||
-    sessionUser?.role === UserRole.SUPER_ADMIN ||
-    sessionUser?.role === UserRole.ADMIN;
+    myRole === 'service_overseer' ||
+    myRole === 'territory_servant' ||
+    ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER', 'TERRITORY_SERVANT'].includes(
+      sessionUser?.role ?? ''
+    );
 
   // Create territory dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState('');
   const createForm = useForm<CreateTerritoryFormData>({
+    resolver: zodResolver(createTerritorySchema),
+    defaultValues: { name: '', number: '', notes: '' },
+  });
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Territory | null>(null);
+  const [editError, setEditError] = useState('');
+  const editForm = useForm<CreateTerritoryFormData>({
     resolver: zodResolver(createTerritorySchema),
     defaultValues: { name: '', number: '', notes: '' },
   });
@@ -163,6 +185,11 @@ export default function CongregationTerritoriesPage() {
     defaultValues: { responseMessage: '' },
   });
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Territory | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [requestDeletingId, setRequestDeletingId] = useState<string | null>(null);
+
   const filtered = useMemo(() => {
     let list = territories;
     if (statusFilter !== 'all') {
@@ -214,9 +241,45 @@ export default function CongregationTerritoriesPage() {
       });
       setCreateOpen(false);
       createForm.reset();
-      await mutateTerritories();
     } catch {
       setCreateError('Network error');
+    }
+  }
+
+  function openEditDialog(territory: Territory) {
+    setEditTarget(territory);
+    setEditError('');
+    editForm.reset({
+      name: territory.name,
+      number: territory.number,
+      notes: territory.notes ?? '',
+    });
+    setEditOpen(true);
+  }
+
+  async function handleEdit(data: CreateTerritoryFormData) {
+    if (!editTarget) return;
+    setEditError('');
+    try {
+      await updateTerritory(editTarget.id, {
+        name: data.name,
+        number: data.number || data.name,
+        notes: data.notes || null,
+      });
+      setEditOpen(false);
+      setEditTarget(null);
+      editForm.reset();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to update territory');
+    }
+  }
+
+  async function handleDeleteRequest(requestId: string) {
+    setRequestDeletingId(requestId);
+    try {
+      await deleteTerritoryRequest(requestId);
+    } finally {
+      setRequestDeletingId(null);
     }
   }
 
@@ -252,12 +315,15 @@ export default function CongregationTerritoriesPage() {
         requestId: confirmRequest.id,
         status: confirmAction === 'approve' ? 'approved' : 'rejected',
         responseMessage: data.responseMessage?.trim() || null,
+        publisherId: confirmRequest.publisherId,
+        publisherName: confirmRequest.publisherName ?? confirmRequest.publisher?.name ?? null,
         ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
           ? { territoryId: confirmTerritoryId }
-          : {}),
+          : confirmAction === 'approve' && confirmRequest.territoryId
+            ? { territoryId: confirmRequest.territoryId }
+            : {}),
       });
       closeConfirmDialog();
-      await Promise.all([mutateTerritories(), mutateRequests()]);
     } catch {
       setConfirmError('Failed to process request. Please try again.');
     }
@@ -291,25 +357,46 @@ export default function CongregationTerritoriesPage() {
     }
     setAssignError('');
     try {
-      await apiClient.post('/api/assignments', {
+      const selectedMember = members.find((member) => member.userId === data.userId);
+      const selectedGroup = groups.find((group) => group.id === assignGroupId);
+      await createAssignment({
         territoryId: assignTerritory.id,
         ...(assignType === 'publisher'
           ? { userId: data.userId }
           : { serviceGroupId: assignGroupId }),
+        assigneeName: assignType === 'publisher' ? (selectedMember?.user?.name ?? null) : null,
+        assigneeEmail: assignType === 'publisher' ? (selectedMember?.user?.email ?? null) : null,
+        groupName: assignType === 'group' ? (selectedGroup?.name ?? null) : null,
         dueAt: data.dueAt || undefined,
         notes: data.notes || undefined,
       });
       setAssignSuccess('Territory assigned successfully!');
       setTimeout(() => {
-        setAssignOpen(false);
-        setAssignSuccess('');
-        assignForm.reset();
+        handleAssignOpenChange(false);
       }, 1200);
-      await mutateTerritories();
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
     }
   }
+
+  function handleAssignOpenChange(open: boolean) {
+    setAssignOpen(open);
+    if (!open) {
+      assignForm.reset();
+      setAssignSuccess('');
+      setAssignError('');
+      setAssignTerritory(null);
+      setAssignType('publisher');
+      setAssignGroupId('');
+      setMemberSearch('');
+      setGroupSearch('');
+      setComboboxOpen(false);
+      setGroupComboboxOpen(false);
+    }
+  }
+
+  const selectedMember = members.find((member) => member.userId === assignForm.watch('userId'));
+  const selectedGroup = groups.find((group) => group.id === assignGroupId);
 
   function openReturnDialog(territory: Territory) {
     setReturnTerritory(territory);
@@ -322,21 +409,16 @@ export default function CongregationTerritoriesPage() {
     if (!returnTerritory) return;
     setReturnError('');
     try {
-      const assignments = await apiClient.get<{ id: string; status: string }[]>(
-        `/api/territories/${returnTerritory.id}/assignments`
-      );
-      const activeAssignment = assignments?.find((a) => a.status === 'active');
-      if (!activeAssignment) {
-        setReturnError('No active assignment found');
-        return;
-      }
-      await apiClient.put(`/api/assignments/${activeAssignment.id}`, {
-        status: 'returned',
-        notes: data.notes || undefined,
+      await updateTerritory(returnTerritory.id, {
+        status: 'available',
+        publisherId: null,
+        publisherName: null,
+        groupId: null,
+        groupName: null,
+        notes: data.notes || returnTerritory.notes || null,
       });
       setReturnOpen(false);
       returnForm.reset();
-      await mutateTerritories();
     } catch {
       setReturnError('Failed to return territory');
     }
@@ -360,17 +442,30 @@ export default function CongregationTerritoriesPage() {
       await createTerritoryRequest({
         territoryId: requestTargetTerritory.id,
         message: data.message.trim(),
+        publisherId: sessionUser?.id ?? '',
+        publisherName: session?.user?.name ?? null,
       });
       setRequestDialogOpen(false);
       setRequestSuccess(requestTargetTerritory.id);
       setRequestTargetTerritory(null);
       requestForm.reset();
-      await mutateRequests();
       setTimeout(() => setRequestSuccess(null), 4000);
     } catch (err) {
       setRequestError(
         err instanceof Error ? err.message : 'Failed to send request. Please try again.'
       );
+    }
+  }
+
+  async function handleDeleteTerritory() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await deleteTerritory(deleteTarget.id);
+      setDeleteOpen(false);
+      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
@@ -517,7 +612,7 @@ export default function CongregationTerritoriesPage() {
                   )}
                 </div>
               ) : (
-                <table className="w-full text-sm min-w-[600px]">
+                <table className="w-full text-sm min-w-150">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -590,8 +685,8 @@ export default function CongregationTerritoriesPage() {
                             {!isOverseer &&
                               t.status === 'available' &&
                               (() => {
-                                const alreadyRequested = requests.some(
-                                  (r) => r.territoryId === t.id
+                                const pendingRequest = requests.find(
+                                  (r) => r.territoryId === t.id && r.publisherId === sessionUser?.id
                                 );
                                 if (requestSuccess === t.id) {
                                   return (
@@ -600,11 +695,18 @@ export default function CongregationTerritoriesPage() {
                                     </span>
                                   );
                                 }
-                                if (alreadyRequested) {
+                                if (pendingRequest) {
                                   return (
-                                    <span className="text-xs text-amber-600 font-medium">
-                                      Pending
-                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={requestDeletingId === pendingRequest.id}
+                                      onClick={() => void handleDeleteRequest(pendingRequest.id)}
+                                    >
+                                      {requestDeletingId === pendingRequest.id
+                                        ? 'Canceling…'
+                                        : 'Cancel'}
+                                    </Button>
                                   );
                                 }
                                 return (
@@ -617,6 +719,30 @@ export default function CongregationTerritoriesPage() {
                                   </Button>
                                 );
                               })()}
+                            {isOverseer && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openEditDialog(t)}
+                                  aria-label="Edit territory"
+                                >
+                                  <Pencil size={12} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  onClick={() => {
+                                    setDeleteTarget(t);
+                                    setDeleteOpen(true);
+                                  }}
+                                  aria-label="Delete territory"
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -689,6 +815,15 @@ export default function CongregationTerritoriesPage() {
                         </Button>
                         <Button size="sm" onClick={() => openConfirmDialog(r, 'approve')}>
                           Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={requestDeletingId === r.id}
+                          onClick={() => void handleDeleteRequest(r.id)}
+                          aria-label="Delete request"
+                        >
+                          <Trash2 size={13} />
                         </Button>
                       </div>
                     </div>
@@ -782,18 +917,80 @@ export default function CongregationTerritoriesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Assign Territory dialog */}
+      {/* Edit territory dialog */}
       <Dialog
-        open={assignOpen}
+        open={editOpen}
         onOpenChange={(open) => {
-          setAssignOpen(open);
+          setEditOpen(open);
           if (!open) {
-            assignForm.reset();
-            setAssignSuccess('');
-            setAssignError('');
+            setEditTarget(null);
+            editForm.reset();
           }
         }}
       >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Territory</DialogTitle>
+            <DialogDescription>Update this territory&apos;s label and notes.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 mt-2">
+            {editError && (
+              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
+                {editError}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-t-number">Number</Label>
+                <Input
+                  id="edit-t-number"
+                  {...editForm.register('number')}
+                  disabled={editForm.formState.isSubmitting}
+                  aria-invalid={!!editForm.formState.errors.number}
+                />
+                {editForm.formState.errors.number && (
+                  <p className="text-xs text-destructive mt-1">
+                    {editForm.formState.errors.number.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-t-name">Name *</Label>
+                <Input
+                  id="edit-t-name"
+                  {...editForm.register('name')}
+                  disabled={editForm.formState.isSubmitting}
+                  aria-invalid={!!editForm.formState.errors.name}
+                />
+                {editForm.formState.errors.name && (
+                  <p className="text-xs text-destructive mt-1">
+                    {editForm.formState.errors.name.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-t-notes">Notes</Label>
+              <Input
+                id="edit-t-notes"
+                {...editForm.register('notes')}
+                disabled={editForm.formState.isSubmitting}
+              />
+            </div>
+            <DialogFooter className="gap-2 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editForm.formState.isSubmitting}>
+                {editForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Territory dialog */}
+      <Dialog open={assignOpen} onOpenChange={handleAssignOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Territory</DialogTitle>
@@ -851,16 +1048,22 @@ export default function CongregationTerritoriesPage() {
                   <Input
                     placeholder="Search publishers…"
                     value={memberSearch}
+                    onFocus={() => setComboboxOpen(true)}
                     onChange={(e) => {
                       setMemberSearch(e.target.value);
                       assignForm.setValue('userId', '');
-                      setComboboxOpen(e.target.value.length > 0);
+                      setComboboxOpen(true);
                     }}
                     autoComplete="off"
                   />
-                  {comboboxOpen && memberSearch.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                  {selectedMember && !comboboxOpen && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selected {selectedMember.user?.name ?? 'publisher'}
+                    </p>
+                  )}
+                  {comboboxOpen && (
+                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
                         {filteredMembers.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
                             {debouncedMemberSearch
@@ -877,8 +1080,7 @@ export default function CongregationTerritoriesPage() {
                                   ? 'bg-primary/10 text-primary'
                                   : ''
                               }`}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
+                              onClick={() => {
                                 assignForm.setValue('userId', m.userId);
                                 setMemberSearch(m.user?.name ?? '');
                                 setComboboxOpen(false);
@@ -908,16 +1110,22 @@ export default function CongregationTerritoriesPage() {
                   <Input
                     placeholder="Search groups…"
                     value={groupSearch}
+                    onFocus={() => setGroupComboboxOpen(true)}
                     onChange={(e) => {
                       setGroupSearch(e.target.value);
                       setAssignGroupId('');
-                      setGroupComboboxOpen(e.target.value.length > 0);
+                      setGroupComboboxOpen(true);
                     }}
                     autoComplete="off"
                   />
-                  {groupComboboxOpen && groupSearch.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                      <div className="max-h-48 overflow-y-auto divide-y divide-border">
+                  {selectedGroup && !groupComboboxOpen && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Selected {selectedGroup.name}
+                    </p>
+                  )}
+                  {groupComboboxOpen && (
+                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
                         {filteredGroups.length === 0 ? (
                           <p className="text-xs text-muted-foreground p-3 text-center">
                             {debouncedGroupSearch
@@ -932,8 +1140,7 @@ export default function CongregationTerritoriesPage() {
                               className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${
                                 assignGroupId === g.id ? 'bg-primary/10 text-primary' : ''
                               }`}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
+                              onClick={() => {
                                 setAssignGroupId(g.id);
                                 setGroupSearch(g.name);
                                 setGroupComboboxOpen(false);
@@ -970,7 +1177,7 @@ export default function CongregationTerritoriesPage() {
               />
             </div>
             <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setAssignOpen(false)}>
+              <Button type="button" variant="ghost" onClick={() => handleAssignOpenChange(false)}>
                 Cancel
               </Button>
               <Button
@@ -1221,6 +1428,27 @@ export default function CongregationTerritoriesPage() {
                 : confirmAction === 'approve'
                   ? 'Approve'
                   : 'Reject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Territory?</DialogTitle>
+            <DialogDescription>
+              Delete{' '}
+              <strong>{deleteTarget ? `#${deleteTarget.number} ${deleteTarget.name}` : ''}</strong>?
+              Related assignments and requests for this territory will also be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteLoading}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTerritory} disabled={deleteLoading}>
+              {deleteLoading ? 'Deleting…' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

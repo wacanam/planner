@@ -1,7 +1,7 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { UserRole } from '@/db';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
+import { UserRole } from '@/lib/roles';
 
 export interface SessionUser {
   id: string;

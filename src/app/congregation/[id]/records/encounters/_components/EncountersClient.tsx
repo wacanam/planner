@@ -1,20 +1,10 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Trash2, Plus, Users } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Pencil, Trash2, Plus, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { FormField } from '@/components/ui/form-field';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import {
   Select,
   SelectContent,
@@ -22,11 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AddEncounterForm,
+  type AddEncounterFormValues,
+} from '@/components/households/add-encounter-form';
 import { useHouseholds, useMyEncounters } from '@/hooks';
-import { apiClient } from '@/lib/api-client';
-import { queueEncounter, queueEncounterDelete, registerVisitSync } from '@/lib/visits-store';
-import { type RecordEncounterFormData, recordEncounterSchema } from '@/schemas/visit';
-import type { Household } from '@/types/api';
+import {
+  deleteEncounterRecord,
+  saveEncounterRecord,
+  updateEncounterRecord,
+} from '@/lib/record-writes';
+import type { Encounter, Household } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20',
@@ -45,200 +41,121 @@ const responseLabels: Record<string, string> = {
   do_not_visit: 'Do Not Visit',
   moved: 'Moved',
 };
+const DIALOG_CONTENT_OFFSET_PX = 200;
 
-const DEFAULT_VALUES: Partial<RecordEncounterFormData> = {
-  householdId: '',
-  encounterDate: new Date().toISOString().slice(0, 10),
-  gender: 'unknown',
-  role: 'unknown',
-  bibleStudyInterest: false,
-  returnVisitRequested: false,
-};
-
-function householdLabel(household: Household & { _pending?: boolean }) {
+function householdLabel(household: Household) {
   const address =
     household.address || [household.houseNumber, household.streetName].filter(Boolean).join(' ');
-  const pendingSuffix = household._pending ? ' (pending)' : '';
-  return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}${pendingSuffix}`;
+  return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}`;
+}
+
+function getEncounterDateISO(encounter?: Encounter | null) {
+  if (!encounter) return new Date().toISOString();
+  const source = encounter.visitDate ?? encounter.createdAt;
+  const parsed = new Date(source);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
 interface LogEncounterDialogProps {
-  households: (Household & { _pending?: boolean })[];
+  households: Household[];
+  encounter?: Encounter | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: () => Promise<void>;
+  onSaved: () => void;
 }
 
-function LogEncounterDialog({ households, open, onOpenChange, onSaved }: LogEncounterDialogProps) {
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<RecordEncounterFormData>({
-    resolver: zodResolver(recordEncounterSchema),
-    defaultValues: DEFAULT_VALUES,
-  });
+function LogEncounterDialog({
+  households,
+  encounter,
+  open,
+  onOpenChange,
+  onSaved,
+}: LogEncounterDialogProps) {
+  const [submitting, setSubmitting] = useState(false);
+  const [householdId, setHouseholdId] = useState('');
 
-  const pendingHouseholdIds = useMemo(
-    () =>
-      new Set(
-        households.filter((household) => household._pending).map((household) => household.id)
-      ),
-    [households]
-  );
+  useEffect(() => {
+    if (!open) return;
+    setHouseholdId(encounter?.householdId ?? '');
+  }, [encounter, open]);
 
-  const onSubmit = async (values: RecordEncounterFormData) => {
+  const onSubmit = async (values: AddEncounterFormValues) => {
     const payload = {
-      ...values,
-      householdId: values.householdId || undefined,
+      householdId: householdId || null,
+      encounterDate: getEncounterDateISO(encounter),
+      name: values.name,
+      response: values.response,
+      topicDiscussed: values.topicDiscussed,
+      literatureAccepted: values.literatureAccepted,
+      returnVisitRequested: values.returnVisitRequested,
+      notes: values.notes,
     };
 
-    const shouldQueueOffline =
-      !navigator.onLine ||
-      (values.householdId ? pendingHouseholdIds.has(values.householdId) : false);
-
-    if (shouldQueueOffline) {
-      await queueEncounter(payload);
-      await registerVisitSync();
-    } else {
-      await apiClient.post('/api/profile/encounters', payload);
+    setSubmitting(true);
+    try {
+      if (encounter) {
+        await updateEncounterRecord(encounter.id, payload);
+      } else {
+        await saveEncounterRecord(payload);
+      }
+      onSaved();
+      onOpenChange(false);
+    } finally {
+      setSubmitting(false);
     }
-
-    await onSaved();
-    reset(DEFAULT_VALUES);
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Log Encounter</DialogTitle>
-          <DialogDescription>
-            Record a ministry conversation even if it happened outside an assignment or without a
-            visit.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">Response *</span>
-            <Controller
-              name="response"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select response..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(responseLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.response && (
-              <p className="text-xs text-destructive">{errors.response.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">Linked Household</span>
-            <Controller
-              name="householdId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  value={field.value || 'none'}
-                  onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No linked household" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No linked household</SelectItem>
-                    {households.map((household) => (
-                      <SelectItem key={household.id} value={household.id}>
-                        {householdLabel(household)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          <FormField
-            label="Encounter Date"
-            id="encounterDate"
-            type="date"
-            error={errors.encounterDate?.message}
-            {...register('encounterDate')}
-          />
-
-          <FormField
-            label="Name"
-            id="encounterName"
-            optional
-            error={errors.name?.message}
-            {...register('name')}
-          />
-
-          <FormField
-            label="Topic Discussed"
-            id="encounterTopic"
-            optional
-            error={errors.topicDiscussed?.message}
-            {...register('topicDiscussed')}
-          />
-
-          <FormField
-            label="Literature Accepted"
-            id="encounterLiterature"
-            optional
-            error={errors.literatureAccepted?.message}
-            {...register('literatureAccepted')}
-          />
-
-          <FormField
-            label="Notes"
-            id="encounterNotes"
-            multiline
-            rows={4}
-            optional
-            error={errors.notes?.message}
-            {...register('notes')}
-          />
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="returnVisitRequested"
-              className="h-4 w-4 rounded border"
-              {...register('returnVisitRequested')}
-            />
-            <label htmlFor="returnVisitRequested" className="text-sm font-medium">
-              Return visit requested
-            </label>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              Save Encounter
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={encounter ? 'Edit Encounter' : 'Add Encounter'}
+      description="Record conversation details and optionally link to a household."
+      contentClassName="sm:max-w-lg"
+    >
+      <div
+        style={{ maxHeight: `calc(90vh - ${DIALOG_CONTENT_OFFSET_PX}px)` }}
+        className="space-y-4 overflow-y-auto pr-4"
+      >
+        <div className="space-y-1.5">
+          <span className="text-sm font-medium">Linked Household</span>
+          <Select
+            value={householdId || 'none'}
+            onValueChange={(value) => setHouseholdId(value === 'none' ? '' : value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="No linked household" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No linked household</SelectItem>
+              {households.map((household) => (
+                <SelectItem key={household.id} value={household.id}>
+                  {householdLabel(household)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <AddEncounterForm
+          submitting={submitting}
+          isEditing={!!encounter}
+          submitLabel={encounter ? 'Save Changes' : 'Add Encounter'}
+          initialValues={
+            encounter
+              ? {
+                  name: encounter.name ?? undefined,
+                  response: encounter.response as AddEncounterFormValues['response'],
+                  topicDiscussed: encounter.topicDiscussed ?? undefined,
+                  literatureAccepted: encounter.literatureAccepted ?? undefined,
+                  returnVisitRequested: encounter.returnVisitRequested,
+                  notes: encounter.notes ?? undefined,
+                }
+              : undefined
+          }
+          onSubmit={onSubmit}
+        />
+      </div>
+    </ResponsiveDialog>
   );
 }
 
@@ -252,7 +169,13 @@ interface EncounterSwipeCardProps {
   children: React.ReactNode;
 }
 
-function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children }: EncounterSwipeCardProps) {
+function EncounterSwipeCard({
+  isRevealed,
+  onSwipe,
+  onDelete,
+  deleting,
+  children,
+}: EncounterSwipeCardProps) {
   const startXRef = useRef<number>(0);
   const draggingRef = useRef(false);
   const [offset, setOffset] = useState(0);
@@ -292,7 +215,10 @@ function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children 
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      <div className="absolute right-0 top-0 bottom-0 flex items-stretch" style={{ width: ACTION_WIDTH }}>
+      <div
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: ACTION_WIDTH }}
+      >
         <button
           type="button"
           disabled={deleting}
@@ -326,17 +252,18 @@ function EncounterSwipeCard({ isRevealed, onSwipe, onDelete, deleting, children 
 }
 
 export default function EncountersClient() {
-  const { encounters, isLoading, error, mutate } = useMyEncounters();
+  const { encounters, isLoading, error } = useMyEncounters();
   const { households } = useHouseholds();
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [swipedId, setSwipedId] = useState<string | null>(null);
+  const [editingEncounter, setEditingEncounter] = useState<Encounter | null>(null);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await queueEncounterDelete(id);
+      await deleteEncounterRecord(id);
       setDeletedIds((prev) => new Set(prev).add(id));
       setSwipedId(null);
     } finally {
@@ -413,19 +340,21 @@ export default function EncountersClient() {
                       ? new Date(encounter.visitDate).toLocaleDateString()
                       : new Date(encounter.createdAt).toLocaleDateString()}
                   </p>
-                  {encounter._pending && (
-                    <Badge
-                      variant="outline"
-                      className="text-amber-700 border-amber-200 bg-amber-50"
-                    >
-                      Pending
-                    </Badge>
-                  )}
                 </div>
               </div>
-              <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
-                {responseLabels[encounter.response] ?? encounter.response}
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditingEncounter(encounter)}
+                  aria-label="Edit encounter"
+                >
+                  <Pencil size={13} />
+                </Button>
+                <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
+                  {responseLabels[encounter.response] ?? encounter.response}
+                </Badge>
+              </div>
             </EncounterSwipeCard>
           ))}
         </div>
@@ -435,9 +364,16 @@ export default function EncountersClient() {
         households={households}
         open={showLogDialog}
         onOpenChange={setShowLogDialog}
-        onSaved={async () => {
-          await mutate();
+        onSaved={() => undefined}
+      />
+      <LogEncounterDialog
+        households={households}
+        encounter={editingEncounter}
+        open={!!editingEncounter}
+        onOpenChange={(open) => {
+          if (!open) setEditingEncounter(null);
         }}
+        onSaved={() => setEditingEncounter(null)}
       />
     </div>
   );

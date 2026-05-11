@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { Trash2, Save, Type } from 'lucide-react';
+import { CircleDot, MapPinned, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface DrawingToolbarProps {
@@ -30,25 +29,31 @@ export function DrawingToolbar({
   if (!isDrawing) return null;
 
   return (
-    <div className="absolute bottom-24 left-4 z-10 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 max-w-xs">
+    <div className="absolute bottom-24 left-3 right-3 z-10 max-w-sm rounded-lg border bg-background p-4 shadow-lg sm:left-4 sm:right-auto sm:w-80">
       {/* Title */}
       <div className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3-8c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z"/>
-        </svg>
+        <MapPinned className="h-4 w-4" />
         Drawing Mode
       </div>
 
       {/* Status */}
-      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400 mb-4 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-        <div>✏️ Polygons: <span className="font-semibold">{polygonCount}</span></div>
-        <div>📍 Current points: <span className="font-semibold">{pointCount}</span></div>
-        {pointCount > 0 && <div className="text-blue-600 dark:text-blue-400 text-[11px] mt-1">💡 Double-click to finish</div>}
+      <div className="mb-4 space-y-1 rounded bg-muted/50 p-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <MapPinned className="h-3.5 w-3.5" />
+          Polygons: <span className="font-semibold text-foreground">{polygonCount}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <CircleDot className="h-3.5 w-3.5" />
+          Current points: <span className="font-semibold text-foreground">{pointCount}</span>
+        </div>
+        {pointCount > 0 && (
+          <div className="mt-1 text-[11px] text-primary">Double-click to finish</div>
+        )}
       </div>
 
       {/* Instructions */}
       {pointCount === 0 && polygonCount === 0 && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 p-2 bg-blue-50 dark:bg-blue-950/30 rounded border border-blue-200 dark:border-blue-900">
+        <div className="mb-3 rounded border border-primary/20 bg-primary/5 p-2 text-xs text-muted-foreground">
           Click on map to add points. Double-click to finish polygon.
         </div>
       )}
@@ -61,7 +66,7 @@ export function DrawingToolbar({
             disabled={pointCount === 0}
             size="sm"
             variant="outline"
-            className="flex-1 text-xs h-7"
+            className="h-8 flex-1 text-xs"
           >
             Clear Current
           </Button>
@@ -70,10 +75,10 @@ export function DrawingToolbar({
             disabled={polygonCount === 0 && pointCount === 0}
             size="sm"
             variant="ghost"
-            className="h-7 w-7 p-0"
+            className="h-8 w-8 p-0"
             title="Clear all polygons"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -81,9 +86,9 @@ export function DrawingToolbar({
           onClick={onSave}
           disabled={polygonCount === 0 || isSaving}
           size="sm"
-          className="w-full bg-green-600 hover:bg-green-700 text-white text-xs h-8"
+          className="h-9 w-full text-xs"
         >
-          <Save className="w-3.5 h-3.5 mr-1.5" />
+          <Save className="mr-1.5 h-3.5 w-3.5" />
           {isSaving ? 'Saving...' : 'Save Boundary'}
         </Button>
       </div>

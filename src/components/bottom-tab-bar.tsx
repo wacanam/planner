@@ -3,7 +3,7 @@
 import { BarChart2, BookOpen, Building, ClipboardList, House, MapPin, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { UserRole } from '@/db';
+import { UserRole } from '@/lib/roles';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { cn } from '@/lib/utils';
 
@@ -30,10 +30,7 @@ export function BottomTabBar({ congregationId }: BottomTabBarProps) {
       { href: '/admin/dashboard', label: 'Dashboard', icon: House },
       { href: '/admin/congregations', label: 'Congregations', icon: Building },
     ];
-  } else if (
-    user.role === UserRole.SERVICE_OVERSEER ||
-    user.role === UserRole.TERRITORY_SERVANT
-  ) {
+  } else if (user.role === UserRole.SERVICE_OVERSEER || user.role === UserRole.TERRITORY_SERVANT) {
     const id = congregationId ?? user.congregationId ?? '';
     if (id) {
       tabs = [
@@ -59,8 +56,8 @@ export function BottomTabBar({ congregationId }: BottomTabBarProps) {
 
   return (
     <nav
-      className="flex md:hidden fixed bottom-0 inset-x-0 z-[900] bg-background/95 backdrop-blur-md border-t border-border"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="flex md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border"
+      style={{ zIndex: 900, paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {tabs.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);

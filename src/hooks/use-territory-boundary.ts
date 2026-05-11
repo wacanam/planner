@@ -1,13 +1,12 @@
 import { useState, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 
-/**
- * GeoJSON Polygon or MultiPolygon geometry
- */
-export interface GeoJSONGeometry {
-  type: 'Polygon' | 'MultiPolygon';
-  coordinates: number[][][] | number[][][][];
-}
+type GeoJSONPosition = [number, number, ...number[]];
+export type GeoJSONGeometry =
+  | { type: 'Polygon'; coordinates: GeoJSONPosition[][] }
+  | { type: 'MultiPolygon'; coordinates: GeoJSONPosition[][][] };
 
 /**
  * Territory boundary with metadata
@@ -35,7 +34,7 @@ export interface UseTerritoryBoundaryReturn {
  * Hook for managing territory boundaries
  * 
  * Handles:
- * - Fetching existing boundaries from API
+ * - Fetching existing boundaries from Firestore
  * - Saving new boundaries as GeoJSON
  * - Error handling and state management
  * - Loading states for async operations
@@ -47,6 +46,11 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
   const [error, setError] = useState<string | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
+
+  const territoryDocument = useCallback(
+    (territoryId: string) => doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
+    []
+  );
 
   /**
    * Fetch existing boundary from server
@@ -61,9 +65,16 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
     setError(null);
 
     try {
-      const data = await apiClient.get<{ id: string; boundary: GeoJSONGeometry | null }>(
-        `/api/territories/${territoryId}/boundary`
-      );
+      const snapshot = await getDoc(territoryDocument(territoryId));
+      const rawBoundary = snapshot.exists()
+        ? ((snapshot.data().boundary ?? null) as string | GeoJSONGeometry | null)
+        : null;
+      const data = {
+        boundary:
+          typeof rawBoundary === 'string'
+            ? ((JSON.parse(rawBoundary) as GeoJSONGeometry | null) ?? null)
+            : rawBoundary,
+      };
 
       if (data.boundary) {
         // Validate boundary structure
@@ -89,7 +100,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [territoryDocument]);
 
   /**
    * Save boundary to server
@@ -108,10 +119,11 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
       setError(null);
 
       try {
-        const data = await apiClient.put<{ id: string; boundary: GeoJSONGeometry | null; updatedAt: unknown }>(
-          `/api/territories/${territoryId}/boundary`,
-          { boundary: newBoundary }
-        );
+        await updateDoc(territoryDocument(territoryId), {
+          boundary: JSON.stringify(newBoundary),
+          updatedAt: nowIso(),
+        });
+        const data = { boundary: newBoundary };
 
         if (data.boundary && validateGeoJSON(data.boundary)) {
           setBoundary(data.boundary);
@@ -125,7 +137,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
         setIsSaving(false);
       }
     },
-    []
+    [territoryDocument]
   );
 
   /**
@@ -141,10 +153,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
       setError(null);
 
       try {
-        await apiClient.put<{ id: string; boundary: GeoJSONGeometry | null; updatedAt: unknown }>(
-          `/api/territories/${territoryId}/boundary`,
-          { boundary: null }
-        );
+        await updateDoc(territoryDocument(territoryId), { boundary: null, updatedAt: nowIso() });
         setBoundary(null);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -155,7 +164,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
         setIsSaving(false);
       }
     },
-    []
+    [territoryDocument]
   );
 
   return {
@@ -176,12 +185,12 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
  * @param geometry - GeoJSON geometry to validate
  * @returns true if valid, false otherwise
  */
-export function validateGeoJSON(geometry: any): geometry is GeoJSONGeometry {
+export function validateGeoJSON(geometry: unknown): geometry is GeoJSONGeometry {
   if (!geometry || typeof geometry !== 'object') return false;
 
-  const { type, coordinates } = geometry;
+  const { type, coordinates } = geometry as { type?: unknown; coordinates?: unknown };
 
-  if (!['Polygon', 'MultiPolygon'].includes(type)) {
+  if (typeof type !== 'string' || !['Polygon', 'MultiPolygon'].includes(type)) {
     return false;
   }
 
@@ -191,98 +200,24 @@ export function validateGeoJSON(geometry: any): geometry is GeoJSONGeometry {
 
   // Validate Polygon
   if (type === 'Polygon') {
-    const rings = coordinates as number[][][];
-    if (!Array.isArray(rings[0]) || !Array.isArray(rings[0][0])) {
-      return false;
-    }
-    // Check min 3 points per ring
-    if (rings[0].length < 4) return false; // 3 unique + 1 closing
-    return true;
+    const rings = coordinates as unknown[];
+    return isLinearRing(rings[0]);
   }
 
   // Validate MultiPolygon
   if (type === 'MultiPolygon') {
-    const polygons = coordinates as number[][][][];
-    return polygons.every((poly) => {
-      if (!Array.isArray(poly[0]) || !Array.isArray(poly[0][0])) {
-        return false;
-      }
-      return poly[0].length >= 4; // 3 unique + 1 closing
-    });
+    const polygons = coordinates as unknown[];
+    return polygons.every((polygon) => Array.isArray(polygon) && isLinearRing(polygon[0]));
   }
 
   return false;
 }
 
-/**
- * Convert Leaflet Draw output to GeoJSON MultiPolygon
- * (Kept for backwards compatibility)
- */
-export function leafletDrawToGeoJSON(layers: any): GeoJSONGeometry | null {
-  const features: any[] = [];
-
-  try {
-    layers.eachLayer((layer: any) => {
-      if (layer.toGeoJSON) {
-        features.push(layer.toGeoJSON());
-      }
-    });
-
-    if (features.length === 0) return null;
-
-    const coordinates = features
-      .filter((f) => f.geometry?.type === 'Polygon')
-      .map((f) => f.geometry.coordinates);
-
-    if (coordinates.length === 0) return null;
-
-    return {
-      type: 'MultiPolygon',
-      coordinates,
-    };
-  } catch (err) {
-    console.error('[leafletDrawToGeoJSON] Error:', err);
-    return null;
-  }
+function isPosition(value: unknown): value is GeoJSONPosition {
+  return Array.isArray(value) && value.length >= 2 && value.every((part) => typeof part === 'number');
 }
 
-/**
- * Convert GeoJSON to GeoJSON FeatureCollection
- * (Kept for backwards compatibility with visualization)
- */
-export function geoJsonToLeafletFeatures(
-  boundary: GeoJSONGeometry | null
-): GeoJSON.FeatureCollection {
-  if (!boundary) {
-    return { type: 'FeatureCollection', features: [] };
-  }
-
-  if (boundary.type === 'Polygon') {
-    return {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: boundary,
-          properties: {},
-        } as any,
-      ],
-    };
-  }
-
-  if (boundary.type === 'MultiPolygon') {
-    return {
-      type: 'FeatureCollection',
-      features: (boundary.coordinates as number[][][][]).map((coords) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: coords,
-        },
-        properties: {},
-      })) as any,
-    };
-  }
-
-  return { type: 'FeatureCollection', features: [] };
+function isLinearRing(value: unknown): value is GeoJSONPosition[] {
+  return Array.isArray(value) && value.length >= 4 && value.every(isPosition);
 }
+

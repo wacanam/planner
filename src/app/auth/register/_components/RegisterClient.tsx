@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
-import axios from 'axios';
 import Link from 'next/link';
 import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -13,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { registerSchema, type RegisterFormData } from '@/schemas';
+import { registerWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 
 type StrengthInfo = {
   label: string;
@@ -46,6 +45,7 @@ export default function RegisterPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
     register,
@@ -77,47 +77,34 @@ export default function RegisterPage() {
     const name = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
 
     try {
-      const registerData = await axios
-        .post<{ user?: unknown; error?: string }>('/api/auth/register', {
-          email: data.email,
-          password: data.password,
-          name,
-        })
-        .then((r) => r.data)
-        .catch((err) => {
-          const msg = axios.isAxiosError(err)
-            ? ((err.response?.data as { error?: string })?.error ?? 'Registration failed.')
-            : 'Registration failed.';
-          throw new Error(msg);
-        });
-
-      console.log('[register] User created:', registerData.user);
-      setSuccess('Account created! Signing you in…');
-
-      const signInResult = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      console.log('[register] signIn result:', signInResult);
-
-      if (signInResult?.error) {
-        console.error('[register] signIn error:', signInResult.error);
-        setError('Account created, but sign-in failed. Please try signing in manually.');
-        setTimeout(() => {
-          router.push('/auth/login');
-        }, 2000);
-      } else if (signInResult?.ok) {
-        setSuccess('Welcome! Setting up your account…');
-        setTimeout(() => {
-          router.push('/onboarding');
-          router.refresh();
-        }, 1000);
-      }
+      await registerWithEmail({ email: data.email, password: data.password, name });
+      setSuccess('Welcome! Setting up your account…');
+      setTimeout(() => {
+        router.push('/onboarding');
+        router.refresh();
+      }, 700);
     } catch (err) {
       console.error('[register] catch error:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setError('');
+    setSuccess('');
+    setIsGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      setSuccess('Welcome! Setting up your account…');
+      setTimeout(() => {
+        router.push('/onboarding');
+        router.refresh();
+      }, 700);
+    } catch (err) {
+      console.error('[register google error]', err);
+      setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
+    } finally {
+      setIsGoogleLoading(false);
     }
   }
 
@@ -149,6 +136,26 @@ export default function RegisterPage() {
               <AlertDescription className="pl-6">{success}</AlertDescription>
             </Alert>
           )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mb-5"
+            size="lg"
+            onClick={() => void handleGoogleSignIn()}
+            disabled={isSubmitting || isGoogleLoading}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-semibold">
+              G
+            </span>
+            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
+          </Button>
+
+          <div className="relative mb-5 flex items-center">
+            <div className="h-px flex-1 bg-border" />
+            <span className="px-3 text-xs text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Name row */}

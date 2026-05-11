@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,14 +19,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiClient } from '@/lib/api-client';
-import { CongregationRole, UserRole } from '@/db';
+import { CongregationRole, UserRole } from '@/lib/roles';
 import type { Member, JoinRequest } from '@/types/api';
 import {
   useCongregationMembers,
   useCongregationJoinRequests,
   useReviewJoinRequest,
   useUpdateMemberRole,
+  useAddMember,
+  useRemoveMember,
 } from '@/hooks';
 import {
   editMemberRoleSchema,
@@ -50,23 +51,20 @@ export default function CongregationMembersPage() {
       }
     | undefined;
 
-  const {
-    data: membersData,
-    isLoading: loading,
-    mutate: mutateMembers,
-  } = useCongregationMembers(congregationId);
+  const { data: membersData, isLoading: loading } = useCongregationMembers(congregationId);
   const members = membersData.filter((m) => m.status === 'active');
 
-  const {
-    data: requestsData,
-    isLoading: requestsLoading,
-    mutate: mutateRequests,
-  } = useCongregationJoinRequests(congregationId, 'pending');
+  const { data: requestsData, isLoading: requestsLoading } = useCongregationJoinRequests(
+    congregationId,
+    'pending'
+  );
   const requests: JoinRequest[] = requestsData;
   const pendingCount = requests.length;
 
   const { review: reviewJoinRequest } = useReviewJoinRequest(congregationId);
   const { updateRole: updateMemberRole } = useUpdateMemberRole(congregationId);
+  const { addMember } = useAddMember(congregationId);
+  const { removeMember } = useRemoveMember(congregationId);
 
   // Determine current user's role from members data
   const myRole = members.find((m) => m.userId === sessionUser?.id)?.congregationRole ?? null;
@@ -129,10 +127,9 @@ export default function CongregationMembersPage() {
     setAddLoading(true);
     setAddError('');
     try {
-      await apiClient.post(`/api/congregations/${congregationId}/members`, { userId: addUserId });
+      await addMember({ userId: addUserId });
       setAddOpen(false);
       setAddUserId('');
-      await mutateMembers();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to add member');
     } finally {
@@ -144,9 +141,8 @@ export default function CongregationMembersPage() {
     if (!removeTarget) return;
     setRemoveLoading(true);
     try {
-      await apiClient.delete(`/api/congregations/${congregationId}/members/${removeTarget.userId}`);
+      await removeMember({ userId: removeTarget.userId });
       setRemoveOpen(false);
-      await mutateMembers();
     } catch {
       // ignore
     } finally {
@@ -172,7 +168,6 @@ export default function CongregationMembersPage() {
       });
       setEditRoleOpen(false);
       editRoleForm.reset();
-      await mutateMembers();
     } catch {
       // ignore
     }
@@ -195,7 +190,6 @@ export default function CongregationMembersPage() {
       });
       setReviewOpen(false);
       reviewForm.reset();
-      await Promise.all([mutateMembers(), mutateRequests()]);
     } catch {
       // ignore
     }
@@ -226,10 +220,12 @@ export default function CongregationMembersPage() {
               Manage congregation members and roles
             </p>
           </div>
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus size={14} />
-            Add Member
-          </Button>
+          {canEditRole && (
+            <Button onClick={() => setAddOpen(true)}>
+              <Plus size={14} />
+              Add Member
+            </Button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -306,7 +302,7 @@ export default function CongregationMembersPage() {
                   </p>
                 </div>
               ) : (
-                <table className="w-full text-sm min-w-[600px]">
+                <table className="w-full text-sm" style={{ minWidth: 600 }}>
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -353,17 +349,19 @@ export default function CongregationMembersPage() {
                                 <Pencil size={14} />
                               </Button>
                             )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                setRemoveTarget(m);
-                                setRemoveOpen(true);
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
+                            {canEditRole && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setRemoveTarget(m);
+                                  setRemoveOpen(true);
+                                }}
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -390,7 +388,7 @@ export default function CongregationMembersPage() {
                 <p className="text-sm text-muted-foreground">No pending join requests</p>
               </div>
             ) : (
-              <table className="w-full text-sm min-w-[600px]">
+              <table className="w-full text-sm" style={{ minWidth: 600 }}>
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import {
   MapPin,
@@ -20,7 +20,10 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { apiClient } from '@/lib/api-client';
+import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { CongregationRole, MemberStatus } from '@/lib/roles';
 import {
   createCongregationSchema,
   type CreateCongregationFormData,
@@ -66,6 +69,8 @@ export default function OnboardingPage() {
   const [joinError, setJoinError] = useState('');
 
   const user = session?.user as { name?: string; congregationId?: string } | undefined;
+  const userId = session?.user?.id;
+  const userEmail = session?.user?.email ?? null;
 
   if (user?.congregationId) {
     router.replace('/dashboard');
@@ -77,10 +82,45 @@ export default function OnboardingPage() {
   async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
     try {
-      const congregation = await apiClient.post<{ id: string }, object>('/api/congregations', {
+      if (!userId) throw new Error('Sign in again to finish setup.');
+      const now = nowIso();
+      const congregation = {
+        id: createClientId(),
         name: data.name.trim(),
-        city: data.city?.trim() || undefined,
-        country: data.country?.trim() || undefined,
+        slug: data.name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''),
+        city: data.city?.trim() || null,
+        country: data.country?.trim() || null,
+        status: 'active',
+        createdById: userId,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await setDoc(
+        doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregations, congregation.id),
+        congregation
+      );
+      await setDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, userId), {
+        id: userId,
+        userId,
+        congregationId: congregation.id,
+        congregationRole: CongregationRole.SERVICE_OVERSEER,
+        status: MemberStatus.ACTIVE,
+        joinMessage: null,
+        joinedAt: now,
+        user: {
+          id: userId,
+          name: user?.name ?? null,
+          email: userEmail,
+          role: session?.user?.role ?? null,
+        },
+      });
+      await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, userId), {
+        congregationId: congregation.id,
+        updatedAt: now,
       });
       await updateSession({ congregationId: congregation.id });
       router.replace(`/congregation/${congregation.id}/dashboard`);
@@ -102,9 +142,14 @@ export default function OnboardingPage() {
     setSearchResults([]);
     setSelectedCong(null);
     try {
-      const results = await apiClient.get<SearchResult[]>(
-        `/api/congregations/search?q=${encodeURIComponent(searchQuery.trim())}`
+      const term = searchQuery.trim().toLowerCase();
+      const snapshot = await getDocs(
+        collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregations)
       );
+      const results = snapshot.docs
+        .map((document) => ({ id: document.id, ...(document.data() as Omit<SearchResult, 'id'>) }))
+        .filter((item) => item.name?.toLowerCase().includes(term) || item.slug?.includes(term))
+        .slice(0, 10);
       setSearchResults(results ?? []);
     } catch {
       setSearchResults([]);
@@ -120,9 +165,23 @@ export default function OnboardingPage() {
     if (!selectedCong) return;
     setJoinError('');
     try {
-      await apiClient.post('/api/congregations/join-requests', {
+      if (!userId) throw new Error('Sign in again to request access.');
+      await setDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, userId), {
+        id: userId,
+        userId,
         congregationId: selectedCong.id,
-        message: data.message?.trim() || undefined,
+        congregationRole: null,
+        status: MemberStatus.PENDING,
+        joinMessage: data.message?.trim() || null,
+        joinedAt: nowIso(),
+        reviewNote: null,
+        reviewedAt: null,
+        user: {
+          id: userId,
+          name: user?.name ?? null,
+          email: userEmail,
+          role: session?.user?.role ?? null,
+        },
       });
       setMode('join-sent');
     } catch (err) {
@@ -137,7 +196,7 @@ export default function OnboardingPage() {
   // ── MODE: choose ─────────────────────────────────────────────────────────
   if (mode === 'choose') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
         <div className="w-full max-w-lg">
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/15 mb-5">
@@ -203,7 +262,7 @@ export default function OnboardingPage() {
   // ── MODE: create ─────────────────────────────────────────────────────────
   if (mode === 'create') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
             <div className="text-center mb-8">
@@ -290,7 +349,7 @@ export default function OnboardingPage() {
                 <Button
                   type="submit"
                   disabled={createForm.formState.isSubmitting}
-                  className="flex-[2]"
+                  className="flex-2"
                 >
                   {createForm.formState.isSubmitting ? (
                     <span className="flex items-center gap-2">
@@ -333,7 +392,7 @@ export default function OnboardingPage() {
   // ── MODE: join ────────────────────────────────────────────────────────────
   if (mode === 'join') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
             <div className="text-center mb-8">
@@ -418,7 +477,7 @@ export default function OnboardingPage() {
                             </p>
                           )}
                         </div>
-                        <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
+                        <ChevronRight size={16} className="text-muted-foreground shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -490,7 +549,7 @@ export default function OnboardingPage() {
                   <Button
                     type="submit"
                     disabled={joinForm.formState.isSubmitting}
-                    className="flex-[2]"
+                    className="flex-2"
                   >
                     {joinForm.formState.isSubmitting ? (
                       <span className="flex items-center gap-2">
@@ -544,7 +603,7 @@ export default function OnboardingPage() {
 
   // ── MODE: join-sent ───────────────────────────────────────────────────────
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4">
       <div className="w-full max-w-md text-center bg-card rounded-2xl shadow-sm border border-border p-10">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/15 mb-5">
           <Clock size={28} className="text-green-600" />
