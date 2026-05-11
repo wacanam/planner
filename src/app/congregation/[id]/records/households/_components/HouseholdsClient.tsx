@@ -763,7 +763,8 @@ export default function HouseholdsClient() {
     const latest: Record<string, string> = {};
     const latestAt: Record<string, string> = {};
     for (const visit of allVisits) {
-      const at = visit.visitDate ?? visit.createdAt ?? '';
+      const at = visit.visitDate ?? visit.createdAt;
+      if (!at) continue;
       if (!latestAt[visit.householdId] || at > latestAt[visit.householdId]) {
         latestAt[visit.householdId] = at;
         latest[visit.householdId] = visit.id;
@@ -981,7 +982,7 @@ export default function HouseholdsClient() {
 
       <HouseholdEncounterSheet
         household={encounterHousehold}
-        visitId={encounterHousehold ? latestVisitIdByHousehold[encounterHousehold.id] : null}
+        visitId={encounterHousehold ? (latestVisitIdByHousehold[encounterHousehold.id] ?? null) : null}
         open={!!encounterHousehold}
         onOpenChange={(open) => {
           if (!open) setEncounterHousehold(null);
