@@ -141,6 +141,10 @@ const MARKER_LABEL_CHAR_WIDTH = 9;
 const MARKER_PIN_AND_PADDING_WIDTH = 42;
 const EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS = 40;
 const DEFAULT_MAP_CENTER = { lat: 8.37, lng: 124.85 };
+// Web mercator meters-per-pixel value at zoom 0 and equator.
+const METERS_PER_PIXEL_AT_ZOOM_0 = 156543.03392;
+// Approximate pointer tolerance in pixels for inserting a vertex on the nearest edge.
+const EDGE_INSERT_THRESHOLD_PIXELS = 24;
 const STATUS_COLOR: Record<string, string> = {
   not_visited: '#64748b',
   not_home: '#f59e0b',
@@ -619,6 +623,7 @@ export default function TerritoryMap({
   const [showOutsideBoundary, setShowOutsideBoundary] = useState(true);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
+  const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
 
   onHouseholdClickRef.current = onHouseholdClick;
   onHouseholdAddEncounterRef.current = onHouseholdAddEncounter;
@@ -637,21 +642,15 @@ export default function TerritoryMap({
 
   const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
   const activeMapStyleRef = useRef(activeMapStyle);
-  const initialCenterRef = useRef<google.maps.LatLngLiteral | null>(null);
+  const centerRef = useRef(center);
+  const validPointsRef = useRef(validPoints);
   activeMapStyleRef.current = activeMapStyle;
+  centerRef.current = center;
+  validPointsRef.current = validPoints;
   const effectiveInteractionMode =
     mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
   const pinPreviewIsControlled = pinPreview !== undefined;
   const visiblePin = pinPreviewIsControlled ? pinPreview : pendingPin;
-  const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
-  if (!initialCenterRef.current) {
-    const firstPoint = validPoints[0];
-    initialCenterRef.current = center
-      ? { lat: center[0], lng: center[1] }
-      : firstPoint
-        ? { lat: firstPoint.lat, lng: firstPoint.lng }
-        : DEFAULT_MAP_CENTER;
-  }
   const activeBoundaryGeometry = useMemo(() => parseBoundary(boundary), [boundary]);
   const visibleHouseholdPoints = useMemo(() => {
     if (showOutsideBoundary || !activeBoundaryGeometry) return validPoints;
@@ -760,8 +759,15 @@ export default function TerritoryMap({
     if (!googleApi || !containerRef.current || mapRef.current) return;
 
     const style = MAP_STYLES.find((item) => item.id === activeMapStyleRef.current) ?? MAP_STYLES[0];
+    const firstPoint = validPointsRef.current[0];
+    const initialCenter = centerRef.current
+      ? { lat: centerRef.current[0], lng: centerRef.current[1] }
+      : firstPoint
+        ? { lat: firstPoint.lat, lng: firstPoint.lng }
+        : DEFAULT_MAP_CENTER;
+
     const map = new googleApi.maps.Map(containerRef.current, {
-      center: initialCenterRef.current ?? DEFAULT_MAP_CENTER,
+      center: initialCenter,
       zoom: 14,
       ...(process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
         ? { mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID }
@@ -1043,10 +1049,10 @@ export default function TerritoryMap({
       const nearest = nearestRingSegment(drawRingsRef.current, point);
       const zoom = map.getZoom() ?? 16;
       const metersPerPixel =
-        (156543.03392 * Math.cos((point[1] * Math.PI) / 180)) / 2 ** zoom;
+        (METERS_PER_PIXEL_AT_ZOOM_0 * Math.cos((point[1] * Math.PI) / 180)) / 2 ** zoom;
       const edgeInsertThreshold = Math.max(
         EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS,
-        metersPerPixel * 24
+        metersPerPixel * EDGE_INSERT_THRESHOLD_PIXELS
       );
       if (!nearest || nearest.distance > edgeInsertThreshold) return;
       setDrawRings((current) =>

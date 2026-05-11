@@ -799,10 +799,12 @@ export default function HouseholdsClient() {
   }, [households, search, statusFilter]);
 
   useEffect(() => {
-    if (!focusedHouseholdId || selectedHousehold) return;
+    if (!focusedHouseholdId) return;
     const household = households.find((item) => item.id === focusedHouseholdId);
-    if (household) setSelectedHousehold(household);
-  }, [focusedHouseholdId, households, selectedHousehold]);
+    if (household) {
+      setSelectedHousehold((current) => current ?? household);
+    }
+  }, [focusedHouseholdId, households]);
 
   return (
     <>
