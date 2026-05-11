@@ -353,8 +353,9 @@ export default function TerritoryDetailView() {
       setDeleteHouseholdId(null);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      setDeleteError(reason);
-      toast.error(reason);
+      const message = `Failed to delete household: ${reason}`;
+      setDeleteError(message);
+      toast.error(message);
     } finally {
       setDeletingHousehold(false);
     }

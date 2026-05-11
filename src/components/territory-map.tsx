@@ -119,6 +119,10 @@ export const MAP_STYLES = [
 export type StyleId = (typeof MAP_STYLES)[number]['id'];
 
 const DEFAULT_STYLE: StyleId = 'streets';
+const MARKER_LABEL_MAX_WIDTH = 280;
+const MARKER_LABEL_MIN_WIDTH = 72;
+const MARKER_LABEL_CHAR_WIDTH = 9;
+const TILT_MODE_HEADING = 20;
 const STATUS_COLOR: Record<string, string> = {
   not_visited: '#64748b',
   not_home: '#f59e0b',
@@ -264,8 +268,11 @@ function markerIcon(api: GoogleApi, color: string, label: string): google.maps.I
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-  const textWidth = Math.min(280, Math.max(72, safeLabel.length * 9));
+    .replace(/'/g, '&apos;');
+  const textWidth = Math.min(
+    MARKER_LABEL_MAX_WIDTH,
+    Math.max(MARKER_LABEL_MIN_WIDTH, safeLabel.length * MARKER_LABEL_CHAR_WIDTH)
+  );
   const iconWidth = 44 + textWidth;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${iconWidth}" height="46" viewBox="0 0 ${iconWidth} 46">
@@ -733,7 +740,7 @@ export default function TerritoryMap({
     if (!map || !mapReady) return;
     map.setTilt(tiltActive ? 45 : 0);
     if (tiltActive) {
-      map.setHeading(20);
+      map.setHeading(TILT_MODE_HEADING);
     } else {
       map.setHeading(0);
     }
