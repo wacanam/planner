@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Home,
   Plus,
@@ -22,13 +23,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -435,21 +429,21 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{visit ? 'Edit Visit' : 'Log Visit'}</DialogTitle>
-          {household && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {household.address}, {household.city}
-            </p>
-          )}
-        </DialogHeader>
-
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
-        >
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) handleClose();
+      }}
+      title={visit ? 'Edit Visit' : 'Log Visit'}
+      description={
+        household ? `${household.address || 'Pinned household'}${household.city ? `, ${household.city}` : ''}` : undefined
+      }
+      contentClassName="sm:max-w-md"
+    >
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-1"
+      >
           {/* Outcome */}
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Outcome *</span>
@@ -574,17 +568,16 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
             </>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : visit ? 'Save Changes' : 'Save Visit'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving…' : visit ? 'Save Changes' : 'Save Visit'}
+          </Button>
+        </div>
+      </form>
+    </ResponsiveDialog>
   );
 }
 
@@ -736,6 +729,9 @@ function SwipeToReveal({ id, swipedId, onSwipe, actions, children }: SwipeToReve
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export default function HouseholdsClient() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
@@ -749,6 +745,7 @@ export default function HouseholdsClient() {
 
   const { households, isLoading } = useHouseholds();
   const { visits: allVisits } = useMyVisits();
+  const focusedHouseholdId = searchParams.get('householdId');
 
   // Count visits per household
   const visitCountByHousehold = useMemo(() => {
@@ -800,6 +797,12 @@ export default function HouseholdsClient() {
     }
     return list;
   }, [households, search, statusFilter]);
+
+  useEffect(() => {
+    if (!focusedHouseholdId || selectedHousehold) return;
+    const household = households.find((item) => item.id === focusedHouseholdId);
+    if (household) setSelectedHousehold(household);
+  }, [focusedHouseholdId, households, selectedHousehold]);
 
   return (
     <>
@@ -962,7 +965,10 @@ export default function HouseholdsClient() {
       {selectedHousehold && (
         <VisitHistoryDrawer
           household={selectedHousehold}
-          onClose={() => setSelectedHousehold(null)}
+          onClose={() => {
+            setSelectedHousehold(null);
+            if (focusedHouseholdId) router.replace(pathname);
+          }}
           onLogVisit={() => {
             setLogVisitHousehold(selectedHousehold);
             setSelectedHousehold(null);

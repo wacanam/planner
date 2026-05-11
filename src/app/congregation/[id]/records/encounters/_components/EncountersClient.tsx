@@ -6,14 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { FormField } from '@/components/ui/form-field';
 import {
   Select,
@@ -128,17 +121,14 @@ function LogEncounterDialog({
   }, [encounter, open, reset]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{encounter ? 'Edit Encounter' : 'Log Encounter'}</DialogTitle>
-          <DialogDescription>
-            Record a ministry conversation even if it happened outside an assignment or without a
-            visit.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={encounter ? 'Edit Encounter' : 'Log Encounter'}
+      description="Record a ministry conversation even if it happened outside an assignment or without a visit."
+      contentClassName="sm:max-w-lg"
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-180px)] space-y-4 overflow-y-auto pr-1">
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Response *</span>
             <Controller
@@ -244,17 +234,16 @@ function LogEncounterDialog({
             </label>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {encounter ? 'Save Changes' : 'Save Encounter'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {encounter ? 'Save Changes' : 'Save Encounter'}
+          </Button>
+        </div>
+      </form>
+    </ResponsiveDialog>
   );
 }
 

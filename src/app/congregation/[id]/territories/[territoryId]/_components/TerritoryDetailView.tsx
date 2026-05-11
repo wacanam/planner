@@ -399,7 +399,7 @@ export default function TerritoryDetailView() {
                     }
                     onHouseholdViewDetails={(householdId: string) =>
                       router.push(
-                        `/congregation/${congregationId}/records/households/${householdId}`
+                        `/congregation/${congregationId}/records/households?householdId=${encodeURIComponent(householdId)}`
                       )
                     }
                     onHouseholdDeleteRequest={(householdId: string) =>

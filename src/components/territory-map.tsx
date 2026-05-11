@@ -140,6 +140,7 @@ const MARKER_LABEL_MIN_WIDTH = 72;
 const MARKER_LABEL_CHAR_WIDTH = 9;
 const MARKER_PIN_AND_PADDING_WIDTH = 42;
 const EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS = 40;
+const DEFAULT_MAP_CENTER = { lat: 8.37, lng: 124.85 };
 const STATUS_COLOR: Record<string, string> = {
   not_visited: '#64748b',
   not_home: '#f59e0b',
@@ -636,12 +637,21 @@ export default function TerritoryMap({
 
   const activeMapStyle = onMapStyleChange ? mapStyle : localMapStyle;
   const activeMapStyleRef = useRef(activeMapStyle);
+  const initialCenterRef = useRef<google.maps.LatLngLiteral | null>(null);
   activeMapStyleRef.current = activeMapStyle;
   const effectiveInteractionMode =
     mapInteractionMode ?? (pinHouseholdMode ? 'add' : localInteractionMode);
   const pinPreviewIsControlled = pinPreview !== undefined;
   const visiblePin = pinPreviewIsControlled ? pinPreview : pendingPin;
   const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
+  if (!initialCenterRef.current) {
+    const firstPoint = validPoints[0];
+    initialCenterRef.current = center
+      ? { lat: center[0], lng: center[1] }
+      : firstPoint
+        ? { lat: firstPoint.lat, lng: firstPoint.lng }
+        : DEFAULT_MAP_CENTER;
+  }
   const activeBoundaryGeometry = useMemo(() => parseBoundary(boundary), [boundary]);
   const visibleHouseholdPoints = useMemo(() => {
     if (showOutsideBoundary || !activeBoundaryGeometry) return validPoints;
@@ -750,16 +760,12 @@ export default function TerritoryMap({
     if (!googleApi || !containerRef.current || mapRef.current) return;
 
     const style = MAP_STYLES.find((item) => item.id === activeMapStyleRef.current) ?? MAP_STYLES[0];
-    const firstPoint = validPoints[0];
-    const initialCenter = center
-      ? { lat: center[0], lng: center[1] }
-      : firstPoint
-        ? { lat: firstPoint.lat, lng: firstPoint.lng }
-        : { lat: 8.37, lng: 124.85 };
-
     const map = new googleApi.maps.Map(containerRef.current, {
-      center: initialCenter,
+      center: initialCenterRef.current ?? DEFAULT_MAP_CENTER,
       zoom: 14,
+      ...(process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
+        ? { mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID }
+        : {}),
       mapTypeId: style.mapTypeId,
       styles: style.styles,
       clickableIcons: false,
@@ -769,6 +775,7 @@ export default function TerritoryMap({
       gestureHandling: 'greedy',
       tiltInteractionEnabled: true,
       headingInteractionEnabled: true,
+      tilt: 45,
       controlSize: 30,
     });
 
@@ -794,7 +801,7 @@ export default function TerritoryMap({
       infoWindowRef.current?.close();
       mapRef.current = null;
     };
-  }, [center, clearBoundaryOverlays, clearDrawingOverlays, googleApi, validPoints]);
+  }, [clearBoundaryOverlays, clearDrawingOverlays, googleApi]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -836,7 +843,7 @@ export default function TerritoryMap({
         strokeWeight: 1.5,
         fillColor: '#94a3b8',
         fillOpacity: 0.08,
-        zIndex: -20,
+        zIndex: -200,
       });
     }
 
@@ -847,7 +854,7 @@ export default function TerritoryMap({
         strokeWeight: 2.5,
         fillColor: '#3b82f6',
         fillOpacity: 0.12,
-        zIndex: -10,
+        zIndex: -100,
       });
     }
 
@@ -1034,7 +1041,14 @@ export default function TerritoryMap({
       }
 
       const nearest = nearestRingSegment(drawRingsRef.current, point);
-      if (!nearest || nearest.distance > EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS) return;
+      const zoom = map.getZoom() ?? 16;
+      const metersPerPixel =
+        (156543.03392 * Math.cos((point[1] * Math.PI) / 180)) / 2 ** zoom;
+      const edgeInsertThreshold = Math.max(
+        EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS,
+        metersPerPixel * 24
+      );
+      if (!nearest || nearest.distance > edgeInsertThreshold) return;
       setDrawRings((current) =>
         current.map((ring, ringIndex) => {
           if (ringIndex !== nearest.ringIndex) return ring;
@@ -1488,6 +1502,15 @@ export default function TerritoryMap({
               onClick={toggleHeadingBeam}
             >
               <Navigation className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton
+              title={
+                activeMapStyle === 'clean' ? 'Disable clean base map' : 'Show clean base map'
+              }
+              active={activeMapStyle === 'clean'}
+              onClick={() => setStyle(activeMapStyle === 'clean' ? 'streets' : 'clean')}
+            >
+              <Layers className="h-4 w-4" />
             </MapControlButton>
             <MapControlButton
               title={showOutsideBoundary ? 'Hide households outside boundary' : 'Show households outside boundary'}
