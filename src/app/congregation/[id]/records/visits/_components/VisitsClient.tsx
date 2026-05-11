@@ -56,6 +56,13 @@ function formatNextVisit(value?: string | null, time?: string | null) {
 function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
   if (ISO_DATE_PATTERN.test(value)) return { date: value, time: time ?? undefined };
+  const isoDateTimeMatch = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  if (isoDateTimeMatch) {
+    return {
+      date: isoDateTimeMatch[1],
+      time: time ?? isoDateTimeMatch[2],
+    };
+  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return { date: undefined, time: time ?? undefined };
   const date = parsed.toISOString().slice(0, 10);

@@ -1341,7 +1341,7 @@ export default function TerritoryMap({
     }
   }, []);
 
-  const toggleNavigationAssist = useCallback(() => {
+  const handleNavigationAssist = useCallback(() => {
     if (headingBeamActive) {
       setHeadingBeamActive(false);
       headingBeamRef.current?.setMap(null);
@@ -1511,7 +1511,7 @@ export default function TerritoryMap({
                   : 'Find current location + heading direction'
               }
               active={headingBeamActive || locationOn}
-              onClick={toggleNavigationAssist}
+              onClick={handleNavigationAssist}
             >
               <Navigation className="h-4 w-4" />
             </MapControlButton>

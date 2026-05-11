@@ -48,7 +48,7 @@ function householdLabel(household: Household) {
   return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}`;
 }
 
-function encounterDateValue(encounter?: Encounter | null) {
+function getEncounterDateISO(encounter?: Encounter | null) {
   if (!encounter) return new Date().toISOString();
   return encounter.visitDate ?? encounter.createdAt;
 }
@@ -79,7 +79,7 @@ function LogEncounterDialog({
   const onSubmit = async (values: AddEncounterFormValues) => {
     const payload = {
       householdId: householdId || null,
-      encounterDate: encounterDateValue(encounter),
+      encounterDate: getEncounterDateISO(encounter),
       name: values.name,
       response: values.response,
       topicDiscussed: values.topicDiscussed,
