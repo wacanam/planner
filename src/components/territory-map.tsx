@@ -816,6 +816,7 @@ export default function TerritoryMap({
     map.setMapTypeId(style.mapTypeId);
     map.setOptions({
       styles: style.styles,
+      gestureHandling: 'cooperative',
       tiltInteractionEnabled: true,
       headingInteractionEnabled: true,
     });
@@ -1098,6 +1099,9 @@ export default function TerritoryMap({
     visibleHouseholdPoints.forEach((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
       const label = householdLabel(household);
+      const markerCollisionBehavior =
+        api.maps.CollisionBehavior?.REQUIRED_AND_HIDES_OPTIONAL ??
+        api.maps.CollisionBehavior?.OPTIONAL_AND_HIDES_LOWER_PRIORITY;
 
       const existing = currentMap.get(household.id);
       if (existing) {
@@ -1106,6 +1110,10 @@ export default function TerritoryMap({
         existing.setIcon(markerIcon(api, color, label));
         existing.setTitle(label);
         existing.setDraggable(effectiveInteractionMode === 'add');
+        existing.setZIndex(100 + index);
+        if (markerCollisionBehavior !== undefined) {
+          existing.setOptions({ collisionBehavior: markerCollisionBehavior });
+        }
         // Re-register click with current household snapshot
         api.maps.event.clearListeners(existing, 'click');
         api.maps.event.clearListeners(existing, 'dragend');
@@ -1142,7 +1150,9 @@ export default function TerritoryMap({
         draggable: effectiveInteractionMode === 'add',
         optimized: true,
         zIndex: 100 + index,
-        collisionBehavior: api.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY,
+        ...(markerCollisionBehavior !== undefined
+          ? { collisionBehavior: markerCollisionBehavior }
+          : {}),
       });
 
       marker.addListener('click', () => {

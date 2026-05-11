@@ -102,7 +102,7 @@ function EditVisitSheet({
     formState: { errors, isSubmitting },
   } = useForm<LogVisitFormData>({
     resolver: zodResolver(logVisitSchema),
-    defaultValues: { returnVisitPlanned: false, addEncounter: false, encounterResponse: 'neutral' },
+    defaultValues: { returnVisitPlanned: false },
   });
 
   useEffect(() => {
@@ -119,8 +119,6 @@ function EditVisitSheet({
       nextVisitTime: nextVisit.time,
       nextVisitNotes: visit.nextVisitNotes ?? undefined,
       notes: visit.notes ?? undefined,
-      addEncounter: false,
-      encounterResponse: 'neutral',
     });
   }, [open, reset, visit]);
 
