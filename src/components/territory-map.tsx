@@ -284,7 +284,7 @@ function markerIcon(api: GoogleApi, color: string, label: string): google.maps.I
       <path d="M13.1 17.15 19 12.2l5.9 4.95v6.7c0 .48-.39.88-.88.88h-3.08v-4.35h-3.88v4.35h-3.08a.88.88 0 0 1-.88-.88v-6.7Z" fill="white"/>
       <path d="M11.95 17.55 19 11.65l7.05 5.9" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
       <text x="42" y="20" fill="${color}" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700"
-            stroke="white" stroke-width="3" paint-order="stroke fill"> ${safeLabel} </text>
+            stroke="white" stroke-width="3" paint-order="stroke fill">${safeLabel}</text>
     </svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,

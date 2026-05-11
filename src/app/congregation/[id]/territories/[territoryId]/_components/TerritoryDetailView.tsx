@@ -272,7 +272,6 @@ export default function TerritoryDetailView() {
   const [encounterHouseholdId, setEncounterHouseholdId] = useState<string | null>(null);
   const [deleteHouseholdId, setDeleteHouseholdId] = useState<string | null>(null);
   const [deletingHousehold, setDeletingHousehold] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { saveBoundary, clearBoundary, isSaving: isSavingBoundary } = useTerritoryBoundary();
   // Exposed callbacks from map for closing ring, undoing, and getting current GeoJSON
   const mapCloseRingRef = useRef<(() => void) | null>(null);
@@ -346,7 +345,6 @@ export default function TerritoryDetailView() {
   const handleDeleteHousehold = useCallback(async () => {
     if (!deleteHouseholdId) return;
     setDeletingHousehold(true);
-    setDeleteError(null);
     try {
       await deleteHousehold(deleteHouseholdId);
       toast.success('Pinned household deleted');
@@ -354,7 +352,6 @@ export default function TerritoryDetailView() {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       const message = `Failed to delete household: ${reason}`;
-      setDeleteError(message);
       toast.error(message);
     } finally {
       setDeletingHousehold(false);
@@ -779,7 +776,6 @@ export default function TerritoryDetailView() {
             onOpenChange={(open) => {
               if (!open) {
                 setDeleteHouseholdId(null);
-                setDeleteError(null);
               }
             }}
             title="Delete household?"
@@ -791,7 +787,6 @@ export default function TerritoryDetailView() {
             confirmLabel={deletingHousehold ? 'Deleting…' : 'Delete'}
             confirmVariant="destructive"
             loading={deletingHousehold}
-            error={deleteError}
             onConfirm={handleDeleteHousehold}
           />
         </main>
