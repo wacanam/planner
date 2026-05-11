@@ -23,6 +23,12 @@ const schema = z.object({
 
 export type AddEncounterFormValues = z.infer<typeof schema>;
 
+function submittingLabel(submitLabel?: string) {
+  const currentLabel = submitLabel ?? 'Add Encounter';
+  if (currentLabel.toLowerCase().includes('save')) return 'Updating…';
+  return 'Adding…';
+}
+
 interface AddEncounterFormProps {
   submitting?: boolean;
   embedded?: boolean;
@@ -38,12 +44,6 @@ export function AddEncounterForm({
   submitLabel,
   onSubmit,
 }: AddEncounterFormProps) {
-  const getSubmittingLabel = () => {
-    const currentLabel = submitLabel ?? 'Add Encounter';
-    if (currentLabel.toLowerCase().includes('save')) return 'Updating…';
-    return 'Adding…';
-  };
-
   const {
     register,
     handleSubmit,
@@ -127,7 +127,7 @@ export function AddEncounterForm({
         disabled={submitting}
         onClick={embedded ? () => void submitEncounter() : undefined}
       >
-        {submitting ? getSubmittingLabel() : submitLabel ?? 'Add Encounter'}
+        {submitting ? submittingLabel(submitLabel) : submitLabel ?? 'Add Encounter'}
       </Button>
     </>
   );

@@ -41,6 +41,7 @@ const outcomeLabels: Record<string, string> = {
   other: 'Other',
 };
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DEFAULT_VISIT_TIME = '09:00';
 
 function formatNextVisit(value?: string | null, time?: string | null) {
   if (!value) return '';
@@ -57,13 +58,13 @@ function splitNextVisit(value?: string | null, time?: string | null) {
   if (ISO_DATE_PATTERN.test(value)) return { date: value, time: time ?? undefined };
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return { date: undefined, time: time ?? undefined };
-  const date = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+  const date = parsed.toISOString().slice(0, 10);
   return { date, time: time ?? parsed.toTimeString().slice(0, 5) };
 }
 
 function combineNextVisit(date?: string, time?: string) {
   if (!date) return undefined;
-  return new Date(`${date}T${time || '09:00'}`).toISOString();
+  return new Date(`${date}T${time || DEFAULT_VISIT_TIME}`).toISOString();
 }
 
 const statusLabels: Record<string, string> = {

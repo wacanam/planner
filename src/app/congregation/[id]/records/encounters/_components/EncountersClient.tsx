@@ -6,6 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   AddEncounterForm,
   type AddEncounterFormValues,
 } from '@/components/households/add-encounter-form';
@@ -106,20 +113,22 @@ function LogEncounterDialog({
       <div className="max-h-[calc(90vh-200px)] space-y-4 overflow-y-auto pr-4">
         <div className="space-y-1.5">
           <span className="text-sm font-medium">Linked Household</span>
-          <select
+          <Select
             value={householdId || 'none'}
-            onChange={(event) =>
-              setHouseholdId(event.target.value === 'none' ? '' : event.target.value)
-            }
-            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            onValueChange={(value) => setHouseholdId(value === 'none' ? '' : value)}
           >
-            <option value="none">No linked household</option>
-            {households.map((household) => (
-              <option key={household.id} value={household.id}>
-                {householdLabel(household)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="No linked household" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No linked household</SelectItem>
+              {households.map((household) => (
+                <SelectItem key={household.id} value={household.id}>
+                  {householdLabel(household)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <AddEncounterForm
           submitting={submitting}
