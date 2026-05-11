@@ -761,12 +761,14 @@ export default function HouseholdsClient() {
 
   const latestVisitIdByHousehold = useMemo(() => {
     const latest: Record<string, string> = {};
-    const latestAt: Record<string, string> = {};
+    const latestAt: Record<string, number> = {};
     for (const visit of allVisits) {
       const at = visit.visitDate ?? visit.createdAt;
       if (!at) continue;
-      if (!latestAt[visit.householdId] || at > latestAt[visit.householdId]) {
-        latestAt[visit.householdId] = at;
+      const timestamp = Date.parse(at);
+      if (!Number.isFinite(timestamp)) continue;
+      if (!latestAt[visit.householdId] || timestamp > latestAt[visit.householdId]) {
+        latestAt[visit.householdId] = timestamp;
         latest[visit.householdId] = visit.id;
       }
     }
