@@ -38,6 +38,12 @@ export function AddEncounterForm({
   submitLabel,
   onSubmit,
 }: AddEncounterFormProps) {
+  const getSubmittingLabel = () => {
+    const currentLabel = submitLabel ?? 'Add Encounter';
+    if (currentLabel.toLowerCase().includes('save')) return 'Updating…';
+    return 'Adding…';
+  };
+
   const {
     register,
     handleSubmit,
@@ -121,11 +127,7 @@ export function AddEncounterForm({
         disabled={submitting}
         onClick={embedded ? () => void submitEncounter() : undefined}
       >
-        {submitting
-          ? (submitLabel ?? 'Add Encounter').toLowerCase().includes('save')
-            ? 'Updating…'
-            : 'Adding…'
-          : submitLabel ?? 'Add Encounter'}
+        {submitting ? getSubmittingLabel() : submitLabel ?? 'Add Encounter'}
       </Button>
     </>
   );

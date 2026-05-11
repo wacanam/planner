@@ -40,6 +40,7 @@ const outcomeLabels: Record<string, string> = {
   moved: 'Moved',
   other: 'Other',
 };
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function formatNextVisit(value?: string | null, time?: string | null) {
   if (!value) return '';
@@ -53,7 +54,7 @@ function formatNextVisit(value?: string | null, time?: string | null) {
 
 function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value, time: time ?? undefined };
+  if (ISO_DATE_PATTERN.test(value)) return { date: value, time: time ?? undefined };
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return { date: undefined, time: time ?? undefined };
   const date = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
