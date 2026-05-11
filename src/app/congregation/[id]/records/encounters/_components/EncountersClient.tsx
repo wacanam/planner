@@ -41,6 +41,7 @@ const responseLabels: Record<string, string> = {
   do_not_visit: 'Do Not Visit',
   moved: 'Moved',
 };
+const DIALOG_CONTENT_OFFSET_PX = 200;
 
 function householdLabel(household: Household) {
   const address =
@@ -112,7 +113,10 @@ function LogEncounterDialog({
       description="Record conversation details and optionally link to a household."
       contentClassName="sm:max-w-lg"
     >
-      <div className="max-h-[calc(90vh-200px)] space-y-4 overflow-y-auto pr-4">
+      <div
+        style={{ maxHeight: `calc(90vh - ${DIALOG_CONTENT_OFFSET_PX}px)` }}
+        className="space-y-4 overflow-y-auto pr-4"
+      >
         <div className="space-y-1.5">
           <span className="text-sm font-medium">Linked Household</span>
           <Select

@@ -157,7 +157,8 @@ function EditVisitSheet({
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className={`max-h-[calc(90vh-${DIALOG_CONTENT_OFFSET_PX}px)] overflow-y-auto space-y-4 pr-4`}
+        style={{ maxHeight: `calc(90vh - ${DIALOG_CONTENT_OFFSET_PX}px)` }}
+        className="overflow-y-auto space-y-4 pr-4"
       >
         <div className="space-y-1.5">
           <span className="text-sm font-medium">Outcome *</span>

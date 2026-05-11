@@ -28,6 +28,11 @@ function submittingLabel(submitLabel?: string) {
   return 'Adding…';
 }
 
+function loadingLabel(isEditing: boolean, submitLabel?: string) {
+  if (isEditing) return 'Updating…';
+  return submittingLabel(submitLabel);
+}
+
 interface AddEncounterFormProps {
   submitting?: boolean;
   embedded?: boolean;
@@ -128,11 +133,7 @@ export function AddEncounterForm({
         disabled={submitting}
         onClick={embedded ? () => void submitEncounter() : undefined}
       >
-        {submitting
-          ? isEditing
-            ? 'Updating…'
-            : submittingLabel(submitLabel)
-          : submitLabel ?? 'Add Encounter'}
+        {submitting ? loadingLabel(isEditing, submitLabel) : submitLabel ?? 'Add Encounter'}
       </Button>
     </>
   );
