@@ -1101,8 +1101,9 @@ export default function TerritoryMap({
       const label = householdLabel(household);
       const collisionBehavior = api.maps.CollisionBehavior;
       const markerCollisionBehavior = collisionBehavior
-        ? collisionBehavior.REQUIRED_AND_HIDES_OPTIONAL ??
-          collisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
+        ? Object.hasOwn(collisionBehavior, 'REQUIRED_AND_HIDES_OPTIONAL')
+          ? collisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
+          : collisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
         : undefined;
 
       const existing = currentMap.get(household.id);
