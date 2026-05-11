@@ -128,7 +128,10 @@ function LogEncounterDialog({
       description="Record a ministry conversation even if it happened outside an assignment or without a visit."
       contentClassName="sm:max-w-lg"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(90vh-180px)] space-y-4 overflow-y-auto pr-1">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="max-h-[calc(90vh-200px)] space-y-4 overflow-y-auto pr-4"
+      >
           <div className="space-y-1.5">
             <span className="text-sm font-medium">Response *</span>
             <Controller

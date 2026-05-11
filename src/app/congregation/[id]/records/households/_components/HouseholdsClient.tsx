@@ -436,13 +436,15 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
       }}
       title={visit ? 'Edit Visit' : 'Log Visit'}
       description={
-        household ? `${household.address || 'Pinned household'}${household.city ? `, ${household.city}` : ''}` : undefined
+        household
+          ? [household.address, household.city].filter(Boolean).join(', ') || undefined
+          : undefined
       }
       contentClassName="sm:max-w-md"
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-1"
+        className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
       >
           {/* Outcome */}
           <div className="space-y-1.5">
