@@ -27,6 +27,7 @@ import {
   Check,
   Save,
   Trash2,
+  Pencil,
   Plus,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -502,11 +503,15 @@ export default function TerritoryDetailView() {
                               setClearConfirmPending(false);
                               setDrawMode(territory.boundary ? 'edit' : 'add');
                             }}
-                            title="Draw boundary"
-                            aria-label="Draw boundary"
+                            title={territory.boundary ? 'Edit boundary' : 'Draw boundary'}
+                            aria-label={territory.boundary ? 'Edit boundary' : 'Draw boundary'}
                             className={mapToolButtonClass}
                           >
-                            <Plus className="h-4 w-4" />
+                            {territory.boundary ? (
+                              <Pencil className="h-4 w-4" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
                           </button>
                           {territory.boundary && canClearBoundary && (
                             <button

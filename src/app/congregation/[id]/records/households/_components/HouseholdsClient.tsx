@@ -766,7 +766,7 @@ export default function HouseholdsClient() {
       const at = visit.visitDate ?? visit.createdAt;
       if (!at) continue;
       const timestamp = Date.parse(at);
-      if (!Number.isFinite(timestamp)) continue;
+      if (Number.isNaN(timestamp) || !Number.isFinite(timestamp)) continue;
       if (!latestAt[visit.householdId] || timestamp > latestAt[visit.householdId]) {
         latestAt[visit.householdId] = timestamp;
         latest[visit.householdId] = visit.id;

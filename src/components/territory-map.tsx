@@ -1469,7 +1469,7 @@ export default function TerritoryMap({
                 title={
                   effectiveInteractionMode === 'add'
                     ? 'Stop pinning/moving households'
-                    : 'Pin or move household'
+                    : 'Pin new household or move existing marker'
                 }
                 active={effectiveInteractionMode === 'add'}
                 onClick={() =>
