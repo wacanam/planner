@@ -620,6 +620,7 @@ function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdD
         streetName: values.streetName,
         city: values.city,
         type: values.type,
+        // HouseholdForm uses membersCount while records/local-first storage uses occupantsCount.
         occupantsCount: values.membersCount,
         notes: values.notes,
       };

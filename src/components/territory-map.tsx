@@ -243,7 +243,7 @@ function householdLabel(
   household: Pick<HouseholdPoint, 'name' | 'address' | 'streetName' | 'city'>
 ) {
   const name = household.name?.trim();
-  if (name) return name;
+  if (name && name.length > 0) return name;
   const address = household.address?.trim();
   if (address) return address;
   const locality = [household.streetName, household.city].filter(Boolean).join(', ');
@@ -393,6 +393,8 @@ function nearestRingSegment(rings: LngLat[][], point: LngLat) {
 function pointInRing(point: LngLat, ring: LngLat[]) {
   const [lng, lat] = point;
   let inside = false;
+  // Ray-casting: toggle inside/outside state every time a horizontal ray from `point`
+  // crosses a polygon edge.
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [lngI, latI] = ring[i];
     const [lngJ, latJ] = ring[j];

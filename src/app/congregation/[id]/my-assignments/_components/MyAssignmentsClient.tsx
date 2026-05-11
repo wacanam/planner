@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, ChevronUp, MapPin, Plus } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
@@ -37,8 +37,14 @@ export default function MyAssignmentsClient() {
 
   const loading = territoriesLoading || requestsLoading || groupsLoading;
   const reload = () => undefined;
-  const memberGroupIds = new Set(
-    groups.filter((group) => group.members.some((member) => member.userId === sessionUser?.id)).map((group) => group.id)
+  const memberGroupIds = useMemo(
+    () =>
+      new Set(
+        groups
+          .filter((group) => group.members.some((member) => member.userId === sessionUser?.id))
+          .map((group) => group.id)
+      ),
+    [groups, sessionUser?.id]
   );
 
   const myActive = territories.filter(
