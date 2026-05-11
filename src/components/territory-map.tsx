@@ -1048,8 +1048,9 @@ export default function TerritoryMap({
 
       const nearest = nearestRingSegment(drawRingsRef.current, point);
       const zoom = map.getZoom() ?? 16;
+      const [, latitude] = point;
       const metersPerPixel =
-        (METERS_PER_PIXEL_AT_ZOOM_0 * Math.cos((point[1] * Math.PI) / 180)) / 2 ** zoom;
+        (METERS_PER_PIXEL_AT_ZOOM_0 * Math.cos((latitude * Math.PI) / 180)) / 2 ** zoom;
       const edgeInsertThreshold = Math.max(
         EDIT_VERTEX_INSERT_MAX_DISTANCE_METERS,
         metersPerPixel * EDGE_INSERT_THRESHOLD_PIXELS

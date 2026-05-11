@@ -801,9 +801,7 @@ export default function HouseholdsClient() {
   useEffect(() => {
     if (!focusedHouseholdId) return;
     const household = households.find((item) => item.id === focusedHouseholdId);
-    if (household) {
-      setSelectedHousehold((current) => current ?? household);
-    }
+    if (household) setSelectedHousehold(household);
   }, [focusedHouseholdId, households]);
 
   return (
