@@ -1099,9 +1099,11 @@ export default function TerritoryMap({
     visibleHouseholdPoints.forEach((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
       const label = householdLabel(household);
-      const markerCollisionBehavior =
-        api.maps.CollisionBehavior?.REQUIRED_AND_HIDES_OPTIONAL ??
-        api.maps.CollisionBehavior?.OPTIONAL_AND_HIDES_LOWER_PRIORITY;
+      const collisionBehavior = api.maps.CollisionBehavior;
+      const markerCollisionBehavior = collisionBehavior
+        ? collisionBehavior.REQUIRED_AND_HIDES_OPTIONAL ??
+          collisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
+        : undefined;
 
       const existing = currentMap.get(household.id);
       if (existing) {
