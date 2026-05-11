@@ -98,6 +98,7 @@ const outcomeLabels: Record<string, string> = {
   moved: 'Moved',
   other: 'Other',
 };
+const DEFAULT_HOUSEHOLD_MEMBERS = 1;
 
 function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
@@ -604,10 +605,10 @@ function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdD
             streetName: household.streetName,
             city: household.city,
             type: household.type,
-            membersCount: household.occupantsCount ?? 1,
+            membersCount: household.occupantsCount ?? DEFAULT_HOUSEHOLD_MEMBERS,
             notes: household.notes ?? '',
           }
-        : { type: 'house', membersCount: 1 },
+        : { type: 'house', membersCount: DEFAULT_HOUSEHOLD_MEMBERS },
     [household]
   );
 

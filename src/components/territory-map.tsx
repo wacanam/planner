@@ -127,6 +127,7 @@ const DEFAULT_STYLE: StyleId = 'streets';
 const MARKER_LABEL_MAX_WIDTH = 280;
 const MARKER_LABEL_MIN_WIDTH = 72;
 const MARKER_LABEL_CHAR_WIDTH = 9;
+const MARKER_PIN_AND_PADDING_WIDTH = 42;
 const TILT_MODE_HEADING = 20;
 const ROTATION_STEP_DEGREES = 30;
 const STATUS_COLOR: Record<string, string> = {
@@ -243,7 +244,7 @@ function householdLabel(
   household: Pick<HouseholdPoint, 'name' | 'address' | 'streetName' | 'city'>
 ) {
   const name = household.name?.trim();
-  if (name && name.length > 0) return name;
+  if (name) return name;
   const address = household.address?.trim();
   if (address) return address;
   const locality = [household.streetName, household.city].filter(Boolean).join(', ');
@@ -283,7 +284,7 @@ function markerIcon(api: GoogleApi, color: string, label: string): google.maps.I
     MARKER_LABEL_MAX_WIDTH,
     Math.max(MARKER_LABEL_MIN_WIDTH, safeLabel.length * MARKER_LABEL_CHAR_WIDTH)
   );
-  const iconWidth = 42 + textWidth;
+  const iconWidth = MARKER_PIN_AND_PADDING_WIDTH + textWidth;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${iconWidth}" height="46" viewBox="0 0 ${iconWidth} 46">
       <filter id="shadow" x="-25%" y="-15%" width="150%" height="150%">
@@ -393,11 +394,21 @@ function nearestRingSegment(rings: LngLat[][], point: LngLat) {
 function pointInRing(point: LngLat, ring: LngLat[]) {
   const [lng, lat] = point;
   let inside = false;
+  const epsilon = 1e-10;
+  const pointOnSegment = (start: LngLat, end: LngLat) => {
+    const [x1, y1] = start;
+    const [x2, y2] = end;
+    const cross = (lat - y1) * (x2 - x1) - (lng - x1) * (y2 - y1);
+    if (Math.abs(cross) > epsilon) return false;
+    const dot = (lng - x1) * (lng - x2) + (lat - y1) * (lat - y2);
+    return dot <= epsilon;
+  };
   // Ray-casting: toggle inside/outside state every time a horizontal ray from `point`
   // crosses a polygon edge.
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [lngI, latI] = ring[i];
     const [lngJ, latJ] = ring[j];
+    if (pointOnSegment([lngI, latI], [lngJ, latJ])) return true;
     const intersects =
       latI > lat !== latJ > lat && lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI) + lngI;
     if (intersects) inside = !inside;
