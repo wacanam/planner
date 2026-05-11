@@ -1095,16 +1095,17 @@ export default function TerritoryMap({
     }
     infoWindowRef.current?.close();
 
+    const collisionBehaviorEnum = api.maps.CollisionBehavior;
+    const markerCollisionBehavior = collisionBehaviorEnum
+      ? Object.hasOwn(collisionBehaviorEnum, 'REQUIRED_AND_HIDES_OPTIONAL')
+        ? collisionBehaviorEnum.REQUIRED_AND_HIDES_OPTIONAL
+        : collisionBehaviorEnum.OPTIONAL_AND_HIDES_LOWER_PRIORITY
+      : undefined;
+
     // Add or update markers
     visibleHouseholdPoints.forEach((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
       const label = householdLabel(household);
-      const collisionBehavior = api.maps.CollisionBehavior;
-      const markerCollisionBehavior = collisionBehavior
-        ? Object.hasOwn(collisionBehavior, 'REQUIRED_AND_HIDES_OPTIONAL')
-          ? collisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
-          : collisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
-        : undefined;
 
       const existing = currentMap.get(household.id);
       if (existing) {
