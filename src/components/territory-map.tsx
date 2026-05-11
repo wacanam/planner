@@ -764,7 +764,6 @@ export default function TerritoryMap({
       clickableIcons: false,
       fullscreenControl: false,
       mapTypeControl: false,
-      rotateControl: true,
       streetViewControl: false,
       gestureHandling: 'greedy',
       tiltInteractionEnabled: true,

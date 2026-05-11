@@ -760,17 +760,16 @@ export default function HouseholdsClient() {
   }, [allVisits]);
 
   const latestVisitIdByHousehold = useMemo(() => {
-    const latest: Record<string, { id: string; at: string }> = {};
+    const latest: Record<string, string> = {};
+    const latestAt: Record<string, string> = {};
     for (const visit of allVisits) {
       const at = visit.visitDate ?? visit.createdAt ?? '';
-      const current = latest[visit.householdId];
-      if (!current || at > current.at) {
-        latest[visit.householdId] = { id: visit.id, at };
+      if (!latestAt[visit.householdId] || at > latestAt[visit.householdId]) {
+        latestAt[visit.householdId] = at;
+        latest[visit.householdId] = visit.id;
       }
     }
-    return Object.fromEntries(
-      Object.entries(latest).map(([householdId, item]) => [householdId, item.id])
-    ) as Record<string, string>;
+    return latest;
   }, [allVisits]);
 
   const handleDelete = async (id: string) => {
