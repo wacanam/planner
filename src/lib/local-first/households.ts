@@ -62,6 +62,7 @@ function householdFromSnapshot(snapshot: QueryDocumentSnapshot): LocalHousehold 
 export function toHouseholdView(record: LocalHousehold): Household {
   return {
     id: record.id,
+    name: record.name,
     address: record.address,
     houseNumber: record.houseNumber,
     unitNumber: record.unitNumber,
@@ -95,6 +96,7 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
     serverId: household.id,
     congregationId: null,
     territoryId: null,
+    name: household.name ?? null,
     address: household.address,
     houseNumber: household.houseNumber ?? null,
     unitNumber: household.unitNumber ?? null,
@@ -128,6 +130,7 @@ function createLocalHouseholdRecord(input: CreateHouseholdInput, id = createClie
   const longitude = nullableString(input.longitude);
   const coordinateLabel = latitude && longitude ? `Pinned household ${latitude}, ${longitude}` : 'Pinned household';
   const address = nullableString(input.address) ?? nullableString(input.name) ?? coordinateLabel;
+  const name = nullableString(input.name);
   const streetName = nullableString(input.streetName) ?? '';
   const city = nullableString(input.city) ?? '';
   return {
@@ -135,6 +138,7 @@ function createLocalHouseholdRecord(input: CreateHouseholdInput, id = createClie
     serverId: id,
     congregationId: nullableString(input.congregationId),
     territoryId: nullableString(input.territoryId),
+    name,
     address,
     houseNumber: nullableString(input.houseNumber),
     unitNumber: nullableString(input.unitNumber),
@@ -198,6 +202,7 @@ export async function updateHousehold(
 ): Promise<void> {
   const updates: Record<string, unknown> = { updatedAt: nowIso() };
   if (input.address !== undefined) updates.address = nullableString(input.address) ?? 'Pinned household';
+  if (input.name !== undefined) updates.name = nullableString(input.name);
   if (input.houseNumber !== undefined) updates.houseNumber = nullableString(input.houseNumber);
   if (input.unitNumber !== undefined) updates.unitNumber = nullableString(input.unitNumber);
   if (input.streetName !== undefined) updates.streetName = nullableString(input.streetName);
@@ -225,6 +230,7 @@ export async function applyRemoteHouseholds(households: Household[]): Promise<nu
   await bulkUpsertHouseholds(
     households.map((household) => ({
       id: household.id,
+      name: household.name,
       address: household.address,
       houseNumber: household.houseNumber,
       unitNumber: household.unitNumber,

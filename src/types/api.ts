@@ -243,6 +243,7 @@ export interface Visit {
 
 export interface Household {
   id: string;
+  name?: string | null;
   address: string;
   houseNumber?: string | null;
   unitNumber?: string | null;

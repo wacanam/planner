@@ -3,12 +3,16 @@
 import {
   Building2,
   Crosshair,
+  Eye,
+  EyeOff,
   Layers,
   LocateFixed,
   MapPinPlus,
   Minus,
   Navigation,
   Plus,
+  RotateCcw,
+  RotateCw,
   Route,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -16,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface HouseholdPoint {
   id: string;
+  name?: string | null;
   address?: string | null;
   streetName?: string | null;
   city?: string | null;
@@ -123,6 +128,7 @@ const MARKER_LABEL_MAX_WIDTH = 280;
 const MARKER_LABEL_MIN_WIDTH = 72;
 const MARKER_LABEL_CHAR_WIDTH = 9;
 const TILT_MODE_HEADING = 20;
+const ROTATION_STEP_DEGREES = 30;
 const STATUS_COLOR: Record<string, string> = {
   not_visited: '#64748b',
   not_home: '#f59e0b',
@@ -233,7 +239,11 @@ function statusLabel(value?: string | null) {
   return (value ?? 'not_visited').replace(/_/g, ' ');
 }
 
-function householdLabel(household: Pick<HouseholdPoint, 'address' | 'streetName' | 'city'>) {
+function householdLabel(
+  household: Pick<HouseholdPoint, 'name' | 'address' | 'streetName' | 'city'>
+) {
+  const name = household.name?.trim();
+  if (name) return name;
   const address = household.address?.trim();
   if (address) return address;
   const locality = [household.streetName, household.city].filter(Boolean).join(', ');
@@ -273,17 +283,17 @@ function markerIcon(api: GoogleApi, color: string, label: string): google.maps.I
     MARKER_LABEL_MAX_WIDTH,
     Math.max(MARKER_LABEL_MIN_WIDTH, safeLabel.length * MARKER_LABEL_CHAR_WIDTH)
   );
-  const iconWidth = 44 + textWidth;
+  const iconWidth = 42 + textWidth;
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${iconWidth}" height="46" viewBox="0 0 ${iconWidth} 46">
       <filter id="shadow" x="-25%" y="-15%" width="150%" height="150%">
         <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.22"/>
       </filter>
-      <path filter="url(#shadow)" d="M19 3.25C10.8 3.25 5 9.1 5 17.25c0 9.1 8.1 18.8 12.4 23.4a2.2 2.2 0 0 0 3.2 0C24.9 36.05 33 26.35 33 17.25 33 9.1 27.2 3.25 19 3.25Z" fill="white"/>
-      <path d="M19 5.75c-6.75 0-11.5 4.8-11.5 11.5 0 7.25 6.2 15.55 11.5 21.25 5.3-5.7 11.5-14 11.5-21.25 0-6.7-4.75-11.5-11.5-11.5Z" fill="${color}"/>
-      <path d="M13.1 17.15 19 12.2l5.9 4.95v6.7c0 .48-.39.88-.88.88h-3.08v-4.35h-3.88v4.35h-3.08a.88.88 0 0 1-.88-.88v-6.7Z" fill="white"/>
-      <path d="M11.95 17.55 19 11.65l7.05 5.9" fill="none" stroke="white" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="42" y="20" fill="${color}" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700"
+      <path filter="url(#shadow)" d="M17 3.5C10.2 3.5 5.5 8.3 5.5 15c0 8.2 7 15.6 10.5 19a1.4 1.4 0 0 0 2 0c3.5-3.4 10.5-10.8 10.5-19 0-6.7-4.7-11.5-11.5-11.5Z" fill="white"/>
+      <path d="M17 6.5c-5.4 0-9 3.7-9 8.6 0 5.9 4.9 11.5 9 15.5 4.1-4 9-9.6 9-15.5 0-4.9-3.6-8.6-9-8.6Z" fill="${color}"/>
+      <circle cx="17" cy="15" r="4.8" fill="white" fill-opacity="0.94"/>
+      <circle cx="17" cy="15" r="2.6" fill="${color}"/>
+      <text x="38" y="18" fill="${color}" font-family="Inter, Arial, sans-serif" font-size="10" font-weight="700"
             stroke="white" stroke-width="3" paint-order="stroke fill">${safeLabel}</text>
     </svg>`;
   return {
@@ -378,6 +388,29 @@ function nearestRingSegment(rings: LngLat[][], point: LngLat) {
     }
   }
   return nearest;
+}
+
+function pointInRing(point: LngLat, ring: LngLat[]) {
+  const [lng, lat] = point;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [lngI, latI] = ring[i];
+    const [lngJ, latJ] = ring[j];
+    const intersects =
+      latI > lat !== latJ > lat && lng < ((lngJ - lngI) * (lat - latI)) / (latJ - latI) + lngI;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInBoundaryGeometry(point: LngLat, geometry: ParsedGeometry | null) {
+  if (!geometry) return false;
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.some((polygon) => {
+    const [outerRing, ...holes] = polygon;
+    if (!outerRing || !pointInRing(point, outerRing as LngLat[])) return false;
+    return !holes.some((hole) => pointInRing(point, hole as LngLat[]));
+  });
 }
 
 function createInfoWindowContent(params: {
@@ -559,6 +592,7 @@ export default function TerritoryMap({
   const [localMapStyle, setLocalMapStyle] = useState<StyleId>(mapStyle);
   const [headingBeamActive, setHeadingBeamActive] = useState(false);
   const [tiltActive, setTiltActive] = useState(false);
+  const [showOutsideBoundary, setShowOutsideBoundary] = useState(true);
   const [drawRings, setDrawRings] = useState<LngLat[][]>([]);
   const [activeRing, setActiveRing] = useState<LngLat[]>([]);
 
@@ -582,6 +616,13 @@ export default function TerritoryMap({
   const pinPreviewIsControlled = pinPreview !== undefined;
   const visiblePin = pinPreviewIsControlled ? pinPreview : pendingPin;
   const validPoints = useMemo(() => validHouseholdPoints(households), [households]);
+  const activeBoundaryGeometry = useMemo(() => parseBoundary(boundary), [boundary]);
+  const visibleHouseholdPoints = useMemo(() => {
+    if (showOutsideBoundary || !activeBoundaryGeometry) return validPoints;
+    return validPoints.filter((household) =>
+      pointInBoundaryGeometry([household.lng, household.lat], activeBoundaryGeometry)
+    );
+  }, [activeBoundaryGeometry, showOutsideBoundary, validPoints]);
   const initialRingsSignature = useMemo(
     () => JSON.stringify(initialDrawingRings ?? []),
     [initialDrawingRings]
@@ -750,19 +791,19 @@ export default function TerritoryMap({
     const api = googleApi;
     const map = mapRef.current;
     if (!api || !map || !mapReady) return;
-    const activeBoundary = geometryBounds(api, parseBoundary(boundary));
+    const activeBoundary = geometryBounds(api, activeBoundaryGeometry);
     if (activeBoundary && !activeBoundary.isEmpty()) {
       map.fitBounds(activeBoundary, 48);
       return;
     }
-    if (validPoints.length > 1) {
+    if (visibleHouseholdPoints.length > 1) {
       const bounds = new api.maps.LatLngBounds();
-      validPoints.forEach((point) => {
+      visibleHouseholdPoints.forEach((point) => {
         bounds.extend({ lat: point.lat, lng: point.lng });
       });
       map.fitBounds(bounds, 48);
     }
-  }, [boundary, googleApi, mapReady, validPoints]);
+  }, [activeBoundaryGeometry, googleApi, mapReady, visibleHouseholdPoints]);
 
   useEffect(() => {
     const api = googleApi;
@@ -778,31 +819,30 @@ export default function TerritoryMap({
         strokeWeight: 1.5,
         fillColor: '#94a3b8',
         fillOpacity: 0.08,
-        zIndex: 1,
+        zIndex: -20,
       });
     }
 
-    const activeGeometry = parseBoundary(boundary);
-    if (activeGeometry && !isDrawing) {
-      renderGeometry(activeGeometry, {
+    if (activeBoundaryGeometry && !isDrawing) {
+      renderGeometry(activeBoundaryGeometry, {
         strokeColor: '#2563eb',
         strokeOpacity: 0.95,
         strokeWeight: 2.5,
         fillColor: '#3b82f6',
         fillOpacity: 0.12,
-        zIndex: 2,
+        zIndex: -10,
       });
     }
 
     return clearBoundaryOverlays;
   }, [
     allBoundaries,
-    boundary,
     clearBoundaryOverlays,
     googleApi,
     isDrawing,
     mapReady,
     renderGeometry,
+    activeBoundaryGeometry,
   ]);
 
   useEffect(() => {
@@ -1014,7 +1054,7 @@ export default function TerritoryMap({
     const map = mapRef.current;
     if (!api || !map || !mapReady) return;
 
-    const nextIds = new Set(validPoints.map((h) => h.id));
+    const nextIds = new Set(visibleHouseholdPoints.map((h) => h.id));
     const currentMap = markerMapRef.current;
 
     // Remove markers for households no longer in the list
@@ -1027,7 +1067,7 @@ export default function TerritoryMap({
     infoWindowRef.current?.close();
 
     // Add or update markers
-    validPoints.forEach((household, index) => {
+    visibleHouseholdPoints.forEach((household, index) => {
       const color = STATUS_COLOR[household.status ?? 'not_visited'] ?? DEFAULT_COLOR;
       const label = householdLabel(household);
 
@@ -1096,7 +1136,7 @@ export default function TerritoryMap({
     return () => {
       // cleanup is managed by the diff above; full cleanup on unmount is in the map init effect
     };
-  }, [googleApi, mapReady, validPoints]);
+  }, [googleApi, mapReady, visibleHouseholdPoints]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1285,18 +1325,18 @@ export default function TerritoryMap({
     const map = mapRef.current;
     if (!api || !map) return;
 
-    const activeBoundary = geometryBounds(api, parseBoundary(boundary));
+    const activeBoundary = geometryBounds(api, activeBoundaryGeometry);
     if (activeBoundary && !activeBoundary.isEmpty()) {
       map.fitBounds(activeBoundary, 56);
       return;
     }
 
-    if (validPoints.length > 0) {
+    if (visibleHouseholdPoints.length > 0) {
       const bounds = new api.maps.LatLngBounds();
-      for (const point of validPoints) bounds.extend({ lat: point.lat, lng: point.lng });
+      for (const point of visibleHouseholdPoints) bounds.extend({ lat: point.lat, lng: point.lng });
       if (!bounds.isEmpty()) map.fitBounds(bounds, 56);
     }
-  }, [boundary, googleApi, validPoints]);
+  }, [activeBoundaryGeometry, googleApi, visibleHouseholdPoints]);
 
   const cycleMapStyle = useCallback(() => {
     const currentIndex = Math.max(
@@ -1310,6 +1350,13 @@ export default function TerritoryMap({
     const map = mapRef.current;
     if (!map) return;
     map.setZoom((map.getZoom() ?? 14) + delta);
+  }, []);
+
+  const rotateBy = useCallback((delta: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const currentHeading = map.getHeading() ?? 0;
+    map.setHeading((currentHeading + delta + 360) % 360);
   }, []);
 
   useEffect(() => {
@@ -1398,7 +1445,7 @@ export default function TerritoryMap({
     previousDrawingRef.current = isDrawing;
   }, [isDrawing]);
 
-  const noMapData = !boundary && validPoints.length === 0 && !onHouseholdPinPlaced;
+  const noMapData = !boundary && visibleHouseholdPoints.length === 0 && !onHouseholdPinPlaced;
   const currentStyleLabel = MAP_STYLES.find((style) => style.id === activeMapStyle)?.label ?? 'Map';
 
   return (
@@ -1439,6 +1486,19 @@ export default function TerritoryMap({
               onClick={() => setTiltActive((current) => !current)}
             >
               <Building2 className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton title="Rotate map left" onClick={() => rotateBy(-ROTATION_STEP_DEGREES)}>
+              <RotateCcw className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton title="Rotate map right" onClick={() => rotateBy(ROTATION_STEP_DEGREES)}>
+              <RotateCw className="h-4 w-4" />
+            </MapControlButton>
+            <MapControlButton
+              title={showOutsideBoundary ? 'Hide households outside boundary' : 'Show households outside boundary'}
+              active={!showOutsideBoundary}
+              onClick={() => setShowOutsideBoundary((current) => !current)}
+            >
+              {showOutsideBoundary ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </MapControlButton>
             <MapControlButton title={`Map style: ${currentStyleLabel}`} onClick={cycleMapStyle}>
               <Layers className="h-4 w-4" />

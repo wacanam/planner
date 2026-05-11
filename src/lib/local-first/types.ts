@@ -9,6 +9,7 @@ export interface FirestoreRecordMetadata {
 export interface LocalHousehold extends FirestoreRecordMetadata {
   congregationId: string | null;
   territoryId: string | null;
+  name: string | null;
   address: string;
   houseNumber: string | null;
   unitNumber: string | null;

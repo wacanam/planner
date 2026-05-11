@@ -21,6 +21,7 @@ import { useHouseholds, useHouseholdVisits, useMyVisits } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -36,16 +37,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FormField } from '@/components/ui/form-field';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
+import { HouseholdEncounterSheet } from '@/components/households/household-action-sheets';
 import {
   logVisitSchema,
-  addHouseholdSchema,
   type LogVisitFormData,
-  type AddHouseholdFormData,
 } from '@/schemas/visit';
 import {
   deleteHouseholdRecord,
   deleteVisitRecord,
-  saveEncounterRecord,
   saveHouseholdRecord,
   saveVisitRecord,
   updateHouseholdRecord,
@@ -98,15 +99,6 @@ const outcomeLabels: Record<string, string> = {
   other: 'Other',
 };
 
-const responseLabels: Record<string, string> = {
-  receptive: 'Receptive',
-  neutral: 'Neutral',
-  not_interested: 'Not Interested',
-  hostile: 'Hostile',
-  do_not_visit: 'Do Not Visit',
-  moved: 'Moved',
-};
-
 function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { date: value, time: time ?? undefined };
@@ -137,9 +129,10 @@ interface VisitHistoryDrawerProps {
   household: Household | null;
   onClose: () => void;
   onLogVisit: () => void;
+  onAddEncounter: () => void;
 }
 
-function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDrawerProps) {
+function VisitHistoryDrawer({ household, onClose, onLogVisit, onAddEncounter }: VisitHistoryDrawerProps) {
   const { visits, isLoading } = useHouseholdVisits(household?.id ?? null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingVisitId, setDeletingVisitId] = useState<string | null>(null);
@@ -201,9 +194,14 @@ function VisitHistoryDrawer({ household, onClose, onLogVisit }: VisitHistoryDraw
 
         {/* Log Visit button */}
         <div className="px-4 py-3 border-b border-border">
-          <Button size="sm" className="w-full" onClick={onLogVisit}>
-            + Log Visit
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="sm" className="w-full" onClick={onLogVisit}>
+              + Log Visit
+            </Button>
+            <Button size="sm" variant="outline" className="w-full" onClick={onAddEncounter}>
+              + Encounter
+            </Button>
+          </div>
         </div>
 
         {/* Visit history */}
@@ -376,7 +374,6 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
   });
 
   const returnVisitPlanned = watch('returnVisitPlanned');
-  const addEncounter = watch('addEncounter');
 
   useEffect(() => {
     if (!open) return;
@@ -424,19 +421,6 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
     const savedId = visit
       ? await updateVisitRecord(visit.id, payload)
       : await saveVisitRecord(payload);
-    if (!visit && values.addEncounter) {
-      await saveEncounterRecord({
-        visitId: savedId,
-        householdId: household.id,
-        encounterDate: new Date().toISOString(),
-        name: values.encounterName,
-        response: values.encounterResponse ?? 'neutral',
-        topicDiscussed: values.encounterTopicDiscussed,
-        literatureAccepted: values.encounterLiteratureAccepted,
-        returnVisitRequested: values.encounterReturnVisitRequested,
-        notes: values.encounterNotes,
-      });
-    }
     onSaved(savedId);
     reset();
   };
@@ -586,87 +570,6 @@ function LogVisitDialog({ open, household, visit, onClose, onSaved }: LogVisitDi
             </>
           )}
 
-          {!visit && (
-            <div className="rounded-2xl border border-border bg-muted/20 p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="addEncounter"
-                  className="h-4 w-4 rounded border"
-                  {...register('addEncounter')}
-                />
-                <label htmlFor="addEncounter" className="text-sm font-medium">
-                  Add encounter
-                </label>
-              </div>
-              {addEncounter && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <span className="text-sm font-medium">Response</span>
-                    <Controller
-                      name="encounterResponse"
-                      control={control}
-                      render={({ field }) => (
-                        <Select value={field.value ?? 'neutral'} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(responseLabels).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <FormField
-                      label="Name"
-                      id="encounterName"
-                      optional
-                      error={errors.encounterName?.message}
-                      {...register('encounterName')}
-                    />
-                    <FormField
-                      label="Topic"
-                      id="encounterTopicDiscussed"
-                      optional
-                      error={errors.encounterTopicDiscussed?.message}
-                      {...register('encounterTopicDiscussed')}
-                    />
-                  </div>
-                  <FormField
-                    label="Literature"
-                    id="encounterLiteratureAccepted"
-                    optional
-                    error={errors.encounterLiteratureAccepted?.message}
-                    {...register('encounterLiteratureAccepted')}
-                  />
-                  <FormField
-                    label="Encounter notes"
-                    id="encounterNotes"
-                    multiline
-                    rows={2}
-                    optional
-                    error={errors.encounterNotes?.message}
-                    {...register('encounterNotes')}
-                  />
-                  <label className="flex items-center gap-2 text-sm font-medium">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border"
-                      {...register('encounterReturnVisitRequested')}
-                    />
-                    Return visit requested
-                  </label>
-                </div>
-              )}
-            </div>
-          )}
-
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
@@ -691,154 +594,62 @@ interface AddHouseholdDialogProps {
 }
 
 function AddHouseholdDialog({ open, household, onClose, onSaved }: AddHouseholdDialogProps) {
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<AddHouseholdFormData>({
-    resolver: zodResolver(addHouseholdSchema),
-    defaultValues: { type: 'house' },
-  });
-
-  const onSubmit = async (values: AddHouseholdFormData) => {
-    const savedId = household
-      ? await updateHouseholdRecord(household.id, values)
-      : await saveHouseholdRecord(values as Record<string, unknown>);
-    onSaved(savedId);
-    reset();
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    reset(
+  const [submitting, setSubmitting] = useState(false);
+  const formDefaults = useMemo<Partial<HouseholdFormValues>>(
+    () =>
       household
         ? {
+            name: household.name ?? '',
             address: household.address,
-            houseNumber: household.houseNumber ?? undefined,
-            unitNumber: household.unitNumber ?? undefined,
             streetName: household.streetName,
             city: household.city,
-            postalCode: household.postalCode ?? undefined,
-            country: household.country ?? undefined,
-            type: household.type as AddHouseholdFormData['type'],
-            floor: household.floor ?? undefined,
-            notes: household.notes ?? undefined,
-            latitude: household.latitude ?? undefined,
-            longitude: household.longitude ?? undefined,
+            type: household.type,
+            membersCount: household.occupantsCount ?? 1,
+            notes: household.notes ?? '',
           }
-        : { type: 'house' }
-    );
-  }, [household, open, reset]);
+        : { type: 'house', membersCount: 1 },
+    [household]
+  );
 
-  const handleClose = () => {
-    reset();
-    onClose();
+  const onSubmit = async (values: HouseholdFormValues) => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: values.name,
+        address: values.address ?? '',
+        streetName: values.streetName,
+        city: values.city,
+        type: values.type,
+        occupantsCount: values.membersCount,
+        notes: values.notes,
+      };
+      const savedId = household
+        ? await updateHouseholdRecord(household.id, payload)
+        : await saveHouseholdRecord(payload);
+      onSaved(savedId);
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{household ? 'Edit Household' : 'Add Household'}</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            {household ? 'Update this address record' : 'Create a new address record'}
-          </p>
-        </DialogHeader>
-
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
-        >
-          <FormField
-            label="Address"
-            id="address"
-            error={errors.address?.message}
-            {...register('address')}
-          />
-          <FormField
-            label="House Number"
-            id="houseNumber"
-            error={errors.houseNumber?.message}
-            {...register('houseNumber')}
-          />
-          <FormField
-            label="Unit/Apt Number"
-            id="unitNumber"
-            error={errors.unitNumber?.message}
-            {...register('unitNumber')}
-          />
-          <FormField
-            label="Street Name"
-            id="streetName"
-            error={errors.streetName?.message}
-            {...register('streetName')}
-          />
-          <FormField label="City" id="city" error={errors.city?.message} {...register('city')} />
-          <FormField
-            label="Postal Code"
-            id="postalCode"
-            error={errors.postalCode?.message}
-            {...register('postalCode')}
-          />
-          <FormField
-            label="Country"
-            id="country"
-            error={errors.country?.message}
-            {...register('country')}
-          />
-
-          <div className="space-y-1.5">
-            <span className="text-sm font-medium">Type</span>
-            <Controller
-              name="type"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value ?? 'house'} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[
-                      'house',
-                      'apartment',
-                      'condo',
-                      'townhouse',
-                      'mobile_home',
-                      'business',
-                      'other',
-                    ].map((t) => (
-                      <SelectItem key={t} value={t} className="capitalize">
-                        {t.replace('_', ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          <FormField
-            label="Notes"
-            id="notes"
-            multiline
-            rows={2}
-            error={errors.notes?.message}
-            {...register('notes')}
-          />
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : household ? 'Save Changes' : 'Add Household'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      title={household ? 'Edit Household' : 'Add Household'}
+      description={household ? 'Update this household record' : 'Create a new household record'}
+      contentClassName="sm:max-w-lg"
+    >
+      <HouseholdForm
+        submitting={submitting}
+        defaultValues={formDefaults}
+        submitLabel={household ? 'Save Changes' : 'Add Household'}
+        onSubmit={onSubmit}
+      />
+    </ResponsiveDialog>
   );
 }
 
@@ -924,9 +735,11 @@ export default function HouseholdsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
+  const [encounterHousehold, setEncounterHousehold] = useState<Household | null>(null);
   const [editHousehold, setEditHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [swipedId, setSwipedId] = useState<string | null>(null);
 
   const { households, isLoading } = useHouseholds();
@@ -946,6 +759,7 @@ export default function HouseholdsClient() {
     try {
       await deleteHouseholdRecord(id);
       setSwipedId(null);
+      setDeleteConfirmId(null);
     } finally {
       setDeletingId(null);
     }
@@ -1030,7 +844,7 @@ export default function HouseholdsClient() {
                   <button
                     type="button"
                     disabled={deletingId === h.id}
-                    onClick={() => void handleDelete(h.id)}
+                    onClick={() => setDeleteConfirmId(h.id)}
                     className="flex flex-col items-center justify-center w-full bg-destructive text-destructive-foreground rounded-r-2xl text-xs font-medium gap-1 disabled:opacity-50"
                   >
                     {deletingId === h.id ? (
@@ -1105,6 +919,16 @@ export default function HouseholdsClient() {
                     >
                       Log Visit
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEncounterHousehold(h);
+                      }}
+                    >
+                      Encounter
+                    </Button>
                   </div>
                 </div>
               </SwipeToReveal>
@@ -1122,6 +946,10 @@ export default function HouseholdsClient() {
             setLogVisitHousehold(selectedHousehold);
             setSelectedHousehold(null);
           }}
+          onAddEncounter={() => {
+            setEncounterHousehold(selectedHousehold);
+            setSelectedHousehold(null);
+          }}
         />
       )}
 
@@ -1132,6 +960,14 @@ export default function HouseholdsClient() {
         onClose={() => setLogVisitHousehold(null)}
         onSaved={() => {
           setLogVisitHousehold(null);
+        }}
+      />
+
+      <HouseholdEncounterSheet
+        household={encounterHousehold}
+        open={!!encounterHousehold}
+        onOpenChange={(open) => {
+          if (!open) setEncounterHousehold(null);
         }}
       />
 
@@ -1149,6 +985,22 @@ export default function HouseholdsClient() {
         household={editHousehold}
         onClose={() => setEditHousehold(null)}
         onSaved={() => setEditHousehold(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteConfirmId)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteConfirmId(null);
+        }}
+        title="Delete household?"
+        description="This removes the household from records. This action cannot be undone."
+        confirmLabel={deletingId === deleteConfirmId ? 'Deleting…' : 'Delete'}
+        confirmVariant="destructive"
+        loading={deletingId === deleteConfirmId}
+        onConfirm={async () => {
+          if (!deleteConfirmId) return;
+          await handleDelete(deleteConfirmId);
+        }}
       />
     </>
   );

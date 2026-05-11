@@ -9,7 +9,11 @@ import { ProtectedPage } from '@/components/protected-page';
 import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useCongregationTerritories, useCongregationTerritoryRequests } from '@/hooks';
+import {
+  useCongregationGroups,
+  useCongregationTerritories,
+  useCongregationTerritoryRequests,
+} from '@/hooks';
 
 export default function MyAssignmentsClient() {
   const params = useParams();
@@ -22,6 +26,8 @@ export default function MyAssignmentsClient() {
   const { data: territoriesData, isLoading: territoriesLoading } =
     useCongregationTerritories(congregationId);
   const territories = territoriesData;
+  const { data: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
+  const groups = groupsData;
 
   const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
     congregationId,
@@ -29,15 +35,21 @@ export default function MyAssignmentsClient() {
   );
   const requests = requestsData;
 
-  const loading = territoriesLoading || requestsLoading;
+  const loading = territoriesLoading || requestsLoading || groupsLoading;
   const reload = () => undefined;
+  const memberGroupIds = new Set(
+    groups.filter((group) => group.members.some((member) => member.userId === sessionUser?.id)).map((group) => group.id)
+  );
 
   const myActive = territories.filter(
-    (t) => t.status === 'assigned' && t.publisherId === sessionUser?.id
+    (t) =>
+      t.status === 'assigned' &&
+      (t.publisherId === sessionUser?.id || (t.groupId && memberGroupIds.has(t.groupId)))
   );
   const myPast = territories.filter(
     (t) =>
-      (t.status === 'completed' || t.status === 'archived') && t.publisherId === sessionUser?.id
+      (t.status === 'completed' || t.status === 'archived') &&
+      (t.publisherId === sessionUser?.id || (t.groupId && memberGroupIds.has(t.groupId)))
   );
 
   function getRequestLabel(territoryId?: string | null) {
