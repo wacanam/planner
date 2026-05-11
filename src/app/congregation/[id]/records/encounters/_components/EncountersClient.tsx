@@ -50,7 +50,9 @@ function householdLabel(household: Household) {
 
 function getEncounterDateISO(encounter?: Encounter | null) {
   if (!encounter) return new Date().toISOString();
-  return encounter.visitDate ?? encounter.createdAt;
+  const source = encounter.visitDate ?? encounter.createdAt;
+  const parsed = new Date(source);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
 interface LogEncounterDialogProps {
@@ -132,6 +134,7 @@ function LogEncounterDialog({
         </div>
         <AddEncounterForm
           submitting={submitting}
+          isEditing={!!encounter}
           submitLabel={encounter ? 'Save Changes' : 'Add Encounter'}
           initialValues={
             encounter

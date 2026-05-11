@@ -1508,7 +1508,7 @@ export default function TerritoryMap({
               title={
                 headingBeamActive
                   ? 'Stop navigation assist'
-                  : 'Find current location + heading direction'
+                  : 'Start navigation assist'
               }
               active={headingBeamActive || locationOn}
               onClick={handleNavigationAssist}

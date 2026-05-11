@@ -40,8 +40,9 @@ const outcomeLabels: Record<string, string> = {
   moved: 'Moved',
   other: 'Other',
 };
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_VISIT_TIME = '09:00';
+const DIALOG_CONTENT_OFFSET_PX = 200;
 
 function formatNextVisit(value?: string | null, time?: string | null) {
   if (!value) return '';
@@ -55,7 +56,7 @@ function formatNextVisit(value?: string | null, time?: string | null) {
 
 function splitNextVisit(value?: string | null, time?: string | null) {
   if (!value) return { date: undefined, time: time ?? undefined };
-  if (ISO_DATE_PATTERN.test(value)) return { date: value, time: time ?? undefined };
+  if (ISO_DATE_REGEX.test(value)) return { date: value, time: time ?? undefined };
   const isoDateTimeMatch = value.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
   if (isoDateTimeMatch) {
     return {
@@ -71,7 +72,7 @@ function splitNextVisit(value?: string | null, time?: string | null) {
 
 function combineNextVisit(date?: string, time?: string) {
   if (!date) return undefined;
-  return new Date(`${date}T${time || DEFAULT_VISIT_TIME}`).toISOString();
+  return `${date}T${time || DEFAULT_VISIT_TIME}:00`;
 }
 
 const statusLabels: Record<string, string> = {
@@ -156,7 +157,7 @@ function EditVisitSheet({
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="max-h-[calc(90vh-200px)] overflow-y-auto space-y-4 pr-4"
+        className={`max-h-[calc(90vh-${DIALOG_CONTENT_OFFSET_PX}px)] overflow-y-auto space-y-4 pr-4`}
       >
         <div className="space-y-1.5">
           <span className="text-sm font-medium">Outcome *</span>
