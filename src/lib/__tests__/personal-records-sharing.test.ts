@@ -5,7 +5,9 @@ import type { LocalHousehold } from '@/lib/local-first/types';
 import { toVisitView } from '@/lib/local-first/visits';
 import {
   canAccessHouseholdDetails,
+  canDeleteEncounter,
   canDeleteHousehold,
+  canDeleteVisit,
   canEditHousehold,
   canLogVisitOrEncounter,
   canShareHousehold,
@@ -390,6 +392,62 @@ describe('Action Permission Enforcement (Owner or Territory Servant+)', () => {
       expect(encounterView.householdCity).toBe('Metropolis');
       expect(encounterView.visitId).toBe('visit-1');
       expect(encounterView.visitOutcome).toBe('answered');
+    });
+  });
+
+  describe('canDeleteVisit', () => {
+    const mockVisit = {
+      userId: 'user-bob',
+      householdId: 'hh-1',
+    };
+
+    it('allows author of the visit to delete it', () => {
+      expect(canDeleteVisit(bob, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows household owner to delete visits logged on their household', () => {
+      expect(canDeleteVisit(alice, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows Territory Servant to delete visits', () => {
+      expect(canDeleteVisit(territoryServant, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('denies another collaborator who is not the author from deleting visits', () => {
+      const charlieCollaborator = { id: 'user-charlie', role: UserRole.PUBLISHER };
+      expect(canDeleteVisit(charlieCollaborator, mockVisit, mockHouseholdView)).toBe(false);
+    });
+
+    it('denies unrelated stranger from deleting visits', () => {
+      expect(canDeleteVisit(stranger, mockVisit, mockHouseholdView)).toBe(false);
+    });
+  });
+
+  describe('canDeleteEncounter', () => {
+    const mockEncounter = {
+      userId: 'user-bob',
+      householdId: 'hh-1',
+    };
+
+    it('allows author of the encounter to delete it', () => {
+      expect(canDeleteEncounter(bob, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows household owner to delete encounters on their household', () => {
+      expect(canDeleteEncounter(alice, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows Territory Servant to delete encounters', () => {
+      expect(canDeleteEncounter(territoryServant, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('denies another collaborator who is not the author from deleting encounters', () => {
+      const charlieCollaborator = { id: 'user-charlie', role: UserRole.PUBLISHER };
+      expect(canDeleteEncounter(charlieCollaborator, mockEncounter, mockHouseholdView)).toBe(false);
+    });
+
+    it('denies unrelated stranger from deleting encounters', () => {
+      expect(canDeleteEncounter(stranger, mockEncounter, mockHouseholdView)).toBe(false);
     });
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toHouseholdView, toVisitView, watchHouseholds, watchVisits } from '@/lib/local-first';
 import type { HouseholdFilters } from '@/lib/local-first/households';
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
+import { isTerritoryServant } from '@/lib/permissions';
 import type { Household, Visit } from '@/types/api';
 
 function sortVisits(visits: Visit[]) {
@@ -30,7 +31,7 @@ export function useVisitRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeVisits = watchVisits(
-      { householdId, assignmentId, userId, userRole },
+      { householdId, assignmentId },
       (records) => {
         setVisits(records);
         setError(null);
@@ -39,7 +40,7 @@ export function useVisitRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      undefined,
+      { personalOnly: true, userId, userRole },
       (records) => {
         setHouseholds(records);
         setError(null);
@@ -57,13 +58,19 @@ export function useVisitRecords(filters?: {
     () => new Map(households.map((household) => [household.id, household] as const)),
     [households]
   );
-  const mappedVisits = useMemo(
-    () =>
-      sortVisits(visits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))),
-    [householdMap, visits]
-  );
+  const mappedVisits = useMemo(() => {
+    let filteredVisits = visits;
+    if (userId && !isTerritoryServant(userRole)) {
+      filteredVisits = visits.filter(
+        (v) => v.userId === userId || householdMap.has(v.householdId)
+      );
+    }
+    return sortVisits(
+      filteredVisits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))
+    );
+  }, [householdMap, userId, userRole, visits]);
 
-  return { visits: mappedVisits, isLoading, error };
+  return { visits: mappedVisits, households, isLoading, error };
 }
 
 export function useMyVisits(filters?: {

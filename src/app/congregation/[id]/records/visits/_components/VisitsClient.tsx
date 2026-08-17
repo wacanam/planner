@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useMyVisits } from '@/hooks';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canDeleteVisit, isTerritoryServant } from '@/lib/permissions';
 import { deleteVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 
@@ -28,7 +28,7 @@ export default function VisitsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const { visits = [], isLoading } = useMyVisits({
+  const { visits = [], households = [], isLoading } = useMyVisits({
     userId: user?.id,
     userRole: user?.role,
   });
@@ -187,7 +187,7 @@ export default function VisitsClient() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  {(isTerritoryServant(user?.role) || !v.userId || v.userId === user?.id) && (
+                  {canDeleteVisit(user, v, households.find((h) => h.id === v.householdId)) && (
                     <Button
                       size="sm"
                       variant="ghost"

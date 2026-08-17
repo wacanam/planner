@@ -7,6 +7,7 @@ import {
   watchVisits,
 } from '@/lib/local-first';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
+import { isTerritoryServant } from '@/lib/permissions';
 import type { Encounter } from '@/types/api';
 
 function sortEncounters(encounters: Encounter[]) {
@@ -37,7 +38,7 @@ function useEncounterRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { visitId, householdId, userId, userRole },
+      { visitId, householdId },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -45,7 +46,11 @@ function useEncounterRecords(filters?: {
       },
       handleError
     );
-    const unsubscribeHouseholds = watchHouseholds(undefined, setHouseholds, handleError);
+    const unsubscribeHouseholds = watchHouseholds(
+      { personalOnly: true, userId, userRole },
+      setHouseholds,
+      handleError
+    );
     const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
     return () => {
       unsubscribeEncounters();
@@ -62,21 +67,26 @@ function useEncounterRecords(filters?: {
     () => new Map(visits.map((visit) => [visit.id, visit] as const)),
     [visits]
   );
-  const mappedEncounters = useMemo(
-    () =>
-      sortEncounters(
-        encounters.map((encounter) =>
-          toEncounterView(
-            encounter,
-            encounter.householdId ? householdMap.get(encounter.householdId) : null,
-            encounter.visitId ? visitMap.get(encounter.visitId) : null
-          )
-        )
-      ),
-    [encounters, householdMap, visitMap]
-  );
 
-  return { encounters: mappedEncounters, isLoading, error };
+  const mappedEncounters = useMemo(() => {
+    let filtered = encounters;
+    if (userId && !isTerritoryServant(userRole)) {
+      filtered = encounters.filter(
+        (e) => e.userId === userId || (e.householdId && householdMap.has(e.householdId))
+      );
+    }
+    return sortEncounters(
+      filtered.map((encounter) =>
+        toEncounterView(
+          encounter,
+          encounter.householdId ? householdMap.get(encounter.householdId) : null,
+          encounter.visitId ? visitMap.get(encounter.visitId) : null
+        )
+      )
+    );
+  }, [encounters, householdMap, userId, userRole, visitMap]);
+
+  return { encounters: mappedEncounters, households, isLoading, error };
 }
 
 export function useVisitEncounters(visitId: string | null) {
