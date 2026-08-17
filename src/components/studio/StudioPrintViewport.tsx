@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Compass,
   Expand,
   FileDown,
   FileText,
@@ -140,8 +141,8 @@ export function StudioPrintViewport({
     const availH = containerSize.height;
 
     // Leave margin for top toolbar and bottom controls
-    const maxFrameW = Math.max(260, availW * 0.74);
-    const maxFrameH = Math.max(220, (availH - 120) * 0.74);
+    const maxFrameW = Math.max(280, availW * 0.72);
+    const maxFrameH = Math.max(220, (availH - 120) * 0.72);
 
     let frameW = maxFrameW;
     let frameH = frameW / aspectRatio;
@@ -154,11 +155,22 @@ export function StudioPrintViewport({
     const frameX = Math.round((availW - frameW) / 2);
     const frameY = Math.round((availH - frameH) / 2) + 16;
 
+    // Scale proportional sub-elements for WYSIWYG parity
+    const cardPadding = Math.max(10, Math.round(frameW * 0.024));
+    const headerH = Math.max(50, Math.round(frameH * 0.135));
+    const footerH = Math.max(24, Math.round(frameH * 0.055));
+
+    const mapWindowX = frameX + cardPadding;
+    const mapWindowY = frameY + cardPadding + headerH;
+    const mapWindowW = Math.max(40, frameW - 2 * cardPadding);
+    const mapWindowH = Math.max(40, frameH - 2 * cardPadding - headerH - footerH);
+
+    // Padding to center territory polygon directly into the inner map window
     const padding = {
-      top: Math.max(30, frameY),
-      bottom: Math.max(30, availH - (frameY + frameH)),
-      left: Math.max(30, frameX),
-      right: Math.max(30, availW - (frameX + frameW)),
+      top: Math.max(30, mapWindowY),
+      bottom: Math.max(30, availH - (mapWindowY + mapWindowH)),
+      left: Math.max(30, mapWindowX),
+      right: Math.max(30, availW - (mapWindowX + mapWindowW)),
     };
 
     return {
@@ -166,6 +178,13 @@ export function StudioPrintViewport({
       frameH: Math.round(frameH),
       frameX,
       frameY,
+      cardPadding,
+      headerH,
+      footerH,
+      mapWindowX,
+      mapWindowY,
+      mapWindowW,
+      mapWindowH,
       padding,
     };
   }, [containerSize, aspectRatio]);
@@ -276,7 +295,7 @@ export function StudioPrintViewport({
 
   const territoryFilePrefix = `Territory-${territory?.number ? territory.number.padStart(2, '0') : 'Card'}`;
 
-  // Helper to capture the exact live map viewport
+  // Helper to capture the exact live map viewport from the inner map window
   const acquireViewportSnapshot = async (): Promise<string> => {
     const mapElement =
       document.getElementById('studio-google-map-element') ||
@@ -290,22 +309,22 @@ export function StudioPrintViewport({
 
     return await captureMapViewportSnapshot({
       mapContainer: mapElement as HTMLElement,
-      frameX: frameMetrics.frameX,
-      frameY: frameMetrics.frameY,
-      frameW: frameMetrics.frameW,
-      frameH: frameMetrics.frameH,
+      frameX: frameMetrics.mapWindowX,
+      frameY: frameMetrics.mapWindowY,
+      frameW: frameMetrics.mapWindowW,
+      frameH: frameMetrics.mapWindowH,
     });
   };
 
   const handleDownloadPng = async () => {
     setIsExportingPng(true);
     try {
-      // 1. Capture exact live viewport snapshot
+      // 1. Capture exact live viewport snapshot from the card's map window
       const snapshot = await acquireViewportSnapshot();
       setMapSnapshotUrl(snapshot);
 
       // Wait a moment for image to render in hidden DOM
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // 2. Export requested side(s)
       if (side === 'front' && hiddenFrontRef.current) {
@@ -336,12 +355,12 @@ export function StudioPrintViewport({
   const handleDownloadPdf = async () => {
     setIsExportingPdf(true);
     try {
-      // 1. Capture exact live viewport snapshot
+      // 1. Capture exact live viewport snapshot from the card's map window
       const snapshot = await acquireViewportSnapshot();
       setMapSnapshotUrl(snapshot);
 
       // Wait a moment for image to render in hidden DOM
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // 2. Export PDF
       const filename = `${territoryFilePrefix}-PrintCard.pdf`;
@@ -351,7 +370,7 @@ export function StudioPrintViewport({
         filename,
         widthInches: effectiveW,
         heightInches: effectiveH,
-        orientation,
+        orientation: effectiveOrientation,
         side,
       });
       toast.success(`Downloaded ${filename}`);
@@ -363,34 +382,47 @@ export function StudioPrintViewport({
     }
   };
 
+  const showBackPreview = side === 'back';
+
   return (
     <div
       ref={containerRef}
       id="studio-print-viewport-overlay"
       className="absolute inset-0 z-30 pointer-events-none select-none overflow-hidden flex flex-col justify-between"
     >
-      {/* SVG Vignette Mask with Transparent Cutout Window */}
+      {/* SVG Vignette Mask with Transparent Cutout for the Map Window */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
         <defs>
           <mask id="studio-print-viewport-mask">
             {/* White background = fully opaque mask */}
             <rect width="100%" height="100%" fill="#FFFFFF" />
-            {/* Black cutout = clear transparent window */}
-            <rect
-              x={frameMetrics.frameX}
-              y={frameMetrics.frameY}
-              width={frameMetrics.frameW}
-              height={frameMetrics.frameH}
-              rx="14"
-              fill="#000000"
-            />
+            {/* Cutout window: transparent only over the map portion of the card */}
+            {!showBackPreview ? (
+              <rect
+                x={frameMetrics.mapWindowX}
+                y={frameMetrics.mapWindowY}
+                width={frameMetrics.mapWindowW}
+                height={frameMetrics.mapWindowH}
+                rx="8"
+                fill="#000000"
+              />
+            ) : (
+              <rect
+                x={frameMetrics.frameX}
+                y={frameMetrics.frameY}
+                width={frameMetrics.frameW}
+                height={frameMetrics.frameH}
+                rx="14"
+                fill="#000000"
+              />
+            )}
           </mask>
         </defs>
         {/* Darkened semi-transparent vignette */}
         <rect
           width="100%"
           height="100%"
-          fill="rgba(15, 23, 42, 0.62)"
+          fill="rgba(15, 23, 42, 0.65)"
           mask="url(#studio-print-viewport-mask)"
         />
       </svg>
@@ -582,50 +614,141 @@ export function StudioPrintViewport({
         </div>
       </div>
 
-      {/* Center Framing Viewport Overlay Details */}
+      {/* WYSIWYG Physical Territory Card Preview in Viewport */}
       <div
-        className="absolute pointer-events-none border-2 border-primary/90 rounded-2xl shadow-2xl transition-all duration-200"
+        className="absolute pointer-events-none rounded-2xl shadow-2xl transition-all duration-200 border-2 border-slate-700 bg-white text-slate-900 overflow-hidden flex flex-col"
         style={{
           left: `${frameMetrics.frameX}px`,
           top: `${frameMetrics.frameY}px`,
           width: `${frameMetrics.frameW}px`,
           height: `${frameMetrics.frameH}px`,
+          padding: `${frameMetrics.cardPadding}px`,
           zIndex: 2,
         }}
       >
-        {/* Card Header Preview Banner (Top Inside Cutout) */}
-        <div className="absolute top-2 left-2 right-2 flex items-center justify-between p-2 rounded-xl bg-card/90 backdrop-blur-md border border-border/70 shadow-sm">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-extrabold text-xs text-foreground tracking-tight">
-              {territory ? `TERRITORY #${territory.number}` : 'TERRITORY CARD'}
-            </span>
-            <span className="text-muted-foreground text-xs">•</span>
-            <span className="text-xs text-muted-foreground font-medium truncate">
-              {territory?.name || 'Assigned Territory'}
-            </span>
+        {!showBackPreview ? (
+          /* Front Side Physical Card Preview */
+          <div className="w-full h-full flex flex-col">
+            {/* Header: Exact match to exported card */}
+            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-1.5 shrink-0 bg-white">
+              <div className="min-w-0 pr-2">
+                <span className="text-[9px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
+                  {congregation?.name || 'CONGREGATION TERRITORY'}
+                </span>
+                <h2 className="text-sm font-black tracking-tight text-slate-950 leading-tight truncate">
+                  TERRITORY #{territory?.number || ''}
+                </h2>
+                <p className="text-[10.5px] font-semibold text-slate-700 truncate">
+                  {territory?.name || 'Assigned Territory'}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0 px-1.5">
+                  {territory?.city || congregation?.city || 'Local Area'}
+                </Badge>
+                <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
+                  {coverageStats.totalDoors} Doors ({coverageStats.coveragePercent}% worked)
+                </p>
+              </div>
+            </div>
+
+            {/* Middle Map Window: Transparent Cutout where Live Google Map shows */}
+            <div className="flex-1 min-h-0 relative rounded-lg border border-slate-300 overflow-hidden bg-transparent">
+              {/* 0.25in Safe Area Margin Dotted Line */}
+              <div className="absolute inset-2 rounded border border-dashed border-slate-400/50 pointer-events-none flex items-end justify-end p-1">
+                <span className="text-[8px] font-semibold text-slate-500 bg-white/80 px-1 py-0.2 rounded backdrop-blur-xs">
+                  0.25″ Margin
+                </span>
+              </div>
+
+              {/* North Compass Badge in Top Right of Map Area */}
+              <div className="absolute top-1.5 right-1.5 p-1 rounded-md bg-white/85 backdrop-blur-xs border border-slate-300 text-slate-700 flex items-center gap-1 shadow-xs">
+                <Compass size={11} className="text-primary" />
+                <span className="text-[8px] font-extrabold">N</span>
+              </div>
+
+              {/* Center Crosshair Guide */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+                <Move size={16} className="text-slate-600 animate-pulse" />
+              </div>
+            </div>
+
+            {/* Footer: Exact match to exported card */}
+            <div className="pt-1.5 border-t border-slate-200 mt-1.5 flex items-center justify-between text-[8.5px] text-slate-500 shrink-0 font-medium bg-white">
+              <span>Please do not mark directly on this card.</span>
+              <span>Return promptly when territory is covered.</span>
+            </div>
           </div>
-          <Badge variant="secondary" className="text-[10px] font-bold py-0.5 px-2 capitalize">
-            {side} Side View
-          </Badge>
-        </div>
+        ) : (
+          /* Back Side Physical Card Preview */
+          <div className="w-full h-full flex flex-col bg-white text-slate-900 overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-1.5 shrink-0">
+              <div className="min-w-0 pr-2">
+                <h2 className="text-xs font-black text-slate-950 uppercase truncate">
+                  Territory #{territory?.number} Directory & Activity Record
+                </h2>
+                <p className="text-[9.5px] font-semibold text-slate-600 truncate">{territory?.name}</p>
+              </div>
+              {cardSettings.showQrCode && (
+                <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded border border-slate-200">
+                  <QrCode size={16} className="text-slate-800" />
+                  <span className="text-[7.5px] font-bold text-slate-600">Mobile Link</span>
+                </div>
+              )}
+            </div>
 
-        {/* 0.25in Safe Print Area Dotted Guide */}
-        <div className="absolute inset-3 rounded-xl border border-dashed border-primary/40 pointer-events-none flex items-end justify-end p-2">
-          <span className="text-[9px] font-semibold text-primary/70 bg-background/80 px-1.5 py-0.5 rounded-md backdrop-blur-xs">
-            0.25″ Safe Area Margin
-          </span>
-        </div>
+            {/* Streets Summary */}
+            {cardSettings.showStreetsList && streetsSummary.length > 0 && (
+              <div className="mb-1.5 shrink-0">
+                <p className="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-0.5">
+                  Streets & Doors
+                </p>
+                <div className="grid grid-cols-2 gap-1 text-[9px]">
+                  {streetsSummary.slice(0, 6).map((s) => (
+                    <div key={s.street} className="p-0.5 px-1 rounded bg-slate-50 border border-slate-200 flex justify-between">
+                      <span className="font-bold text-slate-800 truncate">{s.street}</span>
+                      <span className="text-slate-500 font-semibold shrink-0 ml-1">{s.count} doors</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Corner Framing L-Brackets */}
-        <div className="absolute -top-1 -left-1 w-4 h-4 border-t-3 border-l-3 border-primary rounded-tl-lg" />
-        <div className="absolute -top-1 -right-1 w-4 h-4 border-t-3 border-r-3 border-primary rounded-tr-lg" />
-        <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-3 border-l-3 border-primary rounded-bl-lg" />
-        <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-3 border-r-3 border-primary rounded-br-lg" />
+            {/* Publisher Record Table */}
+            {cardSettings.showNotesArea && (
+              <div className="flex-1 min-h-0 flex flex-col">
+                <p className="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-0.5">
+                  Publisher Working Record (S-13)
+                </p>
+                <div className="flex-1 border border-slate-300 rounded overflow-hidden text-[8.5px]">
+                  <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-700 py-0.5 px-1 border-b border-slate-300">
+                    <span className="col-span-3">Date</span>
+                    <span className="col-span-4">Publisher</span>
+                    <span className="col-span-5">Remarks</span>
+                  </div>
+                  <div className="divide-y divide-slate-200">
+                    {[1, 2, 3, 4, 5].map((row) => (
+                      <div key={row} className="grid grid-cols-12 py-0.5 px-1 text-slate-400">
+                        <span className="col-span-3">___/___</span>
+                        <span className="col-span-4">________________</span>
+                        <span className="col-span-5">________________</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* Center Targeting Crosshair */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
-          <Move size={20} className="text-primary animate-pulse" />
-        </div>
+            {/* Territory Notes */}
+            {territory?.notes && (
+              <div className="mt-1 p-1 bg-amber-50 rounded border border-amber-200 text-[8.5px] text-amber-900 shrink-0">
+                <span className="font-bold">Notes: </span>
+                <span>{territory.notes}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bottom Floating Hint Bar */}
@@ -673,7 +796,7 @@ export function StudioPrintViewport({
         </div>
       </div>
 
-      {/* Hidden Off-Screen Physical Card Elements for Direct PNG & PDF Export */}
+      {/* Hidden Off-Screen Physical Card Elements for Direct PNG & PDF Export (Pixel-for-Pixel WYSIWYG Parity) */}
       <div
         style={{
           position: 'fixed',
@@ -685,7 +808,7 @@ export function StudioPrintViewport({
           zIndex: -1,
         }}
       >
-        {/* Front Side Card Render (with real captured map snapshot) */}
+        {/* Front Side Card Render (WYSIWYG layout with captured map snapshot) */}
         <div
           ref={hiddenFrontRef}
           className="w-full h-full flex flex-col p-4 bg-white text-slate-900 select-none"
@@ -700,7 +823,7 @@ export function StudioPrintViewport({
                 TERRITORY #{territory?.number || ''}
               </h2>
               <p className="text-[11px] font-semibold text-slate-700">
-                {territory?.name || 'Downtown Territory'}
+                {territory?.name || 'Assigned Territory'}
               </p>
             </div>
             <div className="text-right shrink-0">
@@ -713,7 +836,7 @@ export function StudioPrintViewport({
             </div>
           </div>
 
-          {/* Actual Live Map Snapshot */}
+          {/* Actual Live Map Snapshot placed in the exact map window */}
           <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100">
             {mapSnapshotUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
