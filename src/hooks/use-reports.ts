@@ -2,10 +2,12 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type {
   ActivityReport,
   Assignment,
   CoverageReport,
+  Household,
   Member,
   PublishersReport,
   Territory,
@@ -32,6 +34,28 @@ function territoryFromData(id: string, data: Partial<Territory>): Territory {
     boundary: data.boundary ?? null,
     publisherName: data.publisherName ?? null,
     groupName: data.groupName ?? null,
+  };
+}
+
+function householdFromData(id: string, data: Partial<Household>): Household {
+  return {
+    id,
+    address: data.address ?? '',
+    houseNumber: data.houseNumber ?? null,
+    unitNumber: data.unitNumber ?? null,
+    streetName: data.streetName ?? '',
+    city: data.city ?? '',
+    postalCode: data.postalCode ?? null,
+    country: data.country ?? null,
+    type: data.type ?? 'house',
+    status: data.status ?? 'new',
+    lastVisitDate: data.lastVisitDate ?? null,
+    lastVisitOutcome: data.lastVisitOutcome ?? null,
+    totalVisitsCount: data.totalVisitsCount ?? 0,
+    territoryId: data.territoryId ?? null,
+    congregationId: data.congregationId ?? '',
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? nowIso(),
   };
 }
 
@@ -71,9 +95,11 @@ function useReportSources(congregationId: string | null | undefined) {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [households, setHouseholds] = useState<Household[]>([]);
   const [territoriesLoading, setTerritoriesLoading] = useState(Boolean(congregationId));
   const [assignmentsLoading, setAssignmentsLoading] = useState(Boolean(congregationId));
   const [membersLoading, setMembersLoading] = useState(Boolean(congregationId));
+  const [householdsLoading, setHouseholdsLoading] = useState(Boolean(congregationId));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,6 +124,30 @@ function useReportSources(congregationId: string | null | undefined) {
       (err) => {
         setError(err.message);
         setTerritoriesLoading(false);
+      }
+    );
+  }, [congregationId]);
+
+  useEffect(() => {
+    if (!congregationId) {
+      setHouseholds([]);
+      setHouseholdsLoading(false);
+      return;
+    }
+    setHouseholdsLoading(true);
+    return onSnapshot(
+      query(sourceCollection('households'), where('congregationId', '==', congregationId)),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setHouseholds(
+          snapshot.docs.map((document) =>
+            householdFromData(document.id, document.data() as Partial<Household>)
+          )
+        );
+        setHouseholdsLoading(false);
+      },
+      () => {
+        setHouseholdsLoading(false);
       }
     );
   }, [congregationId]);
@@ -171,16 +221,44 @@ function useReportSources(congregationId: string | null | undefined) {
     territories,
     assignments: congregationAssignments,
     members,
-    isLoading: territoriesLoading || assignmentsLoading || membersLoading,
+    households,
+    isLoading: territoriesLoading || assignmentsLoading || membersLoading || householdsLoading,
     error,
   };
 }
 
 export function useCoverageReport(congregationId: string | null | undefined) {
-  const { territories, isLoading, error } = useReportSources(congregationId);
+  const { territories, households, isLoading, error } = useReportSources(congregationId);
   const data = useMemo<CoverageReport>(() => {
-    const coverageValues = territories.map((territory) => Number(territory.coveragePercent) || 0);
-    const totalCoverage = coverageValues.reduce((sum, value) => sum + value, 0);
+    const householdsByTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!householdsByTerritory.has(h.territoryId)) {
+          householdsByTerritory.set(h.territoryId, []);
+        }
+        householdsByTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+
+    const calculatedTerritories = territories.map((territory) => {
+      const terrHouseholds = householdsByTerritory.get(territory.id) || [];
+      const coveragePercent =
+        terrHouseholds.length > 0
+          ? calculateTerritoryCoverage(terrHouseholds).coveragePercent
+          : Number(territory.coveragePercent) || 0;
+
+      return {
+        id: territory.id,
+        number: territory.number,
+        name: territory.name,
+        status: territory.status,
+        coveragePercent,
+        publisherName: territory.publisherName ?? undefined,
+      };
+    });
+
+    const totalCoverage = calculatedTerritories.reduce((sum, t) => sum + t.coveragePercent, 0);
+
     return {
       totalTerritories: territories.length,
       avgCoveragePercent: territories.length ? Math.round(totalCoverage / territories.length) : 0,
@@ -190,16 +268,9 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         completed: territories.filter((territory) => territory.status === 'completed').length,
         archived: territories.filter((territory) => territory.status === 'archived').length,
       },
-      territories: territories.map((territory) => ({
-        id: territory.id,
-        number: territory.number,
-        name: territory.name,
-        status: territory.status,
-        coveragePercent: Number(territory.coveragePercent) || 0,
-        publisherName: territory.publisherName ?? undefined,
-      })),
+      territories: calculatedTerritories,
     };
-  }, [territories]);
+  }, [territories, households]);
 
   return { data, isLoading, error };
 }

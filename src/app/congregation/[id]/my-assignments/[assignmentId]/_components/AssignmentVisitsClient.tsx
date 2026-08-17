@@ -3,11 +3,13 @@
 import { ArrowLeft, BarChart2, Home, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useMemo } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { Button } from '@/components/ui/button';
-import { useTerritoryAssignments, useTerritoryDetail } from '@/hooks';
+import { useHouseholds, useTerritoryAssignments, useTerritoryDetail } from '@/hooks';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 
 export default function AssignmentVisitsClient() {
   const params = useParams<{
@@ -20,12 +22,25 @@ export default function AssignmentVisitsClient() {
 
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { assignments, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId);
+  const { households, isLoading: householdsLoading } = useHouseholds({ territoryId: territoryId ?? undefined });
 
-  const _loading = territoryLoading || assignmentsLoading;
+  const _loading = territoryLoading || assignmentsLoading || householdsLoading;
   const _activeAssignment =
     assignments.find((a) => a.status === 'assigned') ?? assignments[0] ?? null;
 
-  const coverageNum = territory ? parseFloat(territory.coveragePercent ?? '0') : 0;
+  const coverageStats = useMemo(() => {
+    if (households && households.length > 0) {
+      return calculateTerritoryCoverage(households);
+    }
+    const fallbackPercent = territory ? Math.round(parseFloat(territory.coveragePercent ?? '0')) : 0;
+    const fallbackTotal = territory?.householdsCount ?? 0;
+    return {
+      totalDoors: fallbackTotal,
+      workedDoors: Math.round((fallbackPercent / 100) * fallbackTotal),
+      unworkedDoors: Math.max(0, fallbackTotal - Math.round((fallbackPercent / 100) * fallbackTotal)),
+      coveragePercent: fallbackPercent,
+    };
+  }, [households, territory]);
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -54,17 +69,19 @@ export default function AssignmentVisitsClient() {
               <Home size={14} />
               <span className="text-xs font-medium">Total Doors</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{territory?.householdsCount ?? 0}</p>
-            <p className="text-xs text-muted-foreground">households</p>
+            <p className="text-3xl font-bold text-foreground">{coverageStats.totalDoors}</p>
+            <p className="text-xs text-muted-foreground">households mapped</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground">
               <BarChart2 size={14} />
-              <span className="text-xs font-medium">Coverage</span>
+              <span className="text-xs font-medium">Live Coverage</span>
             </div>
-            <p className="text-3xl font-bold text-foreground">{Math.round(coverageNum)}%</p>
-            <p className="text-xs text-muted-foreground">completed</p>
+            <p className="text-3xl font-bold text-primary">{coverageStats.coveragePercent}%</p>
+            <p className="text-xs text-muted-foreground">
+              {coverageStats.workedDoors} of {coverageStats.totalDoors} worked
+            </p>
           </div>
         </div>
 

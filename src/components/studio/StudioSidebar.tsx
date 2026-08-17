@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronLeft, MapPin, Plus, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useCurrentUser } from '@/hooks';
 import { isTerritoryServant } from '@/lib/permissions';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household, Territory } from '@/types/api';
 
 export interface CardDimensionSettings {
@@ -57,6 +58,8 @@ export function StudioSidebar({
   const { user } = useCurrentUser();
   const isServant = isTerritoryServant(user.role);
   const [tab, setTab] = useState<'info' | 'portion' | 'settings'>('info');
+
+  const coverageStats = useMemo(() => calculateTerritoryCoverage(households), [households]);
 
   if (!open) return null;
 
@@ -134,17 +137,17 @@ export function StudioSidebar({
             <div className="grid grid-cols-2 gap-2 shrink-0">
               <div className="p-3 rounded-xl border border-border bg-background">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Doors</p>
-                <p className="text-xl font-bold text-foreground mt-0.5">{households.length}</p>
+                <p className="text-xl font-bold text-foreground mt-0.5">{coverageStats.totalDoors}</p>
                 <p className="text-[10px] text-muted-foreground">pinned & offline</p>
               </div>
               <div className="p-3 rounded-xl border border-border bg-background">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Coverage</p>
-                <p className="text-xl font-bold text-foreground mt-0.5">
-                  {territory
-                    ? `${Math.round(parseFloat(territory.coveragePercent || '0'))}%`
-                    : '0%'}
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Live Coverage</p>
+                <p className="text-xl font-bold text-primary mt-0.5">
+                  {coverageStats.coveragePercent}%
                 </p>
-                <p className="text-[10px] text-muted-foreground">completed</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {coverageStats.workedDoors} of {coverageStats.totalDoors} worked
+                </p>
               </div>
             </div>
 

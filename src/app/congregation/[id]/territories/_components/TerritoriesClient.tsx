@@ -29,11 +29,13 @@ import {
   useCreateAssignment,
   useCreateTerritory,
   useCurrentUser,
+  useHouseholds,
   useUpdateCongregation,
 } from '@/hooks';
 import { isTerritoryServant } from '@/lib/permissions';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { type CreateTerritoryFormData, createTerritorySchema } from '@/schemas';
-import type { Territory } from '@/types/api';
+import type { Household, Territory } from '@/types/api';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
@@ -57,9 +59,25 @@ export default function TerritoriesClient() {
 
   const { data: territories = [], isLoading } = useCongregationTerritories(congregationId);
   const { data: members = [] } = useCongregationMembers(congregationId);
+  const { households = [] } = useHouseholds({ congregationId });
   const { create: createTerritory, isPending: creatingTerritory } =
     useCreateTerritory(congregationId);
   const { create: createAssignment, isPending: assigningTerritory } = useCreateAssignment();
+
+  const coverageByTerritoryId = useMemo(() => {
+    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const byTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
+        byTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+    for (const [tId, hList] of byTerritory.entries()) {
+      map.set(tId, calculateTerritoryCoverage(hList));
+    }
+    return map;
+  }, [households]);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -276,14 +294,16 @@ export default function TerritoriesClient() {
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
                     <div>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase">Doors</p>
-                      <p className="font-bold text-foreground">{t.householdsCount ?? 0}</p>
+                      <p className="font-bold text-foreground">
+                        {coverageByTerritoryId.get(t.id)?.totalDoors ?? t.householdsCount ?? 0}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground font-bold uppercase">
                         Coverage
                       </p>
                       <p className="font-bold text-foreground">
-                        {Math.round(parseFloat(t.coveragePercent || '0'))}%
+                        {coverageByTerritoryId.get(t.id)?.coveragePercent ?? Math.round(parseFloat(t.coveragePercent || '0'))}%
                       </p>
                     </div>
                   </div>
