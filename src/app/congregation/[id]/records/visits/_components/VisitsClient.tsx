@@ -134,10 +134,18 @@ export default function VisitsClient() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground">Visit Records History</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Chronological door-to-door conversation logs and returns
+        </p>
+      </div>
+
       {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
+      <div className="flex gap-2 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by address, street, city, notes, topic…"
@@ -147,19 +155,19 @@ export default function VisitsClient() {
           />
         </div>
 
-        <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0">
-          {(['all', 'answered', 'not_home', 'return_visit', 'do_not_visit', 'moved'] as const).map((status) => (
-            <Button
-              key={status}
-              size="sm"
-              variant={outcomeFilter === status ? 'default' : 'outline'}
-              className="rounded-xl text-xs capitalize h-9 shrink-0"
-              onClick={() => setOutcomeFilter(status)}
-            >
-              {status.replace(/_/g, ' ')}
-            </Button>
-          ))}
-        </div>
+        <select
+          value={outcomeFilter}
+          onChange={(e) => setOutcomeFilter(e.target.value)}
+          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+        >
+          <option value="all">All outcomes</option>
+          <option value="answered">Answered</option>
+          <option value="not_home">Not Home</option>
+          <option value="return_visit">Return Visit</option>
+          <option value="do_not_visit">Do Not Visit</option>
+          <option value="moved">Moved</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
       {/* Visits List */}
@@ -188,8 +196,8 @@ export default function VisitsClient() {
                 key={v.id}
                 className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
               >
-                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1 space-y-2">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-1.5">
                     {/* Household Details */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
@@ -287,11 +295,11 @@ export default function VisitsClient() {
                   </div>
 
                   {/* Actions: Add Encounter & Delete */}
-                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-col sm:items-end">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="rounded-xl text-xs gap-1 h-8 font-semibold hover:text-primary hover:border-primary/50"
+                      className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
                       onClick={() => setAddEncounterVisit(v)}
                       title="Record person met during this visit"
                     >
