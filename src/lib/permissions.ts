@@ -68,6 +68,10 @@ export function canEndorseAssignment(role?: string | null): boolean {
   return isTerritoryServant(role);
 }
 
+export function canViewReports(role?: string | null): boolean {
+  return isTerritoryServant(role);
+}
+
 /**
  * Checks if the current user is the Group Overseer of a given group.
  */

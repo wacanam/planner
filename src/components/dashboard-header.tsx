@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCongregation, useCurrentUser, usePendingEndorsements } from '@/hooks';
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
-import { isServiceOverseer, isSystemAdmin } from '@/lib/permissions';
+import { canViewReports, isServiceOverseer, isSystemAdmin, isTerritoryServant } from '@/lib/permissions';
 
 export function DashboardHeader() {
   const pathname = usePathname();
@@ -62,8 +62,10 @@ export function DashboardHeader() {
                 badgeCount: pendingEndorsementsCount,
               },
               { href: `/congregation/${id}/groups`, label: 'Groups', icon: FolderOpen },
-              { href: `/congregation/${id}/reports`, label: 'Reports', icon: BarChart2 },
             ]
+          : []),
+        ...(canViewReports(user.role)
+          ? [{ href: `/congregation/${id}/reports`, label: 'Reports', icon: BarChart2 }]
           : []),
       ]
     : [];
@@ -220,45 +222,51 @@ export function DashboardHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {id && isServiceOverseer(user.role) && (
+                {id && (isServiceOverseer(user.role) || canViewReports(user.role)) && (
                   <>
                     <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                      Overseer Menu
+                      {isServiceOverseer(user.role) ? 'Overseer Menu' : 'Servant Menu'}
                     </div>
-                    <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link
-                        href={`/congregation/${id}/members`}
-                        className="flex items-center justify-between px-3 py-1.5 text-xs"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Users size={14} className="text-primary" />
-                          <span>Members & Access</span>
-                        </div>
-                        {Boolean(pendingEndorsementsCount) && (
-                          <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
-                            {pendingEndorsementsCount}
-                          </Badge>
-                        )}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link
-                        href={`/congregation/${id}/groups`}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs"
-                      >
-                        <FolderOpen size={14} className="text-primary" />
-                        <span>Service Groups</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link
-                        href={`/congregation/${id}/reports`}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs"
-                      >
-                        <BarChart2 size={14} className="text-primary" />
-                        <span>Reports</span>
-                      </Link>
-                    </DropdownMenuItem>
+                    {isServiceOverseer(user.role) && (
+                      <>
+                        <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                          <Link
+                            href={`/congregation/${id}/members`}
+                            className="flex items-center justify-between px-3 py-1.5 text-xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Users size={14} className="text-primary" />
+                              <span>Members & Access</span>
+                            </div>
+                            {Boolean(pendingEndorsementsCount) && (
+                              <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
+                                {pendingEndorsementsCount}
+                              </Badge>
+                            )}
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                          <Link
+                            href={`/congregation/${id}/groups`}
+                            className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                          >
+                            <FolderOpen size={14} className="text-primary" />
+                            <span>Service Groups</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {canViewReports(user.role) && (
+                      <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                        <Link
+                          href={`/congregation/${id}/reports`}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                        >
+                          <BarChart2 size={14} className="text-primary" />
+                          <span>Reports</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}

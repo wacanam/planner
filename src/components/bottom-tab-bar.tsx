@@ -26,7 +26,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useCurrentUser, usePendingEndorsements } from '@/hooks';
-import { isServiceOverseer, isSystemAdmin } from '@/lib/permissions';
+import { canViewReports, isServiceOverseer, isSystemAdmin, isTerritoryServant } from '@/lib/permissions';
 
 export function BottomTabBar() {
   const pathname = usePathname();
@@ -40,7 +40,9 @@ export function BottomTabBar() {
   if (!id) return null;
 
   const isOverseerRole = isServiceOverseer(user.role);
+  const isServantRole = isTerritoryServant(user.role);
   const isAdminRole = isSystemAdmin(user.role);
+  const canReports = canViewReports(user.role);
 
   const mainTabs = [
     {
@@ -65,26 +67,34 @@ export function BottomTabBar() {
     },
   ];
 
-  const overseerLinks = [
-    {
-      href: `/congregation/${id}/members`,
-      label: 'Members & Access',
-      description: 'Directory, join approvals & endorsements',
-      icon: Users,
-      badgeCount: pendingEndorsementsCount,
-    },
-    {
-      href: `/congregation/${id}/groups`,
-      label: 'Service Groups',
-      description: 'Field ministry groups & overseers',
-      icon: FolderOpen,
-    },
-    {
-      href: `/congregation/${id}/reports`,
-      label: 'Congregation Reports',
-      description: 'Coverage analytics & S-13 summaries',
-      icon: BarChart2,
-    },
+  const adminLinks = [
+    ...(isOverseerRole
+      ? [
+          {
+            href: `/congregation/${id}/members`,
+            label: 'Members & Access',
+            description: 'Directory, join approvals & endorsements',
+            icon: Users,
+            badgeCount: pendingEndorsementsCount,
+          },
+          {
+            href: `/congregation/${id}/groups`,
+            label: 'Service Groups',
+            description: 'Field ministry groups & overseers',
+            icon: FolderOpen,
+          },
+        ]
+      : []),
+    ...(canReports
+      ? [
+          {
+            href: `/congregation/${id}/reports`,
+            label: 'Congregation Reports',
+            description: 'Coverage analytics & S-13 summaries',
+            icon: BarChart2,
+          },
+        ]
+      : []),
   ];
 
   const isOverseeActive =
@@ -166,13 +176,13 @@ export function BottomTabBar() {
                 </SheetDescription>
               </SheetHeader>
 
-              {/* Service Overseer Navigation Links */}
-              {isOverseerRole && (
+              {/* Administration Navigation Links */}
+              {adminLinks.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1">
-                    Congregation Administration
+                    {isOverseerRole ? 'Congregation Administration' : 'Servant Management'}
                   </p>
-                  {overseerLinks.map(({ href, label, description, icon: Icon, badgeCount }) => {
+                  {adminLinks.map(({ href, label, description, icon: Icon, badgeCount }) => {
                     const isActive = pathname.startsWith(href);
                     return (
                       <button

@@ -24,7 +24,7 @@ export default function ReportsClient() {
   const { data: activityData } = useActivityReport(congregationId);
 
   return (
-    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
+    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.TERRITORY_SERVANT}>
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         <div>

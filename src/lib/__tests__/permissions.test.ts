@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
   canReturnAssignment,
+  canViewReports,
   hasPermission,
   hasRole,
   isGroupOverseer,
@@ -70,6 +71,14 @@ describe('RBAC Matrix Helper Functions', () => {
     expect(isTerritoryServant(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(isTerritoryServant(UserRole.TERRITORY_SERVANT)).toBe(true);
     expect(isTerritoryServant(UserRole.USER)).toBe(false);
+  });
+
+  it('allows territory servant and higher to view reports', () => {
+    expect(canViewReports(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canViewReports(UserRole.ADMIN)).toBe(true);
+    expect(canViewReports(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canViewReports(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canViewReports(UserRole.USER)).toBe(false);
   });
 });
 
