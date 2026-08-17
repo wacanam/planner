@@ -2,6 +2,7 @@
 
 import {
   browserLocalPersistence,
+  confirmPasswordReset,
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   type User as FirebaseUser,
@@ -15,6 +16,7 @@ import {
   signInWithPopup,
   updatePassword,
   updateProfile,
+  verifyPasswordResetCode,
 } from 'firebase/auth';
 import {
   collection,
@@ -338,7 +340,39 @@ export async function sendUserPasswordResetEmail(email: string) {
 
   const auth = getPlannerAuth();
   try {
+    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : null;
+    if (origin) {
+      try {
+        await sendPasswordResetEmail(auth, normalized, {
+          url: `${origin}/auth/reset-password`,
+          handleCodeInApp: false,
+        });
+        return;
+      } catch (innerErr) {
+        console.warn('[password reset custom url fallback to default]', innerErr);
+      }
+    }
+
     await sendPasswordResetEmail(auth, normalized);
+  } catch (error) {
+    throw new Error(firebaseErrorMessage(error));
+  }
+}
+
+export async function verifyUserPasswordResetCode(code: string): Promise<string> {
+  const auth = getPlannerAuth();
+  try {
+    const email = await verifyPasswordResetCode(auth, code);
+    return email;
+  } catch (error) {
+    throw new Error(firebaseErrorMessage(error));
+  }
+}
+
+export async function confirmUserPasswordReset(code: string, newPassword: string): Promise<void> {
+  const auth = getPlannerAuth();
+  try {
+    await confirmPasswordReset(auth, code, newPassword);
   } catch (error) {
     throw new Error(firebaseErrorMessage(error));
   }
