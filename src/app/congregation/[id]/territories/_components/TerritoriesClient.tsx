@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MapPin, Plus, Search, UserCheck } from 'lucide-react';
+import { FolderOpen, MapPin, Plus, Search, User, UserCheck, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import {
   useCongregation,
+  useCongregationGroups,
   useCongregationMembers,
   useCongregationTerritories,
   useCreateAssignment,
@@ -39,19 +40,18 @@ import type { Household, Territory } from '@/types/api';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
-  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  available: 'text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
-  completed:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
-  archived: 'text-muted-foreground border-border bg-muted/40',
+  pending: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
+  overdue: 'text-rose-700 border-rose-200 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400',
 };
 
 export default function TerritoriesClient() {
   const params = useParams();
-  const _router = useRouter();
+  const router = useRouter();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const isServant = isTerritoryServant(user.role);
+  const isServant = isTerritoryServant(user?.role);
 
   const { congregation } = useCongregation(congregationId);
   const { update: updateCongregation, isUpdating: updatingCenter } =
@@ -59,6 +59,7 @@ export default function TerritoriesClient() {
 
   const { data: territories = [], isLoading } = useCongregationTerritories(congregationId);
   const { data: members = [] } = useCongregationMembers(congregationId);
+  const { groups = [] } = useCongregationGroups(congregationId);
   const { households = [] } = useHouseholds({ congregationId });
   const { create: createTerritory, isPending: creatingTerritory } =
     useCreateTerritory(congregationId);
@@ -83,7 +84,9 @@ export default function TerritoriesClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
+  const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
   const [assignUserId, setAssignUserId] = useState('');
+  const [assignGroupId, setAssignGroupId] = useState('');
 
   const [mapCenterOpen, setMapCenterOpen] = useState(false);
   const [centerLat, setCenterLat] = useState('');
@@ -126,14 +129,43 @@ export default function TerritoriesClient() {
   };
 
   const handleAssignSubmit = async () => {
-    if (!assignTerritory || !assignUserId) return;
-    await createAssignment({
-      territoryId: assignTerritory.id,
-      userId: assignUserId,
-      assignedAt: new Date().toISOString(),
-    });
+    if (!assignTerritory) return;
+    if (assignType === 'publisher') {
+      if (!assignUserId) {
+        toast.error('Please select a publisher');
+        return;
+      }
+      const selectedMember = members.find((m) => m.userId === assignUserId);
+      await createAssignment({
+        territoryId: assignTerritory.id,
+        userId: assignUserId,
+        assigneeName: selectedMember?.user?.name || selectedMember?.user?.email || null,
+        assigneeEmail: selectedMember?.user?.email || null,
+        assignedAt: new Date().toISOString(),
+      });
+      toast.success(
+        `Territory #${assignTerritory.number} assigned to ${selectedMember?.user?.name || selectedMember?.user?.email || 'publisher'}`
+      );
+    } else {
+      if (!assignGroupId) {
+        toast.error('Please select a service group');
+        return;
+      }
+      const selectedGroup = groups.find((g) => g.id === assignGroupId);
+      await createAssignment({
+        territoryId: assignTerritory.id,
+        serviceGroupId: assignGroupId,
+        groupName: selectedGroup?.name || null,
+        assignedAt: new Date().toISOString(),
+      });
+      toast.success(
+        `Territory #${assignTerritory.number} assigned to ${selectedGroup?.name || 'group'}`
+      );
+    }
+
     setAssignTerritory(null);
     setAssignUserId('');
+    setAssignGroupId('');
   };
 
   const handleSaveMapCenter = async () => {
@@ -308,6 +340,27 @@ export default function TerritoriesClient() {
                     </div>
                   </div>
 
+                  {/* Assigned Info if assigned or pending */}
+                  {(t.groupName || t.publisherName) && (
+                    <div className="pt-1 text-xs text-muted-foreground">
+                      {t.groupName ? (
+                        <div className="flex items-center gap-1.5">
+                          <Users size={12} className="text-primary shrink-0" />
+                          <span className="truncate">
+                            Group: <strong className="text-foreground font-semibold">{t.groupName}</strong>
+                          </span>
+                        </div>
+                      ) : t.publisherName ? (
+                        <div className="flex items-center gap-1.5">
+                          <User size={12} className="text-primary shrink-0" />
+                          <span className="truncate">
+                            Publisher: <strong className="text-foreground font-semibold">{t.publisherName}</strong>
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 pt-2">
                     <Button
                       asChild
@@ -325,7 +378,12 @@ export default function TerritoriesClient() {
                         size="sm"
                         variant="outline"
                         className="rounded-xl text-xs gap-1"
-                        onClick={() => setAssignTerritory(t)}
+                        onClick={() => {
+                          setAssignTerritory(t);
+                          setAssignType('publisher');
+                          setAssignUserId('');
+                          setAssignGroupId('');
+                        }}
                       >
                         <UserCheck size={13} />
                         <span>Assign</span>
@@ -406,37 +464,99 @@ export default function TerritoriesClient() {
         {/* Assign Territory Dialog */}
         <ResponsiveDialog
           open={!!assignTerritory}
-          onOpenChange={(op) => !op && setAssignTerritory(null)}
+          onOpenChange={(op) => {
+            if (!op) {
+              setAssignTerritory(null);
+              setAssignUserId('');
+              setAssignGroupId('');
+            }
+          }}
           title="Assign Territory Card"
           description={
             assignTerritory ? `Assign #${assignTerritory.number} — ${assignTerritory.name}` : ''
           }
         >
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Select Publisher *</Label>
-              <Select value={assignUserId} onValueChange={setAssignUserId}>
-                <SelectTrigger className="h-9 rounded-xl text-xs">
-                  <SelectValue placeholder="Choose a member…" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border max-h-48">
-                  {members
-                    .filter((m) => m.status === 'active')
-                    .map((m) => (
-                      <SelectItem key={m.userId} value={m.userId}>
-                        {m.user?.name || m.user?.email || m.userId}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+            {/* Toggle: Publisher vs Service Group */}
+            <div className="flex gap-2 p-1 bg-muted/40 rounded-xl border border-border">
+              <button
+                type="button"
+                onClick={() => setAssignType('publisher')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  assignType === 'publisher'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <User size={13} />
+                <span>Publisher</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignType('group')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  assignType === 'group'
+                    ? 'bg-background text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Users size={13} />
+                <span>Service Group</span>
+              </button>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {assignType === 'publisher' ? (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Select Publisher *</Label>
+                <Select value={assignUserId} onValueChange={setAssignUserId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Choose a publisher…" />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="bg-popover border-border max-h-56">
+                    {members
+                      .filter((m) => m.status === 'active')
+                      .map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {m.user?.name || m.user?.email || m.userId}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Select Service Group *</Label>
+                {groups.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-3 rounded-xl bg-muted/30 border border-border">
+                    No service groups created yet. Create a group in the Service Groups tab first.
+                  </p>
+                ) : (
+                  <Select value={assignGroupId} onValueChange={setAssignGroupId}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Choose a service group…" />
+                    </SelectTrigger>
+                    <SelectContent side="top" className="bg-popover border-border max-h-56">
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name} ({g.members?.length ?? 0} publishers)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
                 className="rounded-xl text-xs"
-                onClick={() => setAssignTerritory(null)}
+                onClick={() => {
+                  setAssignTerritory(null);
+                  setAssignUserId('');
+                  setAssignGroupId('');
+                }}
               >
                 Cancel
               </Button>
@@ -444,7 +564,11 @@ export default function TerritoriesClient() {
                 type="button"
                 className="rounded-xl text-xs font-semibold"
                 onClick={handleAssignSubmit}
-                disabled={!assignUserId || assigningTerritory}
+                disabled={
+                  (assignType === 'publisher' && !assignUserId) ||
+                  (assignType === 'group' && !assignGroupId) ||
+                  assigningTerritory
+                }
               >
                 {assigningTerritory ? 'Assigning…' : 'Confirm Assignment'}
               </Button>
