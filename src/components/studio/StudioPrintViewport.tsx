@@ -330,58 +330,55 @@ export function StudioPrintViewport({
       </svg>
 
       {/* Top Floating Viewport Control Bar replacing StudioTopBar */}
-      <div className="absolute top-3 inset-x-0 z-40 flex flex-col items-center px-3 pointer-events-none">
-        <div className="pointer-events-auto flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-5xl w-full">
+      <div className="absolute top-3 inset-x-0 z-40 flex flex-col items-center px-2 pointer-events-none">
+        <div className="pointer-events-auto flex items-center justify-between gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-[98vw] overflow-x-auto scrollbar-none">
           {/* Left: Territory & Dimensions Pill */}
-          <div className="flex items-center gap-2 px-2 py-1 shrink-0">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <Maximize2 size={15} />
+          <div className="flex items-center gap-1.5 px-1.5 shrink-0">
+            <div className="p-1 rounded-lg bg-primary/10 text-primary">
+              <Maximize2 size={14} />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-foreground">
-                  {territory ? `Territory #${territory.number}` : 'Print Viewport'}
-                </span>
-                <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5">
-                  {effectiveW}″ × {effectiveH}″ ({orientation})
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground hidden sm:block">
-                Pan & zoom map to frame desired portion
-              </p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-foreground whitespace-nowrap">
+                {territory ? `Territory #${territory.number}` : 'Territory'}
+              </span>
+              <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5 whitespace-nowrap">
+                {effectiveW}″ × {effectiveH}″ ({orientation === 'portrait' ? 'Port' : 'Land'})
+              </Badge>
             </div>
           </div>
 
+          <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
+
           {/* Center: Presets & Custom Dimensions */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {/* Preset Buttons */}
             <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-xl">
               <button
                 type="button"
                 onClick={() => handlePresetSelect('4x6')}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
                   cardSettings.preset === '4x6'
                     ? 'bg-card text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                4″ × 6″
+                4×6
               </button>
               <button
                 type="button"
                 onClick={() => handlePresetSelect('5x7')}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
                   cardSettings.preset === '5x7'
                     ? 'bg-card text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                5″ × 7″
+                5×7
               </button>
               <button
                 type="button"
                 onClick={() => handlePresetSelect('8.5x11')}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
                   cardSettings.preset === '8.5x11'
                     ? 'bg-card text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -392,7 +389,7 @@ export function StudioPrintViewport({
               <button
                 type="button"
                 onClick={() => handlePresetSelect('a5')}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
                   cardSettings.preset === 'a5'
                     ? 'bg-card text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -403,7 +400,7 @@ export function StudioPrintViewport({
               <button
                 type="button"
                 onClick={() => handlePresetSelect('custom')}
-                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
                   cardSettings.preset === 'custom'
                     ? 'bg-card text-primary shadow-xs font-bold'
                     : 'text-muted-foreground hover:text-foreground'
@@ -415,7 +412,7 @@ export function StudioPrintViewport({
 
             {/* Custom Dimension Number Inputs */}
             {cardSettings.preset === 'custom' && (
-              <div className="flex items-center gap-1 bg-background border border-input rounded-xl px-2 py-0.5 text-xs">
+              <div className="flex items-center gap-0.5 bg-background border border-input rounded-xl px-1.5 py-0.5 text-xs shrink-0">
                 <input
                   type="number"
                   step="0.25"
@@ -423,10 +420,10 @@ export function StudioPrintViewport({
                   max="30"
                   value={cardSettings.widthInches}
                   onChange={(e) => handleCustomWidthChange(parseFloat(e.target.value))}
-                  className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
+                  className="w-8 text-center font-bold bg-transparent outline-none text-foreground"
                   title="Card width in inches"
                 />
-                <span className="text-muted-foreground">×</span>
+                <span className="text-muted-foreground text-[10px]">×</span>
                 <input
                   type="number"
                   step="0.25"
@@ -434,10 +431,10 @@ export function StudioPrintViewport({
                   max="30"
                   value={cardSettings.heightInches}
                   onChange={(e) => handleCustomHeightChange(parseFloat(e.target.value))}
-                  className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
+                  className="w-8 text-center font-bold bg-transparent outline-none text-foreground"
                   title="Card height in inches"
                 />
-                <span className="text-[10px] text-muted-foreground font-semibold">in</span>
+                <span className="text-[9px] text-muted-foreground font-semibold">in</span>
               </div>
             )}
 
@@ -447,11 +444,11 @@ export function StudioPrintViewport({
               variant="outline"
               size="sm"
               onClick={handleToggleOrientation}
-              className="h-8 rounded-xl text-xs gap-1 font-semibold px-2.5"
+              className="h-7 rounded-xl text-xs gap-1 font-semibold px-2"
               title={`Switch to ${orientation === 'portrait' ? 'Landscape' : 'Portrait'}`}
             >
-              <RotateCw size={13} className="text-primary" />
-              <span className="capitalize hidden md:inline">{orientation}</span>
+              <RotateCw size={12} className="text-primary" />
+              <span className="capitalize">{orientation === 'portrait' ? 'Port' : 'Land'}</span>
             </Button>
 
             {/* Fit Territory to Frame */}
@@ -460,30 +457,33 @@ export function StudioPrintViewport({
               variant="secondary"
               size="sm"
               onClick={handleFitClick}
-              className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary/10 text-primary hover:bg-primary/20 px-2.5"
+              className="h-7 rounded-xl text-xs gap-1 font-semibold bg-primary/10 text-primary hover:bg-primary/20 px-2"
               title="Fit territory boundaries into the card frame"
             >
-              <Expand size={13} />
+              <Expand size={12} />
               <span>Fit</span>
             </Button>
           </div>
 
+          <div className="h-4 w-px bg-border shrink-0" />
+
           {/* Right: Direct Download Buttons & Close */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleDownloadPng}
               disabled={isExportingPng}
-              className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-xs hover:border-primary/50"
+              className="h-7 rounded-xl text-xs gap-1 font-bold shadow-xs hover:border-primary/50 px-2.5"
+              title="Download Card as PNG Image"
             >
               {isExportingPng ? (
-                <Loader2 size={13} className="animate-spin text-primary" />
+                <Loader2 size={12} className="animate-spin text-primary" />
               ) : (
-                <ImageIcon size={13} className="text-primary" />
+                <ImageIcon size={12} className="text-primary" />
               )}
-              <span>Download .PNG</span>
+              <span>.PNG</span>
             </Button>
 
             <Button
@@ -491,14 +491,15 @@ export function StudioPrintViewport({
               size="sm"
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
-              className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-md bg-primary text-primary-foreground"
+              className="h-7 rounded-xl text-xs gap-1 font-bold shadow-md bg-primary text-primary-foreground px-2.5"
+              title="Download Printable PDF Document"
             >
               {isExportingPdf ? (
-                <Loader2 size={13} className="animate-spin" />
+                <Loader2 size={12} className="animate-spin" />
               ) : (
-                <FileDown size={13} />
+                <FileDown size={12} />
               )}
-              <span>Download .PDF</span>
+              <span>.PDF</span>
             </Button>
 
             <Button
@@ -506,10 +507,10 @@ export function StudioPrintViewport({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+              className="h-7 w-7 rounded-xl text-muted-foreground hover:text-foreground"
               title="Exit print viewport"
             >
-              <X size={16} />
+              <X size={15} />
             </Button>
           </div>
         </div>
