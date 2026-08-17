@@ -60,6 +60,7 @@ import {
   exportPublishersToCSV,
   exportS13ToCSV,
 } from '@/lib/reports-csv-export';
+import { exportS13ToPDF } from '@/lib/s13-pdf-export';
 import { UserRole } from '@/lib/roles';
 import type { CoverageTerritory, S13AssignmentRecord } from '@/types/api';
 
@@ -174,11 +175,18 @@ export default function ReportsClient() {
               <DropdownMenuTrigger asChild>
                 <Button className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs">
                   <Download size={13} />
-                  <span>Export CSV</span>
+                  <span>Export &amp; Download</span>
                   <ChevronDown size={12} className="opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 rounded-xl text-xs">
+              <DropdownMenuContent align="end" className="w-56 rounded-xl text-xs">
+                <DropdownMenuItem
+                  onClick={() => exportS13ToPDF(s13Records, congregationName)}
+                  className="cursor-pointer gap-2 py-2 font-semibold text-primary"
+                >
+                  <FileText size={14} className="text-primary" />
+                  <span>Download S-13 Record (PDF)</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => exportS13ToCSV(s13Records, congregationName)}
                   className="cursor-pointer gap-2 py-2"
@@ -672,12 +680,21 @@ export default function ReportsClient() {
 
                 <Button
                   size="sm"
+                  onClick={() => exportS13ToPDF(filteredS13, congregationName)}
+                  className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs"
+                >
+                  <FileText size={12} />
+                  <span>Download S-13 PDF</span>
+                </Button>
+
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => exportS13ToCSV(filteredS13, congregationName)}
                   className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
                 >
                   <Download size={12} />
-                  <span>Download S-13 CSV</span>
+                  <span>CSV</span>
                 </Button>
               </div>
             </CardHeader>
