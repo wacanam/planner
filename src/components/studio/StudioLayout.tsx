@@ -135,9 +135,10 @@ export function StudioLayout({
   // Landmark state
   const [landmarkDialogOpen, setLandmarkDialogOpen] = useState(false);
   const [selectedLandmark, setSelectedLandmark] = useState<MapLandmark | null>(null);
-  const [tempLandmarkCoordinates, setTempLandmarkCoordinates] = useState<{ lat: number; lng: number } | null>(
-    null
-  );
+  const [tempLandmarkCoordinates, setTempLandmarkCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   // Road state
   const [roadDialogOpen, setRoadDialogOpen] = useState(false);
@@ -146,8 +147,8 @@ export function StudioLayout({
   // Boundary state
   const [boundaryDialogOpen, setBoundaryDialogOpen] = useState(false);
   const [selectedBoundary, setSelectedBoundary] = useState<MapBoundaryPolygon | null>(null);
-  const [boundaryDisplay, setBoundaryDisplay] = useState<BoundaryDisplaySettings>(
-    () => resolveBoundaryDisplay(territory?.annotations?.boundaryDisplay)
+  const [boundaryDisplay, setBoundaryDisplay] = useState<BoundaryDisplaySettings>(() =>
+    resolveBoundaryDisplay(territory?.annotations?.boundaryDisplay)
   );
 
   // Synchronize boundaryDisplay when territory changes
@@ -161,8 +162,12 @@ export function StudioLayout({
   const [startFlagDialogOpen, setStartFlagDialogOpen] = useState(false);
   const [startFlagLabel, setStartFlagLabel] = useState('');
 
-  const { saveBoundary: _saveBoundary, isPending: isSavingBoundary } = useSaveBoundary(territory?.id ?? '');
-  const { saveAnnotations, isSaving: isSavingAnnotations } = useSaveAnnotations(territory?.id ?? '');
+  const { saveBoundary: _saveBoundary, isPending: isSavingBoundary } = useSaveBoundary(
+    territory?.id ?? ''
+  );
+  const { saveAnnotations, isSaving: isSavingAnnotations } = useSaveAnnotations(
+    territory?.id ?? ''
+  );
   const boundaryDisplaySaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // User GPS Location & Live Compass Heading Flashlight Beam
@@ -365,7 +370,7 @@ export function StudioLayout({
 
   const handleRotateBy = (delta: number) => {
     setCamera((prev) => {
-      const nextHeading = ((prev.heading + delta) % 360 + 360) % 360;
+      const nextHeading = (((prev.heading + delta) % 360) + 360) % 360;
       setTargetCamera({ heading: nextHeading, timestamp: Date.now() });
       return { ...prev, heading: nextHeading };
     });
@@ -401,7 +406,8 @@ export function StudioLayout({
         const existingBoundaries = getTerritoryBoundaries(territory);
         const newBoundary: MapBoundaryPolygon = {
           id: createClientId(),
-          name: existingBoundaries.length > 0 ? `Zone ${existingBoundaries.length + 1}` : 'Boundary',
+          name:
+            existingBoundaries.length > 0 ? `Zone ${existingBoundaries.length + 1}` : 'Boundary',
           points: drawnPoints,
         };
         const nextBoundaries = [...existingBoundaries, newBoundary];
@@ -557,8 +563,10 @@ export function StudioLayout({
           onSelectHousehold={(h) => {
             dismissAllFloatingCards();
             setSelectedHousehold(h);
-            const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-            const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+            const lat =
+              typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+            const lng =
+              typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
             if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
               setSearchedLocation({ lat, lng, zoom: 19, timestamp: Date.now() });
             }
@@ -659,9 +667,7 @@ export function StudioLayout({
             if (!territory?.id) return;
             try {
               const existingRoads = territory.annotations?.roads || [];
-              const updated = existingRoads.map((r) =>
-                r.id === roadId ? { ...r, points } : r
-              );
+              const updated = existingRoads.map((r) => (r.id === roadId ? { ...r, points } : r));
               await saveAnnotations({
                 ...territory.annotations,
                 roads: updated,
@@ -920,7 +926,10 @@ export function StudioLayout({
               <Badge variant="outline" className="text-[10px] capitalize font-semibold">
                 {selectedHousehold.status.replace(/_/g, ' ')}
               </Badge>
-              <Badge variant="outline" className="text-[10px] capitalize font-medium text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="text-[10px] capitalize font-medium text-muted-foreground"
+              >
                 {selectedHousehold.type}
               </Badge>
               {selectedHousehold.occupantsCount && selectedHousehold.occupantsCount > 1 && (
@@ -1034,7 +1043,9 @@ export function StudioLayout({
                 title="Delete Boundary Polygon"
                 onClick={async () => {
                   if (!territory?.id) return;
-                  if (window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)) {
+                  if (
+                    window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
+                  ) {
                     const existingBoundaries = getTerritoryBoundaries(territory);
                     const updated = existingBoundaries.filter((b) => b.id !== selectedBoundary.id);
                     await saveAnnotations({
@@ -1104,7 +1115,9 @@ export function StudioLayout({
                     )
                   ) {
                     const existingLandmarks = territory.annotations?.landmarks || [];
-                    const filtered = existingLandmarks.filter((lm) => lm.id !== selectedLandmark.id);
+                    const filtered = existingLandmarks.filter(
+                      (lm) => lm.id !== selectedLandmark.id
+                    );
                     await saveAnnotations({
                       ...territory.annotations,
                       landmarks: filtered,
@@ -1352,9 +1365,7 @@ export function StudioLayout({
         onSave={async (id, name) => {
           if (!territory?.id) return;
           const existingBoundaries = getTerritoryBoundaries(territory);
-          const updated = existingBoundaries.map((b) =>
-            b.id === id ? { ...b, name } : b
-          );
+          const updated = existingBoundaries.map((b) => (b.id === id ? { ...b, name } : b));
           await saveAnnotations({
             ...territory.annotations,
             boundaries: updated,

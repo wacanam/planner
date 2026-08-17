@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import AdminRequestsClient from './_components/AdminRequestsClient';
 
 export const metadata = {
-  title: 'Requests & Approvals Queue | Ministry Planner Admin',
+  title: 'Requests & Approvals Queue | Kanataran Admin',
   description: 'Review and approve account deletion and congregation leave requests',
 };
 

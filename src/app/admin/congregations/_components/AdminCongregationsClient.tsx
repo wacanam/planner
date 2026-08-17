@@ -246,7 +246,9 @@ export default function AdminCongregationsPage() {
             <Building2 size={40} className="text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm font-semibold text-foreground">No congregations found</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {search ? 'Try adjusting your search filter' : 'Click "Create Congregation" to add one'}
+              {search
+                ? 'Try adjusting your search filter'
+                : 'Click "Create Congregation" to add one'}
             </p>
           </div>
         ) : (
@@ -286,7 +288,12 @@ export default function AdminCongregationsPage() {
                             </span>
                           </span>
                         )}
-                        <span>Slug: <strong className="text-foreground/80 font-mono text-[10px]">{cong.slug}</strong></span>
+                        <span>
+                          Slug:{' '}
+                          <strong className="text-foreground/80 font-mono text-[10px]">
+                            {cong.slug}
+                          </strong>
+                        </span>
                         <span>Created: {new Date(cong.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
@@ -345,7 +352,7 @@ export default function AdminCongregationsPage() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           title="Create New Congregation"
-          description="Register a new congregation workspace on Ministry Planner."
+          description="Register a new congregation workspace on Kanataran."
         >
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
@@ -530,7 +537,8 @@ export default function AdminCongregationsPage() {
                 <span>Irreversible Action</span>
               </p>
               <p>
-                Deleting this congregation will permanently purge its territories, assignments, publisher membership records, service groups, and map records.
+                Deleting this congregation will permanently purge its territories, assignments,
+                publisher membership records, service groups, and map records.
               </p>
             </div>
 

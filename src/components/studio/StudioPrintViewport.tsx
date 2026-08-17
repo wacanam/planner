@@ -35,7 +35,12 @@ export interface StudioPrintViewportProps {
   territory: Territory | null;
   congregation?: Congregation | null;
   households: Household[];
-  onFitTerritoryToFrame: (padding: { top: number; right: number; bottom: number; left: number }) => void;
+  onFitTerritoryToFrame: (padding: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  }) => void;
   basemapMode?: BasemapMode;
   onChangeBasemapMode?: (mode: BasemapMode) => void;
 }
@@ -431,8 +436,12 @@ export function StudioPrintViewport({
               <span className="text-xs font-bold text-foreground whitespace-nowrap">
                 {territory ? `Territory #${territory.number}` : 'Territory'}
               </span>
-              <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5 whitespace-nowrap">
-                {effectiveW}″ × {effectiveH}″ ({effectiveOrientation === 'portrait' ? 'Port' : 'Land'})
+              <Badge
+                variant="outline"
+                className="text-[10px] font-semibold uppercase py-0 px-1.5 whitespace-nowrap"
+              >
+                {effectiveW}″ × {effectiveH}″ (
+                {effectiveOrientation === 'portrait' ? 'Port' : 'Land'})
               </Badge>
             </div>
           </div>
@@ -538,7 +547,9 @@ export function StudioPrintViewport({
               title={`Switch orientation (Current: ${effectiveOrientation})`}
             >
               <RotateCw size={12} className="text-primary" />
-              <span className="capitalize">{effectiveOrientation === 'portrait' ? 'Port' : 'Land'}</span>
+              <span className="capitalize">
+                {effectiveOrientation === 'portrait' ? 'Port' : 'Land'}
+              </span>
             </Button>
 
             {/* Fit Territory to Frame */}
@@ -709,7 +720,10 @@ export function StudioPrintViewport({
               </div>
               <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0 px-1.5">
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0 px-1.5"
+                  >
                     {territory?.city || congregation?.city || 'Local Area'}
                   </Badge>
                   <button
@@ -767,7 +781,9 @@ export function StudioPrintViewport({
                 <h2 className="text-xs sm:text-sm font-black text-slate-950 uppercase">
                   Territory #{territory?.number} Activity Record (S-13)
                 </h2>
-                <p className="text-[10px] font-semibold text-slate-600 truncate">{territory?.name || 'Assigned Territory'}</p>
+                <p className="text-[10px] font-semibold text-slate-600 truncate">
+                  {territory?.name || 'Assigned Territory'}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
@@ -794,7 +810,9 @@ export function StudioPrintViewport({
                 <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-600">
                   Publisher Working Record (S-13)
                 </p>
-                <span className="text-[8px] text-slate-500 font-medium">Record all coverage dates</span>
+                <span className="text-[8px] text-slate-500 font-medium">
+                  Record all coverage dates
+                </span>
               </div>
               <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[8.5px]">
                 <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1 px-2 border-b border-slate-300">
@@ -805,7 +823,10 @@ export function StudioPrintViewport({
                 </div>
                 <div className="flex-1 divide-y divide-slate-200 flex flex-col justify-around">
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
-                    <div key={row} className="grid grid-cols-12 py-1 px-2 text-slate-400 items-center">
+                    <div
+                      key={row}
+                      className="grid grid-cols-12 py-1 px-2 text-slate-400 items-center"
+                    >
                       <span className="col-span-3 font-mono">___/___/20__</span>
                       <span className="col-span-4">________________</span>
                       <span className="col-span-3 font-mono">___/___/20__</span>
@@ -909,7 +930,10 @@ export function StudioPrintViewport({
               </p>
             </div>
             <div className="text-right shrink-0">
-              <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0.5 px-1.5">
+              <Badge
+                variant="outline"
+                className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0.5 px-1.5"
+              >
                 {territory?.city || congregation?.city || 'Local Area'}
               </Badge>
               <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
@@ -955,7 +979,9 @@ export function StudioPrintViewport({
               <h2 className="text-base font-black text-slate-950 uppercase">
                 Territory #{territory?.number} Activity Record (S-13)
               </h2>
-              <p className="text-[11px] font-semibold text-slate-600">{territory?.name || 'Assigned Territory'}</p>
+              <p className="text-[11px] font-semibold text-slate-600">
+                {territory?.name || 'Assigned Territory'}
+              </p>
             </div>
             {cardSettings.showQrCode && (
               <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 p-1.5 rounded-md border border-slate-200">
@@ -971,7 +997,9 @@ export function StudioPrintViewport({
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
                 Publisher Working Record (S-13)
               </p>
-              <span className="text-[9px] text-slate-500 font-medium">Record all coverage dates</span>
+              <span className="text-[9px] text-slate-500 font-medium">
+                Record all coverage dates
+              </span>
             </div>
             <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[9.5px]">
               <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1.5 px-3 border-b border-slate-300">
@@ -982,7 +1010,10 @@ export function StudioPrintViewport({
               </div>
               <div className="flex-1 divide-y divide-slate-200 flex flex-col justify-around">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
-                  <div key={row} className="grid grid-cols-12 py-1.5 px-3 text-slate-400 items-center">
+                  <div
+                    key={row}
+                    className="grid grid-cols-12 py-1.5 px-3 text-slate-400 items-center"
+                  >
                     <span className="col-span-3 font-mono">___/___/20__</span>
                     <span className="col-span-4">________________</span>
                     <span className="col-span-3 font-mono">___/___/20__</span>

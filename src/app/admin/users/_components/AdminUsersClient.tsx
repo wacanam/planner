@@ -36,7 +36,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAdminUsers, useCongregations, useCurrentUser } from '@/hooks';
 import { isSystemAdmin } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
@@ -304,7 +310,10 @@ export default function AdminUsersClient() {
                             {u.name || 'Unnamed Publisher'}
                           </span>
                           {isMe && (
-                            <Badge variant="secondary" className="text-[9px] font-bold px-1.5 py-0 h-4">
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] font-bold px-1.5 py-0 h-4"
+                            >
                               You
                             </Badge>
                           )}
@@ -319,7 +328,10 @@ export default function AdminUsersClient() {
                             {isAdmin ? '🛡️ System Admin' : '👤 Publisher'}
                           </Badge>
                           {!u.isActive && (
-                            <Badge variant="destructive" className="text-[9px] font-bold px-1.5 py-0 h-4">
+                            <Badge
+                              variant="destructive"
+                              className="text-[9px] font-bold px-1.5 py-0 h-4"
+                            >
                               Deactivated
                             </Badge>
                           )}
@@ -428,7 +440,9 @@ export default function AdminUsersClient() {
           onOpenChange={(open) => {
             if (!open) setSelectedUser(null);
           }}
-          title={selectedUser?.id === currentUser?.id ? 'Your Administrator Role' : 'Manage User Role'}
+          title={
+            selectedUser?.id === currentUser?.id ? 'Your Administrator Role' : 'Manage User Role'
+          }
           description={`System permissions for ${selectedUser?.name || selectedUser?.email}.`}
         >
           <div className="space-y-4">
@@ -439,7 +453,8 @@ export default function AdminUsersClient() {
                   <span>Protected Administrator Account</span>
                 </p>
                 <p>
-                  You cannot change or downgrade your own system administrator role. Another system administrator must make this change if needed.
+                  You cannot change or downgrade your own system administrator role. Another system
+                  administrator must make this change if needed.
                 </p>
               </div>
             )}
@@ -475,11 +490,13 @@ export default function AdminUsersClient() {
               <p className="font-semibold text-foreground">Role Permissions:</p>
               {newRole === UserRole.ADMIN ? (
                 <p>
-                  System Admins can access the Global Admin Suite, manage all congregations, approve/reject requests, and promote other users.
+                  System Admins can access the Global Admin Suite, manage all congregations,
+                  approve/reject requests, and promote other users.
                 </p>
               ) : (
                 <p>
-                  Standard publishers only access assigned congregation workspaces and territories based on local congregation servant roles.
+                  Standard publishers only access assigned congregation workspaces and territories
+                  based on local congregation servant roles.
                 </p>
               )}
             </div>
@@ -520,14 +537,18 @@ export default function AdminUsersClient() {
           description={`Confirm account status change for ${statusTargetUser?.name}.`}
         >
           <div className="space-y-4">
-            <div className={`p-3 rounded-xl text-xs space-y-1 ${
-              statusTargetUser?.isActive
-                ? 'bg-destructive/10 border border-destructive/20 text-destructive'
-                : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300'
-            }`}>
+            <div
+              className={`p-3 rounded-xl text-xs space-y-1 ${
+                statusTargetUser?.isActive
+                  ? 'bg-destructive/10 border border-destructive/20 text-destructive'
+                  : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300'
+              }`}
+            >
               <p className="font-bold flex items-center gap-1.5">
                 <AlertTriangle size={14} className="shrink-0" />
-                <span>{statusTargetUser?.isActive ? 'Account Deactivation' : 'Account Reactivation'}</span>
+                <span>
+                  {statusTargetUser?.isActive ? 'Account Deactivation' : 'Account Reactivation'}
+                </span>
               </p>
               <p>
                 {statusTargetUser?.isActive
@@ -581,7 +602,8 @@ export default function AdminUsersClient() {
                 <span>Membership Removal</span>
               </p>
               <p>
-                This will unassign the user from their congregation, service groups, and group roles. The user account will remain active.
+                This will unassign the user from their congregation, service groups, and group
+                roles. The user account will remain active.
               </p>
             </div>
 
@@ -626,7 +648,8 @@ export default function AdminUsersClient() {
                 <span>Permanent Deletion</span>
               </p>
               <p>
-                This action will delete the Firestore user document and congregation membership entry.
+                This action will delete the Firestore user document and congregation membership
+                entry.
               </p>
             </div>
 

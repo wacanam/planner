@@ -64,10 +64,7 @@ export default function GroupsClient() {
   const [memberSearch, setMemberSearch] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const activeMembers = useMemo(
-    () => members.filter((m) => m.status === 'active'),
-    [members]
-  );
+  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members]);
 
   const activeMemberMap = useMemo(() => {
     return new Map(activeMembers.map((m) => [m.userId || m.id, m]));
@@ -103,9 +100,7 @@ export default function GroupsClient() {
     if (!memberSearch.trim()) return availableMembers;
     const q = memberSearch.toLowerCase();
     return availableMembers.filter(
-      (m) =>
-        m.user?.name?.toLowerCase().includes(q) ||
-        m.user?.email?.toLowerCase().includes(q)
+      (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [availableMembers, memberSearch]);
 
@@ -288,15 +283,24 @@ export default function GroupsClient() {
             <FolderOpen size={40} className="text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm font-semibold text-foreground">No service groups yet</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Create groups to organize field ministry arrangements, assign overseers, and assign publishers.
+              Create groups to organize field ministry arrangements, assign overseers, and assign
+              publishers.
             </p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((group) => {
               const groupMembersList = group.members || [];
-              const overseer = group.overseerName || groupMembersList.find((m) => m.userId === group.overseerId || m.role === 'group_overseer')?.user?.name;
-              const assistant = group.assistantOverseerName || groupMembersList.find((m) => m.userId === group.assistantOverseerId || m.role === 'assistant_overseer')?.user?.name;
+              const overseer =
+                group.overseerName ||
+                groupMembersList.find(
+                  (m) => m.userId === group.overseerId || m.role === 'group_overseer'
+                )?.user?.name;
+              const assistant =
+                group.assistantOverseerName ||
+                groupMembersList.find(
+                  (m) => m.userId === group.assistantOverseerId || m.role === 'assistant_overseer'
+                )?.user?.name;
 
               return (
                 <Card
@@ -310,9 +314,12 @@ export default function GroupsClient() {
                           <Users size={16} />
                         </div>
                         <div className="min-w-0">
-                          <h2 className="font-bold text-sm text-foreground truncate">{group.name}</h2>
+                          <h2 className="font-bold text-sm text-foreground truncate">
+                            {group.name}
+                          </h2>
                           <p className="text-[11px] text-muted-foreground font-medium">
-                            {groupMembersList.length} publisher{groupMembersList.length === 1 ? '' : 's'} assigned
+                            {groupMembersList.length} publisher
+                            {groupMembersList.length === 1 ? '' : 's'} assigned
                           </p>
                         </div>
                       </div>
@@ -345,7 +352,11 @@ export default function GroupsClient() {
                           <Crown size={12} className="text-amber-500" /> Overseer:
                         </span>
                         <span className="font-semibold text-foreground truncate text-[11px]">
-                          {overseer || <span className="text-muted-foreground font-normal italic">Unassigned</span>}
+                          {overseer || (
+                            <span className="text-muted-foreground font-normal italic">
+                              Unassigned
+                            </span>
+                          )}
                         </span>
                       </div>
                       {assistant && (
@@ -365,8 +376,11 @@ export default function GroupsClient() {
                       {groupMembersList.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {groupMembersList.slice(0, 5).map((gm) => {
-                            const isOverseer = gm.userId === group.overseerId || gm.role === 'group_overseer';
-                            const isAssistant = gm.userId === group.assistantOverseerId || gm.role === 'assistant_overseer';
+                            const isOverseer =
+                              gm.userId === group.overseerId || gm.role === 'group_overseer';
+                            const isAssistant =
+                              gm.userId === group.assistantOverseerId ||
+                              gm.role === 'assistant_overseer';
                             return (
                               <span
                                 key={gm.userId}
@@ -374,8 +388,8 @@ export default function GroupsClient() {
                                   isOverseer
                                     ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/30'
                                     : isAssistant
-                                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 font-bold border border-blue-500/30'
-                                    : 'bg-muted text-foreground'
+                                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 font-bold border border-blue-500/30'
+                                      : 'bg-muted text-foreground'
                                 }`}
                               >
                                 {isOverseer && <Crown size={9} />}
@@ -508,7 +522,10 @@ export default function GroupsClient() {
               </div>
 
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
                   placeholder="Search publishers…"
                   value={memberSearch}
@@ -519,10 +536,13 @@ export default function GroupsClient() {
 
               <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl border border-border p-1.5 bg-muted/20">
                 {membersLoading ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">Loading publishers…</p>
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    Loading publishers…
+                  </p>
                 ) : filteredMembers.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-3">
-                    No unassigned publishers available. All active members are already in service groups.
+                    No unassigned publishers available. All active members are already in service
+                    groups.
                   </p>
                 ) : (
                   filteredMembers.map((m) => {
@@ -559,7 +579,9 @@ export default function GroupsClient() {
                           {isSelected ? (
                             <div onClick={(e) => e.stopPropagation()}>
                               <Select
-                                value={isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'}
+                                value={
+                                  isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'
+                                }
                                 onValueChange={(val) => {
                                   if (val === 'overseer') {
                                     setOverseerId(uid);
@@ -578,8 +600,8 @@ export default function GroupsClient() {
                                     isOverseer
                                       ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
                                       : isAssistant
-                                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
-                                      : 'bg-muted/80 text-foreground border-border'
+                                        ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                        : 'bg-muted/80 text-foreground border-border'
                                   }`}
                                 >
                                   <SelectValue />
@@ -717,7 +739,10 @@ export default function GroupsClient() {
               </div>
 
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
                   placeholder="Search publishers…"
                   value={memberSearch}
@@ -728,7 +753,9 @@ export default function GroupsClient() {
 
               <div className="max-h-52 overflow-y-auto space-y-1 rounded-xl border border-border p-1.5 bg-muted/20">
                 {membersLoading ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">Loading publishers…</p>
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    Loading publishers…
+                  </p>
                 ) : filteredMembers.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-3">
                     No unassigned publishers available to add.
@@ -768,7 +795,9 @@ export default function GroupsClient() {
                           {isSelected ? (
                             <div onClick={(e) => e.stopPropagation()}>
                               <Select
-                                value={isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'}
+                                value={
+                                  isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'
+                                }
                                 onValueChange={(val) => {
                                   if (val === 'overseer') {
                                     setOverseerId(uid);
@@ -787,8 +816,8 @@ export default function GroupsClient() {
                                     isOverseer
                                       ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
                                       : isAssistant
-                                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
-                                      : 'bg-muted/80 text-foreground border-border'
+                                        ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                        : 'bg-muted/80 text-foreground border-border'
                                   }`}
                                 >
                                   <SelectValue />

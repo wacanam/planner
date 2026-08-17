@@ -61,10 +61,7 @@ export function useMyAccountRequests() {
     }
 
     setIsLoading(true);
-    const q = query(
-      requestsCollection(),
-      where('userId', '==', user.id)
-    );
+    const q = query(requestsCollection(), where('userId', '==', user.id));
 
     return onSnapshot(
       q,
@@ -182,10 +179,7 @@ export function useAdminAccountRequests() {
     );
   }, []);
 
-  const pendingRequests = useMemo(
-    () => requests.filter((r) => r.status === 'pending'),
-    [requests]
-  );
+  const pendingRequests = useMemo(() => requests.filter((r) => r.status === 'pending'), [requests]);
 
   const approveRequest = useCallback(
     async (requestId: string, reviewNote?: string) => {

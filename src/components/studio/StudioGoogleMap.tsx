@@ -3,7 +3,14 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Congregation, Household, MapBoundaryPolygon, MapLandmark, MapRoad, Territory } from '@/types/api';
+import type {
+  Congregation,
+  Household,
+  MapBoundaryPolygon,
+  MapLandmark,
+  MapRoad,
+  Territory,
+} from '@/types/api';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
@@ -27,7 +34,10 @@ interface StudioGoogleMapProps {
   onSelectRoad?: (road: MapRoad) => void;
   onUpdateRoadPoints?: (roadId: string, points: Array<{ lat: number; lng: number }>) => void;
   onSelectBoundary?: (boundary: MapBoundaryPolygon) => void;
-  onUpdateBoundaryPolygon?: (boundaryId: string, points: Array<{ lat: number; lng: number }>) => void;
+  onUpdateBoundaryPolygon?: (
+    boundaryId: string,
+    points: Array<{ lat: number; lng: number }>
+  ) => void;
   onUpdateBoundary?: (
     polygons: Array<Array<{ lat: number; lng: number }>> | Array<{ lat: number; lng: number }>
   ) => void;
@@ -49,7 +59,13 @@ interface StudioGoogleMapProps {
   selectedRoadId?: string | null;
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   userHeading?: number | null;
-  fitPrintViewportPadding?: { top: number; right: number; bottom: number; left: number; timestamp: number } | null;
+  fitPrintViewportPadding?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    timestamp: number;
+  } | null;
   isPrintViewportActive?: boolean;
 }
 
@@ -113,9 +129,10 @@ function configureGoogleMapsOnce(apiKey: string) {
   }
 }
 
-function computeCentroidFromPolygons(
-  polygons: Array<Array<{ lat: number; lng: number }>>
-): { lat: number; lng: number } {
+function computeCentroidFromPolygons(polygons: Array<Array<{ lat: number; lng: number }>>): {
+  lat: number;
+  lng: number;
+} {
   if (polygons.length === 0) return HARDCODED_FALLBACK_CENTER;
   let latSum = 0;
   let lngSum = 0;
@@ -625,8 +642,10 @@ export function StudioGoogleMap({
 
     if (!hasValidPoints && households.length > 0) {
       households.forEach((h) => {
-        const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-        const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+        const lat =
+          typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+        const lng =
+          typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
         if (!Number.isNaN(lat) && !Number.isNaN(lng) && lat !== 0 && lng !== 0) {
           bounds.extend({ lat, lng });
           hasValidPoints = true;
@@ -817,7 +836,7 @@ export function StudioGoogleMap({
       const eased = easeOutCubic(progress);
 
       const currentTilt = startTilt + tiltDiff * eased;
-      const currentHeading = ((startHeading + headingDiff * eased) % 360 + 360) % 360;
+      const currentHeading = (((startHeading + headingDiff * eased) % 360) + 360) % 360;
 
       if (typeof map.moveCamera === 'function') {
         isProgrammaticCameraUpdateRef.current = true;
@@ -888,7 +907,8 @@ export function StudioGoogleMap({
     }
 
     const boundaries = getTerritoryBoundaries(territory);
-    const isEditable = !isPrintViewportActive && (activeTool === 'pointer' || activeTool === 'boundary');
+    const isEditable =
+      !isPrintViewportActive && (activeTool === 'pointer' || activeTool === 'boundary');
     const effectiveDisplay = resolveBoundaryDisplay(boundaryDisplay);
 
     // Render outside dimming mask with cutouts for territory boundaries
@@ -1065,8 +1085,10 @@ export function StudioGoogleMap({
     });
 
     filteredHouseholds.forEach((h) => {
-      const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-      const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+      const lat =
+        typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+      const lng =
+        typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
       if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
 
       const pinColor = getStatusColor(h.status);
@@ -1107,7 +1129,9 @@ export function StudioGoogleMap({
       pinCircle.style.alignItems = 'center';
       pinCircle.style.justifyContent = 'center';
       pinCircle.style.border = '2px solid #FFFFFF';
-      pinCircle.style.boxShadow = isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none';
+      pinCircle.style.boxShadow = isSelected
+        ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
+        : 'none';
       pinCircle.style.color = '#FFFFFF';
       pinCircle.style.zIndex = '2';
       pinCircle.style.boxSizing = 'border-box';
@@ -1183,8 +1207,14 @@ export function StudioGoogleMap({
         if (isPrintViewportActiveRef.current) return;
         const newPos = marker.position;
         if (newPos) {
-          const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
-          const newLng = typeof newPos.lng === 'function' ? (newPos.lng as unknown as () => number)() : Number(newPos.lng);
+          const newLat =
+            typeof newPos.lat === 'function'
+              ? (newPos.lat as unknown as () => number)()
+              : Number(newPos.lat);
+          const newLng =
+            typeof newPos.lng === 'function'
+              ? (newPos.lng as unknown as () => number)()
+              : Number(newPos.lng);
           if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
             handleMoveHouseholdRef.current?.(h.id, newLat, newLng);
           }
@@ -1201,7 +1231,15 @@ export function StudioGoogleMap({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool, isPrintViewportActive]);
+  }, [
+    mapReady,
+    householdsKey,
+    layerSettings.showHouses,
+    layerSettings.showHouseLabels,
+    layerSettings.householdFilter,
+    activeTool,
+    isPrintViewportActive,
+  ]);
 
   // 6b. Zero-Flicker Household Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
@@ -1579,7 +1617,11 @@ export function StudioGoogleMap({
     }
 
     // 8b. Landmarks (Teardrop POI Pins with Tip Anchor & Adjacent Label)
-    if (layerSettings.showLandmarks !== false && annotations.landmarks && annotations.landmarks.length > 0) {
+    if (
+      layerSettings.showLandmarks !== false &&
+      annotations.landmarks &&
+      annotations.landmarks.length > 0
+    ) {
       annotations.landmarks.forEach((landmark) => {
         if (typeof landmark.lat !== 'number' || typeof landmark.lng !== 'number') return;
 
@@ -1590,7 +1632,11 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+        wrapper.style.cursor = isPointerMode
+          ? 'grab'
+          : isPrintViewportActive
+            ? 'default'
+            : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = landmark.label || 'Landmark';
 
@@ -1621,7 +1667,9 @@ export function StudioGoogleMap({
         pinCircle.style.alignItems = 'center';
         pinCircle.style.justifyContent = 'center';
         pinCircle.style.border = '2px solid #FFFFFF';
-        pinCircle.style.boxShadow = isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none';
+        pinCircle.style.boxShadow = isSelected
+          ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
+          : 'none';
         pinCircle.style.color = '#FFFFFF';
         pinCircle.style.zIndex = '2';
         pinCircle.style.boxSizing = 'border-box';
@@ -1688,8 +1736,14 @@ export function StudioGoogleMap({
           if (isPrintViewportActiveRef.current) return;
           const newPos = marker.position;
           if (newPos) {
-            const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
-            const newLng = typeof newPos.lng === 'function' ? (newPos.lng as unknown as () => number)() : Number(newPos.lng);
+            const newLat =
+              typeof newPos.lat === 'function'
+                ? (newPos.lat as unknown as () => number)()
+                : Number(newPos.lat);
+            const newLng =
+              typeof newPos.lng === 'function'
+                ? (newPos.lng as unknown as () => number)()
+                : Number(newPos.lng);
             if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
               handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng);
             }
@@ -1716,7 +1770,11 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+        wrapper.style.cursor = isPointerMode
+          ? 'grab'
+          : isPrintViewportActive
+            ? 'default'
+            : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 
@@ -1786,8 +1844,14 @@ export function StudioGoogleMap({
           if (isPrintViewportActiveRef.current) return;
           const newPos = marker.position;
           if (newPos) {
-            const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
-            const newLng = typeof newPos.lng === 'function' ? (newPos.lng as unknown as () => number)() : Number(newPos.lng);
+            const newLat =
+              typeof newPos.lat === 'function'
+                ? (newPos.lat as unknown as () => number)()
+                : Number(newPos.lat);
+            const newLng =
+              typeof newPos.lng === 'function'
+                ? (newPos.lng as unknown as () => number)()
+                : Number(newPos.lng);
             if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
               handleMoveStartFlagRef.current?.(newLat, newLng);
             }
@@ -1798,7 +1862,15 @@ export function StudioGoogleMap({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool, isPrintViewportActive]);
+  }, [
+    mapReady,
+    roadsAndLandmarksKey,
+    layerSettings.showRoads,
+    layerSettings.showLandmarks,
+    layerSettings.showStartFlag,
+    activeTool,
+    isPrintViewportActive,
+  ]);
 
   // 8b. Zero-Flicker Landmark & Road Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
@@ -1935,7 +2007,14 @@ export function StudioGoogleMap({
     });
 
     userLocationMarkerRef.current = marker;
-  }, [mapReady, userLocation?.lat, userLocation?.lng, userLocation?.accuracy, userHeading, layerSettings.showUserLocation]);
+  }, [
+    mapReady,
+    userLocation?.lat,
+    userLocation?.lng,
+    userLocation?.accuracy,
+    userHeading,
+    layerSettings.showUserLocation,
+  ]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">

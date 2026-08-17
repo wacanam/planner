@@ -85,18 +85,14 @@ export function HouseholdLogVisitSheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Log Visit Record"
-      description={
-        household ? `${household.address} (${household.city})` : 'Record visit details'
-      }
+      description={household ? `${household.address} (${household.city})` : 'Record visit details'}
     >
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1">
           <Label className="text-xs font-semibold">Visit Outcome *</Label>
           <Select
             value={form.watch('outcome')}
-            onValueChange={(val) =>
-              form.setValue('outcome', val as LogVisitFormData['outcome'])
-            }
+            onValueChange={(val) => form.setValue('outcome', val as LogVisitFormData['outcome'])}
           >
             <SelectTrigger className="h-9 rounded-xl text-xs">
               <SelectValue placeholder="Outcome" />
@@ -117,9 +113,7 @@ export function HouseholdLogVisitSheet({
             <Label className="text-xs font-semibold">Update Household Status</Label>
             <Select
               value={form.watch('status')}
-              onValueChange={(val) =>
-                form.setValue('status', val as LogVisitFormData['status'])
-              }
+              onValueChange={(val) => form.setValue('status', val as LogVisitFormData['status'])}
             >
               <SelectTrigger className="h-9 rounded-xl text-xs">
                 <SelectValue placeholder="Status" />
@@ -181,11 +175,7 @@ export function HouseholdLogVisitSheet({
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            className="rounded-xl text-xs font-semibold"
-            disabled={submitting}
-          >
+          <Button type="submit" className="rounded-xl text-xs font-semibold" disabled={submitting}>
             {submitting ? 'Saving…' : 'Save Visit Record'}
           </Button>
         </div>
@@ -236,9 +226,7 @@ export function HouseholdEncounterSheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Record Person Encounter"
-      description={
-        household ? `${household.address} (${household.city})` : 'Conversation details'
-      }
+      description={household ? `${household.address} (${household.city})` : 'Conversation details'}
     >
       <AddEncounterForm
         defaultHouseholdId={household?.id}

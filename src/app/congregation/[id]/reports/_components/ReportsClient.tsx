@@ -84,7 +84,8 @@ export default function ReportsClient() {
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
   const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId);
   const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId);
-  const { data: publishersData, isLoading: publishersLoading } = usePublishersReport(congregationId);
+  const { data: publishersData, isLoading: publishersLoading } =
+    usePublishersReport(congregationId);
   const { data: doorData, isLoading: doorLoading } = useDoorAnalyticsReport(congregationId);
   const { data: activityData, isLoading: activityLoading } = useActivityReport(congregationId);
 
@@ -150,12 +151,16 @@ export default function ReportsClient() {
               <h1 className="text-2xl font-bold text-foreground tracking-tight">
                 Congregation Reports & Analytics
               </h1>
-              <Badge variant="outline" className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/20">
+              <Badge
+                variant="outline"
+                className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/20"
+              >
                 Live Data
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Executive ministry intelligence, official S-13 territory records, and publisher activity
+              Executive ministry intelligence, official S-13 territory records, and publisher
+              activity
             </p>
           </div>
 
@@ -223,14 +228,18 @@ export default function ReportsClient() {
                   <span>Export S-13 Record (CSV)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportCoverageToCSV(coverageData?.territories || [], congregationName)}
+                  onClick={() =>
+                    exportCoverageToCSV(coverageData?.territories || [], congregationName)
+                  }
                   className="cursor-pointer gap-2 py-2"
                 >
                   <BarChart2 size={14} className="text-primary" />
                   <span>Export Coverage Data (CSV)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportPublishersToCSV(publishersData?.publishers || [], congregationName)}
+                  onClick={() =>
+                    exportPublishersToCSV(publishersData?.publishers || [], congregationName)
+                  }
                   className="cursor-pointer gap-2 py-2"
                 >
                   <Users size={14} className="text-primary" />
@@ -313,11 +322,10 @@ export default function ReportsClient() {
               </div>
               <div className="flex items-baseline justify-between">
                 <p className="text-2xl font-black text-foreground">
-                  {coverageData?.avgTurnaroundDays ?? 45} <span className="text-sm font-normal text-muted-foreground">days</span>
+                  {coverageData?.avgTurnaroundDays ?? 45}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">days</span>
                 </p>
-                <span className="text-xs text-muted-foreground font-medium">
-                  per territory
-                </span>
+                <span className="text-xs text-muted-foreground font-medium">per territory</span>
               </div>
               <p className="text-[10px] text-muted-foreground">
                 Target cycle: ~60–90 days rotation
@@ -474,7 +482,9 @@ export default function ReportsClient() {
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Available</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                      Available
+                    </p>
                     <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
                       {coverageData?.byStatus.available ?? 0}
                     </p>
@@ -489,7 +499,9 @@ export default function ReportsClient() {
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Assigned</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                      Assigned
+                    </p>
                     <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
                       {coverageData?.byStatus.assigned ?? 0}
                     </p>
@@ -504,7 +516,9 @@ export default function ReportsClient() {
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Completed</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                      Completed
+                    </p>
                     <p className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">
                       {coverageData?.byStatus.completed ?? 0}
                     </p>
@@ -519,7 +533,9 @@ export default function ReportsClient() {
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Stale / Overdue</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                      Stale / Overdue
+                    </p>
                     <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
                       {coverageData?.byHealth.stale ?? 0}
                     </p>
@@ -547,7 +563,10 @@ export default function ReportsClient() {
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
-                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Search
+                      size={13}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
                     <Input
                       placeholder="Search territories or assignees…"
                       value={searchQuery}
@@ -592,10 +611,10 @@ export default function ReportsClient() {
                         t.healthStatus === 'fresh'
                           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                           : t.healthStatus === 'active'
-                          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
-                          : t.healthStatus === 'dormant'
-                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
-                          : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30';
+                            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                            : t.healthStatus === 'dormant'
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                              : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30';
 
                       return (
                         <div
@@ -604,12 +623,21 @@ export default function ReportsClient() {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-extrabold text-xs text-primary">#{t.number}</span>
-                              <span className="font-bold text-xs text-foreground truncate">{t.name}</span>
-                              <Badge variant="outline" className="text-[10px] uppercase font-semibold">
+                              <span className="font-extrabold text-xs text-primary">
+                                #{t.number}
+                              </span>
+                              <span className="font-bold text-xs text-foreground truncate">
+                                {t.name}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] uppercase font-semibold"
+                              >
                                 {t.status}
                               </Badge>
-                              <Badge className={`text-[9px] font-bold uppercase ${healthBadgeColor}`}>
+                              <Badge
+                                className={`text-[9px] font-bold uppercase ${healthBadgeColor}`}
+                              >
                                 {t.healthStatus}
                               </Badge>
                             </div>
@@ -636,7 +664,8 @@ export default function ReportsClient() {
                             <div className="flex items-center gap-2">
                               {t.publisherName && (
                                 <span className="flex items-center gap-1 font-medium text-foreground">
-                                  <Users size={11} className="text-primary" /> Assigned to {t.publisherName}
+                                  <Users size={11} className="text-primary" /> Assigned to{' '}
+                                  {t.publisherName}
                                 </span>
                               )}
                               {t.groupName && (
@@ -685,7 +714,10 @@ export default function ReportsClient() {
               {/* S-13 Search & Filter Controls */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Search
+                    size={13}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <Input
                     placeholder="Search S-13 records…"
                     value={searchQuery}
@@ -730,7 +762,9 @@ export default function ReportsClient() {
               {filteredS13.length === 0 ? (
                 <div className="text-center py-12 space-y-2">
                   <FileSpreadsheet size={36} className="text-muted-foreground/40 mx-auto" />
-                  <p className="text-sm font-semibold text-foreground">No assignment records found</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    No assignment records found
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Assignments and completions will automatically populate the S-13 record.
                   </p>
@@ -755,17 +789,24 @@ export default function ReportsClient() {
                         return (
                           <tr key={rec.id} className="hover:bg-muted/20 transition-colors">
                             <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
-                              <span className="text-primary font-bold mr-1">#{rec.territoryNumber}</span>
+                              <span className="text-primary font-bold mr-1">
+                                #{rec.territoryNumber}
+                              </span>
                               <span>{rec.territoryName}</span>
                             </td>
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 {rec.isGroupAssignment ? (
-                                  <Badge variant="outline" className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
+                                  >
                                     👥 {rec.groupName || rec.assigneeName}
                                   </Badge>
                                 ) : (
-                                  <span className="font-medium text-foreground">{rec.assigneeName}</span>
+                                  <span className="font-medium text-foreground">
+                                    {rec.assigneeName}
+                                  </span>
                                 )}
                               </div>
                             </td>
@@ -833,7 +874,9 @@ export default function ReportsClient() {
               </div>
 
               {groupsData.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No service groups created yet.</p>
+                <p className="text-xs text-muted-foreground italic">
+                  No service groups created yet.
+                </p>
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groupsData.map((g) => (
@@ -899,14 +942,19 @@ export default function ReportsClient() {
             <Card className="bg-card border-border shadow-xs">
               <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base font-bold">Publishers Activity Leaderboard</CardTitle>
+                  <CardTitle className="text-base font-bold">
+                    Publishers Activity Leaderboard
+                  </CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Active territory assignments, completions, and field ministry visits logged
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
-                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Search
+                      size={13}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
                     <Input
                       placeholder="Search publishers…"
                       value={searchQuery}
@@ -917,7 +965,9 @@ export default function ReportsClient() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => exportPublishersToCSV(publishersData?.publishers || [], congregationName)}
+                    onClick={() =>
+                      exportPublishersToCSV(publishersData?.publishers || [], congregationName)
+                    }
                     className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
                   >
                     <Download size={12} />
@@ -982,7 +1032,9 @@ export default function ReportsClient() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Doors Mapped</p>
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Total Doors Mapped
+                  </p>
                   <p className="text-2xl font-black text-foreground">{doorData?.totalDoors ?? 0}</p>
                   <p className="text-[10px] text-muted-foreground">in territory boundaries</p>
                 </CardContent>
@@ -990,17 +1042,24 @@ export default function ReportsClient() {
 
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Doors Visited</p>
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Doors Visited
+                  </p>
                   <p className="text-2xl font-black text-primary">{doorData?.workedDoors ?? 0}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {Math.round(((doorData?.workedDoors ?? 0) / Math.max(1, doorData?.totalDoors ?? 1)) * 100)}% contact rate
+                    {Math.round(
+                      ((doorData?.workedDoors ?? 0) / Math.max(1, doorData?.totalDoors ?? 1)) * 100
+                    )}
+                    % contact rate
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Return Visits Pipeline</p>
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Return Visits Pipeline
+                  </p>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
                     {doorData?.returnVisitsCount ?? 0}
                   </p>
@@ -1010,7 +1069,9 @@ export default function ReportsClient() {
 
               <Card className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">Do Not Call (DNC)</p>
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Do Not Call (DNC)
+                  </p>
                   <p className="text-2xl font-black text-rose-600 dark:text-rose-400">
                     {doorData?.doNotCallCount ?? 0}
                   </p>
@@ -1029,7 +1090,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp; Discussed
+                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp;
+                        Discussed
                       </span>
                       <span>{doorData?.outcomeCounts.contacted ?? 0}</span>
                     </div>
@@ -1105,7 +1167,10 @@ export default function ReportsClient() {
                   {doorData?.topStreets && doorData.topStreets.length > 0 ? (
                     <div className="space-y-2.5 text-xs">
                       {doorData.topStreets.map((st) => (
-                        <div key={st.streetName} className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/50">
+                        <div
+                          key={st.streetName}
+                          className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/50"
+                        >
                           <span className="font-medium text-foreground truncate max-w-[200px]">
                             {st.streetName}
                           </span>
@@ -1152,14 +1217,18 @@ export default function ReportsClient() {
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-foreground truncate">
-                            #{act.territoryNumber} {act.territoryName} assigned to {act.publisherName}
+                            #{act.territoryNumber} {act.territoryName} assigned to{' '}
+                            {act.publisherName}
                           </p>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             {act.assignedAt ? new Date(act.assignedAt).toLocaleString() : 'Recent'}
                           </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-[9px] font-semibold text-primary shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] font-semibold text-primary shrink-0"
+                      >
                         Assigned
                       </Badge>
                     </div>
@@ -1178,4 +1247,3 @@ export default function ReportsClient() {
     </ProtectedPage>
   );
 }
-

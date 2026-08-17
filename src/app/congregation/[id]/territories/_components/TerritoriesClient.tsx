@@ -52,7 +52,8 @@ import type { Household, Territory } from '@/types/api';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
-  available: 'text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400',
+  available:
+    'text-emerald-700 border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400',
   assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   pending: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   overdue: 'text-rose-700 border-rose-200 bg-rose-50 dark:bg-rose-950/40 dark:text-rose-400',
@@ -79,7 +80,10 @@ export default function TerritoriesClient() {
   const { revoke: revokeTerritory, isPending: revokingTerritory } = useRevokeTerritory();
 
   const coverageByTerritoryId = useMemo(() => {
-    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const map = new Map<
+      string,
+      { totalDoors: number; workedDoors: number; coveragePercent: number }
+    >();
     const byTerritory = new Map<string, Household[]>();
     for (const h of households) {
       if (h.territoryId) {
@@ -349,7 +353,9 @@ export default function TerritoriesClient() {
                         Coverage
                       </p>
                       <p className="font-bold text-foreground">
-                        {coverageByTerritoryId.get(t.id)?.coveragePercent ?? Math.round(parseFloat(t.coveragePercent || '0'))}%
+                        {coverageByTerritoryId.get(t.id)?.coveragePercent ??
+                          Math.round(parseFloat(t.coveragePercent || '0'))}
+                        %
                       </p>
                     </div>
                   </div>
@@ -361,14 +367,18 @@ export default function TerritoriesClient() {
                         <div className="flex items-center gap-1.5">
                           <Users size={12} className="text-primary shrink-0" />
                           <span className="truncate">
-                            Group: <strong className="text-foreground font-semibold">{t.groupName}</strong>
+                            Group:{' '}
+                            <strong className="text-foreground font-semibold">{t.groupName}</strong>
                           </span>
                         </div>
                       ) : t.publisherName ? (
                         <div className="flex items-center gap-1.5">
                           <User size={12} className="text-primary shrink-0" />
                           <span className="truncate">
-                            Publisher: <strong className="text-foreground font-semibold">{t.publisherName}</strong>
+                            Publisher:{' '}
+                            <strong className="text-foreground font-semibold">
+                              {t.publisherName}
+                            </strong>
                           </span>
                         </div>
                       ) : null}
@@ -612,7 +622,8 @@ export default function TerritoriesClient() {
         >
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              These coordinates will be used as the default starting center in Territory Studio for territories without drawn boundary coordinates.
+              These coordinates will be used as the default starting center in Territory Studio for
+              territories without drawn boundary coordinates.
             </p>
 
             <div className="grid grid-cols-2 gap-3">

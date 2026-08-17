@@ -340,7 +340,8 @@ export async function sendUserPasswordResetEmail(email: string) {
 
   const auth = getPlannerAuth();
   try {
-    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : null;
+    const origin =
+      typeof window !== 'undefined' && window.location.origin ? window.location.origin : null;
     if (origin) {
       try {
         await sendPasswordResetEmail(auth, normalized, {
@@ -394,7 +395,11 @@ export async function updateUserProfile(input: { name?: string; avatarUrl?: stri
 
   // Sync to congregationMembers collection if a member document exists
   try {
-    const memberRef = doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, firebaseUser.uid);
+    const memberRef = doc(
+      getPlannerFirestore(),
+      FIRESTORE_COLLECTIONS.congregationMembers,
+      firebaseUser.uid
+    );
     const memberSnap = await getDoc(memberRef);
     if (memberSnap.exists()) {
       const existingUser = memberSnap.data().user || {};

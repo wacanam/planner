@@ -275,7 +275,15 @@ export function StudioCameraControls({
           </div>
 
           <p className="text-[10px] text-muted-foreground/80 leading-tight pt-1 border-t border-border/50">
-            💡 Tip: You can also hold <kbd className="px-1 py-0.5 rounded bg-muted text-foreground font-mono text-[9px]">Right-Click</kbd> or <kbd className="px-1 py-0.5 rounded bg-muted text-foreground font-mono text-[9px]">Ctrl</kbd> + drag on the map.
+            💡 Tip: You can also hold{' '}
+            <kbd className="px-1 py-0.5 rounded bg-muted text-foreground font-mono text-[9px]">
+              Right-Click
+            </kbd>{' '}
+            or{' '}
+            <kbd className="px-1 py-0.5 rounded bg-muted text-foreground font-mono text-[9px]">
+              Ctrl
+            </kbd>{' '}
+            + drag on the map.
           </p>
         </PopoverContent>
       </Popover>

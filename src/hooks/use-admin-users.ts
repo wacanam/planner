@@ -54,9 +54,7 @@ export function useAdminUsers() {
       usersCollection(),
       { includeMetadataChanges: true },
       (snapshot) => {
-        const list = snapshot.docs.map((d) =>
-          userFromData(d.id, d.data() as Partial<User>)
-        );
+        const list = snapshot.docs.map((d) => userFromData(d.id, d.data() as Partial<User>));
         list.sort((a, b) => a.name.localeCompare(b.name));
         setUsers(list);
         setError(null);
@@ -69,31 +67,34 @@ export function useAdminUsers() {
     );
   }, []);
 
-  const updateUserRole = useCallback(async (userId: string, newRole: string, currentUserId?: string) => {
-    if (currentUserId && userId === currentUserId && !isSystemAdmin(newRole)) {
-      throw new Error('Administrators cannot downgrade their own role.');
-    }
-    setIsProcessing(true);
-    try {
-      const db = getPlannerFirestore();
-      await updateDoc(userDocument(userId), {
-        role: newRole,
-        updatedAt: nowIso(),
-      });
-
-      // If user has a congregation member record, sync system role if applicable
-      const memberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, userId);
-      const memberSnap = await getDoc(memberRef);
-      if (memberSnap.exists()) {
-        await updateDoc(memberRef, {
+  const updateUserRole = useCallback(
+    async (userId: string, newRole: string, currentUserId?: string) => {
+      if (currentUserId && userId === currentUserId && !isSystemAdmin(newRole)) {
+        throw new Error('Administrators cannot downgrade their own role.');
+      }
+      setIsProcessing(true);
+      try {
+        const db = getPlannerFirestore();
+        await updateDoc(userDocument(userId), {
           role: newRole,
           updatedAt: nowIso(),
-        }).catch(() => undefined);
+        });
+
+        // If user has a congregation member record, sync system role if applicable
+        const memberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, userId);
+        const memberSnap = await getDoc(memberRef);
+        if (memberSnap.exists()) {
+          await updateDoc(memberRef, {
+            role: newRole,
+            updatedAt: nowIso(),
+          }).catch(() => undefined);
+        }
+      } finally {
+        setIsProcessing(false);
       }
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const toggleUserStatus = useCallback(async (userId: string, isActive: boolean) => {
     setIsProcessing(true);
@@ -117,38 +118,41 @@ export function useAdminUsers() {
     }
   }, []);
 
-  const unlinkUserCongregation = useCallback(async (userId: string, congregationId?: string | null) => {
-    setIsProcessing(true);
-    try {
-      const db = getPlannerFirestore();
-      await updateDoc(userDocument(userId), {
-        congregationId: null,
-        groupId: null,
-        updatedAt: nowIso(),
-      });
+  const unlinkUserCongregation = useCallback(
+    async (userId: string, congregationId?: string | null) => {
+      setIsProcessing(true);
+      try {
+        const db = getPlannerFirestore();
+        await updateDoc(userDocument(userId), {
+          congregationId: null,
+          groupId: null,
+          updatedAt: nowIso(),
+        });
 
-      const memberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, userId);
-      await deleteDoc(memberRef).catch(() => undefined);
+        const memberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, userId);
+        await deleteDoc(memberRef).catch(() => undefined);
 
-      if (congregationId) {
-        const groupsSnap = await getDocs(
-          query(
-            collection(db, FIRESTORE_COLLECTIONS.groups),
-            where('congregationId', '==', congregationId)
-          )
-        );
-        for (const gDoc of groupsSnap.docs) {
-          const gData = gDoc.data();
-          const members = (gData.members || []).filter(
-            (m: any) => m.userId !== userId && m.id !== userId
+        if (congregationId) {
+          const groupsSnap = await getDocs(
+            query(
+              collection(db, FIRESTORE_COLLECTIONS.groups),
+              where('congregationId', '==', congregationId)
+            )
           );
-          await updateDoc(gDoc.ref, { members }).catch(() => undefined);
+          for (const gDoc of groupsSnap.docs) {
+            const gData = gDoc.data();
+            const members = (gData.members || []).filter(
+              (m: any) => m.userId !== userId && m.id !== userId
+            );
+            await updateDoc(gDoc.ref, { members }).catch(() => undefined);
+          }
         }
+      } finally {
+        setIsProcessing(false);
       }
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const deleteUserRecord = useCallback(async (userId: string) => {
     setIsProcessing(true);

@@ -42,7 +42,8 @@ export function useUserLocation() {
   const handleDeviceOrientation = useCallback(
     (event: DeviceOrientationEvent) => {
       // 1. iOS Safari compass heading (0-360 degrees clockwise from magnetic North)
-      const iosHeading = (event as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
+      const iosHeading = (event as unknown as { webkitCompassHeading?: number })
+        .webkitCompassHeading;
       if (typeof iosHeading === 'number' && !Number.isNaN(iosHeading)) {
         updateHeading(iosHeading);
         return;
@@ -92,7 +93,11 @@ export function useUserLocation() {
     }
 
     // 2. Listen for compass / orientation events
-    window.addEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+    window.addEventListener(
+      'deviceorientationabsolute',
+      handleDeviceOrientation as EventListener,
+      true
+    );
     window.addEventListener('deviceorientation', handleDeviceOrientation, true);
 
     // 3. Start Geolocation Watcher
@@ -135,7 +140,11 @@ export function useUserLocation() {
       watchIdRef.current = null;
     }
     if (typeof window !== 'undefined') {
-      window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+      window.removeEventListener(
+        'deviceorientationabsolute',
+        handleDeviceOrientation as EventListener,
+        true
+      );
       window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
     }
     setIsTracking(false);
@@ -160,7 +169,11 @@ export function useUserLocation() {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       if (typeof window !== 'undefined') {
-        window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+        window.removeEventListener(
+          'deviceorientationabsolute',
+          handleDeviceOrientation as EventListener,
+          true
+        );
         window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
       }
     };

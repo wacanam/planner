@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import AdminUsersClient from './_components/AdminUsersClient';
 
 export const metadata = {
-  title: 'Users & Roles | Ministry Planner Admin',
+  title: 'Users & Roles | Kanataran Admin',
   description: 'Manage global users, permissions, and system administrator roles',
 };
 

@@ -204,7 +204,9 @@ export default function MembersClient() {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">{m.user?.email}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {m.user?.email}
+                            </p>
                           </div>
                         </div>
 

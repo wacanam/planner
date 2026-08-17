@@ -2,8 +2,8 @@ import { Suspense } from 'react';
 import ResetPasswordClient from './_components/ResetPasswordClient';
 
 export const metadata = {
-  title: 'Reset Password | Ministry Planner',
-  description: 'Set a new password for your Ministry Planner account',
+  title: 'Reset Password | Kanataran',
+  description: 'Set a new password for your Kanataran account',
 };
 
 export default function ResetPasswordPage() {

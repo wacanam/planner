@@ -1,6 +1,6 @@
-# Ministry Planner
+# Kanataran
 
-Ministry Planner is a mobile-first, offline-first web app for congregation territory assignments, household records, visits, and encounters. The MVP uses Firebase Firestore persistence.
+Kanataran is a mobile-first, offline-first web app for congregation territory assignments, household records, visits, and encounters. The MVP uses Firebase Firestore persistence.
 
 ## Tech Stack
 

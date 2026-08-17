@@ -354,7 +354,7 @@ export default function RegisterPage() {
 
       {/* Footer copyright */}
       <div className="py-2 text-center text-[11px] text-muted-foreground">
-        © {new Date().getFullYear()} Ministry Planner
+        © {new Date().getFullYear()} Kanataran
       </div>
     </div>
   );

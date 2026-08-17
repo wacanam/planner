@@ -12,6 +12,7 @@ import {
   User,
   Users,
 } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -28,7 +29,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCongregation, useCurrentUser, usePendingEndorsements } from '@/hooks';
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
-import { canViewReports, isServiceOverseer, isSystemAdmin, isTerritoryServant } from '@/lib/permissions';
+import {
+  canViewReports,
+  isServiceOverseer,
+  isSystemAdmin,
+  isTerritoryServant,
+} from '@/lib/permissions';
 
 export function DashboardHeader() {
   const pathname = usePathname();
@@ -102,12 +108,17 @@ export function DashboardHeader() {
           {/* Brand Logo & Congregation */}
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0 flex-1">
             <Link href={homeHref} className="flex items-center gap-2.5 shrink-0 group">
-              <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors shrink-0">
-                <MapPin size={16} className="text-primary" />
-              </div>
+              <Image
+                src="/icons/icon-192.png"
+                alt="Kanataran Logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-xl object-contain shadow-xs transition-transform group-hover:scale-105 shrink-0"
+                priority
+              />
               <div className="flex flex-col min-w-0">
                 <span className="font-bold text-sm text-foreground tracking-tight leading-tight group-hover:text-primary transition-colors whitespace-nowrap">
-                  Ministry Planner
+                  Kanataran
                 </span>
                 {congregation && (
                   <span className="text-[11px] font-medium text-muted-foreground truncate leading-tight flex items-center gap-1 mt-0.5 max-w-[130px] sm:max-w-[180px]">

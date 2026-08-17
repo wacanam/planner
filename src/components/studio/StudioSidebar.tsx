@@ -140,11 +140,15 @@ export function StudioSidebar({
             <div className="grid grid-cols-2 gap-2 shrink-0">
               <div className="p-3 rounded-xl border border-border bg-background">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Doors</p>
-                <p className="text-xl font-bold text-foreground mt-0.5">{coverageStats.totalDoors}</p>
+                <p className="text-xl font-bold text-foreground mt-0.5">
+                  {coverageStats.totalDoors}
+                </p>
                 <p className="text-[10px] text-muted-foreground">pinned & offline</p>
               </div>
               <div className="p-3 rounded-xl border border-border bg-background">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Live Coverage</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                  Live Coverage
+                </p>
                 <p className="text-xl font-bold text-primary mt-0.5">
                   {coverageStats.coveragePercent}%
                 </p>
@@ -194,11 +198,15 @@ export function StudioSidebar({
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <p className={`font-semibold truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                            {h.address || `${h.houseNumber || ''} ${h.streetName || 'Household'}`.trim()}
+                          <p
+                            className={`font-semibold truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}
+                          >
+                            {h.address ||
+                              `${h.houseNumber || ''} ${h.streetName || 'Household'}`.trim()}
                           </p>
                           <p className="text-[10px] text-muted-foreground truncate">
-                            {h.streetName ? `${h.streetName}, ` : ''}{h.city || 'Territory'}
+                            {h.streetName ? `${h.streetName}, ` : ''}
+                            {h.city || 'Territory'}
                           </p>
                         </div>
                         <Badge
@@ -337,7 +345,8 @@ export function StudioSidebar({
                             ...cardSettings,
                             preset: 'custom',
                             widthInches: val,
-                            orientation: val >= cardSettings.heightInches ? 'landscape' : 'portrait',
+                            orientation:
+                              val >= cardSettings.heightInches ? 'landscape' : 'portrait',
                           });
                         }
                       }}

@@ -228,7 +228,9 @@ export function StudioTopBar({
             variant="ghost"
             size="icon"
             className={`h-9 w-9 rounded-xl transition-colors duration-150 ${
-              sidebarOpen ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+              sidebarOpen
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
             onClick={onToggleSidebar}
             title="Toggle Workspace Sidebar"
@@ -295,7 +297,10 @@ export function StudioTopBar({
               onKeyDown={handleKeyDown}
               className="h-8 w-full pl-7 pr-6 text-xs bg-background border border-input rounded-xl focus:outline-none focus:ring-1 focus:ring-primary shadow-inner placeholder:text-muted-foreground/70"
             />
-            <Search size={13} className="absolute left-2 text-muted-foreground pointer-events-none" />
+            <Search
+              size={13}
+              className="absolute left-2 text-muted-foreground pointer-events-none"
+            />
             {searchQuery && (
               <button
                 type="button"
@@ -392,7 +397,8 @@ export function StudioTopBar({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-foreground truncate">
-                      {h.houseNumber ? `#${h.houseNumber} ` : ''}{h.address}
+                      {h.houseNumber ? `#${h.houseNumber} ` : ''}
+                      {h.address}
                     </p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span
@@ -511,4 +517,3 @@ export function StudioTopBar({
     </div>
   );
 }
-

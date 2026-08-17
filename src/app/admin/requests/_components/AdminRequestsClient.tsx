@@ -109,25 +109,37 @@ export default function AdminRequestsClient() {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold text-[10px] gap-1">
+          <Badge
+            variant="outline"
+            className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold text-[10px] gap-1"
+          >
             <Clock size={10} /> Pending Review
           </Badge>
         );
       case 'approved':
         return (
-          <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold text-[10px] gap-1">
+          <Badge
+            variant="outline"
+            className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-bold text-[10px] gap-1"
+          >
             <CheckCircle2 size={10} /> Approved
           </Badge>
         );
       case 'rejected':
         return (
-          <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 font-bold text-[10px] gap-1">
+          <Badge
+            variant="outline"
+            className="bg-destructive/15 text-destructive border-destructive/30 font-bold text-[10px] gap-1"
+          >
             <XCircle size={10} /> Rejected
           </Badge>
         );
       case 'cancelled':
         return (
-          <Badge variant="outline" className="bg-muted text-muted-foreground border-border font-bold text-[10px]">
+          <Badge
+            variant="outline"
+            className="bg-muted text-muted-foreground border-border font-bold text-[10px]"
+          >
             Cancelled by User
           </Badge>
         );
@@ -347,7 +359,10 @@ export default function AdminRequestsClient() {
                           )}
                           <span>
                             Submitted: {new Date(req.requestedAt).toLocaleDateString()} at{' '}
-                            {new Date(req.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(req.requestedAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </span>
                         </div>
 
@@ -364,9 +379,15 @@ export default function AdminRequestsClient() {
                         {req.reviewedAt && (
                           <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 text-[11px] space-y-0.5 text-muted-foreground">
                             <p>
-                              Reviewed by <strong className="text-foreground">{req.reviewedByName || 'System Admin'}</strong> on{' '}
-                              {new Date(req.reviewedAt).toLocaleDateString()} at{' '}
-                              {new Date(req.reviewedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              Reviewed by{' '}
+                              <strong className="text-foreground">
+                                {req.reviewedByName || 'System Admin'}
+                              </strong>{' '}
+                              on {new Date(req.reviewedAt).toLocaleDateString()} at{' '}
+                              {new Date(req.reviewedAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </p>
                             {req.reviewNote && (
                               <p className="italic text-foreground">
@@ -445,7 +466,9 @@ export default function AdminRequestsClient() {
                 <p className="font-bold">System Admin Action Summary:</p>
                 {selectedReq?.type === 'leave_congregation' ? (
                   <ul className="list-disc pl-4 space-y-0.5">
-                    <li>Remove publisher from {selectedReq?.congregationName || 'the congregation'}.</li>
+                    <li>
+                      Remove publisher from {selectedReq?.congregationName || 'the congregation'}.
+                    </li>
                     <li>Unassign from service group and overseer roles.</li>
                     <li>Automatically return active territory assignments.</li>
                   </ul>
@@ -458,7 +481,8 @@ export default function AdminRequestsClient() {
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-muted text-xs text-muted-foreground">
-                The user will be notified that their request was rejected and their congregation membership will remain active.
+                The user will be notified that their request was rejected and their congregation
+                membership will remain active.
               </div>
             )}
 

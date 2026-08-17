@@ -144,8 +144,10 @@ export function useUpdateGroup(congregationId: string) {
         if (arg.name !== undefined) updates.name = arg.name.trim();
         if (arg.overseerId !== undefined) updates.overseerId = arg.overseerId;
         if (arg.overseerName !== undefined) updates.overseerName = arg.overseerName;
-        if (arg.assistantOverseerId !== undefined) updates.assistantOverseerId = arg.assistantOverseerId;
-        if (arg.assistantOverseerName !== undefined) updates.assistantOverseerName = arg.assistantOverseerName;
+        if (arg.assistantOverseerId !== undefined)
+          updates.assistantOverseerId = arg.assistantOverseerId;
+        if (arg.assistantOverseerName !== undefined)
+          updates.assistantOverseerName = arg.assistantOverseerName;
         if (arg.members !== undefined) updates.members = arg.members;
         if (Object.keys(updates).length === 0) return;
 

@@ -1,8 +1,9 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = "C:\Users\User\.gemini\antigravity\brain\75755942-c947-406e-8038-6312f5c12233\pwa_maskable_icon_1786968286840.jpg"
+$srcPath = "C:\Users\User\.gemini\antigravity\brain\75755942-c947-406e-8038-6312f5c12233\cute_pwa_icon_1786968609637.jpg"
 $iconsDir = "c:\Users\User\projects\personal\github\planner\public\icons"
 $publicDir = "c:\Users\User\projects\personal\github\planner\public"
+$appDir = "c:\Users\User\projects\personal\github\planner\src\app"
 
 if (-not (Test-Path $iconsDir)) {
     New-Item -ItemType Directory -Path $iconsDir -Force | Out-Null
@@ -42,6 +43,10 @@ Resize-And-Save "$publicDir\apple-touch-icon-180x180.png" 180 180
 Resize-And-Save "$publicDir\apple-touch-icon-152x152.png" 152 152
 Resize-And-Save "$publicDir\apple-touch-icon-120x120.png" 120 120
 Resize-And-Save "$iconsDir\apple-touch-icon.png" 180 180
+Resize-And-Save "$appDir\apple-icon.png" 180 180
+
+# Next.js App Router icons
+Resize-And-Save "$appDir\icon.png" 32 32
 
 # Favicons
 Resize-And-Save "$publicDir\favicon-48x48.png" 48 48
@@ -51,20 +56,25 @@ Resize-And-Save "$iconsDir\favicon-32x32.png" 32 32
 Resize-And-Save "$iconsDir\favicon-16x16.png" 16 16
 
 # Generate .ico (standard Windows / desktop favicon)
-$icon48 = New-Object System.Drawing.Bitmap(48, 48, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-$g48 = [System.Drawing.Graphics]::FromImage($icon48)
-$g48.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$g48.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-$g48.DrawImage($srcImage, 0, 0, 48, 48)
-$g48.Dispose()
+function Generate-Ico($outputPath) {
+    $icon48 = New-Object System.Drawing.Bitmap(48, 48, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g48 = [System.Drawing.Graphics]::FromImage($icon48)
+    $g48.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g48.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+    $g48.DrawImage($srcImage, 0, 0, 48, 48)
+    $g48.Dispose()
 
-$hIcon = $icon48.GetHicon()
-$ico = [System.Drawing.Icon]::FromHandle($hIcon)
-$fs = [System.IO.File]::OpenWrite("$publicDir\favicon.ico")
-$ico.Save($fs)
-$fs.Close()
-$icon48.Dispose()
-Write-Host "Saved: $publicDir\favicon.ico"
+    $hIcon = $icon48.GetHicon()
+    $ico = [System.Drawing.Icon]::FromHandle($hIcon)
+    $fs = [System.IO.File]::OpenWrite($outputPath)
+    $ico.Save($fs)
+    $fs.Close()
+    $icon48.Dispose()
+    Write-Host "Saved ICO: $outputPath"
+}
+
+Generate-Ico "$publicDir\favicon.ico"
+Generate-Ico "$appDir\favicon.ico"
 
 $srcImage.Dispose()
-Write-Host "All PWA icons generated successfully!"
+Write-Host "All icons and favicons generated successfully!"

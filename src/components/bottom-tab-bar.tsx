@@ -27,7 +27,12 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useCurrentUser, usePendingEndorsements } from '@/hooks';
-import { canViewReports, isServiceOverseer, isSystemAdmin, isTerritoryServant } from '@/lib/permissions';
+import {
+  canViewReports,
+  isServiceOverseer,
+  isSystemAdmin,
+  isTerritoryServant,
+} from '@/lib/permissions';
 
 export function BottomTabBar() {
   const pathname = usePathname();
@@ -144,7 +149,9 @@ export function BottomTabBar() {
             <button
               type="button"
               className={`flex-1 flex flex-col items-center justify-center py-2 px-1 text-[11px] font-semibold transition-colors duration-150 relative cursor-pointer ${
-                isOverseeActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
+                isOverseeActive
+                  ? 'text-primary font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <div className="relative mb-0.5">
@@ -155,9 +162,7 @@ export function BottomTabBar() {
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-[64px]">
-                {isOverseerRole ? 'Oversee' : 'More'}
-              </span>
+              <span className="truncate max-w-[64px]">{isOverseerRole ? 'Oversee' : 'More'}</span>
             </button>
           </SheetTrigger>
 
@@ -199,7 +204,9 @@ export function BottomTabBar() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                              isActive ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary'
+                              isActive
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-primary/15 text-primary'
                             }`}
                           >
                             <Icon size={18} />
@@ -257,8 +264,12 @@ export function BottomTabBar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <span className="font-semibold text-xs text-foreground block">Profile & Settings</span>
-                      <span className="text-[11px] text-muted-foreground truncate block">Account credentials & preferences</span>
+                      <span className="font-semibold text-xs text-foreground block">
+                        Profile & Settings
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate block">
+                        Account credentials & preferences
+                      </span>
                     </div>
                   </div>
                   <ChevronRight size={14} className="text-muted-foreground shrink-0" />
@@ -279,8 +290,12 @@ export function BottomTabBar() {
                         <Shield size={16} />
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-xs text-foreground block">System Admin Panel</span>
-                        <span className="text-[11px] text-muted-foreground truncate block">Global congregation manager</span>
+                        <span className="font-semibold text-xs text-foreground block">
+                          System Admin Panel
+                        </span>
+                        <span className="text-[11px] text-muted-foreground truncate block">
+                          Global congregation manager
+                        </span>
                       </div>
                     </div>
                     <ChevronRight size={14} className="text-muted-foreground shrink-0" />

@@ -35,14 +35,18 @@ export default function AssignmentVisitsClient() {
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { assignments, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId);
   const { groups = [] } = useCongregationGroups(congregationId);
-  const { households, isLoading: householdsLoading } = useHouseholds({ territoryId: territoryId ?? undefined });
+  const { households, isLoading: householdsLoading } = useHouseholds({
+    territoryId: territoryId ?? undefined,
+  });
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
 
   const _loading = territoryLoading || assignmentsLoading || householdsLoading;
   const activeAssignment =
-    assignments.find((a) => a.status === 'assigned' || a.status === 'active') ?? assignments[0] ?? null;
+    assignments.find((a) => a.status === 'assigned' || a.status === 'active') ??
+    assignments[0] ??
+    null;
 
   const assignedGroup = groups.find((g) => g.id === activeAssignment?.serviceGroupId);
   const canReturn = canReturnAssignment(user, activeAssignment, assignedGroup);
@@ -51,12 +55,17 @@ export default function AssignmentVisitsClient() {
     if (households && households.length > 0) {
       return calculateTerritoryCoverage(households);
     }
-    const fallbackPercent = territory ? Math.round(parseFloat(territory.coveragePercent ?? '0')) : 0;
+    const fallbackPercent = territory
+      ? Math.round(parseFloat(territory.coveragePercent ?? '0'))
+      : 0;
     const fallbackTotal = territory?.householdsCount ?? 0;
     return {
       totalDoors: fallbackTotal,
       workedDoors: Math.round((fallbackPercent / 100) * fallbackTotal),
-      unworkedDoors: Math.max(0, fallbackTotal - Math.round((fallbackPercent / 100) * fallbackTotal)),
+      unworkedDoors: Math.max(
+        0,
+        fallbackTotal - Math.round((fallbackPercent / 100) * fallbackTotal)
+      ),
       coveragePercent: fallbackPercent,
     };
   }, [households, territory]);
@@ -126,8 +135,8 @@ export default function AssignmentVisitsClient() {
               <span>View Households Directory</span>
             </Link>
           </Button>
-          {activeAssignment && (
-            canReturn ? (
+          {activeAssignment &&
+            (canReturn ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -147,8 +156,7 @@ export default function AssignmentVisitsClient() {
                   </span>
                 </p>
               </div>
-            )
-          )}
+            ))}
         </div>
 
         {/* Return Territory Confirmation Modal */}

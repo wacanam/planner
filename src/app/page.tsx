@@ -296,8 +296,8 @@ export default function LandingPage() {
             Ready to simplify your ministry?
           </h2>
           <p className="text-lg text-muted-foreground mb-10">
-            Join your congregation on Ministry Planner and start managing territories with ease.
-            Free to get started.
+            Join your congregation on Kanataran and start managing territories with ease. Free to
+            get started.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button size="lg" asChild>

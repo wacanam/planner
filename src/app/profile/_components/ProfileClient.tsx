@@ -277,7 +277,9 @@ export default function ProfilePage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">Profile & Settings</h1>
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+            Profile & Settings
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Manage your account credentials, congregation role, and ministry profile
           </p>
@@ -402,13 +404,18 @@ export default function ProfilePage() {
                       </div>
                       {userGroup.overseerName && (
                         <p className="text-[11px] text-muted-foreground pl-5 truncate">
-                          Overseer: <span className="text-foreground font-medium">{userGroup.overseerName}</span>
+                          Overseer:{' '}
+                          <span className="text-foreground font-medium">
+                            {userGroup.overseerName}
+                          </span>
                         </p>
                       )}
                     </div>
                   ) : (
                     <div className="p-2.5 rounded-xl bg-muted/30 border border-dashed border-border text-center">
-                      <p className="text-[11px] text-muted-foreground">Not assigned to a service group</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Not assigned to a service group
+                      </p>
                     </div>
                   )}
                 </div>
@@ -432,7 +439,10 @@ export default function ProfilePage() {
                       <Badge className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 h-4">
                         {activeAssignments.length}
                       </Badge>
-                      <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight
+                        size={14}
+                        className="text-muted-foreground group-hover:translate-x-0.5 transition-transform"
+                      />
                     </div>
                   </Link>
                 </div>
@@ -602,7 +612,8 @@ export default function ProfilePage() {
                 <span>Account & Congregation Management</span>
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Request congregation departure or permanent account deletion with System Admin review
+                Request congregation departure or permanent account deletion with System Admin
+                review
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -612,7 +623,10 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-sm text-foreground">Leave Congregation</p>
                     {pendingLeaveRequest && (
-                      <Badge variant="outline" className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      >
                         ⏳ Pending Admin Approval
                       </Badge>
                     )}
@@ -624,8 +638,13 @@ export default function ProfilePage() {
                   </p>
                   {pendingLeaveRequest && (
                     <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
-                      <p className="font-semibold">Request submitted on {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}</p>
-                      {pendingLeaveRequest.reason && <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>}
+                      <p className="font-semibold">
+                        Request submitted on{' '}
+                        {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}
+                      </p>
+                      {pendingLeaveRequest.reason && (
+                        <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -663,18 +682,27 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-sm text-destructive">Delete Account</p>
                     {pendingDeleteRequest && (
-                      <Badge variant="outline" className="text-[10px] font-bold bg-destructive/15 text-destructive border-destructive/30">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-bold bg-destructive/15 text-destructive border-destructive/30"
+                      >
                         ⏳ Pending Admin Review
                       </Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Permanently request account deactivation and removal. Requires System Admin review to ensure territories and group assignments are resolved.
+                    Permanently request account deactivation and removal. Requires System Admin
+                    review to ensure territories and group assignments are resolved.
                   </p>
                   {pendingDeleteRequest && (
                     <div className="mt-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-0.5">
-                      <p className="font-semibold">Deletion request submitted on {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}</p>
-                      {pendingDeleteRequest.reason && <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>}
+                      <p className="font-semibold">
+                        Deletion request submitted on{' '}
+                        {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}
+                      </p>
+                      {pendingDeleteRequest.reason && (
+                        <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -735,7 +763,9 @@ export default function ProfilePage() {
               <span>System Admin Approval Required</span>
             </p>
             <p>
-              Once approved by a System Admin, your publisher record will be unlinked from {congregation?.name}, any active territories will be returned, and group roles will be released.
+              Once approved by a System Admin, your publisher record will be unlinked from{' '}
+              {congregation?.name}, any active territories will be returned, and group roles will be
+              released.
             </p>
           </div>
 
@@ -791,7 +821,9 @@ export default function ProfilePage() {
               <span>Important Warning</span>
             </p>
             <p>
-              This action requires System Admin verification. Upon approval, all your ministry assignments will be returned, your congregation membership removed, and your account permanently deactivated.
+              This action requires System Admin verification. Upon approval, all your ministry
+              assignments will be returned, your congregation membership removed, and your account
+              permanently deactivated.
             </p>
           </div>
 
@@ -848,4 +880,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

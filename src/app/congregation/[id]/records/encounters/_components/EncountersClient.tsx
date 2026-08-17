@@ -174,7 +174,9 @@ export default function EncountersClient() {
                     </p>
                   )}
                   {(e.literatureOffered || e.literatureAccepted) && (
-                    <p className="text-xs text-primary">Literature: {e.literatureOffered || e.literatureAccepted}</p>
+                    <p className="text-xs text-primary">
+                      Literature: {e.literatureOffered || e.literatureAccepted}
+                    </p>
                   )}
                   {e.notes && (
                     <p className="text-xs text-muted-foreground italic line-clamp-2">

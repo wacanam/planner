@@ -24,7 +24,15 @@ export const householdFormSchema = z.object({
   city: z.string().min(1, 'City is required'),
   postalCode: z.string().optional(),
   type: z.enum(['house', 'apartment', 'business', 'gated_community', 'other']),
-  status: z.enum(['new', 'active', 'not_home', 'return_visit', 'do_not_visit', 'moved', 'inactive']),
+  status: z.enum([
+    'new',
+    'active',
+    'not_home',
+    'return_visit',
+    'do_not_visit',
+    'moved',
+    'inactive',
+  ]),
   occupantsCount: z.number().min(1),
   notes: z.string().optional(),
   language: z.string().optional(),
@@ -156,9 +164,7 @@ export function HouseholdForm({
           <Label className="text-xs font-semibold">Structure Type</Label>
           <Select
             value={form.watch('type')}
-            onValueChange={(val) =>
-              form.setValue('type', val as HouseholdFormValues['type'])
-            }
+            onValueChange={(val) => form.setValue('type', val as HouseholdFormValues['type'])}
           >
             <SelectTrigger className="h-9 rounded-xl text-xs">
               <SelectValue placeholder="Select type" />
@@ -177,9 +183,7 @@ export function HouseholdForm({
           <Label className="text-xs font-semibold">Initial Status</Label>
           <Select
             value={form.watch('status')}
-            onValueChange={(val) =>
-              form.setValue('status', val as HouseholdFormValues['status'])
-            }
+            onValueChange={(val) => form.setValue('status', val as HouseholdFormValues['status'])}
           >
             <SelectTrigger className="h-9 rounded-xl text-xs">
               <SelectValue placeholder="Status" />

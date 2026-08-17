@@ -1,6 +1,16 @@
 'use client';
 
-import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Lock, MapPin, RefreshCw } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  MapPin,
+  RefreshCw,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -11,7 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { confirmUserPasswordReset, sendUserPasswordResetEmail, verifyUserPasswordResetCode } from '@/lib/firebase/auth';
+import {
+  confirmUserPasswordReset,
+  sendUserPasswordResetEmail,
+  verifyUserPasswordResetCode,
+} from '@/lib/firebase/auth';
 
 export default function ResetPasswordClient() {
   const router = useRouter();
@@ -48,7 +62,9 @@ export default function ResetPasswordClient() {
 
     if (!activeCode) {
       setVerifying(false);
-      setVerifyError('No reset code was provided in the link. Please request a new password reset link.');
+      setVerifyError(
+        'No reset code was provided in the link. Please request a new password reset link.'
+      );
       return;
     }
 
@@ -67,7 +83,8 @@ export default function ResetPasswordClient() {
         if (isMounted) {
           console.error('[verify reset code error]', err);
           setVerifyError(
-            err?.message || 'This password reset link has expired or has already been used. Please request a new one.'
+            err?.message ||
+              'This password reset link has expired or has already been used. Please request a new one.'
           );
           setVerifying(false);
         }
@@ -161,7 +178,9 @@ export default function ResetPasswordClient() {
                     <CheckCircle2 size={24} />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-foreground">Password Reset Complete!</h2>
+                    <h2 className="text-base font-bold text-foreground">
+                      Password Reset Complete!
+                    </h2>
                     <p className="text-xs text-muted-foreground mt-1">
                       Your password has been changed. You can now sign in with your new credentials.
                     </p>
@@ -184,10 +203,13 @@ export default function ResetPasswordClient() {
                     <p className="font-semibold text-foreground">Why did this happen?</p>
                     <ul className="list-disc pl-4 space-y-1 text-[11px]">
                       <li>
-                        <strong>Multiple requests:</strong> If you requested a reset link more than once, only the <em>latest</em> email contains a valid link. All previous links are automatically expired.
+                        <strong>Multiple requests:</strong> If you requested a reset link more than
+                        once, only the <em>latest</em> email contains a valid link. All previous
+                        links are automatically expired.
                       </li>
                       <li>
-                        <strong>Link expiration:</strong> Reset links expire after a short period for security.
+                        <strong>Link expiration:</strong> Reset links expire after a short period
+                        for security.
                       </li>
                     </ul>
                   </div>
@@ -198,7 +220,8 @@ export default function ResetPasswordClient() {
                         <CheckCircle2 size={14} /> New Link Sent!
                       </p>
                       <p className="text-[11px]">
-                        Please check your inbox (and spam folder) for the newest email and click the link inside.
+                        Please check your inbox (and spam folder) for the newest email and click the
+                        link inside.
                       </p>
                     </div>
                   ) : (
@@ -243,7 +266,8 @@ export default function ResetPasswordClient() {
                     <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/15 text-xs text-foreground flex items-center gap-2">
                       <KeyRound size={14} className="text-primary shrink-0" />
                       <span>
-                        Resetting password for: <strong className="text-primary">{accountEmail}</strong>
+                        Resetting password for:{' '}
+                        <strong className="text-primary">{accountEmail}</strong>
                       </span>
                     </div>
                   )}
@@ -311,9 +335,9 @@ export default function ResetPasswordClient() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer copyright */}
       <div className="py-2 text-center text-[11px] text-muted-foreground">
-        © {new Date().getFullYear()} Ministry Planner
+        © {new Date().getFullYear()} Kanataran
       </div>
     </div>
   );

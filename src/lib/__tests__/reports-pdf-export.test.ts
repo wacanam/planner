@@ -54,7 +54,7 @@ describe('PDF Export Utilities', () => {
       assigneeName: `Publisher Name ${i + 1}`,
       assigneeEmail: `publisher${i}@example.com`,
       isGroupAssignment: i % 3 === 0,
-      groupName: i % 3 === 0 ? `Service Group ${((i % 4) + 1)}` : null,
+      groupName: i % 3 === 0 ? `Service Group ${(i % 4) + 1}` : null,
       assignedAt: '2026-01-10T00:00:00Z',
       dueAt: '2026-05-10T00:00:00Z',
       returnedAt: i % 2 === 0 ? '2026-03-15T00:00:00Z' : null,

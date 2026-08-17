@@ -149,7 +149,11 @@ export function StudioContextActionCard({
             <Button
               type="button"
               size="sm"
-              disabled={isSaving || (activeTool === 'boundary' && pointCount < 3) || (activeTool === 'road' && pointCount < 2)}
+              disabled={
+                isSaving ||
+                (activeTool === 'boundary' && pointCount < 3) ||
+                (activeTool === 'road' && pointCount < 2)
+              }
               className="h-8 rounded-xl text-xs font-semibold gap-1.5 shadow-sm px-3 ml-auto whitespace-nowrap"
               onClick={onDone}
             >

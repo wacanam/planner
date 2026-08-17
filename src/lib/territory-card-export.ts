@@ -105,19 +105,13 @@ export interface ExportPdfOptions {
 }
 
 export async function exportCardToPdf(options: ExportPdfOptions): Promise<void> {
-  const {
-    frontElement,
-    backElement,
-    filename,
-    widthInches,
-    heightInches,
-    orientation,
-    side,
-  } = options;
+  const { frontElement, backElement, filename, widthInches, heightInches, orientation, side } =
+    options;
 
   const effectiveW = widthInches;
   const effectiveH = heightInches;
-  const effectiveOrientation = orientation || (widthInches >= heightInches ? 'landscape' : 'portrait');
+  const effectiveOrientation =
+    orientation || (widthInches >= heightInches ? 'landscape' : 'portrait');
 
   const doc = new jsPDF({
     orientation: effectiveOrientation,

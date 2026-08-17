@@ -27,7 +27,12 @@ export function hasRole(userRole: UserRole, ...allowedRoles: UserRole[]): boolea
 export function isSystemAdmin(role?: string | null): boolean {
   if (!role) return false;
   const normalized = role.toUpperCase().replace(/\s+/g, '_');
-  return normalized === UserRole.SUPER_ADMIN || normalized === UserRole.ADMIN || normalized === 'SUPER_ADMIN' || normalized === 'ADMIN';
+  return (
+    normalized === UserRole.SUPER_ADMIN ||
+    normalized === UserRole.ADMIN ||
+    normalized === 'SUPER_ADMIN' ||
+    normalized === 'ADMIN'
+  );
 }
 
 export function isServiceOverseer(role?: string | null): boolean {
@@ -77,7 +82,10 @@ export function canViewReports(role?: string | null): boolean {
  */
 export function isGroupOverseer(
   userId: string | null | undefined,
-  group: { overseerId?: string | null; members?: { userId: string; role?: string }[] } | null | undefined
+  group:
+    | { overseerId?: string | null; members?: { userId: string; role?: string }[] }
+    | null
+    | undefined
 ): boolean {
   if (!userId || !group) return false;
   if (group.overseerId === userId) return true;
@@ -95,7 +103,10 @@ export function isGroupOverseer(
  */
 export function isGroupOverseerAssistant(
   userId: string | null | undefined,
-  group: { assistantOverseerId?: string | null; members?: { userId: string; role?: string }[] } | null | undefined
+  group:
+    | { assistantOverseerId?: string | null; members?: { userId: string; role?: string }[] }
+    | null
+    | undefined
 ): boolean {
   if (!userId || !group) return false;
   if (group.assistantOverseerId === userId) return true;
@@ -115,7 +126,10 @@ export function isGroupOverseerAssistant(
  */
 export function canReturnAssignment(
   user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
-  assignment: { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null } | null | undefined,
+  assignment:
+    | { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null }
+    | null
+    | undefined,
   group?: { overseerId?: string | null; members?: { userId: string; role?: string }[] } | null
 ): boolean {
   if (!user?.id || !assignment) return false;

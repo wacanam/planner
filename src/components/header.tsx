@@ -1,6 +1,7 @@
 'use client';
 
-import { MapPin, Menu, X } from 'lucide-react';
+import Image from 'next/image';
+import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -32,10 +33,15 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-              <MapPin size={16} className="text-primary" />
-            </div>
-            <span className="font-bold text-foreground tracking-tight">Ministry Planner</span>
+            <Image
+              src="/icons/icon-192.png"
+              alt="Kanataran Logo"
+              width={32}
+              height={32}
+              className="w-8 h-8 rounded-xl object-contain shadow-xs transition-transform group-hover:scale-105"
+              priority
+            />
+            <span className="font-bold text-foreground tracking-tight">Kanataran</span>
           </Link>
 
           {/* Desktop nav */}

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import GroupsClient from './_components/GroupsClient';
 
-export const metadata: Metadata = { title: 'Service Groups | Ministry Planner' };
+export const metadata: Metadata = { title: 'Service Groups | Kanataran' };
 
 export default function Page() {
   return <GroupsClient />;

@@ -330,7 +330,8 @@ function useReportSources(congregationId: string | null | undefined) {
 }
 
 export function useCoverageReport(congregationId: string | null | undefined) {
-  const { territories, assignments, households, isLoading, error } = useReportSources(congregationId);
+  const { territories, assignments, households, isLoading, error } =
+    useReportSources(congregationId);
 
   const data = useMemo<CoverageReport>(() => {
     const householdsByTerritory = new Map<string, Household[]>();
@@ -388,7 +389,9 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       }
 
       const activeAssignment = assignmentByTerritory.get(territory.id);
-      const daysSinceWorked = latestVisitMs ? Math.floor((now - latestVisitMs) / (1000 * 60 * 60 * 24)) : null;
+      const daysSinceWorked = latestVisitMs
+        ? Math.floor((now - latestVisitMs) / (1000 * 60 * 60 * 24))
+        : null;
 
       let healthStatus: TerritoryHealthStatus = 'stale';
       if (daysSinceWorked !== null) {
@@ -465,7 +468,8 @@ export function useCoverageReport(congregationId: string | null | undefined) {
 }
 
 export function useS13Report(congregationId: string | null | undefined) {
-  const { territories, assignments, households, isLoading, error } = useReportSources(congregationId);
+  const { territories, assignments, households, isLoading, error } =
+    useReportSources(congregationId);
 
   const data = useMemo<S13AssignmentRecord[]>(() => {
     const territoryById = new Map(territories.map((t) => [t.id, t]));
@@ -479,43 +483,48 @@ export function useS13Report(congregationId: string | null | undefined) {
       }
     }
 
-    return assignments.map((a) => {
-      const terr = territoryById.get(a.territoryId);
-      const terrHouseholds = householdsByTerritory.get(a.territoryId) || [];
-      const currentCoverage =
-        terrHouseholds.length > 0
-          ? calculateTerritoryCoverage(terrHouseholds).coveragePercent
-          : Number(terr?.coveragePercent) || 0;
+    return assignments
+      .map((a) => {
+        const terr = territoryById.get(a.territoryId);
+        const terrHouseholds = householdsByTerritory.get(a.territoryId) || [];
+        const currentCoverage =
+          terrHouseholds.length > 0
+            ? calculateTerritoryCoverage(terrHouseholds).coveragePercent
+            : Number(terr?.coveragePercent) || 0;
 
-      let durationDays: number | null = null;
-      if (a.assignedAt) {
-        const start = new Date(a.assignedAt).getTime();
-        const end = a.returnedAt ? new Date(a.returnedAt).getTime() : Date.now();
-        durationDays = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-      }
+        let durationDays: number | null = null;
+        if (a.assignedAt) {
+          const start = new Date(a.assignedAt).getTime();
+          const end = a.returnedAt ? new Date(a.returnedAt).getTime() : Date.now();
+          durationDays = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+        }
 
-      return {
-        id: a.id,
-        territoryId: a.territoryId,
-        territoryNumber: terr?.number || a.territoryNumber || '—',
-        territoryName: terr?.name || a.territoryName || 'Territory',
-        assigneeName: a.assigneeName || (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
-        assigneeEmail: a.assigneeEmail,
-        isGroupAssignment: Boolean(a.serviceGroupId),
-        groupName: a.groupName,
-        assignedAt: a.assignedAt,
-        dueAt: a.dueAt,
-        returnedAt: a.returnedAt,
-        coverageAtAssignment: Number(a.coverageAtAssignment) || 0,
-        coverageAtReturn: a.returnedAt ? Number(a.coverageAtAssignment) || currentCoverage : currentCoverage,
-        durationDays,
-        status: a.status,
-      };
-    }).sort((left, right) => {
-      const dateA = left.assignedAt ? new Date(left.assignedAt).getTime() : 0;
-      const dateB = right.assignedAt ? new Date(right.assignedAt).getTime() : 0;
-      return dateB - dateA;
-    });
+        return {
+          id: a.id,
+          territoryId: a.territoryId,
+          territoryNumber: terr?.number || a.territoryNumber || '—',
+          territoryName: terr?.name || a.territoryName || 'Territory',
+          assigneeName:
+            a.assigneeName || (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+          assigneeEmail: a.assigneeEmail,
+          isGroupAssignment: Boolean(a.serviceGroupId),
+          groupName: a.groupName,
+          assignedAt: a.assignedAt,
+          dueAt: a.dueAt,
+          returnedAt: a.returnedAt,
+          coverageAtAssignment: Number(a.coverageAtAssignment) || 0,
+          coverageAtReturn: a.returnedAt
+            ? Number(a.coverageAtAssignment) || currentCoverage
+            : currentCoverage,
+          durationDays,
+          status: a.status,
+        };
+      })
+      .sort((left, right) => {
+        const dateA = left.assignedAt ? new Date(left.assignedAt).getTime() : 0;
+        const dateB = right.assignedAt ? new Date(right.assignedAt).getTime() : 0;
+        return dateB - dateA;
+      });
   }, [assignments, territories, households]);
 
   return { data, isLoading, error };
@@ -744,7 +753,8 @@ export function useActivityReport(congregationId: string | null | undefined) {
             id: a.id,
             territoryName: territory?.name ?? 'Territory',
             territoryNumber: territory?.number ?? '',
-            publisherName: a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+            publisherName:
+              a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
             assignedAt: a.assignedAt,
           };
         }),
@@ -756,7 +766,8 @@ export function useActivityReport(congregationId: string | null | undefined) {
             id: a.id,
             territoryName: territory?.name ?? 'Territory',
             territoryNumber: territory?.number ?? '',
-            publisherName: a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+            publisherName:
+              a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
             returnedAt: a.returnedAt,
             coverageAtAssignment: Number(a.coverageAtAssignment) || 0,
           };

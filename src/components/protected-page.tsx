@@ -66,7 +66,18 @@ export function ProtectedPage({
         router.replace(roleRedirect);
       }
     }
-  }, [user.id, user.role, user.congregationId, loading, isAuthenticated, router, requiredRole, congregationId, loginRedirect, roleRedirect]);
+  }, [
+    user.id,
+    user.role,
+    user.congregationId,
+    loading,
+    isAuthenticated,
+    router,
+    requiredRole,
+    congregationId,
+    loginRedirect,
+    roleRedirect,
+  ]);
 
   if (loading) {
     return (

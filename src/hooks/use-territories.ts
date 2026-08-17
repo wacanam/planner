@@ -36,7 +36,10 @@ function requestDocument(id: string) {
 
 export function parseBoundaryCoordinates(
   raw: unknown
-): Array<{ lat: number; lng: number; polygonIndex?: number }> | Array<Array<{ lat: number; lng: number }>> | null {
+):
+  | Array<{ lat: number; lng: number; polygonIndex?: number }>
+  | Array<Array<{ lat: number; lng: number }>>
+  | null {
   if (!raw) return null;
 
   // Case 1: Array
@@ -449,4 +452,3 @@ export function useSaveAnnotations(territoryId: string) {
 
   return { saveAnnotations, isSaving };
 }
-

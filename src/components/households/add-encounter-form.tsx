@@ -56,15 +56,14 @@ export function AddEncounterForm({
     defaultValues: {
       householdId: initialValues?.householdId ?? defaultHouseholdId ?? (households[0]?.id || ''),
       name: initialValues?.name ?? '',
-      response:
-        (initialValues?.response as AddEncounterFormValues['response']) ?? 'receptive',
+      response: (initialValues?.response as AddEncounterFormValues['response']) ?? 'receptive',
       gender: (initialValues?.gender as AddEncounterFormValues['gender']) ?? 'unknown',
-      ageGroup:
-        (initialValues?.ageGroup as AddEncounterFormValues['ageGroup']) ?? 'unknown',
+      ageGroup: (initialValues?.ageGroup as AddEncounterFormValues['ageGroup']) ?? 'unknown',
       language: initialValues?.language ?? initialValues?.languageSpoken ?? 'English',
       notes: initialValues?.notes ?? '',
       topicsDiscussed: initialValues?.topicsDiscussed ?? initialValues?.topicDiscussed ?? '',
-      literatureOffered: initialValues?.literatureOffered ?? initialValues?.literatureAccepted ?? '',
+      literatureOffered:
+        initialValues?.literatureOffered ?? initialValues?.literatureAccepted ?? '',
     },
   });
 

@@ -53,7 +53,10 @@ export default function CongregationDashboardClient() {
 
   // Real-time door counts and coverage calculation per territory
   const coverageByTerritoryId = useMemo(() => {
-    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const map = new Map<
+      string,
+      { totalDoors: number; workedDoors: number; coveragePercent: number }
+    >();
     const byTerritory = new Map<string, Household[]>();
     for (const h of households) {
       if (h.territoryId) {
@@ -74,10 +77,7 @@ export default function CongregationDashboardClient() {
     for (const g of groups) {
       if (
         g.members?.some(
-          (m) =>
-            m.userId === user.id ||
-            m.id === user.id ||
-            m.user?.email === user.email
+          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
         )
       ) {
         ids.add(g.id);

@@ -26,7 +26,13 @@ describe('calculateTerritoryCoverage', () => {
 
   it('calculates 50% when half of doors have been visited', () => {
     const households: Partial<Household>[] = [
-      { id: '1', address: 'Door 1', status: 'active', lastVisitDate: '2026-08-15', totalVisitsCount: 1 },
+      {
+        id: '1',
+        address: 'Door 1',
+        status: 'active',
+        lastVisitDate: '2026-08-15',
+        totalVisitsCount: 1,
+      },
       { id: '2', address: 'Door 2', status: 'new', lastVisitDate: null, totalVisitsCount: 0 },
     ];
     const stats = calculateTerritoryCoverage(households as Household[]);

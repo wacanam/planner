@@ -63,10 +63,8 @@ function congregationFromData(id: string, data: Partial<Congregation>): Congrega
     slug: data.slug ?? slugify(data.name ?? id),
     city: data.city ?? null,
     country: data.country ?? null,
-    defaultLatitude:
-      typeof data.defaultLatitude === 'number' ? data.defaultLatitude : null,
-    defaultLongitude:
-      typeof data.defaultLongitude === 'number' ? data.defaultLongitude : null,
+    defaultLatitude: typeof data.defaultLatitude === 'number' ? data.defaultLatitude : null,
+    defaultLongitude: typeof data.defaultLongitude === 'number' ? data.defaultLongitude : null,
     status: data.status ?? 'active',
     createdById: data.createdById ?? null,
     createdAt: data.createdAt ?? now,
@@ -154,10 +152,8 @@ export function useCreateCongregation() {
         slug: slugify(name),
         city: arg.city ? String(arg.city) : null,
         country: arg.country ? String(arg.country) : null,
-        defaultLatitude:
-          typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null,
-        defaultLongitude:
-          typeof arg.defaultLongitude === 'number' ? arg.defaultLongitude : null,
+        defaultLatitude: typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null,
+        defaultLongitude: typeof arg.defaultLongitude === 'number' ? arg.defaultLongitude : null,
         status: String(arg.status ?? 'active'),
         createdById: arg.createdById ? String(arg.createdById) : null,
         createdAt: now,

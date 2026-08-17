@@ -105,8 +105,7 @@ export function useCurrentUser(): {
     return UserRole.PUBLISHER;
   })();
 
-  const congregationId =
-    session?.user?.congregationId || membershipCongregationId || null;
+  const congregationId = session?.user?.congregationId || membershipCongregationId || null;
 
   const user = useMemo((): SessionUser => {
     return {

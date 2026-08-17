@@ -56,7 +56,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     const footerY = pageHeight - 7;
     doc.text(
-      `Ministry Planner • Congregation Ministry Intelligence Report • ${congregationName}`,
+      `Kanataran • Congregation Ministry Intelligence Report • ${congregationName}`,
       marginLeft,
       footerY
     );
@@ -143,7 +143,11 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139); // Slate-500
-  doc.text(`${coverageData?.byStatus.assigned ?? 0} territories assigned`, kpi2X + 4, currentY + 18);
+  doc.text(
+    `${coverageData?.byStatus.assigned ?? 0} territories assigned`,
+    kpi2X + 4,
+    currentY + 18
+  );
 
   // KPI 3: Avg Turnaround
   const kpi3X = kpi2X + kpiWidth + 3;
@@ -175,7 +179,11 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(190, 18, 60); // Rose-700
-  doc.text(`${coverageData?.byHealth.stale ?? 0} Stale / Overdue (>180d)`, kpi4X + 4, currentY + 18);
+  doc.text(
+    `${coverageData?.byHealth.stale ?? 0} Stale / Overdue (>180d)`,
+    kpi4X + 4,
+    currentY + 18
+  );
 
   currentY += kpiHeight + 6;
 
@@ -250,7 +258,11 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
     const assignee = t.publisherName || t.groupName || '—';
-    doc.text(assignee.length > 25 ? `${assignee.slice(0, 23)}…` : assignee, marginLeft + 200, currentY + 4.2);
+    doc.text(
+      assignee.length > 25 ? `${assignee.slice(0, 23)}…` : assignee,
+      marginLeft + 200,
+      currentY + 4.2
+    );
 
     const workedStr = t.daysSinceWorked !== null ? `${t.daysSinceWorked}d ago` : 'Never';
     doc.text(workedStr, marginLeft + contentWidth - 4, currentY + 4.2, { align: 'right' });
@@ -324,7 +336,11 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
       doc.setTextColor(51, 65, 85);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text(`S-13 Territory Record — ${congregationName} (Continued)`, marginLeft + 4, currentY + 4.5);
+      doc.text(
+        `S-13 Territory Record — ${congregationName} (Continued)`,
+        marginLeft + 4,
+        currentY + 4.5
+      );
       currentY += 9;
       drawS13Header();
     }
@@ -349,7 +365,9 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     doc.text(name, x + 2, currentY + 4.2);
     x += s13Columns[1].width;
 
-    const assignee = r.isGroupAssignment ? `Group: ${r.groupName || r.assigneeName}` : r.assigneeName;
+    const assignee = r.isGroupAssignment
+      ? `Group: ${r.groupName || r.assigneeName}`
+      : r.assigneeName;
     const truncatedAssignee = assignee.length > 34 ? `${assignee.slice(0, 32)}…` : assignee;
     if (r.isGroupAssignment) {
       doc.setFont('helvetica', 'bold');
@@ -363,9 +381,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
-    doc.text(r.isGroupAssignment ? 'Group' : 'Personal', x + s13Columns[3].width / 2, currentY + 4.2, {
-      align: 'center',
-    });
+    doc.text(
+      r.isGroupAssignment ? 'Group' : 'Personal',
+      x + s13Columns[3].width / 2,
+      currentY + 4.2,
+      {
+        align: 'center',
+      }
+    );
     x += s13Columns[3].width;
 
     const assignedStr = r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—';
@@ -374,9 +397,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     if (r.returnedAt) {
       doc.setTextColor(30, 41, 59);
-      doc.text(new Date(r.returnedAt).toLocaleDateString(), x + s13Columns[5].width / 2, currentY + 4.2, {
-        align: 'center',
-      });
+      doc.text(
+        new Date(r.returnedAt).toLocaleDateString(),
+        x + s13Columns[5].width / 2,
+        currentY + 4.2,
+        {
+          align: 'center',
+        }
+      );
     } else {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(37, 99, 235);
@@ -386,9 +414,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
-    doc.text(r.durationDays !== null ? `${r.durationDays}d` : '—', x + s13Columns[6].width / 2, currentY + 4.2, {
-      align: 'center',
-    });
+    doc.text(
+      r.durationDays !== null ? `${r.durationDays}d` : '—',
+      x + s13Columns[6].width / 2,
+      currentY + 4.2,
+      {
+        align: 'center',
+      }
+    );
     x += s13Columns[6].width;
 
     doc.setFont('helvetica', 'bold');
@@ -465,13 +498,20 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     doc.text(g.assistantOverseerName || 'None', marginLeft + 120, currentY + 4.2);
 
     doc.text(`${g.memberCount}`, marginLeft + 175, currentY + 4.2, { align: 'center' });
-    doc.text(`${g.assignedTerritoriesCount}`, marginLeft + 205, currentY + 4.2, { align: 'center' });
+    doc.text(`${g.assignedTerritoriesCount}`, marginLeft + 205, currentY + 4.2, {
+      align: 'center',
+    });
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(37, 99, 235);
-    doc.text(`${Math.round(g.avgCoveragePercent)}%`, marginLeft + contentWidth - 4, currentY + 4.2, {
-      align: 'right',
-    });
+    doc.text(
+      `${Math.round(g.avgCoveragePercent)}%`,
+      marginLeft + contentWidth - 4,
+      currentY + 4.2,
+      {
+        align: 'right',
+      }
+    );
 
     currentY += 6;
   });
@@ -560,10 +600,22 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
   let leftY = currentY + 4;
   const outcomes = [
-    { label: 'Contacted & Discussed', count: doorData?.outcomeCounts.contacted ?? 0, color: [16, 185, 129] },
+    {
+      label: 'Contacted & Discussed',
+      count: doorData?.outcomeCounts.contacted ?? 0,
+      color: [16, 185, 129],
+    },
     { label: 'Not Home', count: doorData?.outcomeCounts.notHome ?? 0, color: [245, 158, 11] },
-    { label: 'Literature Placed', count: doorData?.outcomeCounts.placedLiterature ?? 0, color: [37, 99, 235] },
-    { label: 'Return Visits Planned', count: doorData?.returnVisitsCount ?? 0, color: [139, 92, 246] },
+    {
+      label: 'Literature Placed',
+      count: doorData?.outcomeCounts.placedLiterature ?? 0,
+      color: [37, 99, 235],
+    },
+    {
+      label: 'Return Visits Planned',
+      count: doorData?.returnVisitsCount ?? 0,
+      color: [139, 92, 246],
+    },
     { label: 'Do Not Call (DNC)', count: doorData?.doNotCallCount ?? 0, color: [225, 29, 72] },
   ];
 

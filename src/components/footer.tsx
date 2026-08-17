@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -16,11 +16,15 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div>
-            <Link href="/" className="flex items-center gap-2.5 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
-                <MapPin size={14} className="text-primary" />
-              </div>
-              <span className="font-bold text-foreground">Ministry Planner</span>
+            <Link href="/" className="flex items-center gap-2.5 mb-3 group">
+              <Image
+                src="/icons/icon-192.png"
+                alt="Kanataran Logo"
+                width={28}
+                height={28}
+                className="w-7 h-7 rounded-lg object-contain shadow-xs transition-transform group-hover:scale-105"
+              />
+              <span className="font-bold text-foreground">Kanataran</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Offline-first territory management for congregations. Organize, assign, and track your
@@ -64,7 +68,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 pt-6 border-t border-border/60 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Ministry Planner. Built with ❤️ for congregations.
+          © {new Date().getFullYear()} Kanataran. Built with ❤️ for congregations.
         </div>
       </div>
     </footer>

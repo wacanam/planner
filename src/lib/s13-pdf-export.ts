@@ -63,7 +63,9 @@ export function exportS13ToPDF(
       // Form Sub-code (Official S-13 form standard)
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
-      doc.text('FORM S-13 (8/19)', marginLeft + contentWidth - 6, currentY + 7.5, { align: 'right' });
+      doc.text('FORM S-13 (8/19)', marginLeft + contentWidth - 6, currentY + 7.5, {
+        align: 'right',
+      });
 
       // Sub-bar with Congregation name & stats
       doc.setFontSize(9);
@@ -75,7 +77,9 @@ export function exportS13ToPDF(
       );
 
       const activeCount = records.filter((r) => !r.returnedAt).length;
-      const completedCount = records.filter((r) => Boolean(r.returnedAt) || r.status === 'completed').length;
+      const completedCount = records.filter(
+        (r) => Boolean(r.returnedAt) || r.status === 'completed'
+      ).length;
       doc.text(
         `Total: ${records.length}   |   Active: ${activeCount}   |   Completed: ${completedCount}`,
         marginLeft + contentWidth - 6,
@@ -130,11 +134,7 @@ export function exportS13ToPDF(
     doc.setTextColor(148, 163, 184); // Slate-400
 
     const footerY = pageHeight - 7;
-    doc.text(
-      `Ministry Planner • Official S-13 Territory Assignment Record`,
-      marginLeft,
-      footerY
-    );
+    doc.text(`Kanataran • Official S-13 Territory Assignment Record`, marginLeft, footerY);
     doc.text(`Page ${pageNum}`, marginLeft + contentWidth, footerY, { align: 'right' });
   };
 

@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, MapPin } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -13,11 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  sendUserPasswordResetEmail,
-  signInWithEmail,
-  signInWithGoogle,
-} from '@/lib/firebase/auth';
+import { sendUserPasswordResetEmail, signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import { type LoginFormData, loginSchema } from '@/schemas';
 
 export default function LoginPage() {
@@ -106,10 +103,17 @@ export default function LoginPage() {
           <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
             {/* Studio Brand Header */}
             <div className="bg-primary px-6 py-6 text-primary-foreground text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-foreground/20 mb-3 shadow-xs">
-                <MapPin size={22} className="text-primary-foreground" />
+              <div className="inline-flex items-center justify-center mb-3">
+                <Image
+                  src="/icons/icon-192.png"
+                  alt="Kanataran Logo"
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 rounded-2xl object-contain shadow-md"
+                  priority
+                />
               </div>
-              <h1 className="text-xl font-bold tracking-tight">Ministry Planner</h1>
+              <h1 className="text-xl font-bold tracking-tight">Kanataran</h1>
               <p className="text-xs text-primary-foreground/80 mt-1">
                 Sign in to your territory management workspace
               </p>
@@ -232,7 +236,7 @@ export default function LoginPage() {
 
       {/* Footer copyright */}
       <div className="py-2 text-center text-[11px] text-muted-foreground">
-        © {new Date().getFullYear()} Ministry Planner
+        © {new Date().getFullYear()} Kanataran
       </div>
 
       {/* Forgot Password Dialog */}
@@ -245,11 +249,16 @@ export default function LoginPage() {
         {resetSuccess ? (
           <div className="space-y-4 py-2">
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
-              <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2
+                size={20}
+                className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
+              />
               <div className="text-xs space-y-1">
                 <p className="font-bold text-foreground">Password Reset Link Sent!</p>
                 <p className="text-muted-foreground">
-                  We sent an email to <span className="font-semibold text-foreground">{resetEmail}</span> with instructions to reset your password.
+                  We sent an email to{' '}
+                  <span className="font-semibold text-foreground">{resetEmail}</span> with
+                  instructions to reset your password.
                 </p>
                 <p className="text-[11px] text-muted-foreground italic mt-1">
                   Be sure to check your spam/junk folder if you don&apos;t see it in a few minutes.
@@ -317,4 +326,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

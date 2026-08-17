@@ -239,7 +239,10 @@ export function useRespondToShare() {
     async (params: { shareId: string; status: 'accepted' | 'rejected' }) => {
       setIsPending(true);
       try {
-        await respondToShare(params.shareId, params.status === 'accepted' ? 'accepted' : 'declined');
+        await respondToShare(
+          params.shareId,
+          params.status === 'accepted' ? 'accepted' : 'declined'
+        );
       } finally {
         setIsPending(false);
       }

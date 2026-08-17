@@ -55,7 +55,10 @@ export default function MyAssignmentsClient() {
 
   // Real-time door counts and coverage calculation per territory
   const coverageByTerritoryId = useMemo(() => {
-    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const map = new Map<
+      string,
+      { totalDoors: number; workedDoors: number; coveragePercent: number }
+    >();
     const byTerritory = new Map<string, Household[]>();
     for (const h of households) {
       if (h.territoryId) {
@@ -76,10 +79,7 @@ export default function MyAssignmentsClient() {
     for (const g of groups) {
       if (
         g.members?.some(
-          (m) =>
-            m.userId === user.id ||
-            m.id === user.id ||
-            m.user?.email === user.email
+          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
         )
       ) {
         ids.add(g.id);
@@ -158,7 +158,9 @@ export default function MyAssignmentsClient() {
                 const number = terr?.number || assignment.territoryNumber || '—';
                 const name = terr?.name || assignment.territoryName || 'Territory';
                 const liveStats = coverageByTerritoryId.get(assignment.territoryId);
-                const coverage = liveStats?.coveragePercent ?? Math.round(parseFloat(terr?.coveragePercent ?? '0'));
+                const coverage =
+                  liveStats?.coveragePercent ??
+                  Math.round(parseFloat(terr?.coveragePercent ?? '0'));
                 const householdsCount = liveStats?.totalDoors ?? terr?.householdsCount ?? 0;
                 const isGroupAssignment = Boolean(assignment.serviceGroupId);
                 const assignedGroup = groups.find((g) => g.id === assignment.serviceGroupId);
@@ -181,7 +183,7 @@ export default function MyAssignmentsClient() {
                               <p className="text-[11px] text-muted-foreground">{terr.city}</p>
                             )}
                           </div>
-                          
+
                           {/* Assignment Type Badge */}
                           {isGroupAssignment ? (
                             <Badge
@@ -279,7 +281,9 @@ export default function MyAssignmentsClient() {
                               <Crown size={11} className="text-amber-500 shrink-0" />
                               <span>
                                 Return managed by Group Overseer
-                                {assignedGroup?.overseerName ? ` (${assignedGroup.overseerName})` : ''}
+                                {assignedGroup?.overseerName
+                                  ? ` (${assignedGroup.overseerName})`
+                                  : ''}
                               </span>
                             </p>
                           </div>

@@ -95,13 +95,22 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 h-9 font-semibold">
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="rounded-xl text-xs gap-1.5 h-9 font-semibold"
+            >
               <Link href="/admin/users">
                 <Users size={14} />
                 <span>Users ({users.length})</span>
               </Link>
             </Button>
-            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 h-9 font-semibold shadow-xs">
+            <Button
+              asChild
+              size="sm"
+              className="rounded-xl text-xs gap-1.5 h-9 font-semibold shadow-xs"
+            >
               <Link href="/admin/congregations">
                 <Building2 size={14} />
                 <span>Congregations</span>
@@ -166,7 +175,12 @@ export default function AdminDashboardPage() {
               </CardDescription>
             </div>
 
-            <Button asChild variant="ghost" size="sm" className="rounded-xl text-xs gap-1 font-semibold">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="rounded-xl text-xs gap-1 font-semibold"
+            >
               <Link href="/admin/requests">
                 <span>View Full Queue</span>
                 <ArrowRight size={12} />
@@ -306,7 +320,12 @@ export default function AdminDashboardPage() {
               <Building2 size={16} className="text-primary" />
               <span>Registered Congregations ({congregations.length})</span>
             </CardTitle>
-            <Button asChild variant="ghost" size="sm" className="rounded-xl text-xs gap-1 font-semibold">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="rounded-xl text-xs gap-1 font-semibold"
+            >
               <Link href="/admin/congregations">
                 <span>View All</span>
                 <ArrowRight size={12} />
@@ -352,7 +371,12 @@ export default function AdminDashboardPage() {
                         >
                           {cong.status}
                         </Badge>
-                        <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-7">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs h-7"
+                        >
                           <Link href={`/congregation/${cong.id}/dashboard`}>Workspace</Link>
                         </Button>
                       </div>
@@ -393,7 +417,9 @@ export default function AdminDashboardPage() {
                 <p className="font-bold">System Admin Action Summary:</p>
                 {selectedReq?.type === 'leave_congregation' ? (
                   <ul className="list-disc pl-4 space-y-0.5">
-                    <li>Remove publisher from {selectedReq?.congregationName || 'the congregation'}.</li>
+                    <li>
+                      Remove publisher from {selectedReq?.congregationName || 'the congregation'}.
+                    </li>
                     <li>Unassign from service group and overseer roles.</li>
                     <li>Automatically return active territory assignments.</li>
                   </ul>
@@ -406,7 +432,8 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-muted text-xs text-muted-foreground">
-                The user will be notified that their request was rejected and their congregation membership will remain active.
+                The user will be notified that their request was rejected and their congregation
+                membership will remain active.
               </div>
             )}
 

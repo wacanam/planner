@@ -25,12 +25,7 @@ import type { BoundaryDisplaySettings } from '@/types/api';
 
 export type BasemapMode = 'satellite' | 'street';
 
-export type HouseholdStatusFilter =
-  | 'all'
-  | 'return_visit'
-  | 'active'
-  | 'not_home'
-  | 'do_not_visit';
+export type HouseholdStatusFilter = 'all' | 'return_visit' | 'active' | 'not_home' | 'do_not_visit';
 
 export interface StudioLayerSettings {
   showHouses: boolean;
@@ -67,7 +62,9 @@ export const DEFAULT_BOUNDARY_DISPLAY: Required<
 
 export function resolveBoundaryDisplay(
   display?: BoundaryDisplaySettings | null
-): Required<Pick<BoundaryDisplaySettings, 'fillColor' | 'fillOpacity' | 'maskOpacity' | 'strokeColor'>> {
+): Required<
+  Pick<BoundaryDisplaySettings, 'fillColor' | 'fillOpacity' | 'maskOpacity' | 'strokeColor'>
+> {
   return {
     fillColor: display?.fillColor ?? DEFAULT_BOUNDARY_DISPLAY.fillColor,
     fillOpacity: display?.fillOpacity ?? DEFAULT_BOUNDARY_DISPLAY.fillOpacity,
@@ -337,7 +334,10 @@ export function StudioBasemapPopup({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-houses" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-houses"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Home size={14} className="text-primary" />
                   <span>House Pins</span>
                 </Label>
@@ -350,7 +350,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-house-labels" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-house-labels"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Tag size={14} className="text-slate-500" />
                   <span>House Numbers & Labels</span>
                 </Label>
@@ -363,7 +366,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-landmarks" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-landmarks"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <MapPin size={14} className="text-emerald-600" />
                   <span>Landmarks & POIs</span>
                 </Label>
@@ -376,7 +382,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-roads" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-roads"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Milestone size={14} className="text-blue-600" />
                   <span>Roads & Route Corridors</span>
                 </Label>
@@ -389,7 +398,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-start-flag" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-start-flag"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Flag size={14} className="text-amber-600" />
                   <span>Start Meeting Flag</span>
                 </Label>
@@ -402,7 +414,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-boundaries" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-boundaries"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Square size={14} className="text-indigo-600" />
                   <span>Territory Boundary Zones</span>
                 </Label>
@@ -415,7 +430,10 @@ export function StudioBasemapPopup({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <Label htmlFor="layer-user-location" className="text-xs cursor-pointer flex items-center gap-2">
+                <Label
+                  htmlFor="layer-user-location"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
                   <Navigation size={14} className="text-blue-500" />
                   <span>My Location & Flashlight Beam</span>
                 </Label>
