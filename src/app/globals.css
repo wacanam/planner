@@ -104,6 +104,16 @@ html {
   border-radius: 3px;
 }
 
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Bottom sheet slide-up animation */
 @keyframes sheet-slide-up {
   from {

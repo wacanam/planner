@@ -39,7 +39,7 @@ export function AdminNav() {
   ];
 
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-muted/60 dark:bg-muted/40 rounded-2xl border border-border overflow-x-auto">
+    <div className="flex items-center gap-1.5 p-1 bg-muted/60 dark:bg-muted/40 rounded-2xl border border-border overflow-x-auto scrollbar-none w-fit max-w-full">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
