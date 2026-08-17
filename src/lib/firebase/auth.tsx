@@ -345,7 +345,7 @@ export async function sendUserPasswordResetEmail(email: string) {
       try {
         await sendPasswordResetEmail(auth, normalized, {
           url: `${origin}/auth/reset-password`,
-          handleCodeInApp: false,
+          handleCodeInApp: true,
         });
         return;
       } catch (innerErr) {

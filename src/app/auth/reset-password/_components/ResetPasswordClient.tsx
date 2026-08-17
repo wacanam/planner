@@ -16,8 +16,9 @@ import { confirmUserPasswordReset, sendUserPasswordResetEmail, verifyUserPasswor
 export default function ResetPasswordClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const oobCode = searchParams.get('oobCode') || searchParams.get('code') || '';
+  const rawParamCode = searchParams.get('oobCode') || searchParams.get('code') || '';
 
+  const [codeToVerify, setCodeToVerify] = useState(rawParamCode);
   const [verifying, setVerifying] = useState(true);
   const [accountEmail, setAccountEmail] = useState('');
   const [verifyError, setVerifyError] = useState('');
@@ -35,14 +36,26 @@ export default function ResetPasswordClient() {
   const [resendSuccess, setResendSuccess] = useState(false);
 
   useEffect(() => {
-    if (!oobCode) {
+    let activeCode = rawParamCode;
+    if (!activeCode && typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      activeCode = sp.get('oobCode') || sp.get('code') || '';
+      if (!activeCode && window.location.hash) {
+        const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        activeCode = hp.get('oobCode') || hp.get('code') || '';
+      }
+    }
+
+    if (!activeCode) {
       setVerifying(false);
       setVerifyError('No reset code was provided in the link. Please request a new password reset link.');
       return;
     }
 
+    setCodeToVerify(activeCode);
+
     let isMounted = true;
-    verifyUserPasswordResetCode(oobCode)
+    verifyUserPasswordResetCode(activeCode)
       .then((email) => {
         if (isMounted) {
           setAccountEmail(email);
@@ -63,7 +76,7 @@ export default function ResetPasswordClient() {
     return () => {
       isMounted = false;
     };
-  }, [oobCode]);
+  }, [rawParamCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +94,7 @@ export default function ResetPasswordClient() {
 
     setIsSubmitting(true);
     try {
-      await confirmUserPasswordReset(oobCode, newPassword);
+      await confirmUserPasswordReset(codeToVerify, newPassword);
       setIsSuccess(true);
       toast.success('Your password has been reset successfully!');
     } catch (err: any) {
