@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useMyVisits } from '@/hooks';
+import { useCurrentUser, useMyVisits } from '@/hooks';
+import { isTerritoryServant } from '@/lib/permissions';
 import { deleteVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 
@@ -22,7 +23,11 @@ const outcomeColors: Record<string, string> = {
 };
 
 export default function VisitsClient() {
-  const { visits = [], isLoading } = useMyVisits();
+  const { user } = useCurrentUser();
+  const { visits = [], isLoading } = useMyVisits({
+    userId: user?.id,
+    userRole: user?.role,
+  });
   const [search, setSearch] = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -146,15 +151,17 @@ export default function VisitsClient() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteConfirmId(v.id)}
-                    title="Delete visit record"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
+                  {(isTerritoryServant(user?.role) || !v.userId || v.userId === user?.id) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteConfirmId(v.id)}
+                      title="Delete visit record"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

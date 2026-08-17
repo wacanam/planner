@@ -20,6 +20,7 @@ import type { LocalEncounter, LocalHousehold, LocalVisit } from './types';
 import { getAllVisits } from './visits';
 
 export interface CreateEncounterInput {
+  userId?: string | null;
   visitId?: string | null;
   householdId?: string | null;
   encounterDate?: string | null;
@@ -40,6 +41,8 @@ export interface CreateEncounterInput {
 export interface EncounterFilters {
   visitId?: string | null;
   householdId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
 }
 
 function encounterCollection() {
@@ -58,6 +61,7 @@ function filterEncounter(record: LocalEncounter, filters?: EncounterFilters) {
   if (record.deletedAt) return false;
   if (filters?.visitId && record.visitId !== filters.visitId) return false;
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
+  if (filters?.userId && record.userId && record.userId !== filters.userId) return false;
   return true;
 }
 
@@ -132,7 +136,7 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
   const record: LocalEncounter = {
     id: createClientId(),
     serverId: null,
-    userId: null,
+    userId: nullableString(input.userId),
     visitId: nullableString(input.visitId),
     visitServerId: visit?.serverId ?? null,
     householdId,

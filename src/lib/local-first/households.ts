@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import { isTerritoryServant } from '@/lib/permissions';
 import type { Household } from '@/types/api';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold } from './types';
@@ -42,11 +43,22 @@ export interface CreateHouseholdInput {
   longitude?: number | string | null;
   territoryId?: string | null;
   congregationId?: string | null;
+  createdById?: string | null;
+  creatorName?: string | null;
+  collaboratorIds?: string[] | null;
+  readOnlyUserIds?: string[] | null;
+  transferredFrom?: string | null;
+  transferredFromId?: string | null;
+  transferredAt?: string | null;
+  updatedById?: string | null;
 }
 
 export interface HouseholdFilters {
   congregationId?: string | null;
   territoryId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
+  personalOnly?: boolean;
 }
 
 function householdCollection() {
@@ -87,6 +99,12 @@ export function toHouseholdView(record: LocalHousehold): Household {
     notes: record.notes,
     lwpNotes: record.lwpNotes,
     createdById: record.createdById,
+    creatorName: record.creatorName,
+    collaboratorIds: record.collaboratorIds || undefined,
+    readOnlyUserIds: record.readOnlyUserIds || undefined,
+    transferredFrom: record.transferredFrom,
+    transferredFromId: record.transferredFromId,
+    transferredAt: record.transferredAt,
     updatedById: record.updatedById,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -98,8 +116,8 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
   return {
     id: existingId ?? household.id,
     serverId: household.id,
-    congregationId: null,
-    territoryId: null,
+    congregationId: household.congregationId ?? null,
+    territoryId: household.territoryId ?? null,
     name: household.name ?? null,
     address: household.address,
     houseNumber: household.houseNumber ?? null,
@@ -121,6 +139,12 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
     notes: household.notes ?? null,
     lwpNotes: household.lwpNotes ?? null,
     createdById: household.createdById ?? null,
+    creatorName: household.creatorName ?? null,
+    collaboratorIds: household.collaboratorIds ?? null,
+    readOnlyUserIds: household.readOnlyUserIds ?? null,
+    transferredFrom: household.transferredFrom ?? null,
+    transferredFromId: household.transferredFromId ?? null,
+    transferredAt: household.transferredAt ?? null,
     updatedById: household.updatedById ?? null,
     deletedAt: null,
     createdAt: isoDate(household.createdAt, now),
@@ -166,18 +190,40 @@ function createLocalHouseholdRecord(
     lastVisitOutcome: null,
     notes: nullableString(input.notes),
     lwpNotes: nullableString(input.lwpNotes),
-    createdById: null,
-    updatedById: null,
+    createdById: nullableString(input.createdById),
+    creatorName: nullableString(input.creatorName),
+    collaboratorIds: input.collaboratorIds ?? null,
+    readOnlyUserIds: input.readOnlyUserIds ?? null,
+    transferredFrom: nullableString(input.transferredFrom),
+    transferredFromId: nullableString(input.transferredFromId),
+    transferredAt: nullableString(input.transferredAt),
+    updatedById: nullableString(input.updatedById),
     deletedAt: null,
     createdAt: now,
     updatedAt: now,
   };
 }
 
-function filterHousehold(record: LocalHousehold, filters?: HouseholdFilters) {
+export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilters) {
   if (record.deletedAt) return false;
-  if (filters?.congregationId && record.congregationId !== filters.congregationId) return false;
+  if (filters?.congregationId && record.congregationId && record.congregationId !== filters.congregationId) {
+    return false;
+  }
   if (filters?.territoryId && record.territoryId !== filters.territoryId) return false;
+
+  // Personal scope filter: only show records owned by user or shared/transferred to user
+  if (filters?.personalOnly && filters?.userId) {
+    if (isTerritoryServant(filters.userRole)) {
+      return true;
+    }
+    const isOwner = record.createdById === filters.userId;
+    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
+    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
+    const isLegacyUnowned = !record.createdById && (!record.collaboratorIds || record.collaboratorIds.length === 0);
+
+    return isOwner || isCollaborator || isReadOnly || isLegacyUnowned;
+  }
+
   return true;
 }
 
@@ -234,6 +280,17 @@ export async function updateHousehold(
   if (input.territoryId !== undefined) updates.territoryId = nullableString(input.territoryId);
   if (input.congregationId !== undefined)
     updates.congregationId = nullableString(input.congregationId);
+  if (input.createdById !== undefined) updates.createdById = nullableString(input.createdById);
+  if (input.creatorName !== undefined) updates.creatorName = nullableString(input.creatorName);
+  if (input.collaboratorIds !== undefined) updates.collaboratorIds = input.collaboratorIds;
+  if (input.readOnlyUserIds !== undefined) updates.readOnlyUserIds = input.readOnlyUserIds;
+  if (input.transferredFrom !== undefined)
+    updates.transferredFrom = nullableString(input.transferredFrom);
+  if (input.transferredFromId !== undefined)
+    updates.transferredFromId = nullableString(input.transferredFromId);
+  if (input.transferredAt !== undefined)
+    updates.transferredAt = nullableString(input.transferredAt);
+  if (input.updatedById !== undefined) updates.updatedById = nullableString(input.updatedById);
   await updateDoc(householdDocument(id), updates);
 }
 

@@ -20,6 +20,7 @@ import type { LocalHousehold, LocalVisit } from './types';
 
 export interface CreateVisitInput {
   householdId: string;
+  userId?: string | null;
   assignmentId?: string | null;
   outcome: string;
   householdStatusAfter?: string | null;
@@ -36,6 +37,8 @@ export interface CreateVisitInput {
 export interface VisitFilters {
   householdId?: string | null;
   assignmentId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
 }
 
 function visitCollection() {
@@ -54,6 +57,7 @@ function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   if (record.deletedAt) return false;
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
+  if (filters?.userId && record.userId && record.userId !== filters.userId) return false;
   return true;
 }
 
@@ -115,7 +119,7 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
   const record: LocalVisit = {
     id: createClientId(),
     serverId: null,
-    userId: null,
+    userId: nullableString(input.userId),
     householdId: input.householdId,
     householdServerId: household?.serverId ?? input.householdId,
     assignmentId: nullableString(input.assignmentId),

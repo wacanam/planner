@@ -152,19 +152,98 @@ export function canReturnAssignment(
 
 /**
  * Checks if the current user has full detail access (contact info, private notes) to a household.
- * Owners and accepted collaborators have full access.
+ * Owners, accepted collaborators, read-only viewers, and Territory Servants+ have access.
  */
 export function canAccessHouseholdDetails(
   userId: string | null | undefined,
   household: Household,
-  shares: HouseholdShare[] = []
+  shares: HouseholdShare[] = [],
+  userRole?: string | null
 ): boolean {
+  if (isTerritoryServant(userRole)) return true;
   if (!userId) return false;
   if (household.createdById === userId) return true;
   if (household.collaboratorIds?.includes(userId)) return true;
+  if (household.readOnlyUserIds?.includes(userId)) return true;
+
+  // Unowned legacy records accessible to authenticated publishers
+  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
+    return true;
+  }
 
   // Check accepted shares
   return shares.some(
     (s) => s.householdId === household.id && s.toUserId === userId && s.status === 'accepted'
   );
+}
+
+/**
+ * Checks if a user is allowed to SHARE a household record.
+ * Allowed ONLY for record Owner or role Territory Servant / Service Overseer / Admin.
+ */
+export function canShareHousehold(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  household: Household
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (household.createdById === user.id) return true;
+  // Legacy unowned record created locally
+  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Checks if a user is allowed to EDIT a household record's core details.
+ * Allowed ONLY for record Owner or role Territory Servant / Service Overseer / Admin.
+ */
+export function canEditHousehold(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  household: Household
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (household.createdById === user.id) return true;
+  // Legacy unowned record created locally
+  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Checks if a user is allowed to DELETE a household record.
+ * Allowed ONLY for record Owner or role Territory Servant / Service Overseer / Admin.
+ */
+export function canDeleteHousehold(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  household: Household
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (household.createdById === user.id) return true;
+  // Legacy unowned record created locally
+  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Checks if a user is allowed to log a visit or encounter for a household.
+ * Allowed for Owner, Collaborator, or Territory Servant+.
+ * (Read-only viewers cannot log visits/encounters).
+ */
+export function canLogVisitOrEncounter(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  household: Household
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (household.createdById === user.id) return true;
+  if (household.collaboratorIds?.includes(user.id)) return true;
+  if (!household.createdById) return true;
+  return false;
 }

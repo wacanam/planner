@@ -87,19 +87,37 @@ export default function SharedRecordsPage() {
               <Card key={share.id} className="bg-card border-border shadow-xs">
                 <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-sm text-foreground">
                         {share.householdAddress || 'Household Record'}
                       </p>
-                      <Badge variant="outline" className="text-[10px] capitalize">
-                        {share.mode}
+                      <Badge variant="outline" className="text-[10px] capitalize font-medium">
+                        {share.mode === 'transfer'
+                          ? '🔄 Transfer'
+                          : share.mode === 'view'
+                            ? '👁️ Read-Only'
+                            : '🤝 Collaborate'}
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40"
+                        className={`text-[10px] uppercase font-bold ${
+                          share.status === 'accepted'
+                            ? 'text-emerald-700 bg-emerald-50 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : share.status === 'declined'
+                              ? 'text-red-700 bg-red-50 border-red-300 dark:bg-red-950/40 dark:text-red-300'
+                              : 'text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950/40'
+                        }`}
                       >
                         {share.status}
                       </Badge>
+                      {share.status === 'accepted' && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] bg-primary/10 text-primary border-primary/20 font-semibold"
+                        >
+                          ✓ In Personal Records
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       From: {share.fromUserName || 'Publisher'}

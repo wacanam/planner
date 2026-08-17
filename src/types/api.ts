@@ -225,7 +225,7 @@ export interface HouseholdShare {
   fromUserName: string;
   toUserId: string;
   toUserName: string;
-  mode: 'collaborate' | 'transfer';
+  mode: 'collaborate' | 'transfer' | 'view' | string;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   notes?: string | null;
   createdAt: string;
@@ -440,6 +440,10 @@ export interface Household {
   createdById?: string | null;
   creatorName?: string | null;
   collaboratorIds?: string[];
+  readOnlyUserIds?: string[];
+  transferredFrom?: string | null;
+  transferredFromId?: string | null;
+  transferredAt?: string | null;
   territoryId?: string | null;
   congregationId?: string | null;
   totalVisitsCount?: number;

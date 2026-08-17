@@ -26,7 +26,10 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
   const params = useParams();
   const congregationId = (params?.id as string) || '';
   const { data: members = [] } = useCongregationMembers(congregationId);
-  const { create: createShare, isPending: submitting } = useCreateShare(household?.id ?? '');
+  const { create: createShare, isPending: submitting } = useCreateShare(
+    household?.id ?? '',
+    household?.address
+  );
 
   const [targetUserId, setTargetUserId] = useState('');
   const [shareType, setShareType] = useState<'view' | 'collaborate' | 'transfer'>('collaborate');
@@ -36,9 +39,13 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
 
   const handleShare = async () => {
     if (!household || !targetUserId) return;
+    const selectedMember = activeMembers.find((m) => m.userId === targetUserId);
+    const recipientName =
+      selectedMember?.user?.name || selectedMember?.user?.email || 'Publisher';
     try {
       await createShare({
         toUserId: targetUserId,
+        toUserName: recipientName,
         type: shareType,
         notes: notes || undefined,
       });

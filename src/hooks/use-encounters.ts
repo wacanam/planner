@@ -13,7 +13,17 @@ function sortEncounters(encounters: Encounter[]) {
   return [...encounters].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
-function useEncounterRecords(visitId?: string | null) {
+function useEncounterRecords(filters?: {
+  visitId?: string | null;
+  householdId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
+}) {
+  const visitId = filters?.visitId ?? null;
+  const householdId = filters?.householdId ?? null;
+  const userId = filters?.userId ?? null;
+  const userRole = filters?.userRole ?? null;
+
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);
@@ -27,7 +37,7 @@ function useEncounterRecords(visitId?: string | null) {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      visitId ? { visitId } : undefined,
+      { visitId, householdId, userId, userRole },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -42,7 +52,7 @@ function useEncounterRecords(visitId?: string | null) {
       unsubscribeHouseholds();
       unsubscribeVisits();
     };
-  }, [visitId]);
+  }, [householdId, userId, userRole, visitId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),
@@ -70,11 +80,16 @@ function useEncounterRecords(visitId?: string | null) {
 }
 
 export function useVisitEncounters(visitId: string | null) {
-  return useEncounterRecords(visitId);
+  return useEncounterRecords({ visitId });
 }
 
-export function useMyEncounters() {
-  return useEncounterRecords();
+export function useMyEncounters(filters?: {
+  visitId?: string | null;
+  householdId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
+}) {
+  return useEncounterRecords(filters);
 }
 
 export function useAddEncounter() {

@@ -15,7 +15,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCongregationTerritories, useHouseholds, useMyVisits } from '@/hooks';
+import {
+  useCongregationTerritories,
+  useCurrentUser,
+  useHouseholds,
+  useMyVisits,
+} from '@/hooks';
+import {
+  canDeleteHousehold,
+  canEditHousehold,
+  canLogVisitOrEncounter,
+  canShareHousehold,
+} from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
   saveHouseholdRecord,
@@ -50,6 +61,7 @@ export default function HouseholdsClient() {
   const params = useParams();
   const _searchParams = useSearchParams();
   const congregationId = (params?.id as string) || '';
+  const { user } = useCurrentUser();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -62,9 +74,17 @@ export default function HouseholdsClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const { households = [], isLoading } = useHouseholds();
+  const { households = [], isLoading } = useHouseholds({
+    congregationId,
+    userId: user?.id,
+    userRole: user?.role,
+    personalOnly: true,
+  });
   const { data: territories = [] } = useCongregationTerritories(congregationId);
-  const { visits: allVisits = [] } = useMyVisits();
+  const { visits: allVisits = [] } = useMyVisits({
+    userId: user?.id,
+    userRole: user?.role,
+  });
 
   // Count visits per household
   const visitCountByHousehold = useMemo(() => {
@@ -121,6 +141,9 @@ export default function HouseholdsClient() {
       language: values.language || undefined,
       latitude: null,
       longitude: null,
+      createdById: user?.id || null,
+      creatorName: user?.name || null,
+      updatedById: user?.id || null,
     });
     setAddHouseholdOpen(false);
   };
@@ -130,6 +153,7 @@ export default function HouseholdsClient() {
     await updateHouseholdRecord(editHousehold.id, {
       ...values,
       territoryId: values.territoryId || null,
+      updatedById: user?.id || null,
     });
     setEditHousehold(null);
   };
@@ -201,126 +225,191 @@ export default function HouseholdsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((h) => (
-            <Card
-              key={h.id}
-              className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
-            >
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-foreground truncate">
-                      {h.houseNumber ? `${h.houseNumber} ` : ''}
-                      {h.address}
-                    </p>
-                    {(!h.latitude || !h.longitude) && (
+          {filtered.map((h) => {
+            const isTransferred = Boolean(h.transferredFrom && h.createdById === user?.id);
+            const isCollaborator = Boolean(user?.id && h.collaboratorIds?.includes(user.id));
+            const isReadOnly = Boolean(user?.id && h.readOnlyUserIds?.includes(user.id));
+            const isOwner = Boolean(user?.id && h.createdById === user.id);
+
+            const canShare = canShareHousehold(user, h);
+            const canEdit = canEditHousehold(user, h);
+            const canDelete = canDeleteHousehold(user, h);
+            const canLog = canLogVisitOrEncounter(user, h);
+
+            return (
+              <Card
+                key={h.id}
+                className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
+              >
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-sm text-foreground truncate">
+                        {h.houseNumber ? `${h.houseNumber} ` : ''}
+                        {h.address}
+                      </p>
+
+                      {/* Collaboration / Transfer / Read-Only / Owner Badges */}
+                      {isTransferred && (
+                        <Badge
+                          variant="outline"
+                          className="border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/40 text-[10px] py-0 font-bold"
+                        >
+                          🔄 Transferred from {h.transferredFrom}
+                        </Badge>
+                      )}
+                      {isCollaborator && (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] py-0 font-bold"
+                        >
+                          🤝 Collaboration
+                        </Badge>
+                      )}
+                      {isReadOnly && (
+                        <Badge
+                          variant="outline"
+                          className="border-slate-300 text-slate-700 bg-slate-50 dark:bg-slate-950/40 text-[10px] py-0 font-bold"
+                        >
+                          👁️ Read-Only
+                        </Badge>
+                      )}
+                      {isOwner && !isTransferred && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/30 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                        >
+                          👤 Owner
+                        </Badge>
+                      )}
+
+                      {(!h.latitude || !h.longitude) && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/40 text-[10px] py-0 font-bold"
+                        >
+                          📍 Needs Pinning
+                        </Badge>
+                      )}
                       <Badge
                         variant="outline"
-                        className="border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/40 text-[10px] py-0 font-bold"
+                        className={`text-[10px] font-semibold py-0 ${statusColors[h.status] ?? ''}`}
                       >
-                        📍 Needs Pinning
+                        {statusLabels[h.status] ?? h.status}
                       </Badge>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-semibold py-0 ${statusColors[h.status] ?? ''}`}
-                    >
-                      {statusLabels[h.status] ?? h.status}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {h.streetName}, {h.city} {h.postalCode ? `(${h.postalCode})` : ''}
-                  </p>
-                  {h.notes && (
-                    <p className="text-xs text-muted-foreground/80 mt-1 italic line-clamp-1">
-                      &ldquo;{h.notes}&rdquo;
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {h.streetName}, {h.city} {h.postalCode ? `(${h.postalCode})` : ''}
                     </p>
-                  )}
-                  <div className="flex gap-2 mt-2 text-[11px] text-muted-foreground items-center">
-                    {visitCountByHousehold[h.id] ? (
-                      <span>
-                        {visitCountByHousehold[h.id]} visit
-                        {visitCountByHousehold[h.id] > 1 ? 's' : ''}
-                      </span>
-                    ) : (
-                      <span>0 visits</span>
+                    {h.notes && (
+                      <p className="text-xs text-muted-foreground/80 mt-1 italic line-clamp-1">
+                        &ldquo;{h.notes}&rdquo;
+                      </p>
                     )}
-                    {h.lastVisitDate && <span>· Last {timeAgo(h.lastVisitDate)}</span>}
+                    <div className="flex gap-2 mt-2 text-[11px] text-muted-foreground items-center flex-wrap">
+                      {visitCountByHousehold[h.id] ? (
+                        <span>
+                          {visitCountByHousehold[h.id]} visit
+                          {visitCountByHousehold[h.id] > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span>0 visits</span>
+                      )}
+                      {h.lastVisitDate && <span>· Last {timeAgo(h.lastVisitDate)}</span>}
+                      {h.creatorName && isCollaborator && (
+                        <span>· Owner: {h.creatorName}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {(!h.latitude || !h.longitude) && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-8 text-xs px-2.5 gap-1 bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl font-bold border border-amber-300 dark:border-amber-900"
-                      onClick={() => {
-                        const targetTerritoryId = h.territoryId || territories[0]?.id;
-                        if (targetTerritoryId && congregationId) {
-                          router.push(
-                            `/congregation/${congregationId}/territories/${targetTerritoryId}?pinHouseholdId=${h.id}`
-                          );
-                        } else if (congregationId) {
-                          router.push(
-                            `/congregation/${congregationId}/territories?pinHouseholdId=${h.id}`
-                          );
-                        }
-                      }}
-                      title="Pin coordinates on map"
-                    >
-                      <MapPin size={13} />
-                      <span>Pin on Map</span>
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-xl p-0"
-                    onClick={() => setShareHousehold(h)}
-                    title="Share or transfer record"
-                  >
-                    <Share2 size={14} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-xl p-0"
-                    onClick={() => setEditHousehold(h)}
-                    title="Edit household"
-                  >
-                    <Pencil size={14} />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl text-xs h-8"
-                    onClick={() => setLogVisitHousehold(h)}
-                  >
-                    Log Visit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-xl text-xs h-8"
-                    onClick={() => setEncounterHousehold(h)}
-                  >
-                    Encounter
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteConfirmId(h.id)}
-                    title="Delete record"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Actions (Permitted by role & ownership) */}
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    {(!h.latitude || !h.longitude) && canEdit && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 text-xs px-2.5 gap-1 bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl font-bold border border-amber-300 dark:border-amber-900"
+                        onClick={() => {
+                          const targetTerritoryId = h.territoryId || territories[0]?.id;
+                          if (targetTerritoryId && congregationId) {
+                            router.push(
+                              `/congregation/${congregationId}/territories/${targetTerritoryId}?pinHouseholdId=${h.id}`
+                            );
+                          } else if (congregationId) {
+                            router.push(
+                              `/congregation/${congregationId}/territories?pinHouseholdId=${h.id}`
+                            );
+                          }
+                        }}
+                        title="Pin coordinates on map"
+                      >
+                        <MapPin size={13} />
+                        <span>Pin on Map</span>
+                      </Button>
+                    )}
+
+                    {canShare && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0"
+                        onClick={() => setShareHousehold(h)}
+                        title="Share or transfer record"
+                      >
+                        <Share2 size={14} />
+                      </Button>
+                    )}
+
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0"
+                        onClick={() => setEditHousehold(h)}
+                        title="Edit household"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                    )}
+
+                    {canLog && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs h-8"
+                        onClick={() => setLogVisitHousehold(h)}
+                      >
+                        Log Visit
+                      </Button>
+                    )}
+
+                    {canLog && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs h-8"
+                        onClick={() => setEncounterHousehold(h)}
+                      >
+                        Encounter
+                      </Button>
+                    )}
+
+                    {canDelete && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteConfirmId(h.id)}
+                        title="Delete record"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

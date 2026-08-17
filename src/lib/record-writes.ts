@@ -16,6 +16,7 @@ import {
 export async function saveVisitRecord(data: Record<string, unknown>): Promise<string> {
   const visit = await createVisit({
     householdId: String(data.householdId ?? ''),
+    userId: (data.userId as string | null | undefined) ?? null,
     assignmentId: (data.assignmentId as string | null | undefined) ?? null,
     outcome: String(data.outcome ?? 'other'),
     householdStatusAfter: (data.householdStatusAfter as string | null | undefined) ?? null,
@@ -49,12 +50,21 @@ export async function saveHouseholdRecord(data: Record<string, unknown>): Promis
     longitude: (data.longitude as string | number | null | undefined) ?? null,
     territoryId: (data.territoryId as string | null | undefined) ?? null,
     congregationId: (data.congregationId as string | null | undefined) ?? null,
+    createdById: (data.createdById as string | null | undefined) ?? null,
+    creatorName: (data.creatorName as string | null | undefined) ?? null,
+    collaboratorIds: (data.collaboratorIds as string[] | null | undefined) ?? null,
+    readOnlyUserIds: (data.readOnlyUserIds as string[] | null | undefined) ?? null,
+    transferredFrom: (data.transferredFrom as string | null | undefined) ?? null,
+    transferredFromId: (data.transferredFromId as string | null | undefined) ?? null,
+    transferredAt: (data.transferredAt as string | null | undefined) ?? null,
+    updatedById: (data.updatedById as string | null | undefined) ?? null,
   });
   return household.id;
 }
 
 export async function saveEncounterRecord(data: Record<string, unknown>): Promise<string> {
   const encounter = await createEncounter({
+    userId: (data.userId as string | null | undefined) ?? null,
     visitId: (data.visitId as string | null | undefined) ?? null,
     householdId: (data.householdId as string | null | undefined) ?? null,
     encounterDate: (data.encounterDate as string | null | undefined) ?? null,

@@ -30,6 +30,12 @@ export interface LocalHousehold extends FirestoreRecordMetadata {
   notes: string | null;
   lwpNotes: string | null;
   createdById: string | null;
+  creatorName: string | null;
+  collaboratorIds: string[] | null;
+  readOnlyUserIds: string[] | null;
+  transferredFrom: string | null;
+  transferredFromId: string | null;
+  transferredAt: string | null;
   updatedById: string | null;
 }
 

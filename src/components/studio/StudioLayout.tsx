@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useSaveAnnotations } from '@/hooks/use-territories';
 import { useSaveBoundary } from '@/hooks/use-territory-boundary';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -90,6 +91,7 @@ export function StudioLayout({
   onHouseholdSaved,
 }: StudioLayoutProps) {
   const _router = useRouter();
+  const { user } = useCurrentUser();
   const [activeTool, setActiveTool] = useState<StudioTool>(pinHouseholdId ? 'pin' : 'pointer');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
@@ -458,6 +460,9 @@ export function StudioLayout({
         language: values.language || undefined,
         latitude: tempPinCoordinates?.lat ?? null,
         longitude: tempPinCoordinates?.lng ?? null,
+        createdById: user?.id || null,
+        creatorName: user?.name || null,
+        updatedById: user?.id || null,
       });
 
       toast.success('Household record saved');

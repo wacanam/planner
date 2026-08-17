@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Household } from '@/types/api';
@@ -35,6 +36,7 @@ export function HouseholdLogVisitSheet({
   assignmentId,
   onSaved,
 }: LogVisitSheetProps) {
+  const { user } = useCurrentUser();
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<LogVisitFormData>({
@@ -62,6 +64,7 @@ export function HouseholdLogVisitSheet({
         literaturePlaced: data.literaturePlaced || undefined,
         returnVisitDate: data.returnVisitDate || undefined,
         visitDate: new Date().toISOString(),
+        userId: user?.id || null,
       });
 
       // Update household status
@@ -69,6 +72,7 @@ export function HouseholdLogVisitSheet({
         await updateHouseholdRecord(household.id, {
           status: data.status as LogVisitFormData['status'],
           lastVisitDate: new Date().toISOString(),
+          updatedById: user?.id || null,
         });
       }
 
@@ -197,6 +201,7 @@ export function HouseholdEncounterSheet({
   household,
   onSaved,
 }: EncounterSheetProps) {
+  const { user } = useCurrentUser();
   const [submitting, setSubmitting] = useState(false);
 
   const handleSaveEncounter = async (values: AddEncounterFormValues) => {
@@ -213,6 +218,7 @@ export function HouseholdEncounterSheet({
         topicsDiscussed: values.topicsDiscussed || undefined,
         literatureOffered: values.literatureOffered || undefined,
         visitDate: new Date().toISOString(),
+        userId: user?.id || null,
       });
       onSaved?.();
       onOpenChange(false);

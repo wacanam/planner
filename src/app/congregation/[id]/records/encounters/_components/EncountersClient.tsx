@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useHouseholds, useMyEncounters } from '@/hooks';
+import { useCurrentUser, useHouseholds, useMyEncounters } from '@/hooks';
+import { isTerritoryServant } from '@/lib/permissions';
 import { deleteEncounterRecord, saveEncounterRecord } from '@/lib/record-writes';
 
 const responseColors: Record<string, string> = {
@@ -26,8 +27,16 @@ const responseColors: Record<string, string> = {
 };
 
 export default function EncountersClient() {
-  const { encounters = [], isLoading } = useMyEncounters();
-  const { households = [] } = useHouseholds();
+  const { user } = useCurrentUser();
+  const { encounters = [], isLoading } = useMyEncounters({
+    userId: user?.id,
+    userRole: user?.role,
+  });
+  const { households = [] } = useHouseholds({
+    userId: user?.id,
+    userRole: user?.role,
+    personalOnly: true,
+  });
 
   const [search, setSearch] = useState('');
   const [responseFilter, setResponseFilter] = useState<string>('all');
@@ -65,6 +74,7 @@ export default function EncountersClient() {
       topicsDiscussed: values.topicsDiscussed || undefined,
       literatureOffered: values.literatureOffered || undefined,
       visitDate: new Date().toISOString(),
+      userId: user?.id || null,
     });
     setAddDialogOpen(false);
   };
@@ -186,15 +196,17 @@ export default function EncountersClient() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteConfirmId(e.id)}
-                    title="Delete encounter"
-                  >
-                    <Trash2 size={14} />
-                  </Button>
+                  {(isTerritoryServant(user?.role) || !e.userId || e.userId === user?.id) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteConfirmId(e.id)}
+                      title="Delete encounter"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

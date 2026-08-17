@@ -1,10 +1,18 @@
-'use client';
-
-import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuthSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import type { LocalHousehold } from '@/lib/local-first/types';
 import { NotificationType, ShareStatus } from '@/lib/roles';
 import type { HouseholdShare } from '@/types/api';
 
@@ -76,7 +84,7 @@ export function useShares() {
       householdAddress: string;
       toUserId: string;
       toUserName: string;
-      mode: 'collaborate' | 'transfer';
+      mode: 'collaborate' | 'transfer' | 'view' | string;
       notes?: string;
     }) => {
       if (!userId) throw new Error('Not authenticated');
@@ -93,7 +101,7 @@ export function useShares() {
         fromUserName: userName,
         toUserId: params.toUserId,
         toUserName: params.toUserName,
-        mode: params.mode,
+        mode: params.mode as any,
         status: ShareStatus.PENDING,
         notes: params.notes ?? null,
         createdAt: now,
@@ -104,12 +112,18 @@ export function useShares() {
 
       // Create in-app notification for recipient
       const notifId = createClientId();
+      const modeLabel =
+        params.mode === 'transfer'
+          ? 'Transfer Ownership'
+          : params.mode === 'view'
+            ? 'Read-Only View'
+            : 'Collaborate';
       await setDoc(doc(db, FIRESTORE_COLLECTIONS.notifications, notifId), {
         id: notifId,
         userId: params.toUserId,
         type: NotificationType.SHARE_REQUEST,
         title: 'Household Record Shared',
-        body: `${userName} shared household "${params.householdAddress}" with you (${params.mode === 'transfer' ? 'Transfer Ownership' : 'Collaborate'}).`,
+        body: `${userName} shared household "${params.householdAddress}" with you (${modeLabel}).`,
         data: JSON.stringify({ shareId, householdId: params.householdId, mode: params.mode }),
         isRead: false,
         createdAt: now,
@@ -137,31 +151,66 @@ export function useShares() {
 
       if (status === 'accepted') {
         const householdRef = doc(db, FIRESTORE_COLLECTIONS.households, shareSnap.householdId);
+        const householdDocSnap = await getDoc(householdRef);
+        const hData = householdDocSnap.exists()
+          ? (householdDocSnap.data() as Partial<LocalHousehold>)
+          : undefined;
 
         if (shareSnap.mode === 'transfer') {
-          // Transfer ownership to recipient
+          // Transfer ownership to recipient and attach transfer metadata
           await updateDoc(householdRef, {
             createdById: userId,
             creatorName: userName,
+            transferredFrom: shareSnap.fromUserName || 'Fellow Publisher',
+            transferredFromId: shareSnap.fromUserId,
+            transferredAt: now,
+            collaboratorIds: (hData?.collaboratorIds || []).filter((id) => id !== userId),
+            readOnlyUserIds: (hData?.readOnlyUserIds || []).filter((id) => id !== userId),
+            updatedById: userId,
+            updatedAt: now,
+          });
+        } else if (shareSnap.mode === 'view') {
+          // Add as read-only viewer
+          const currentReadOnly = Array.isArray(hData?.readOnlyUserIds)
+            ? hData.readOnlyUserIds
+            : [];
+          const nextReadOnly = Array.from(new Set([...currentReadOnly, userId]));
+          const nextCollaborators = (hData?.collaboratorIds || []).filter((id) => id !== userId);
+          await updateDoc(householdRef, {
+            readOnlyUserIds: nextReadOnly,
+            collaboratorIds: nextCollaborators,
+            updatedById: userId,
             updatedAt: now,
           });
         } else {
           // Add as collaborator
-          // We read current collaborators or add to array
+          const currentCollaborators = Array.isArray(hData?.collaboratorIds)
+            ? hData.collaboratorIds
+            : [];
+          const nextCollaborators = Array.from(new Set([...currentCollaborators, userId]));
+          const nextReadOnly = (hData?.readOnlyUserIds || []).filter((id) => id !== userId);
           await updateDoc(householdRef, {
-            collaboratorIds: [userId],
+            collaboratorIds: nextCollaborators,
+            readOnlyUserIds: nextReadOnly,
+            updatedById: userId,
             updatedAt: now,
           });
         }
 
         // Notify sender that share was accepted
         const notifId = createClientId();
+        const modeLabel =
+          shareSnap.mode === 'transfer'
+            ? 'transfer'
+            : shareSnap.mode === 'view'
+              ? 'read-only access'
+              : 'collaboration';
         await setDoc(doc(db, FIRESTORE_COLLECTIONS.notifications, notifId), {
           id: notifId,
           userId: shareSnap.fromUserId,
           type: NotificationType.SHARE_ACCEPTED,
           title: 'Record Share Accepted',
-          body: `${userName} accepted your ${shareSnap.mode === 'transfer' ? 'transfer' : 'collaboration'} of "${shareSnap.householdAddress}".`,
+          body: `${userName} accepted your ${modeLabel} of "${shareSnap.householdAddress}".`,
           data: JSON.stringify({ shareId, householdId: shareSnap.householdId }),
           isRead: false,
           createdAt: now,
@@ -201,13 +250,14 @@ export function useShares() {
   };
 }
 
-export function useCreateShare(householdId: string) {
+export function useCreateShare(householdId: string, householdAddress?: string | null) {
   const { sendShareRequest } = useShares();
   const [isPending, setIsPending] = useState(false);
 
   const create = useCallback(
     async (params: {
       toUserId: string;
+      toUserName?: string;
       type: 'view' | 'collaborate' | 'transfer';
       notes?: string;
     }) => {
@@ -215,17 +265,17 @@ export function useCreateShare(householdId: string) {
       try {
         await sendShareRequest({
           householdId,
-          householdAddress: 'Household Record',
+          householdAddress: householdAddress || 'Household Record',
           toUserId: params.toUserId,
-          toUserName: 'Publisher',
-          mode: params.type === 'transfer' ? 'transfer' : 'collaborate',
+          toUserName: params.toUserName || 'Publisher',
+          mode: params.type,
           notes: params.notes,
         });
       } finally {
         setIsPending(false);
       }
     },
-    [householdId, sendShareRequest]
+    [householdId, householdAddress, sendShareRequest]
   );
 
   return { create, isPending };
