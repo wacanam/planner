@@ -5,10 +5,11 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, MapPin } from 'lucid
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { registerWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
@@ -51,6 +52,7 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
+    control,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
@@ -61,6 +63,7 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      agreeTerms: false,
     },
   });
 
@@ -290,6 +293,40 @@ export default function RegisterPage() {
                   )}
                   {errors.confirmPassword && (
                     <p className="text-[10px] text-destructive">{errors.confirmPassword.message}</p>
+                  )}
+                </div>
+
+                {/* Terms of Service & Privacy Policy Checkbox */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-start gap-2.5">
+                    <Controller
+                      name="agreeTerms"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          id="agreeTerms"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="mt-0.5"
+                        />
+                      )}
+                    />
+                    <Label
+                      htmlFor="agreeTerms"
+                      className="text-xs text-muted-foreground font-normal leading-tight cursor-pointer select-none"
+                    >
+                      I agree to the{' '}
+                      <span className="font-semibold text-foreground hover:underline">
+                        Terms of Service
+                      </span>{' '}
+                      and{' '}
+                      <span className="font-semibold text-foreground hover:underline">
+                        Privacy Policy
+                      </span>
+                    </Label>
+                  </div>
+                  {errors.agreeTerms && (
+                    <p className="text-[10px] text-destructive pl-6">{errors.agreeTerms.message}</p>
                   )}
                 </div>
 

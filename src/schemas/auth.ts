@@ -13,10 +13,14 @@ export const registerSchema = z
     email: z.string().email('Please enter a valid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string(),
+    agreeTerms: z.boolean().refine((val) => val === true, {
+      message: 'You must agree to the Terms of Service to create an account',
+    }),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   });
 export type RegisterFormData = z.infer<typeof registerSchema>;
+
 
