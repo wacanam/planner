@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { isSystemAdmin } from '@/lib/permissions';
 import type { User } from '@/types/api';
 
 function usersCollection() {
@@ -68,7 +69,10 @@ export function useAdminUsers() {
     );
   }, []);
 
-  const updateUserRole = useCallback(async (userId: string, newRole: string) => {
+  const updateUserRole = useCallback(async (userId: string, newRole: string, currentUserId?: string) => {
+    if (currentUserId && userId === currentUserId && !isSystemAdmin(newRole)) {
+      throw new Error('Administrators cannot downgrade their own role.');
+    }
     setIsProcessing(true);
     try {
       const db = getPlannerFirestore();
