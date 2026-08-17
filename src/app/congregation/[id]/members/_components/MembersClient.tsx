@@ -28,8 +28,9 @@ import {
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
-import { isServiceOverseer } from '@/lib/permissions';
+import { isServiceOverseer, isSystemAdmin } from '@/lib/permissions';
 import { CongregationRole, UserRole } from '@/lib/roles';
+import { toast } from 'sonner';
 
 type Tab = 'members' | 'requests' | 'endorsements';
 
@@ -55,6 +56,14 @@ export default function MembersClient() {
   const [editMember, setEditMember] = useState<(typeof members)[0] | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('publisher');
 
+  const isCurrentSelf = (m: (typeof members)[0]) => {
+    return (
+      m.userId === user.id ||
+      m.id === user.id ||
+      (Boolean(m.user?.email) && m.user?.email?.toLowerCase() === user.email?.toLowerCase())
+    );
+  };
+
   const activeMembers = members.filter((m) => m.status === 'active');
 
   const filteredMembers = useMemo(() => {
@@ -67,10 +76,16 @@ export default function MembersClient() {
 
   const handleUpdateRole = async () => {
     if (!editMember) return;
+    if (isCurrentSelf(editMember)) {
+      toast.error('You cannot change or downgrade your own congregation role.');
+      setEditMember(null);
+      return;
+    }
     await updateRole({
       userId: editMember.userId,
       congregationRole: selectedRole as CongregationRole,
     });
+    toast.success('Member role updated successfully');
     setEditMember(null);
   };
 
@@ -151,35 +166,54 @@ export default function MembersClient() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredMembers.map((m) => (
-                  <Card key={m.id} className="bg-card border-border shadow-xs">
-                    <CardContent className="p-4 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-bold text-sm text-foreground">
-                          {m.user?.name || m.user?.email || 'Publisher'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{m.user?.email}</p>
-                      </div>
+                {filteredMembers.map((m) => {
+                  const isSelf = isCurrentSelf(m);
+                  return (
+                    <Card key={m.id} className="bg-card border-border shadow-xs">
+                      <CardContent className="p-4 flex items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-foreground">
+                              {m.user?.name || m.user?.email || 'Publisher'}
+                            </p>
+                            {isSelf && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20"
+                              >
+                                You
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{m.user?.email}</p>
+                        </div>
 
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] uppercase font-semibold">
-                          {m.congregationRole?.replace(/_/g, ' ') || 'PUBLISHER'}
-                        </Badge>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 rounded-xl text-xs"
-                          onClick={() => {
-                            setEditMember(m);
-                            setSelectedRole(m.congregationRole || 'publisher');
-                          }}
-                        >
-                          Change Role
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] uppercase font-semibold">
+                            {m.congregationRole?.replace(/_/g, ' ') || 'PUBLISHER'}
+                          </Badge>
+                          {!isSelf ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 rounded-xl text-xs font-semibold"
+                              onClick={() => {
+                                setEditMember(m);
+                                setSelectedRole(m.congregationRole || 'publisher');
+                              }}
+                            >
+                              Change Role
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] font-medium text-muted-foreground italic px-2">
+                              Your Account
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -201,14 +235,14 @@ export default function MembersClient() {
             ) : (
               joinRequests.map((req) => (
                 <Card key={req.id} className="bg-card border-border shadow-xs">
-                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
+                    <div>
                       <p className="font-bold text-sm text-foreground">
-                        {req.user?.name || req.user?.email || 'New User'}
+                        {req.user?.name || req.user?.email || 'Publisher'}
                       </p>
                       <p className="text-xs text-muted-foreground">{req.user?.email}</p>
                       {req.joinMessage && (
-                        <p className="text-xs text-muted-foreground/90 italic">
+                        <p className="text-xs italic text-muted-foreground mt-1 bg-muted/40 p-2 rounded-xl">
                           &ldquo;{req.joinMessage}&rdquo;
                         </p>
                       )}
@@ -218,21 +252,21 @@ export default function MembersClient() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl text-xs gap-1"
+                        className="rounded-xl text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => reviewJoin({ requestId: req.id, status: 'rejected' })}
                         disabled={reviewingJoin}
                       >
                         <X size={13} />
-                        <span>Reject</span>
+                        <span>Decline</span>
                       </Button>
                       <Button
                         size="sm"
-                        className="rounded-xl text-xs gap-1 font-semibold"
+                        className="rounded-xl text-xs font-semibold gap-1"
                         onClick={() => reviewJoin({ requestId: req.id, status: 'approved' })}
                         disabled={reviewingJoin}
                       >
                         <Check size={13} />
-                        <span>Approve Access</span>
+                        <span>Approve</span>
                       </Button>
                     </div>
                   </CardContent>
@@ -253,19 +287,28 @@ export default function MembersClient() {
             ) : endorsements.length === 0 ? (
               <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
                 <Shield size={36} className="text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-foreground">No pending endorsements</p>
+                <p className="text-sm font-semibold text-foreground">
+                  No pending territory endorsements
+                </p>
               </div>
             ) : (
               endorsements.map((item) => (
                 <Card key={item.id} className="bg-card border-border shadow-xs">
-                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-bold text-sm text-foreground">
-                        Territory #{item.territoryNumber || item.territory?.number || ''} —{' '}
-                        {item.territoryName || item.territory?.name || 'Territory'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Assignee: {item.assigneeName || item.assigneeEmail || 'Publisher'}
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground">
+                          Territory #{item.territoryNumber || item.territory?.number}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          Endorsement Required
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Requested by{' '}
+                        <span className="font-semibold text-foreground">
+                          {item.assigneeName || item.assigneeEmail || 'Publisher'}
+                        </span>
                       </p>
                     </div>
 
@@ -297,23 +340,29 @@ export default function MembersClient() {
           }
         >
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Congregation Role</Label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="h-9 rounded-xl text-xs">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border">
-                  <SelectItem value={CongregationRole.SERVICE_OVERSEER}>
-                    Service Overseer
-                  </SelectItem>
-                  <SelectItem value={CongregationRole.TERRITORY_SERVANT}>
-                    Territory Servant
-                  </SelectItem>
-                  <SelectItem value="publisher">Regular Publisher</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {editMember && isCurrentSelf(editMember) ? (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                You cannot change or downgrade your own congregation role.
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Congregation Role</Label>
+                <Select value={selectedRole} onValueChange={setSelectedRole}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value={CongregationRole.SERVICE_OVERSEER}>
+                      Service Overseer
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.TERRITORY_SERVANT}>
+                      Territory Servant
+                    </SelectItem>
+                    <SelectItem value="publisher">Regular Publisher</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
               <Button
@@ -328,7 +377,7 @@ export default function MembersClient() {
                 type="button"
                 className="rounded-xl text-xs font-semibold"
                 onClick={handleUpdateRole}
-                disabled={updatingRole}
+                disabled={updatingRole || (!!editMember && isCurrentSelf(editMember))}
               >
                 {updatingRole ? 'Updating…' : 'Save Role'}
               </Button>
