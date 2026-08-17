@@ -100,24 +100,30 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
   let currentY = marginTop + 21;
 
-  // 4 KPI Summary Cards
+  // 4 KPI Summary Cards (Clean pure white background with slate border)
   const kpiWidth = (contentWidth - 9) / 4; // ~64.5mm each
   const kpiHeight = 22;
 
+  // Helper to draw clean white card container
+  const drawKpiCardContainer = (x: number, y: number, w: number, h: number) => {
+    doc.setFillColor(255, 255, 255); // Pure white card
+    doc.setDrawColor(203, 213, 225); // Slate-300 border
+    doc.setLineWidth(0.35);
+    doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+  };
+
   // KPI 1: Live Coverage
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(marginLeft, currentY, kpiWidth, kpiHeight, 2, 2, 'FD');
+  drawKpiCardContainer(marginLeft, currentY, kpiWidth, kpiHeight);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(71, 85, 105); // Slate-600
   doc.text('TOTAL COVERAGE', marginLeft + 4, currentY + 5.5);
   doc.setFontSize(14);
-  doc.setTextColor(37, 99, 235); // Primary Blue
+  doc.setTextColor(29, 78, 216); // High-contrast Blue-700
   doc.text(`${coverageData?.avgCoveragePercent ?? 0}%`, marginLeft + 4, currentY + 13);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(100, 116, 139); // Slate-500
   doc.text(
     `${coverageData?.workedDoors ?? 0} / ${coverageData?.totalDoors ?? 0} doors worked`,
     marginLeft + 4,
@@ -126,49 +132,49 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
   // KPI 2: Active Rotation
   const kpi2X = marginLeft + kpiWidth + 3;
-  doc.roundedRect(kpi2X, currentY, kpiWidth, kpiHeight, 2, 2, 'FD');
+  drawKpiCardContainer(kpi2X, currentY, kpiWidth, kpiHeight);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(71, 85, 105); // Slate-600
   doc.text('ACTIVE ROTATION RATE', kpi2X + 4, currentY + 5.5);
   doc.setFontSize(14);
-  doc.setTextColor(16, 185, 129); // Emerald
+  doc.setTextColor(4, 120, 87); // High-contrast Emerald-700
   doc.text(`${coverageData?.activeAssignmentRate ?? 0}%`, kpi2X + 4, currentY + 13);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(100, 116, 139); // Slate-500
   doc.text(`${coverageData?.byStatus.assigned ?? 0} territories assigned`, kpi2X + 4, currentY + 18);
 
   // KPI 3: Avg Turnaround
   const kpi3X = kpi2X + kpiWidth + 3;
-  doc.roundedRect(kpi3X, currentY, kpiWidth, kpiHeight, 2, 2, 'FD');
+  drawKpiCardContainer(kpi3X, currentY, kpiWidth, kpiHeight);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(71, 85, 105); // Slate-600
   doc.text('AVG TURNAROUND', kpi3X + 4, currentY + 5.5);
   doc.setFontSize(14);
-  doc.setTextColor(245, 158, 11); // Amber
+  doc.setTextColor(180, 83, 9); // High-contrast Amber-700
   doc.text(`${coverageData?.avgTurnaroundDays ?? 45} Days`, kpi3X + 4, currentY + 13);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
-  doc.text('Cycle target: 60-90 days', kpi3X + 4, currentY + 18);
+  doc.setTextColor(100, 116, 139); // Slate-500
+  doc.text('Target cycle: ~60-90 days', kpi3X + 4, currentY + 18);
 
   // KPI 4: Health Recency
   const kpi4X = kpi3X + kpiWidth + 3;
-  doc.roundedRect(kpi4X, currentY, kpiWidth, kpiHeight, 2, 2, 'FD');
+  drawKpiCardContainer(kpi4X, currentY, kpiWidth, kpiHeight);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
+  doc.setTextColor(71, 85, 105); // Slate-600
   doc.text('TERRITORY HEALTH INDEX', kpi4X + 4, currentY + 5.5);
   doc.setFontSize(10);
-  doc.setTextColor(16, 185, 129);
+  doc.setTextColor(4, 120, 87); // Emerald-700
   doc.text(`${coverageData?.byHealth.fresh ?? 0} Fresh`, kpi4X + 4, currentY + 12);
-  doc.setTextColor(37, 99, 235);
-  doc.text(`• ${coverageData?.byHealth.active ?? 0} Active`, kpi4X + 24, currentY + 12);
+  doc.setTextColor(29, 78, 216); // Blue-700
+  doc.text(`• ${coverageData?.byHealth.active ?? 0} Active`, kpi4X + 22, currentY + 12);
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(225, 29, 72);
+  doc.setTextColor(190, 18, 60); // Rose-700
   doc.text(`${coverageData?.byHealth.stale ?? 0} Stale / Overdue (>180d)`, kpi4X + 4, currentY + 18);
 
   currentY += kpiHeight + 6;
@@ -562,8 +568,10 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   ];
 
   outcomes.forEach((out, i) => {
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(marginLeft, leftY, leftColWidth, 8, 1.5, 1.5, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(marginLeft, leftY, leftColWidth, 8, 1.5, 1.5, 'FD');
 
     doc.setFillColor(out.color[0], out.color[1], out.color[2]);
     doc.circle(marginLeft + 4, leftY + 4, 1.5, 'F');
@@ -599,8 +607,10 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     doc.text('No recent territory assignments logged.', rightX, rightY + 6);
   } else {
     recentAssignments.forEach((act) => {
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(rightX, rightY, rightColWidth, 9.5, 1.5, 1.5, 'F');
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(rightX, rightY, rightColWidth, 9.5, 1.5, 1.5, 'FD');
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
