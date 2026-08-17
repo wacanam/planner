@@ -60,6 +60,7 @@ import {
   exportPublishersToCSV,
   exportS13ToCSV,
 } from '@/lib/reports-csv-export';
+import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
 import { exportS13ToPDF } from '@/lib/s13-pdf-export';
 import { UserRole } from '@/lib/roles';
 import type { CoverageTerritory, S13AssignmentRecord } from '@/types/api';
@@ -158,17 +159,27 @@ export default function ReportsClient() {
             </p>
           </div>
 
-          {/* Export Dropdown */}
+          {/* Export & PDF Direct Download Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.print()}
-              className="rounded-xl text-xs gap-1.5 h-9"
-              title="Print current report view"
+              onClick={() =>
+                exportFullCongregationReportPDF({
+                  congregationName,
+                  coverageData,
+                  s13Records,
+                  groupsData,
+                  publishersData: publishersData?.publishers,
+                  doorData,
+                  activityData,
+                })
+              }
+              className="rounded-xl text-xs gap-1.5 h-9 font-semibold text-primary border-primary/30 hover:bg-primary/5"
+              title="Direct Download Full Multi-Page PDF Report"
             >
-              <Printer size={13} />
-              <span className="hidden sm:inline">Print</span>
+              <FileText size={13} className="text-primary" />
+              <span>Download Full Report (PDF)</span>
             </Button>
 
             <DropdownMenu>
@@ -179,12 +190,29 @@ export default function ReportsClient() {
                   <ChevronDown size={12} className="opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-xl text-xs">
+              <DropdownMenuContent align="end" className="w-60 rounded-xl text-xs">
                 <DropdownMenuItem
-                  onClick={() => exportS13ToPDF(s13Records, congregationName)}
-                  className="cursor-pointer gap-2 py-2 font-semibold text-primary"
+                  onClick={() =>
+                    exportFullCongregationReportPDF({
+                      congregationName,
+                      coverageData,
+                      s13Records,
+                      groupsData,
+                      publishersData: publishersData?.publishers,
+                      doorData,
+                      activityData,
+                    })
+                  }
+                  className="cursor-pointer gap-2 py-2 font-bold text-primary"
                 >
                   <FileText size={14} className="text-primary" />
+                  <span>Download Full Report (PDF)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => exportS13ToPDF(s13Records, congregationName)}
+                  className="cursor-pointer gap-2 py-2 font-semibold text-blue-600 dark:text-blue-400"
+                >
+                  <FileSpreadsheet size={14} className="text-blue-600" />
                   <span>Download S-13 Record (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem

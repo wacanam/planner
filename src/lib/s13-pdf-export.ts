@@ -8,7 +8,7 @@ import type { S13AssignmentRecord } from '@/types/api';
 export function exportS13ToPDF(
   records: S13AssignmentRecord[],
   congregationName = 'Congregation'
-): void {
+): jsPDF {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
