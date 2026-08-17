@@ -30,7 +30,7 @@ export default function MyAssignmentsClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Territory Assignments</h1>
           <p className="text-xs text-muted-foreground mt-1">

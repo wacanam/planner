@@ -52,8 +52,8 @@ export default function GroupsClient() {
   return (
     <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
       <DashboardHeader />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Service Groups</h1>
             <p className="text-xs text-muted-foreground mt-1">
@@ -65,9 +65,9 @@ export default function GroupsClient() {
               setGroupName('');
               setCreateOpen(true);
             }}
-            className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-4 shadow-sm"
+            className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs shrink-0"
           >
-            <Plus size={15} />
+            <Plus size={14} />
             <span>Create Group</span>
           </Button>
         </div>
@@ -94,7 +94,7 @@ export default function GroupsClient() {
                 key={group.id}
                 className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
               >
-                <CardContent className="p-5 space-y-3">
+                <CardContent className="p-4 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <div className="p-2 rounded-xl bg-primary/10 text-primary">

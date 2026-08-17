@@ -26,7 +26,7 @@ export default function ReportsClient() {
   return (
     <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
       <DashboardHeader />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Congregation Reports & Analytics</h1>
           <p className="text-xs text-muted-foreground mt-1">
