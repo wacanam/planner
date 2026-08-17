@@ -32,6 +32,8 @@ interface StudioSidebarProps {
   allTerritories?: Territory[];
   onSelectTerritory?: (territoryId: string) => void;
   households: Household[];
+  selectedHouseholdId?: string | null;
+  onSelectHousehold?: (household: Household) => void;
   cardSettings: CardDimensionSettings;
   onChangeCardSettings: (settings: CardDimensionSettings) => void;
   onPrintCard: () => void;
@@ -45,6 +47,8 @@ export function StudioSidebar({
   allTerritories = [],
   onSelectTerritory,
   households,
+  selectedHouseholdId,
+  onSelectHousehold,
   cardSettings,
   onChangeCardSettings,
   onPrintCard,
@@ -59,7 +63,7 @@ export function StudioSidebar({
   return (
     <aside className="absolute top-0 left-0 bottom-0 z-40 w-80 bg-card border-r border-border shadow-2xl flex flex-col pointer-events-auto transition-transform duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
+      <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
             <MapPin size={16} />
@@ -86,7 +90,7 @@ export function StudioSidebar({
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-3 p-2 bg-muted/40 border-b border-border text-xs font-semibold">
+      <div className="grid grid-cols-3 p-2 bg-muted/40 border-b border-border text-xs font-semibold shrink-0">
         <button
           type="button"
           onClick={() => setTab('info')}
@@ -123,11 +127,11 @@ export function StudioSidebar({
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      <div className="flex-1 min-h-0 flex flex-col p-4 text-xs overflow-hidden">
         {tab === 'info' && (
-          <>
+          <div className="flex-1 min-h-0 flex flex-col space-y-3">
             {/* Quick Metrics */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 shrink-0">
               <div className="p-3 rounded-xl border border-border bg-background">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Doors</p>
                 <p className="text-xl font-bold text-foreground mt-0.5">{households.length}</p>
@@ -148,51 +152,66 @@ export function StudioSidebar({
             <Button
               type="button"
               variant="outline"
-              className="w-full h-9 rounded-xl gap-2 font-semibold"
+              className="w-full h-9 rounded-xl gap-2 font-semibold shrink-0 hover:border-primary/50 hover:bg-primary/5"
               onClick={onOpenAddHousehold}
             >
-              <Plus size={14} />
-              <span>Add Door Record</span>
+              <Plus size={14} className="text-primary" />
+              <span>Add Household</span>
             </Button>
 
-            {/* Pinned Households List Preview */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <p className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
-                Territory Households ({households.length})
-              </p>
-              {households.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">
-                  No households pinned in this territory yet.
+            {/* Territory Households List: Flex-1 and min-h-0 to occupy full vertical height to bottom */}
+            <div className="flex-1 min-h-0 flex flex-col pt-2 border-t border-border space-y-2">
+              <div className="flex items-center justify-between shrink-0">
+                <p className="font-bold text-muted-foreground uppercase text-[10px] tracking-wider">
+                  Territory Households ({households.length})
                 </p>
+              </div>
+              {households.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-4 text-center">
+                  <p className="text-muted-foreground">
+                    No households pinned in this territory yet.
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                  {households.map((h) => (
-                    <div
-                      key={h.id}
-                      className="p-2.5 rounded-xl border border-border bg-background flex items-center justify-between gap-2 hover:border-primary/40 transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-foreground truncate">{h.address}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {h.streetName}, {h.city}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] uppercase font-semibold shrink-0"
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
+                  {households.map((h) => {
+                    const isSelected = selectedHouseholdId === h.id;
+                    return (
+                      <button
+                        key={h.id}
+                        type="button"
+                        onClick={() => onSelectHousehold?.(h)}
+                        className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40'
+                            : 'border-border bg-background hover:border-primary/40 hover:bg-muted/40'
+                        }`}
                       >
-                        {h.status}
-                      </Badge>
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <p className={`font-semibold truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                            {h.address || `${h.houseNumber || ''} ${h.streetName || 'Household'}`.trim()}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {h.streetName ? `${h.streetName}, ` : ''}{h.city || 'Territory'}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] uppercase font-semibold shrink-0"
+                        >
+                          {h.status || 'Active'}
+                        </Badge>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
 
         {tab === 'portion' && (
-          <div className="space-y-3">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
             {isServant ? (
               <>
                 <p className="font-bold text-muted-foreground uppercase text-[10px]">

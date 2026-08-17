@@ -771,6 +771,23 @@ export function StudioLayout({
         allTerritories={allTerritories}
         onSelectTerritory={onSelectTerritory}
         households={households}
+        selectedHouseholdId={selectedHousehold?.id}
+        onSelectHousehold={(h) => {
+          setSelectedHousehold(h);
+          if (
+            typeof h.latitude === 'number' &&
+            typeof h.longitude === 'number' &&
+            h.latitude !== 0 &&
+            h.longitude !== 0
+          ) {
+            setSearchedLocation({
+              lat: h.latitude,
+              lng: h.longitude,
+              zoom: 19,
+              timestamp: Date.now(),
+            });
+          }
+        }}
         cardSettings={cardSettings}
         onChangeCardSettings={setCardSettings}
         onPrintCard={() => {
