@@ -554,6 +554,45 @@ export function StudioPrintViewport({
 
           <div className="h-4 w-px bg-border shrink-0" />
 
+          {/* Side Switcher: Front / Back / Both */}
+          <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => handleSelectSide('front')}
+              className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
+                cardSettings.side === 'front'
+                  ? 'bg-card text-primary shadow-xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Front
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectSide('back')}
+              className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
+                cardSettings.side === 'back'
+                  ? 'bg-card text-primary shadow-xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectSide('both')}
+              className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
+                cardSettings.side === 'both'
+                  ? 'bg-card text-primary shadow-xs font-bold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Both
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-border shrink-0" />
+
           {/* Right: Direct Download Buttons & Close */}
           <div className="flex items-center gap-1 shrink-0">
             <Button
@@ -632,10 +671,21 @@ export function StudioPrintViewport({
                   {territory?.name || 'Assigned Territory'}
                 </p>
               </div>
-              <div className="text-right shrink-0">
-                <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0 px-1.5">
-                  {territory?.city || congregation?.city || 'Local Area'}
-                </Badge>
+              <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0 px-1.5">
+                    {territory?.city || congregation?.city || 'Local Area'}
+                  </Badge>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSide('back')}
+                    className="pointer-events-auto text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded border border-primary/20 transition-all flex items-center gap-1 cursor-pointer"
+                    title="Flip to back side (Directory & Record)"
+                  >
+                    <span>Flip</span>
+                    <RotateCw size={10} />
+                  </button>
+                </div>
                 <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
                   {coverageStats.totalDoors} Doors ({coverageStats.coveragePercent}% worked)
                 </p>
@@ -680,12 +730,23 @@ export function StudioPrintViewport({
                 </h2>
                 <p className="text-[9.5px] font-semibold text-slate-600 truncate">{territory?.name}</p>
               </div>
-              {cardSettings.showQrCode && (
-                <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded border border-slate-200">
-                  <QrCode size={16} className="text-slate-800" />
-                  <span className="text-[7.5px] font-bold text-slate-600">Mobile Link</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleSelectSide('front')}
+                  className="pointer-events-auto text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded border border-primary/20 transition-all flex items-center gap-1 cursor-pointer"
+                  title="Flip to front side (Map)"
+                >
+                  <span>Flip to Map</span>
+                  <RotateCw size={10} />
+                </button>
+                {cardSettings.showQrCode && (
+                  <div className="flex items-center gap-1 bg-slate-50 p-1 rounded border border-slate-200">
+                    <QrCode size={16} className="text-slate-800" />
+                    <span className="text-[7.5px] font-bold text-slate-600">Mobile Link</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Streets Summary */}
@@ -741,18 +802,18 @@ export function StudioPrintViewport({
         )}
       </div>
 
-      {/* Bottom Floating Hint Bar */}
-      <div className="relative z-10 p-3 pointer-events-auto flex items-center justify-center">
-        <div className="flex items-center gap-3 bg-card/95 backdrop-blur-md border border-border/80 px-4 py-2 rounded-2xl shadow-xl text-xs">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <FileText size={14} className="text-primary" />
-            <span>Side to Export:</span>
+      {/* Bottom Floating Side Switcher Bar (Always Visible at Bottom Center) */}
+      <div className="absolute bottom-4 inset-x-0 z-40 flex items-center justify-center pointer-events-none px-2">
+        <div className="pointer-events-auto flex items-center gap-2 bg-card/95 backdrop-blur-md border border-border shadow-2xl px-3 py-1.5 rounded-2xl text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+            <FileText size={13} className="text-primary" />
+            <span className="hidden sm:inline">Side to Preview:</span>
           </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => handleSelectSide('front')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-xl font-semibold text-xs transition-all ${
                 cardSettings.side === 'front'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
@@ -763,7 +824,7 @@ export function StudioPrintViewport({
             <button
               type="button"
               onClick={() => handleSelectSide('back')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-xl font-semibold text-xs transition-all ${
                 cardSettings.side === 'back'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
@@ -774,7 +835,7 @@ export function StudioPrintViewport({
             <button
               type="button"
               onClick={() => handleSelectSide('both')}
-              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-xl font-semibold text-xs transition-all ${
                 cardSettings.side === 'both'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
