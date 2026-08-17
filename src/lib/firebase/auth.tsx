@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   onIdTokenChanged,
   reauthenticateWithCredential,
+  sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -327,6 +328,20 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   await firebaseSignOut(getPlannerAuth());
+}
+
+export async function sendUserPasswordResetEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) {
+    throw new Error('Please enter your account email address.');
+  }
+
+  const auth = getPlannerAuth();
+  try {
+    await sendPasswordResetEmail(auth, normalized);
+  } catch (error) {
+    throw new Error(firebaseErrorMessage(error));
+  }
 }
 
 export async function updateUserProfile(input: { name?: string; avatarUrl?: string | null }) {

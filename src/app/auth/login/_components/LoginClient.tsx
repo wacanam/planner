@@ -1,17 +1,23 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, MapPin } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import {
+  sendUserPasswordResetEmail,
+  signInWithEmail,
+  signInWithGoogle,
+} from '@/lib/firebase/auth';
 import { type LoginFormData, loginSchema } from '@/schemas';
 
 export default function LoginPage() {
@@ -20,9 +26,17 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Forgot password state
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetError, setResetError] = useState('');
+
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -53,6 +67,21 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
     } finally {
       setIsGoogleLoading(false);
+    }
+  }
+
+  async function handleSendResetEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
+    try {
+      await sendUserPasswordResetEmail(resetEmail);
+      setResetSuccess(true);
+      toast.success('Password reset link sent to your email!');
+    } catch (err: any) {
+      setResetError(err?.message || 'Failed to send password reset email.');
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -141,6 +170,18 @@ export default function LoginPage() {
                     <Label htmlFor="password" className="text-xs font-medium">
                       Password
                     </Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetEmail(getValues('email') || '');
+                        setResetError('');
+                        setResetSuccess(false);
+                        setResetDialogOpen(true);
+                      }}
+                      className="text-xs font-medium text-primary hover:underline transition-colors cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
                   <div className="relative">
                     <Input
@@ -166,7 +207,7 @@ export default function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm"
+                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
                   disabled={isSubmitting || isGoogleLoading}
                 >
                   {isSubmitting ? 'Signing in…' : 'Sign in'}
@@ -193,6 +234,87 @@ export default function LoginPage() {
       <div className="py-2 text-center text-[11px] text-muted-foreground">
         © {new Date().getFullYear()} Ministry Planner
       </div>
+
+      {/* Forgot Password Dialog */}
+      <ResponsiveDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title="Reset Your Password"
+        description="Enter your account email address and we'll send you a password reset link."
+      >
+        {resetSuccess ? (
+          <div className="space-y-4 py-2">
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+              <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1">
+                <p className="font-bold text-foreground">Password Reset Link Sent!</p>
+                <p className="text-muted-foreground">
+                  We sent an email to <span className="font-semibold text-foreground">{resetEmail}</span> with instructions to reset your password.
+                </p>
+                <p className="text-[11px] text-muted-foreground italic mt-1">
+                  Be sure to check your spam/junk folder if you don&apos;t see it in a few minutes.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                onClick={() => setResetDialogOpen(false)}
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSendResetEmail} className="space-y-4 py-2">
+            {resetError && (
+              <Alert variant="destructive" className="rounded-xl">
+                <AlertCircle size={15} />
+                <AlertDescription className="text-xs">{resetError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="resetEmail" className="text-xs font-medium">
+                Email Address
+              </Label>
+              <Input
+                id="resetEmail"
+                type="email"
+                placeholder="name@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="h-10 rounded-xl text-xs"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs"
+                onClick={() => setResetDialogOpen(false)}
+                disabled={resetLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="rounded-xl text-xs font-semibold"
+                disabled={resetLoading || !resetEmail.trim()}
+              >
+                {resetLoading ? 'Sending link…' : 'Send Reset Link'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </ResponsiveDialog>
     </div>
   );
 }
+
