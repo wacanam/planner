@@ -505,7 +505,7 @@ export function StudioGoogleMap({
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
           mapId,
-          renderingType: RenderingType?.VECTOR ?? 'VECTOR',
+          renderingType: RenderingType?.RASTER ?? 'RASTER',
           heading: 0,
           tilt: 0,
           rotateControl: false,
