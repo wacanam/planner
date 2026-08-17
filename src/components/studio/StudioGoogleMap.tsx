@@ -127,6 +127,95 @@ function computeCentroidFromPolygons(
   return { lat: latSum / totalPts, lng: lngSum / totalPts };
 }
 
+// Dynamically generate Google Maps vector map style rules matching user POI filters
+export function buildGoogleMapStyles(layers: StudioLayerSettings): google.maps.MapTypeStyle[] {
+  if (layers.cleanMode) {
+    return [
+      // Hide all standard distracting POIs for high-contrast print mode
+      {
+        featureType: 'poi',
+        stylers: [{ visibility: 'off' }],
+      },
+      {
+        featureType: 'transit',
+        stylers: [{ visibility: 'off' }],
+      },
+      {
+        featureType: 'road',
+        elementType: 'geometry',
+        stylers: [{ lightness: -10 }, { saturation: -40 }],
+      },
+      {
+        featureType: 'road',
+        elementType: 'labels.text.fill',
+        stylers: [{ color: '#0F172A' }],
+      },
+      {
+        featureType: 'water',
+        elementType: 'geometry',
+        stylers: [{ color: '#BAE6FD' }],
+      },
+      {
+        featureType: 'landscape',
+        elementType: 'geometry',
+        stylers: [{ color: '#F8FAFC' }],
+      },
+      {
+        featureType: 'landscape.man_made',
+        elementType: 'geometry',
+        stylers: [{ visibility: layers.showBuildings ? 'on' : 'off' }],
+      },
+      {
+        featureType: 'administrative.land_parcel',
+        elementType: 'labels',
+        stylers: [{ visibility: layers.showHouseLabels ? 'on' : 'off' }],
+      },
+    ];
+  }
+
+  const styles: google.maps.MapTypeStyle[] = [];
+
+  // 1. 3D Building Outlines / Man-made structures
+  styles.push({
+    featureType: 'landscape.man_made',
+    elementType: 'geometry',
+    stylers: [{ visibility: layers.showBuildings ? 'on' : 'off' }],
+  });
+
+  // 2. Schools & Colleges
+  styles.push({
+    featureType: 'poi.school',
+    stylers: [{ visibility: layers.showSchools ? 'on' : 'off' }],
+  });
+
+  // 3. Churches & Temples (Places of Worship)
+  styles.push({
+    featureType: 'poi.place_of_worship',
+    stylers: [{ visibility: layers.showChurches ? 'on' : 'off' }],
+  });
+
+  // 4. Hospitals & Medical Facilities
+  styles.push({
+    featureType: 'poi.medical',
+    stylers: [{ visibility: layers.showHospitals ? 'on' : 'off' }],
+  });
+
+  // 5. Stores / Businesses
+  styles.push({
+    featureType: 'poi.business',
+    stylers: [{ visibility: layers.showStores ? 'on' : 'off' }],
+  });
+
+  // 6. House numbers / Land parcels
+  styles.push({
+    featureType: 'administrative.land_parcel',
+    elementType: 'labels',
+    stylers: [{ visibility: layers.showHouseLabels ? 'on' : 'off' }],
+  });
+
+  return styles;
+}
+
 // Full outer world polygon ring spanning the Mercator projection in Clockwise order
 const WORLD_MASK_RING: Array<{ lat: number; lng: number }> = [
   { lat: 85.0, lng: -180.0 },
@@ -461,6 +550,7 @@ export function StudioGoogleMap({
           mapTypeControl: false,
           zoomControl: true,
           gestureHandling: 'greedy',
+          styles: buildGoogleMapStyles(layerSettings),
         });
 
         // Add single stable click listener for tool actions
@@ -647,6 +737,24 @@ export function StudioGoogleMap({
 
     map.setMapTypeId(basemapMode === 'satellite' ? 'hybrid' : 'roadmap');
   }, [mapReady, basemapMode]);
+
+  // 3b. Update Map Details & POI Layer Styles (3D Buildings, Schools, Churches, Hospitals, Stores, Clean Print Mode)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || typeof google === 'undefined') return;
+
+    const dynamicStyles = buildGoogleMapStyles(layerSettings);
+    map.setOptions({ styles: dynamicStyles });
+  }, [
+    mapReady,
+    layerSettings.showBuildings,
+    layerSettings.showHouseLabels,
+    layerSettings.showSchools,
+    layerSettings.showChurches,
+    layerSettings.showHospitals,
+    layerSettings.showStores,
+    layerSettings.cleanMode,
+  ]);
 
   // 4. Update Cursor based on Active Tool
   useEffect(() => {
