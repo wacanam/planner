@@ -560,7 +560,7 @@ export function StudioGoogleMap({
     }
   }, [mapReady, territory?.id]);
 
-  // Smooth cinematic fly-in animation to target location (user GPS or search)
+  // Smooth cinematic distance-adaptive parabolic fly-in animation (user GPS or search)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !searchedLocation) return;
@@ -590,22 +590,66 @@ export function StudioGoogleMap({
       return;
     }
 
+    // Calculate real geographic distance using Haversine formula (in km)
+    const R = 6371; // Earth radius in km
+    const dLat = ((targetLat - startLat) * Math.PI) / 180;
+    const dLng = ((targetLng - startLng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((startLat * Math.PI) / 180) *
+        Math.cos((targetLat * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceKm = R * c;
+
+    // 1. Adaptive flight duration: scales naturally with distance for a majestic, smooth glide
+    let duration = 800; // ms for local small adjustments (< 200m)
+    if (distanceKm > 0.2 && distanceKm <= 1.5) {
+      duration = 1000 + (distanceKm - 0.2) * 250;
+    } else if (distanceKm > 1.5 && distanceKm <= 10) {
+      duration = 1350 + (distanceKm - 1.5) * 60;
+    } else if (distanceKm > 10) {
+      duration = Math.min(2200, 1850 + (distanceKm - 10) * 15);
+    }
+
+    // 2. Parabolic zoom flight arc:
+    // When flying from far away, camera pulls back slightly at midpoint to provide
+    // spatial overview, then swoops gracefully down into the street-level view.
+    let maxZoomDip = 0;
+    if (distanceKm > 0.3 && distanceKm <= 2) {
+      maxZoomDip = 0.8;
+    } else if (distanceKm > 2 && distanceKm <= 8) {
+      maxZoomDip = 1.6;
+    } else if (distanceKm > 8) {
+      maxZoomDip = 2.5;
+    }
+
     isProgrammaticCameraUpdateRef.current = true;
     let animationFrameId: number;
     const startTime = performance.now();
-    const duration = 650; // ms for silky cinematic glide
 
-    // Smooth cubic bezier ease-out
+    // Smooth Quintic Ease-In-Out for natural acceleration & cushioned deceleration
+    const easeInOutQuint = (t: number) =>
+      t < 0.5 ? 16 * Math.pow(t, 5) : 1 - Math.pow(-2 * t + 2, 5) / 2;
+
+    // Cubic Ease-Out for shorter local flights
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const eased = easeOutCubic(progress);
+
+      // Use gentle easeInOut for far flights, easeOut for near hops
+      const eased = distanceKm > 0.3 ? easeInOutQuint(progress) : easeOutCubic(progress);
 
       const lat = startLat + deltaLat * eased;
       const lng = startLng + deltaLng * eased;
-      const zoom = startZoom + deltaZoom * eased;
+
+      // Parabolic zoom calculation: baseline interpolated zoom minus symmetric flight arc dip
+      const baseZoom = startZoom + deltaZoom * eased;
+      const arcDip = 4 * maxZoomDip * progress * (1 - progress);
+      const zoom = Math.max(2, baseZoom - arcDip);
 
       if (typeof map.moveCamera === 'function') {
         try {
