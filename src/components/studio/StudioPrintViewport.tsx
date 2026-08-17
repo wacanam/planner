@@ -23,6 +23,7 @@ import {
 } from '@/lib/territory-card-export';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Congregation, Household, Territory } from '@/types/api';
+import type { BasemapMode } from './StudioBasemapPopup';
 import type { CardDimensionSettings } from './StudioSidebar';
 import { toast } from 'sonner';
 
@@ -35,6 +36,8 @@ export interface StudioPrintViewportProps {
   congregation?: Congregation | null;
   households: Household[];
   onFitTerritoryToFrame: (padding: { top: number; right: number; bottom: number; left: number }) => void;
+  basemapMode?: BasemapMode;
+  onChangeBasemapMode?: (mode: BasemapMode) => void;
 }
 
 export function StudioPrintViewport({
@@ -46,6 +49,8 @@ export function StudioPrintViewport({
   congregation,
   households,
   onFitTerritoryToFrame,
+  basemapMode = 'street',
+  onChangeBasemapMode,
 }: StudioPrintViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
@@ -588,6 +593,39 @@ export function StudioPrintViewport({
               Both
             </button>
           </div>
+
+          {/* Basemap Switcher (Street / Satellite) */}
+          {onChangeBasemapMode && (
+            <>
+              <div className="h-4 w-px bg-border shrink-0" />
+              <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-xl shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onChangeBasemapMode('street')}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
+                    basemapMode === 'street' || !basemapMode
+                      ? 'bg-card text-primary shadow-xs font-bold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Switch to Street Map view"
+                >
+                  Street
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeBasemapMode('satellite')}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
+                    basemapMode === 'satellite'
+                      ? 'bg-card text-primary shadow-xs font-bold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Switch to Satellite Imagery view"
+                >
+                  Satellite
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="h-4 w-px bg-border shrink-0" />
 

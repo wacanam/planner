@@ -777,6 +777,8 @@ export function StudioLayout({
           territory={territory}
           congregation={congregation}
           households={households}
+          basemapMode={basemapMode}
+          onChangeBasemapMode={setBasemapMode}
           onFitTerritoryToFrame={(padding) => {
             setFitPrintViewportPadding({
               ...padding,

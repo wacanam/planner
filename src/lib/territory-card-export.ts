@@ -14,13 +14,28 @@ export async function captureMapViewportSnapshot({
   frameW: number;
   frameH: number;
 }): Promise<string> {
-  // Ensure all Google tile images have crossOrigin set to anonymous
-  const images = mapContainer.querySelectorAll('img');
-  images.forEach((img) => {
-    if (!img.crossOrigin && img.src && (img.src.includes('google') || img.src.includes('khms') || img.src.includes('gstatic'))) {
-      img.crossOrigin = 'anonymous';
-    }
-  });
+  // Ensure all Google tile images have crossOrigin set to anonymous and wait for them to load
+  const images = Array.from(mapContainer.querySelectorAll('img'));
+  await Promise.all(
+    images.map((img) => {
+      if (
+        !img.crossOrigin &&
+        img.src &&
+        (img.src.includes('google') ||
+          img.src.includes('khms') ||
+          img.src.includes('gstatic') ||
+          img.src.includes('googleapis'))
+      ) {
+        img.crossOrigin = 'anonymous';
+      }
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        setTimeout(resolve, 400);
+      });
+    })
+  );
 
   const fullCanvas = await toCanvas(mapContainer, {
     pixelRatio: 2.0, // High quality 2x resolution
