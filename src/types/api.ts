@@ -485,3 +485,27 @@ export interface Encounter {
   visitDate?: string | null;
   visitOutcome?: string | null;
 }
+
+// ─── Account & Congregation Requests ──────────────────────────────────────────
+
+export type AccountRequestType = 'delete_account' | 'leave_congregation';
+export type AccountRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+export interface AccountRequest {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  userAvatarUrl?: string | null;
+  type: AccountRequestType;
+  congregationId?: string | null;
+  congregationName?: string | null;
+  reason?: string | null;
+  status: AccountRequestStatus;
+  requestedAt: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewNote?: string | null;
+}
+

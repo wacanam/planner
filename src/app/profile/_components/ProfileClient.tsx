@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  AlertTriangle,
   Building2,
   Calendar,
   Camera,
@@ -11,9 +12,11 @@ import {
   EyeOff,
   KeyRound,
   Layers,
+  LogOut,
   MapPin,
   Shield,
   Sparkles,
+  Trash2,
   User,
   Users,
 } from 'lucide-react';
@@ -22,18 +25,21 @@ import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   useChangePassword,
   useCongregation,
   useCongregationGroups,
   useCongregationMembers,
   useCurrentUser,
+  useMyAccountRequests,
   useMyAssignments,
   useProfile,
   useUpdateAvatar,
@@ -205,6 +211,66 @@ export default function ProfilePage() {
 
   // Active assignments
   const activeAssignments = assignments.filter((a) => a.status === 'active');
+
+  const {
+    pendingLeaveRequest,
+    pendingDeleteRequest,
+    createRequest,
+    cancelRequest,
+    isSubmitting: isSubmittingRequest,
+  } = useMyAccountRequests();
+
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveReason, setLeaveReason] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  const handleRequestLeave = async () => {
+    try {
+      await createRequest({
+        type: 'leave_congregation',
+        reason: leaveReason,
+        congregationId: congregation?.id || congregationId,
+        congregationName: congregation?.name,
+      });
+      toast.success('Request to leave congregation submitted for System Admin approval.');
+      setLeaveDialogOpen(false);
+      setLeaveReason('');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to submit leave request.');
+    }
+  };
+
+  const handleRequestDelete = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      toast.error('Please type DELETE to confirm your request.');
+      return;
+    }
+    try {
+      await createRequest({
+        type: 'delete_account',
+        reason: deleteReason,
+        congregationId: congregation?.id || congregationId,
+        congregationName: congregation?.name,
+      });
+      toast.success('Account deletion request submitted for System Admin review.');
+      setDeleteDialogOpen(false);
+      setDeleteReason('');
+      setDeleteConfirmText('');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to submit deletion request.');
+    }
+  };
+
+  const handleCancelRequest = async (id: string) => {
+    try {
+      await cancelRequest(id);
+      toast.success('Request cancelled successfully.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to cancel request.');
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -527,6 +593,120 @@ export default function ProfilePage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Account & Congregation Actions (Danger Zone) */}
+          <Card className="border-destructive/30 bg-destructive/5 dark:bg-destructive/10 shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
+                <AlertTriangle size={16} />
+                <span>Account & Congregation Management</span>
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Request congregation departure or permanent account deletion with System Admin review
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Leave Congregation Option */}
+              <div className="p-4 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 max-w-lg">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm text-foreground">Leave Congregation</p>
+                    {pendingLeaveRequest && (
+                      <Badge variant="outline" className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                        ⏳ Pending Admin Approval
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {congregation
+                      ? `Submit a request to leave ${congregation.name}. Upon System Admin approval, your assignments and group membership will be cleared.`
+                      : 'You are currently not assigned to a congregation.'}
+                  </p>
+                  {pendingLeaveRequest && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
+                      <p className="font-semibold">Request submitted on {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}</p>
+                      {pendingLeaveRequest.reason && <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {pendingLeaveRequest ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
+                      onClick={() => handleCancelRequest(pendingLeaveRequest.id)}
+                      disabled={isSubmittingRequest}
+                    >
+                      Cancel Request
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10"
+                      onClick={() => setLeaveDialogOpen(true)}
+                      disabled={!congregation || isSubmittingRequest}
+                    >
+                      <LogOut size={13} className="mr-1.5" />
+                      Request to Leave
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Delete Account Option */}
+              <div className="p-4 rounded-2xl border border-destructive/20 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 max-w-lg">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm text-destructive">Delete Account</p>
+                    {pendingDeleteRequest && (
+                      <Badge variant="outline" className="text-[10px] font-bold bg-destructive/15 text-destructive border-destructive/30">
+                        ⏳ Pending Admin Review
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Permanently request account deactivation and removal. Requires System Admin review to ensure territories and group assignments are resolved.
+                  </p>
+                  {pendingDeleteRequest && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-0.5">
+                      <p className="font-semibold">Deletion request submitted on {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}</p>
+                      {pendingDeleteRequest.reason && <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {pendingDeleteRequest ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
+                      onClick={() => handleCancelRequest(pendingDeleteRequest.id)}
+                      disabled={isSubmittingRequest}
+                    >
+                      Cancel Request
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-xl text-xs font-semibold"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      disabled={isSubmittingRequest}
+                    >
+                      <Trash2 size={13} className="mr-1.5" />
+                      Request Deletion
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -540,6 +720,131 @@ export default function ProfilePage() {
           loading={updateAvatar.isPending}
         />
       )}
+
+      {/* Request Leave Congregation Dialog */}
+      <ResponsiveDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        title="Request to Leave Congregation"
+        description={`Submit a formal departure request for ${congregation?.name || 'your congregation'}.`}
+      >
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200">
+            <p className="font-bold flex items-center gap-1.5 mb-1">
+              <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+              <span>System Admin Approval Required</span>
+            </p>
+            <p>
+              Once approved by a System Admin, your publisher record will be unlinked from {congregation?.name}, any active territories will be returned, and group roles will be released.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="leaveReason" className="text-xs font-semibold">
+              Reason for Leaving (Optional)
+            </Label>
+            <Textarea
+              id="leaveReason"
+              placeholder="e.g. Relocating to a new territory, transfer to another congregation…"
+              value={leaveReason}
+              onChange={(e) => setLeaveReason(e.target.value)}
+              className="text-xs rounded-xl min-h-[80px]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs"
+              onClick={() => setLeaveDialogOpen(false)}
+              disabled={isSubmittingRequest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-xl text-xs font-semibold"
+              onClick={handleRequestLeave}
+              disabled={isSubmittingRequest}
+            >
+              {isSubmittingRequest ? 'Submitting…' : 'Submit Leave Request'}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+
+      {/* Request Delete Account Dialog */}
+      <ResponsiveDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Request Account Deletion"
+        description="Permanently submit your account for deactivation and deletion."
+      >
+        <div className="space-y-4">
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+            <p className="font-bold flex items-center gap-1.5 mb-1">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span>Important Warning</span>
+            </p>
+            <p>
+              This action requires System Admin verification. Upon approval, all your ministry assignments will be returned, your congregation membership removed, and your account permanently deactivated.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="deleteReason" className="text-xs font-semibold">
+              Reason for Deletion (Optional)
+            </Label>
+            <Textarea
+              id="deleteReason"
+              placeholder="Please let us know why you are deleting your account…"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              className="text-xs rounded-xl min-h-[70px]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="deleteConfirm" className="text-xs font-semibold">
+              Type <span className="font-bold text-destructive">DELETE</span> to confirm:
+            </Label>
+            <Input
+              id="deleteConfirm"
+              placeholder="DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="text-xs rounded-xl h-9"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={isSubmittingRequest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-xl text-xs font-semibold"
+              onClick={handleRequestDelete}
+              disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isSubmittingRequest}
+            >
+              {isSubmittingRequest ? 'Submitting…' : 'Submit Deletion Request'}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }
