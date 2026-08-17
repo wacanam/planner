@@ -1,6 +1,15 @@
 'use client';
 
-import { BarChart2, Calendar, Clock, Compass, Home, MapPin } from 'lucide-react';
+import {
+  BarChart2,
+  Calendar,
+  Clock,
+  Compass,
+  Home,
+  MapPin,
+  User,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo } from 'react';
@@ -10,22 +19,60 @@ import { ProtectedPage } from '@/components/protected-page';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useCongregationTerritories, useMyAssignments } from '@/hooks';
+import {
+  useCongregationGroups,
+  useCongregationTerritories,
+  useCurrentUser,
+  useMyAssignments,
+} from '@/hooks';
 
 export default function MyAssignmentsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
+  const { user } = useCurrentUser();
   const { assignments = [], isLoading: loadingAssignments } = useMyAssignments(congregationId);
   const { data: territories = [], isLoading: loadingTerritories } =
     useCongregationTerritories(congregationId);
+  const { groups = [], isLoading: loadingGroups } = useCongregationGroups(congregationId);
 
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
   }, [territories]);
 
-  const active = assignments.filter((a) => a.status === 'assigned' || a.status === 'active');
-  const past = assignments.filter((a) => a.status !== 'assigned' && a.status !== 'active');
-  const isLoading = loadingAssignments || loadingTerritories;
+  // Find all service groups that the current user belongs to
+  const userGroupIds = useMemo(() => {
+    if (!user?.id) return new Set<string>();
+    const ids = new Set<string>();
+    for (const g of groups) {
+      if (
+        g.members?.some(
+          (m) =>
+            m.userId === user.id ||
+            m.id === user.id ||
+            m.user?.email === user.email
+        )
+      ) {
+        ids.add(g.id);
+      }
+    }
+    return ids;
+  }, [groups, user]);
+
+  // Filter assignments: either directly assigned to user OR inherited from their service group
+  const myAssignments = useMemo(() => {
+    if (!user?.id) return [];
+    return assignments.filter((a) => {
+      // 1. Direct personal assignment
+      if (a.userId === user.id || a.assigneeEmail === user.email) return true;
+      // 2. Inherited from a service group the user belongs to
+      if (a.serviceGroupId && userGroupIds.has(a.serviceGroupId)) return true;
+      return false;
+    });
+  }, [assignments, user, userGroupIds]);
+
+  const active = myAssignments.filter((a) => a.status === 'assigned' || a.status === 'active');
+  const past = myAssignments.filter((a) => a.status !== 'assigned' && a.status !== 'active');
+  const isLoading = loadingAssignments || loadingTerritories || loadingGroups;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -34,7 +81,7 @@ export default function MyAssignmentsClient() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Territory Assignments</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Territory cards currently assigned to you for field ministry coverage
+            Territory cards assigned to you directly or inherited through your service group
           </p>
         </div>
 
@@ -65,8 +112,8 @@ export default function MyAssignmentsClient() {
               <Compass size={40} className="text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm font-semibold text-foreground">No active assignments</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                You do not have an active territory assigned right now. Browse available congregation
-                territories to get started.
+                You do not have a personal or group territory assigned right now. Browse available
+                congregation territories to get started.
               </p>
               <Button asChild size="sm" className="mt-5 rounded-xl text-xs font-semibold">
                 <Link href={`/congregation/${congregationId}/territories`}>
@@ -82,6 +129,7 @@ export default function MyAssignmentsClient() {
                 const name = terr?.name || assignment.territoryName || 'Territory';
                 const coverage = Math.round(parseFloat(terr?.coveragePercent ?? '0'));
                 const householdsCount = terr?.householdsCount ?? 0;
+                const isGroupAssignment = Boolean(assignment.serviceGroupId);
 
                 return (
                   <Card
@@ -100,12 +148,25 @@ export default function MyAssignmentsClient() {
                               <p className="text-[11px] text-muted-foreground">{terr.city}</p>
                             )}
                           </div>
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] uppercase font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-200 shrink-0"
-                          >
-                            Active
-                          </Badge>
+                          
+                          {/* Assignment Type Badge */}
+                          {isGroupAssignment ? (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-950/40 border-blue-200 shrink-0 gap-1"
+                            >
+                              <Users size={11} />
+                              <span>{assignment.groupName || 'Service Group'}</span>
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/30 shrink-0 gap-1"
+                            >
+                              <User size={11} />
+                              <span>Personal</span>
+                            </Badge>
+                          )}
                         </div>
 
                         {/* Stats Row */}
