@@ -719,20 +719,23 @@ export function StudioPrintViewport({
           </div>
         ) : (
           /* Back Side Physical Card Preview */
-          <div className="w-full h-full flex flex-col bg-white text-slate-900 overflow-y-auto">
+          <div className="w-full h-full flex flex-col justify-between bg-white text-slate-900 overflow-hidden p-3.5 select-none">
             {/* Header */}
-            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-1.5 shrink-0">
+            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-2 shrink-0">
               <div className="min-w-0 pr-2">
-                <h2 className="text-xs font-black text-slate-950 uppercase truncate">
-                  Territory #{territory?.number} Directory & Activity Record
+                <span className="text-[9px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
+                  {congregation?.name || 'CONGREGATION TERRITORY'}
+                </span>
+                <h2 className="text-xs sm:text-sm font-black text-slate-950 uppercase">
+                  Territory #{territory?.number} Activity Record (S-13)
                 </h2>
-                <p className="text-[9.5px] font-semibold text-slate-600 truncate">{territory?.name}</p>
+                <p className="text-[10px] font-semibold text-slate-600 truncate">{territory?.name || 'Assigned Territory'}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => handleSelectSide('front')}
-                  className="pointer-events-auto text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded border border-primary/20 transition-all flex items-center gap-1 cursor-pointer"
+                  className="pointer-events-auto text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded border border-primary/20 transition-all flex items-center gap-1 cursor-pointer"
                   title="Flip to front side (Map)"
                 >
                   <span>Flip to Map</span>
@@ -747,55 +750,47 @@ export function StudioPrintViewport({
               </div>
             </div>
 
-            {/* Streets Summary */}
-            {cardSettings.showStreetsList && streetsSummary.length > 0 && (
-              <div className="mb-1.5 shrink-0">
-                <p className="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-0.5">
-                  Streets & Doors
+            {/* Publisher Record Table (S-13) */}
+            <div className="flex-1 min-h-0 flex flex-col my-1">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-600">
+                  Publisher Working Record (S-13)
                 </p>
-                <div className="grid grid-cols-2 gap-1 text-[9px]">
-                  {streetsSummary.slice(0, 6).map((s) => (
-                    <div key={s.street} className="p-0.5 px-1 rounded bg-slate-50 border border-slate-200 flex justify-between">
-                      <span className="font-bold text-slate-800 truncate">{s.street}</span>
-                      <span className="text-slate-500 font-semibold shrink-0 ml-1">{s.count} doors</span>
+                <span className="text-[8px] text-slate-500 font-medium">Record all coverage dates</span>
+              </div>
+              <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[8.5px]">
+                <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1 px-2 border-b border-slate-300">
+                  <span className="col-span-3">Date Given</span>
+                  <span className="col-span-4">Publisher Name</span>
+                  <span className="col-span-3">Date Completed</span>
+                  <span className="col-span-2 text-right">Remarks</span>
+                </div>
+                <div className="flex-1 divide-y divide-slate-200 flex flex-col justify-around">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
+                    <div key={row} className="grid grid-cols-12 py-1 px-2 text-slate-400 items-center">
+                      <span className="col-span-3 font-mono">___/___/20__</span>
+                      <span className="col-span-4">________________</span>
+                      <span className="col-span-3 font-mono">___/___/20__</span>
+                      <span className="col-span-2 text-right">________</span>
                     </div>
                   ))}
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Publisher Record Table */}
-            {cardSettings.showNotesArea && (
-              <div className="flex-1 min-h-0 flex flex-col">
-                <p className="text-[8.5px] font-extrabold uppercase tracking-wider text-slate-500 mb-0.5">
-                  Publisher Working Record (S-13)
-                </p>
-                <div className="flex-1 border border-slate-300 rounded overflow-hidden text-[8.5px]">
-                  <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-700 py-0.5 px-1 border-b border-slate-300">
-                    <span className="col-span-3">Date</span>
-                    <span className="col-span-4">Publisher</span>
-                    <span className="col-span-5">Remarks</span>
-                  </div>
-                  <div className="divide-y divide-slate-200">
-                    {[1, 2, 3, 4, 5].map((row) => (
-                      <div key={row} className="grid grid-cols-12 py-0.5 px-1 text-slate-400">
-                        <span className="col-span-3">___/___</span>
-                        <span className="col-span-4">________________</span>
-                        <span className="col-span-5">________________</span>
-                      </div>
-                    ))}
-                  </div>
+            {/* Territory Notes & Footer Instructions */}
+            <div className="mt-1 pt-1.5 border-t border-slate-200 shrink-0 text-[8.5px] text-slate-600 space-y-1">
+              {territory?.notes && (
+                <div className="p-1.5 bg-amber-50 rounded border border-amber-200 text-amber-900">
+                  <span className="font-bold">Territory Notes: </span>
+                  <span>{territory.notes}</span>
                 </div>
+              )}
+              <div className="flex items-center justify-between text-slate-500 font-medium text-[8px]">
+                <span>Please do not mark directly on this card.</span>
+                <span>Return promptly when territory is covered.</span>
               </div>
-            )}
-
-            {/* Territory Notes */}
-            {territory?.notes && (
-              <div className="mt-1 p-1 bg-amber-50 rounded border border-amber-200 text-[8.5px] text-amber-900 shrink-0">
-                <span className="font-bold">Notes: </span>
-                <span>{territory.notes}</span>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -828,7 +823,7 @@ export function StudioPrintViewport({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Back (Directory & Record)
+              Back (Activity Record)
             </button>
             <button
               type="button"
@@ -908,76 +903,71 @@ export function StudioPrintViewport({
           </div>
         </div>
 
-        {/* Back Side Card Render */}
+        {/* Back Side Card Render (100% WYSIWYG match) */}
         <div
           ref={hiddenBackRef}
-          className="w-full h-full flex flex-col justify-between p-3.5 bg-white text-slate-900 border-2 border-slate-800 rounded-2xl select-none overflow-y-auto"
+          className="w-full h-full flex flex-col justify-between p-4 bg-white text-slate-900 border-2 border-slate-800 rounded-2xl select-none"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-2 shrink-0">
+          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-2 shrink-0">
             <div>
-              <h2 className="text-sm font-black text-slate-950 uppercase">
-                Territory #{territory?.number} Directory & Activity Record
+              <span className="text-[10px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
+                {congregation?.name || 'CONGREGATION TERRITORY'}
+              </span>
+              <h2 className="text-base font-black text-slate-950 uppercase">
+                Territory #{territory?.number} Activity Record (S-13)
               </h2>
-              <p className="text-[10px] font-semibold text-slate-600">{territory?.name}</p>
+              <p className="text-[11px] font-semibold text-slate-600">{territory?.name || 'Assigned Territory'}</p>
             </div>
             {cardSettings.showQrCode && (
-              <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 p-1 rounded-md border border-slate-200">
-                <QrCode size={20} className="text-slate-800" />
+              <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 p-1.5 rounded-md border border-slate-200">
+                <QrCode size={22} className="text-slate-800" />
                 <span className="text-[8px] font-bold text-slate-600">Mobile Link</span>
               </div>
             )}
           </div>
 
-          {/* Streets Summary */}
-          {cardSettings.showStreetsList && streetsSummary.length > 0 && (
-            <div className="mb-2 shrink-0">
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">
-                Streets & Doors
+          {/* Publisher Record Table */}
+          <div className="flex-1 min-h-0 flex flex-col my-1">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
+                Publisher Working Record (S-13)
               </p>
-              <div className="grid grid-cols-2 gap-1 text-[10px]">
-                {streetsSummary.slice(0, 6).map((s) => (
-                  <div key={s.street} className="p-1 rounded bg-slate-50 border border-slate-200 flex justify-between">
-                    <span className="font-bold text-slate-800 truncate">{s.street}</span>
-                    <span className="text-slate-500 font-semibold shrink-0 ml-1">{s.count} doors</span>
+              <span className="text-[9px] text-slate-500 font-medium">Record all coverage dates</span>
+            </div>
+            <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[9.5px]">
+              <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1.5 px-3 border-b border-slate-300">
+                <span className="col-span-3">Date Given</span>
+                <span className="col-span-4">Publisher Name</span>
+                <span className="col-span-3">Date Completed</span>
+                <span className="col-span-2 text-right">Remarks</span>
+              </div>
+              <div className="flex-1 divide-y divide-slate-200 flex flex-col justify-around">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
+                  <div key={row} className="grid grid-cols-12 py-1.5 px-3 text-slate-400 items-center">
+                    <span className="col-span-3 font-mono">___/___/20__</span>
+                    <span className="col-span-4">________________</span>
+                    <span className="col-span-3 font-mono">___/___/20__</span>
+                    <span className="col-span-2 text-right">________</span>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Publisher Record Table */}
-          {cardSettings.showNotesArea && (
-            <div className="flex-1 min-h-0 flex flex-col">
-              <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">
-                Publisher Working Record (S-13)
-              </p>
-              <div className="flex-1 border border-slate-300 rounded-md overflow-hidden text-[9px]">
-                <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-700 py-1 px-1.5 border-b border-slate-300">
-                  <span className="col-span-3">Date</span>
-                  <span className="col-span-4">Publisher</span>
-                  <span className="col-span-5">Remarks</span>
-                </div>
-                <div className="divide-y divide-slate-200">
-                  {[1, 2, 3, 4, 5, 6].map((row) => (
-                    <div key={row} className="grid grid-cols-12 py-1 px-1.5 text-slate-400">
-                      <span className="col-span-3">___/___</span>
-                      <span className="col-span-4">________________</span>
-                      <span className="col-span-5">________________</span>
-                    </div>
-                  ))}
-                </div>
+          {/* Territory Notes & Footer Instructions */}
+          <div className="mt-2 pt-2 border-t border-slate-200 shrink-0 text-[9.5px] text-slate-600 space-y-1.5">
+            {territory?.notes && (
+              <div className="p-2 bg-amber-50 rounded border border-amber-200 text-amber-900">
+                <span className="font-bold">Territory Notes: </span>
+                <span>{territory.notes}</span>
               </div>
+            )}
+            <div className="flex items-center justify-between text-slate-500 font-medium text-[9px]">
+              <span>Please do not mark directly on this card.</span>
+              <span>Return promptly when territory is covered.</span>
             </div>
-          )}
-
-          {/* Territory Notes */}
-          {territory?.notes && (
-            <div className="mt-2 p-1.5 bg-amber-50 rounded border border-amber-200 text-[9px] text-amber-900 shrink-0">
-              <span className="font-bold">Territory Notes: </span>
-              <span>{territory.notes}</span>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

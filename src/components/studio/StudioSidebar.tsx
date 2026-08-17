@@ -428,7 +428,7 @@ export function StudioSidebar({
               <Label className="text-xs">Included Elements</Label>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px]">Publisher Working Record Grid</span>
+                  <span className="text-[11px]">Publisher Working Record Grid (S-13)</span>
                   <input
                     type="checkbox"
                     checked={cardSettings.showNotesArea}
@@ -439,18 +439,7 @@ export function StudioSidebar({
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px]">Streets & Doors Directory</span>
-                  <input
-                    type="checkbox"
-                    checked={cardSettings.showStreetsList}
-                    onChange={(e) =>
-                      onChangeCardSettings({ ...cardSettings, showStreetsList: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded accent-primary"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px]">QR Code Link</span>
+                  <span className="text-[11px]">QR Code Mobile Link</span>
                   <input
                     type="checkbox"
                     checked={cardSettings.showQrCode}
