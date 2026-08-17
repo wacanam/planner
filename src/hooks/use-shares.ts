@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -233,6 +234,125 @@ export function useShares() {
     [userId, userName, incomingShares]
   );
 
+  const revokeShareAccess = useCallback(
+    async (householdId: string, targetUserId: string, shareId?: string) => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const db = getPlannerFirestore();
+      const now = nowIso();
+      const householdRef = doc(db, FIRESTORE_COLLECTIONS.households, householdId);
+      const snap = await getDoc(householdRef);
+      if (snap.exists()) {
+        const data = snap.data() as LocalHousehold;
+        const nextCollaborators = (data.collaboratorIds || []).filter((id) => id !== targetUserId);
+        const nextReadOnly = (data.readOnlyUserIds || []).filter((id) => id !== targetUserId);
+        await updateDoc(householdRef, {
+          collaboratorIds: nextCollaborators,
+          readOnlyUserIds: nextReadOnly,
+          updatedById: userId,
+          updatedAt: now,
+        });
+      }
+
+      if (shareId) {
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.shares, shareId), {
+          status: 'cancelled',
+          updatedAt: now,
+        });
+      }
+    },
+    [userId]
+  );
+
+  const updateSharePermission = useCallback(
+    async (
+      householdId: string,
+      targetUserId: string,
+      newMode: 'collaborate' | 'view',
+      shareId?: string
+    ) => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const db = getPlannerFirestore();
+      const now = nowIso();
+      const householdRef = doc(db, FIRESTORE_COLLECTIONS.households, householdId);
+      const snap = await getDoc(householdRef);
+      if (snap.exists()) {
+        const data = snap.data() as LocalHousehold;
+        let nextCollaborators = (data.collaboratorIds || []).filter((id) => id !== targetUserId);
+        let nextReadOnly = (data.readOnlyUserIds || []).filter((id) => id !== targetUserId);
+
+        if (newMode === 'collaborate') {
+          nextCollaborators = Array.from(new Set([...nextCollaborators, targetUserId]));
+        } else {
+          nextReadOnly = Array.from(new Set([...nextReadOnly, targetUserId]));
+        }
+
+        await updateDoc(householdRef, {
+          collaboratorIds: nextCollaborators,
+          readOnlyUserIds: nextReadOnly,
+          updatedById: userId,
+          updatedAt: now,
+        });
+      }
+
+      if (shareId) {
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.shares, shareId), {
+          mode: newMode,
+          updatedAt: now,
+        });
+      }
+    },
+    [userId]
+  );
+
+  const cancelOutgoingShare = useCallback(
+    async (shareId: string) => {
+      if (!userId) throw new Error('Not authenticated');
+      const db = getPlannerFirestore();
+      const shareRef = doc(db, FIRESTORE_COLLECTIONS.shares, shareId);
+      const snap = await getDoc(shareRef);
+      if (snap.exists()) {
+        const shareData = snap.data() as HouseholdShare;
+        const now = nowIso();
+        await updateDoc(shareRef, {
+          status: 'cancelled',
+          updatedAt: now,
+        });
+
+        if (shareData.householdId && shareData.toUserId) {
+          const householdRef = doc(db, FIRESTORE_COLLECTIONS.households, shareData.householdId);
+          const hSnap = await getDoc(householdRef);
+          if (hSnap.exists()) {
+            const hData = hSnap.data() as LocalHousehold;
+            const nextCollaborators = (hData.collaboratorIds || []).filter(
+              (id) => id !== shareData.toUserId
+            );
+            const nextReadOnly = (hData.readOnlyUserIds || []).filter(
+              (id) => id !== shareData.toUserId
+            );
+            await updateDoc(householdRef, {
+              collaboratorIds: nextCollaborators,
+              readOnlyUserIds: nextReadOnly,
+              updatedById: userId,
+              updatedAt: now,
+            });
+          }
+        }
+      }
+    },
+    [userId]
+  );
+
+  const deleteShareRecord = useCallback(
+    async (shareId: string) => {
+      if (!userId) throw new Error('Not authenticated');
+      const db = getPlannerFirestore();
+      await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.shares, shareId));
+    },
+    [userId]
+  );
+
   const combinedShares = [
     ...incomingShares.map((s) => ({ ...s, direction: 'incoming' as const })),
     ...outgoingShares.map((s) => ({ ...s, direction: 'outgoing' as const })),
@@ -247,6 +367,10 @@ export function useShares() {
     error,
     sendShareRequest,
     respondToShare,
+    revokeShareAccess,
+    updateSharePermission,
+    cancelOutgoingShare,
+    deleteShareRecord,
   };
 }
 
