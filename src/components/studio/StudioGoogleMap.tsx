@@ -51,7 +51,7 @@ interface StudioGoogleMapProps {
   layerSettings: StudioLayerSettings;
   boundaryDisplay?: BoundaryDisplaySettings;
   searchedLocation?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
-  targetCamera?: { heading?: number; tilt?: number; timestamp: number } | null;
+  targetCamera?: { heading?: number; tilt?: number; immediate?: boolean; timestamp: number } | null;
   onCameraChange?: (camera: { heading: number; tilt: number }) => void;
   currentCamera?: { heading: number; tilt: number };
   selectedHouseholdId?: string | null;
@@ -522,7 +522,8 @@ export function StudioGoogleMap({
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
           mapId,
-          renderingType: RenderingType?.RASTER ?? 'RASTER',
+          renderingType: RenderingType?.VECTOR ?? 'VECTOR',
+          isFractionalZoomEnabled: true,
           heading: 0,
           tilt: 0,
           rotateControl: false,
@@ -555,26 +556,21 @@ export function StudioGoogleMap({
         });
 
         // Listen to camera heading & tilt changes (from native user mouse/touch gestures)
-        map.addListener('heading_changed', () => {
+        const syncCameraState = () => {
           if (isProgrammaticCameraUpdateRef.current) return;
           const h = map.getHeading();
-          if (typeof h === 'number' && !Number.isNaN(h)) {
-            handleCameraChangeRef.current?.({
-              heading: ((h % 360) + 360) % 360,
-              tilt: map.getTilt() || 0,
-            });
-          }
-        });
-        map.addListener('tilt_changed', () => {
-          if (isProgrammaticCameraUpdateRef.current) return;
           const t = map.getTilt();
-          if (typeof t === 'number' && !Number.isNaN(t)) {
+          if (typeof h === 'number' || typeof t === 'number') {
             handleCameraChangeRef.current?.({
-              heading: map.getHeading() || 0,
-              tilt: t,
+              heading: typeof h === 'number' && !Number.isNaN(h) ? ((h % 360) + 360) % 360 : 0,
+              tilt: typeof t === 'number' && !Number.isNaN(t) ? t : 0,
             });
           }
-        });
+        };
+
+        map.addListener('heading_changed', syncCameraState);
+        map.addListener('tilt_changed', syncCameraState);
+        map.addListener('camera_changed', syncCameraState);
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -808,25 +804,33 @@ export function StudioGoogleMap({
 
     const tiltDiff = endTilt - startTilt;
 
-    // If small delta (e.g. from continuous slider drag), apply directly without queuing RAF animation
-    if (Math.abs(headingDiff) <= 4 && Math.abs(tiltDiff) <= 4) {
-      if (typeof map.moveCamera === 'function') {
-        isProgrammaticCameraUpdateRef.current = true;
-        try {
+    // If immediate mode (e.g. continuous slider dragging) or tiny delta, apply instantly
+    if (targetCamera.immediate || (Math.abs(headingDiff) <= 1 && Math.abs(tiltDiff) <= 1)) {
+      isProgrammaticCameraUpdateRef.current = true;
+      try {
+        if (typeof map.moveCamera === 'function') {
           map.moveCamera({ tilt: endTilt, heading: endHeading });
-        } finally {
-          setTimeout(() => {
-            isProgrammaticCameraUpdateRef.current = false;
-          }, 40);
         }
+        if (typeof map.setTilt === 'function') {
+          map.setTilt(endTilt);
+        }
+        if (typeof map.setHeading === 'function') {
+          map.setHeading(endHeading);
+        }
+      } catch {
+        // fallback
+      } finally {
+        setTimeout(() => {
+          isProgrammaticCameraUpdateRef.current = false;
+        }, 16);
       }
       return;
     }
 
-    // For larger discrete jumps (preset buttons, 3D toggle, compass reset), animate smoothly
+    // For larger discrete jumps (preset buttons, 3D toggle, compass reset), animate briskly
     let animationFrameId: number;
     const startTime = performance.now();
-    const duration = 250; // ms
+    const duration = 120; // ms
 
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -837,17 +841,24 @@ export function StudioGoogleMap({
 
       const currentTilt = startTilt + tiltDiff * eased;
       const currentHeading = (((startHeading + headingDiff * eased) % 360) + 360) % 360;
+      const targetTiltClamped = Math.max(0, Math.min(67.5, currentTilt));
 
-      if (typeof map.moveCamera === 'function') {
-        isProgrammaticCameraUpdateRef.current = true;
-        try {
+      isProgrammaticCameraUpdateRef.current = true;
+      try {
+        if (typeof map.moveCamera === 'function') {
           map.moveCamera({
-            tilt: Math.max(0, Math.min(67.5, currentTilt)),
+            tilt: targetTiltClamped,
             heading: currentHeading,
           });
-        } catch {
-          // fallback
         }
+        if (typeof map.setTilt === 'function') {
+          map.setTilt(targetTiltClamped);
+        }
+        if (typeof map.setHeading === 'function') {
+          map.setHeading(currentHeading);
+        }
+      } catch {
+        // fallback
       }
 
       if (progress < 1) {
@@ -855,7 +866,7 @@ export function StudioGoogleMap({
       } else {
         setTimeout(() => {
           isProgrammaticCameraUpdateRef.current = false;
-        }, 40);
+        }, 16);
       }
     };
 

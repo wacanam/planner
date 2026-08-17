@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -11,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
 import type { JoinRequest, Member } from '@/types/api';
 
 function memberCollection() {
@@ -21,21 +23,29 @@ function memberDocument(id: string) {
   return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, id);
 }
 
-function memberFromData(id: string, data: Partial<Member>): Member {
+export function memberFromData(id: string, data: Partial<Member>): Member {
   const now = nowIso();
+  const rawStatus = data.status ?? 'active';
+  const status = rawStatus === 'approved' ? 'active' : rawStatus;
+  const userId = data.userId || id;
   return {
     id,
-    userId: data.userId ?? '',
+    userId,
     congregationId: data.congregationId ?? '',
     congregationRole: data.congregationRole ?? null,
-    status: data.status ?? 'active',
+    status,
     joinMessage: data.joinMessage ?? null,
     joinedAt: data.joinedAt ?? now,
-    user: data.user ?? null,
+    user: data.user ?? {
+      id: userId,
+      name: null,
+      email: null,
+      role: null,
+    },
   };
 }
 
-function joinRequestFromMember(
+export function joinRequestFromMember(
   member: Member & { reviewNote?: string | null; reviewedAt?: string | null }
 ): JoinRequest {
   return {
@@ -48,7 +58,12 @@ function joinRequestFromMember(
     joinedAt: member.joinedAt,
     reviewedAt: member.reviewedAt ?? null,
     user: member.user
-      ? { id: member.user.id, name: member.user.name, email: member.user.email }
+      ? {
+          id: member.user.id,
+          name: member.user.name,
+          email: member.user.email,
+          avatarUrl: member.user.avatarUrl ?? null,
+        }
       : null,
   };
 }
@@ -69,7 +84,7 @@ export function useCongregationMembers(congregationId: string | null | undefined
     const memberQuery = query(
       memberCollection(),
       where('congregationId', '==', congregationId),
-      where('status', '==', 'active')
+      where('status', 'in', ['active', 'approved'])
     );
     return onSnapshot(
       memberQuery,
@@ -143,29 +158,74 @@ export function useReviewJoinRequest(congregationId: string) {
       setIsReviewing(true);
       try {
         const now = nowIso();
-        await updateDoc(memberDocument(arg.requestId), {
-          status: arg.status,
+        const isApproved =
+          arg.status === 'approved' ||
+          arg.status === 'active' ||
+          arg.status === MemberStatus.ACTIVE;
+        const finalStatus = isApproved ? MemberStatus.ACTIVE : MemberStatus.REJECTED;
+
+        const db = getPlannerFirestore();
+        const memberRef = memberDocument(arg.requestId);
+        const memberSnap = await getDoc(memberRef);
+        const memberData = memberSnap.exists()
+          ? (memberSnap.data() as Partial<Member>)
+          : undefined;
+        const targetUserId = memberData?.userId || arg.requestId;
+
+        // Fetch user data from users collection to guarantee user info in member doc
+        const userRef = doc(db, FIRESTORE_COLLECTIONS.users, targetUserId);
+        const userSnap = await getDoc(userRef);
+        const userData = userSnap.exists() ? (userSnap.data() as Record<string, any>) : undefined;
+
+        const userName =
+          userData?.name ||
+          memberData?.user?.name ||
+          userData?.email ||
+          memberData?.user?.email ||
+          'Publisher';
+        const userEmail = userData?.email || memberData?.user?.email || null;
+        const userAvatarUrl = userData?.avatarUrl || memberData?.user?.avatarUrl || null;
+        const userRole = userData?.role || memberData?.user?.role || UserRole.PUBLISHER;
+
+        await updateDoc(memberRef, {
+          status: finalStatus,
+          congregationRole:
+            memberData?.congregationRole ||
+            (isApproved ? CongregationRole.PUBLISHER : null),
           reviewNote: arg.reviewNote ?? null,
           reviewedAt: now,
+          updatedAt: now,
+          user: {
+            id: targetUserId,
+            name: userName,
+            email: userEmail,
+            avatarUrl: userAvatarUrl,
+            role: userRole,
+          },
         });
-        if (arg.status === 'active') {
-          await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, arg.requestId), {
-            congregationId,
-            updatedAt: now,
-          });
+
+        if (isApproved) {
+          await setDoc(
+            userRef,
+            {
+              congregationId,
+              updatedAt: now,
+            },
+            { merge: true }
+          );
         }
+
         const notificationId = createClientId();
         await setDoc(
-          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.notifications, notificationId),
+          doc(db, FIRESTORE_COLLECTIONS.notifications, notificationId),
           {
             id: notificationId,
-            userId: arg.requestId,
-            type: arg.status === 'active' ? 'join_approved' : 'join_rejected',
-            title: arg.status === 'active' ? 'Join request approved' : 'Join request rejected',
-            body:
-              arg.status === 'active'
-                ? 'Your congregation access request was approved.'
-                : 'Your congregation access request was not approved.',
+            userId: targetUserId,
+            type: isApproved ? NotificationType.JOIN_APPROVED : NotificationType.JOIN_REJECTED,
+            title: isApproved ? 'Join request approved' : 'Join request rejected',
+            body: isApproved
+              ? 'Your congregation access request was approved.'
+              : 'Your congregation access request was not approved.',
             data: JSON.stringify({ congregationId }),
             isRead: false,
             createdAt: now,
@@ -219,10 +279,14 @@ export function useAddMember(congregationId: string) {
           user: user ?? null,
         } satisfies Member);
         if (userId) {
-          await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, userId), {
-            congregationId,
-            updatedAt: nowIso(),
-          });
+          await setDoc(
+            doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, userId),
+            {
+              congregationId,
+              updatedAt: nowIso(),
+            },
+            { merge: true }
+          );
         }
         return { id };
       } finally {

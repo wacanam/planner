@@ -353,25 +353,26 @@ export function StudioLayout({
   const [targetCamera, setTargetCamera] = useState<{
     heading?: number;
     tilt?: number;
+    immediate?: boolean;
     timestamp: number;
   } | null>(null);
 
-  const handleSetHeading = (heading: number) => {
+  const handleSetHeading = (heading: number, immediate = false) => {
     const h = ((heading % 360) + 360) % 360;
     setCamera((prev) => ({ ...prev, heading: h }));
-    setTargetCamera({ heading: h, timestamp: Date.now() });
+    setTargetCamera({ heading: h, immediate, timestamp: Date.now() });
   };
 
-  const handleSetTilt = (tilt: number) => {
+  const handleSetTilt = (tilt: number, immediate = false) => {
     const t = Math.max(0, Math.min(67.5, tilt));
     setCamera((prev) => ({ ...prev, tilt: t }));
-    setTargetCamera({ tilt: t, timestamp: Date.now() });
+    setTargetCamera({ tilt: t, immediate, timestamp: Date.now() });
   };
 
   const handleRotateBy = (delta: number) => {
     setCamera((prev) => {
       const nextHeading = (((prev.heading + delta) % 360) + 360) % 360;
-      setTargetCamera({ heading: nextHeading, timestamp: Date.now() });
+      setTargetCamera({ heading: nextHeading, immediate: true, timestamp: Date.now() });
       return { ...prev, heading: nextHeading };
     });
   };

@@ -95,7 +95,7 @@ export default function CongregationDashboardClient() {
     return 'Publisher';
   })();
 
-  const _isServant = isTerritoryServant(user.role);
+  const isServant = isTerritoryServant(user.role);
   const _isOverseer = isServiceOverseer(user.role);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
@@ -145,14 +145,38 @@ export default function CongregationDashboardClient() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {territories.length > 0 && (
+            {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
               <Button
                 asChild
                 className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
               >
-                <Link href={`/congregation/${congregationId}/territories/${territories[0].id}`}>
+                <Link
+                  href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
+                >
                   <MapPin size={15} />
                   <span>Launch Territory Studio</span>
+                </Link>
+              </Button>
+            ) : isServant ? (
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted"
+              >
+                <Link href={`/congregation/${congregationId}/territories`}>
+                  <MapPin size={15} />
+                  <span>Manage Territories</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted"
+              >
+                <Link href={`/congregation/${congregationId}/territories`}>
+                  <Compass size={15} />
+                  <span>Browse Territories</span>
                 </Link>
               </Button>
             )}

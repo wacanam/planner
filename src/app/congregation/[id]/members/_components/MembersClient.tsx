@@ -30,7 +30,7 @@ import {
   useUpdateMemberRole,
 } from '@/hooks';
 import { isServiceOverseer, isSystemAdmin } from '@/lib/permissions';
-import { CongregationRole, UserRole } from '@/lib/roles';
+import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
 import { toast } from 'sonner';
 
 type Tab = 'members' | 'requests' | 'endorsements';
@@ -275,7 +275,16 @@ export default function MembersClient() {
                         size="sm"
                         variant="outline"
                         className="rounded-xl text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => reviewJoin({ requestId: req.id, status: 'rejected' })}
+                        onClick={async () => {
+                          try {
+                            await reviewJoin({ requestId: req.id, status: MemberStatus.REJECTED });
+                            toast.success(
+                              `Declined join request for ${req.user?.name || req.user?.email || 'publisher'}`
+                            );
+                          } catch (err: any) {
+                            toast.error(err?.message || 'Failed to decline request');
+                          }
+                        }}
                         disabled={reviewingJoin}
                       >
                         <X size={13} />
@@ -284,7 +293,16 @@ export default function MembersClient() {
                       <Button
                         size="sm"
                         className="rounded-xl text-xs font-semibold gap-1"
-                        onClick={() => reviewJoin({ requestId: req.id, status: 'approved' })}
+                        onClick={async () => {
+                          try {
+                            await reviewJoin({ requestId: req.id, status: MemberStatus.ACTIVE });
+                            toast.success(
+                              `Approved ${req.user?.name || req.user?.email || 'publisher'} into congregation`
+                            );
+                          } catch (err: any) {
+                            toast.error(err?.message || 'Failed to approve request');
+                          }
+                        }}
                         disabled={reviewingJoin}
                       >
                         <Check size={13} />

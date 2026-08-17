@@ -64,7 +64,10 @@ export default function GroupsClient() {
   const [memberSearch, setMemberSearch] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members]);
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.status === 'active' || m.status === 'approved'),
+    [members]
+  );
 
   const activeMemberMap = useMemo(() => {
     return new Map(activeMembers.map((m) => [m.userId || m.id, m]));

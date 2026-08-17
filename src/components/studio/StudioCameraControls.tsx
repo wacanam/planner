@@ -8,8 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 interface StudioCameraControlsProps {
   heading: number;
   tilt: number;
-  onSetHeading: (heading: number) => void;
-  onSetTilt: (tilt: number) => void;
+  onSetHeading: (heading: number, immediate?: boolean) => void;
+  onSetTilt: (tilt: number, immediate?: boolean) => void;
   isTrackingLocation?: boolean;
   onToggleLocation?: () => void;
 }
@@ -196,7 +196,7 @@ export function StudioCameraControls({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 setLocalTilt(val);
-                onSetTilt(val);
+                onSetTilt(val, true);
               }}
               className="w-full accent-primary h-1.5 bg-muted rounded-lg cursor-pointer"
             />
@@ -245,7 +245,7 @@ export function StudioCameraControls({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 setLocalHeading(val);
-                onSetHeading(val);
+                onSetHeading(val, true);
               }}
               className="w-full accent-primary h-1.5 bg-muted rounded-lg cursor-pointer"
             />
