@@ -390,32 +390,21 @@ export function StudioPrintViewport({
       id="studio-print-viewport-overlay"
       className="absolute inset-0 z-30 pointer-events-none select-none overflow-hidden flex flex-col justify-between"
     >
-      {/* SVG Vignette Mask with Transparent Cutout for the Map Window */}
+      {/* SVG Vignette Mask with Transparent Cutout Window */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
         <defs>
           <mask id="studio-print-viewport-mask">
             {/* White background = fully opaque mask */}
             <rect width="100%" height="100%" fill="#FFFFFF" />
-            {/* Cutout window: transparent only over the map portion of the card */}
-            {!showBackPreview ? (
-              <rect
-                x={frameMetrics.mapWindowX}
-                y={frameMetrics.mapWindowY}
-                width={frameMetrics.mapWindowW}
-                height={frameMetrics.mapWindowH}
-                rx="8"
-                fill="#000000"
-              />
-            ) : (
-              <rect
-                x={frameMetrics.frameX}
-                y={frameMetrics.frameY}
-                width={frameMetrics.frameW}
-                height={frameMetrics.frameH}
-                rx="14"
-                fill="#000000"
-              />
-            )}
+            {/* Cutout window: clear transparent card cutout */}
+            <rect
+              x={frameMetrics.frameX}
+              y={frameMetrics.frameY}
+              width={frameMetrics.frameW}
+              height={frameMetrics.frameH}
+              rx="16"
+              fill="#000000"
+            />
           </mask>
         </defs>
         {/* Darkened semi-transparent vignette */}
@@ -427,210 +416,24 @@ export function StudioPrintViewport({
         />
       </svg>
 
-      {/* Top Floating Viewport Control Bar replacing StudioTopBar */}
-      <div className="absolute top-3 inset-x-0 z-40 flex flex-col items-center px-2 pointer-events-none">
-        <div className="pointer-events-auto flex items-center justify-between gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-[98vw] overflow-x-auto scrollbar-none">
-          {/* Left: Territory & Dimensions Pill */}
-          <div className="flex items-center gap-1.5 px-1.5 shrink-0">
-            <div className="p-1 rounded-lg bg-primary/10 text-primary">
-              <Maximize2 size={14} />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-foreground whitespace-nowrap">
-                {territory ? `Territory #${territory.number}` : 'Territory'}
-              </span>
-              <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5 whitespace-nowrap">
-                {effectiveW}″ × {effectiveH}″ ({effectiveOrientation === 'portrait' ? 'Port' : 'Land'})
-              </Badge>
-            </div>
-          </div>
-
-          <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
-
-          {/* Center: Presets & Custom Dimensions */}
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Preset Buttons */}
-            <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-xl">
-              <button
-                type="button"
-                onClick={() => handlePresetSelect('4x6')}
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                  cardSettings.preset === '4x6'
-                    ? 'bg-card text-primary shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                4×6
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetSelect('5x7')}
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                  cardSettings.preset === '5x7'
-                    ? 'bg-card text-primary shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                5×7
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetSelect('8.5x11')}
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                  cardSettings.preset === '8.5x11'
-                    ? 'bg-card text-primary shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Letter
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetSelect('a5')}
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                  cardSettings.preset === 'a5'
-                    ? 'bg-card text-primary shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                A5
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetSelect('custom')}
-                className={`px-1.5 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                  cardSettings.preset === 'custom'
-                    ? 'bg-card text-primary shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Custom
-              </button>
-            </div>
-
-            {/* Custom Dimension Number Inputs */}
-            {cardSettings.preset === 'custom' && (
-              <div className="flex items-center gap-0.5 bg-background border border-input rounded-xl px-1.5 py-0.5 text-xs shrink-0">
-                <input
-                  type="number"
-                  step="0.25"
-                  min="1"
-                  max="40"
-                  value={effectiveW}
-                  onChange={(e) => handleCustomWidthChange(parseFloat(e.target.value))}
-                  className="w-9 text-center font-bold bg-transparent outline-none text-foreground"
-                  title="Card width (horizontal) in inches"
-                />
-                <span className="text-muted-foreground text-[10px]">×</span>
-                <input
-                  type="number"
-                  step="0.25"
-                  min="1"
-                  max="40"
-                  value={effectiveH}
-                  onChange={(e) => handleCustomHeightChange(parseFloat(e.target.value))}
-                  className="w-9 text-center font-bold bg-transparent outline-none text-foreground"
-                  title="Card height (vertical) in inches"
-                />
-                <span className="text-[9px] text-muted-foreground font-semibold">in</span>
-              </div>
-            )}
-
-            {/* Orientation Toggle */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleToggleOrientation}
-              className="h-7 rounded-xl text-xs gap-1 font-semibold px-2"
-              title={`Switch orientation (Current: ${effectiveOrientation})`}
-            >
-              <RotateCw size={12} className="text-primary" />
-              <span className="capitalize">{effectiveOrientation === 'portrait' ? 'Port' : 'Land'}</span>
-            </Button>
-
-            {/* Fit Territory to Frame */}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={handleFitClick}
-              className="h-7 rounded-xl text-xs gap-1 font-semibold bg-primary/10 text-primary hover:bg-primary/20 px-2"
-              title="Fit territory boundaries into the card frame"
-            >
-              <Expand size={12} />
-              <span>Fit</span>
-            </Button>
-          </div>
-
-          <div className="h-4 w-px bg-border shrink-0" />
-
-          {/* Right: Direct Download Buttons & Close */}
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPng}
-              disabled={isExportingPng}
-              className="h-7 rounded-xl text-xs gap-1 font-bold shadow-xs hover:border-primary/50 px-2.5"
-              title="Download Card as PNG Image"
-            >
-              {isExportingPng ? (
-                <Loader2 size={12} className="animate-spin text-primary" />
-              ) : (
-                <ImageIcon size={12} className="text-primary" />
-              )}
-              <span>.PNG</span>
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="h-7 rounded-xl text-xs gap-1 font-bold shadow-md bg-primary text-primary-foreground px-2.5"
-              title="Download Printable PDF Document"
-            >
-              {isExportingPdf ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <FileDown size={12} />
-              )}
-              <span>.PDF</span>
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="h-7 w-7 rounded-xl text-muted-foreground hover:text-foreground"
-              title="Exit print viewport"
-            >
-              <X size={15} />
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* WYSIWYG Physical Territory Card Preview in Viewport */}
       <div
-        className="absolute pointer-events-none rounded-2xl shadow-2xl transition-all duration-200 border-2 border-slate-700 bg-white text-slate-900 overflow-hidden flex flex-col"
+        className={`absolute pointer-events-none rounded-2xl shadow-2xl transition-all duration-200 border-2 border-slate-700 overflow-hidden flex flex-col justify-between ${
+          showBackPreview ? 'bg-white p-3.5 text-slate-900' : 'bg-transparent'
+        }`}
         style={{
           left: `${frameMetrics.frameX}px`,
           top: `${frameMetrics.frameY}px`,
           width: `${frameMetrics.frameW}px`,
           height: `${frameMetrics.frameH}px`,
-          padding: `${frameMetrics.cardPadding}px`,
           zIndex: 2,
         }}
       >
         {!showBackPreview ? (
           /* Front Side Physical Card Preview */
-          <div className="w-full h-full flex flex-col">
-            {/* Header: Exact match to exported card */}
-            <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-1.5 shrink-0 bg-white">
+          <div className="w-full h-full flex flex-col justify-between bg-transparent">
+            {/* Header: Solid White Bar at Top */}
+            <div className="w-full bg-white border-b-2 border-slate-800 p-2.5 px-3 flex items-center justify-between shrink-0 text-slate-900 shadow-xs">
               <div className="min-w-0 pr-2">
                 <span className="text-[9px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
                   {congregation?.name || 'CONGREGATION TERRITORY'}
@@ -652,29 +455,29 @@ export function StudioPrintViewport({
               </div>
             </div>
 
-            {/* Middle Map Window: Transparent Cutout where Live Google Map shows */}
-            <div className="flex-1 min-h-0 relative rounded-lg border border-slate-300 overflow-hidden bg-transparent">
+            {/* Middle Map Window: 100% Transparent Cutout where Live Google Map shows */}
+            <div className="flex-1 min-h-0 w-full relative bg-transparent pointer-events-none">
               {/* 0.25in Safe Area Margin Dotted Line */}
-              <div className="absolute inset-2 rounded border border-dashed border-slate-400/50 pointer-events-none flex items-end justify-end p-1">
-                <span className="text-[8px] font-semibold text-slate-500 bg-white/80 px-1 py-0.2 rounded backdrop-blur-xs">
-                  0.25″ Margin
+              <div className="absolute inset-2 rounded-lg border border-dashed border-primary/50 pointer-events-none flex items-end justify-end p-1.5">
+                <span className="text-[8px] font-semibold text-slate-700 bg-white/85 px-1 py-0.5 rounded shadow-xs backdrop-blur-xs">
+                  0.25″ Safe Margin
                 </span>
               </div>
 
               {/* North Compass Badge in Top Right of Map Area */}
-              <div className="absolute top-1.5 right-1.5 p-1 rounded-md bg-white/85 backdrop-blur-xs border border-slate-300 text-slate-700 flex items-center gap-1 shadow-xs">
+              <div className="absolute top-2 right-2 p-1 rounded-md bg-white/90 backdrop-blur-xs border border-slate-300 text-slate-700 flex items-center gap-1 shadow-xs">
                 <Compass size={11} className="text-primary" />
                 <span className="text-[8px] font-extrabold">N</span>
               </div>
 
               {/* Center Crosshair Guide */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
-                <Move size={16} className="text-slate-600 animate-pulse" />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                <Move size={18} className="text-primary animate-pulse" />
               </div>
             </div>
 
-            {/* Footer: Exact match to exported card */}
-            <div className="pt-1.5 border-t border-slate-200 mt-1.5 flex items-center justify-between text-[8.5px] text-slate-500 shrink-0 font-medium bg-white">
+            {/* Footer: Solid White Bar at Bottom */}
+            <div className="w-full bg-white border-t border-slate-200 py-1.5 px-3 flex items-center justify-between text-[8.5px] text-slate-500 shrink-0 font-medium shadow-xs">
               <span>Please do not mark directly on this card.</span>
               <span>Return promptly when territory is covered.</span>
             </div>
