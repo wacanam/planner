@@ -1,5 +1,6 @@
 export * from './use-assignments';
 export * from './use-account-requests';
+export * from './use-admin-users';
 export * from './use-congregation-groups';
 export * from './use-congregation-members';
 export * from './use-congregations';

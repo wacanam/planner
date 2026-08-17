@@ -2,21 +2,28 @@
 
 import {
   AlertTriangle,
+  ArrowRight,
   Building2,
   Check,
+  CheckCircle2,
   Clock,
   Globe,
+  Inbox,
   LogOut,
+  Plus,
   Shield,
+  ShieldAlert,
   Trash2,
   TrendingUp,
   UserCheck,
+  Users,
   UserX,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { AdminNav } from '@/components/admin-nav';
 import { ProtectedPage } from '@/components/protected-page';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { StatCard } from '@/components/stat-card';
@@ -26,12 +33,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAdminAccountRequests, useCongregations } from '@/hooks';
+import { useAdminAccountRequests, useAdminUsers, useCongregations } from '@/hooks';
+import { isSystemAdmin } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { AccountRequest } from '@/types/api';
 
 export default function AdminDashboardPage() {
   const { congregations = [], isLoading: loading } = useCongregations();
+  const { users = [], isLoading: usersLoading } = useAdminUsers();
   const {
     requests = [],
     pendingRequests = [],
@@ -42,7 +51,8 @@ export default function AdminDashboardPage() {
     rejectRequest,
   } = useAdminAccountRequests();
 
-  const totalActive = congregations.filter((c) => c.status === 'active').length;
+  const totalActiveCongs = congregations.filter((c) => c.status === 'active').length;
+  const adminCount = users.filter((u) => isSystemAdmin(u.role)).length;
 
   const [selectedReq, setSelectedReq] = useState<AccountRequest | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
@@ -72,46 +82,70 @@ export default function AdminDashboardPage() {
 
   return (
     <ProtectedPage requiredRole={UserRole.ADMIN}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Global Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              System-wide overview of congregations and account lifecycle requests
+            <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+              Global Admin Dashboard
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Platform governance, congregation workspaces, global users, and approval workflows
             </p>
           </div>
-          <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 h-9">
-            <Link href="/admin/congregations">
-              <Globe size={14} />
-              <span>Manage Congregations</span>
-            </Link>
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 h-9 font-semibold">
+              <Link href="/admin/users">
+                <Users size={14} />
+                <span>Users ({users.length})</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 h-9 font-semibold shadow-xs">
+              <Link href="/admin/congregations">
+                <Building2 size={14} />
+                <span>Congregations</span>
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* Admin Navigation */}
+        <AdminNav />
+
+        {/* Platform Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
           <StatCard
-            title="Total Congregations"
-            value={loading ? '—' : congregations.length}
+            title="Congregations"
+            value={loading ? '—' : `${totalActiveCongs} / ${congregations.length}`}
+            description={loading ? 'Loading…' : `${totalActiveCongs} active workspaces`}
             icon={Building2}
             color="blue"
             loading={loading}
           />
           <StatCard
-            title="Active"
-            value={loading ? '—' : totalActive}
-            icon={TrendingUp}
+            title="Total Registered Users"
+            value={usersLoading ? '—' : users.length}
+            description={usersLoading ? 'Loading…' : `${adminCount} system admins`}
+            icon={Users}
             color="green"
-            loading={loading}
+            loading={usersLoading}
           />
           <StatCard
             title="Pending Requests"
             value={requestsLoading ? '—' : pendingCount}
-            icon={pendingCount > 0 ? AlertTriangle : Clock}
+            description={pendingCount > 0 ? 'Requires admin action' : 'All requests resolved'}
+            icon={pendingCount > 0 ? AlertTriangle : Inbox}
             color={pendingCount > 0 ? 'orange' : 'purple'}
             loading={requestsLoading}
           />
-          <StatCard title="Platform Status" value="Operational" icon={Shield} color="purple" />
+          <StatCard
+            title="Platform Status"
+            value="Operational"
+            description="Firestore & Auth active"
+            icon={Shield}
+            color="purple"
+          />
         </div>
 
         {/* Pending Account & Congregation Requests Section */}
@@ -120,7 +154,7 @@ export default function AdminDashboardPage() {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <UserCheck size={16} className="text-primary" />
-                <span>Account & Congregation Requests</span>
+                <span>Pending Approvals Queue</span>
                 {pendingCount > 0 && (
                   <Badge className="bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 ml-1">
                     {pendingCount} Pending
@@ -128,9 +162,16 @@ export default function AdminDashboardPage() {
                 )}
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                Review user requests to leave congregations or delete accounts
+                Review publisher requests to leave a congregation or delete accounts
               </CardDescription>
             </div>
+
+            <Button asChild variant="ghost" size="sm" className="rounded-xl text-xs gap-1 font-semibold">
+              <Link href="/admin/requests">
+                <span>View Full Queue</span>
+                <ArrowRight size={12} />
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {requestsLoading ? (
@@ -141,10 +182,10 @@ export default function AdminDashboardPage() {
               </div>
             ) : pendingRequests.length === 0 ? (
               <div className="text-center py-10 border border-dashed border-border rounded-2xl p-6">
-                <UserCheck size={32} className="text-muted-foreground/40 mx-auto mb-2" />
-                <p className="text-xs font-semibold text-foreground">No pending account or congregation requests</p>
+                <CheckCircle2 size={32} className="text-emerald-500/60 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-foreground">No pending requests</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  When publishers request to leave a congregation or delete their account, they will appear here for your review.
+                  All publisher departure and account deletion requests have been reviewed.
                 </p>
               </div>
             ) : (
@@ -161,7 +202,7 @@ export default function AdminDashboardPage() {
                   return (
                     <div
                       key={req.id}
-                      className="p-4 rounded-2xl border border-border bg-background flex flex-col md:flex-row md:items-center justify-between gap-4"
+                      className="p-4 rounded-2xl border border-border bg-background flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
                     >
                       <div className="flex items-start gap-3 min-w-0">
                         <Avatar className="w-10 h-10 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0 mt-0.5">
@@ -202,25 +243,22 @@ export default function AdminDashboardPage() {
                             </Badge>
                           </div>
 
-                          <p className="text-xs text-muted-foreground">{req.userEmail}</p>
-
-                          {req.congregationName && (
-                            <p className="text-xs font-medium text-foreground flex items-center gap-1">
-                              <Building2 size={12} className="text-primary shrink-0" />
-                              <span>{req.congregationName}</span>
-                            </p>
-                          )}
+                          <div className="flex items-center gap-3 text-muted-foreground flex-wrap text-[11px]">
+                            <span>{req.userEmail}</span>
+                            {req.congregationName && (
+                              <span className="flex items-center gap-1 font-medium text-foreground">
+                                <Building2 size={11} className="text-primary shrink-0" />
+                                <span>{req.congregationName}</span>
+                              </span>
+                            )}
+                            <span>Submitted: {new Date(req.requestedAt).toLocaleDateString()}</span>
+                          </div>
 
                           {req.reason && (
-                            <div className="mt-1.5 p-2 rounded-xl bg-muted/60 text-xs text-muted-foreground italic">
+                            <div className="mt-1 p-2 rounded-xl bg-muted/60 text-xs text-muted-foreground italic">
                               &ldquo;{req.reason}&rdquo;
                             </div>
                           )}
-
-                          <p className="text-[10px] text-muted-foreground">
-                            Submitted on {new Date(req.requestedAt).toLocaleDateString()} at{' '}
-                            {new Date(req.requestedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
                         </div>
                       </div>
 
@@ -261,15 +299,18 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Congregations List */}
+        {/* Congregations Quick Overview */}
         <Card className="bg-card border-border shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Building2 size={16} className="text-primary" />
-              <span>Congregations</span>
+              <span>Registered Congregations ({congregations.length})</span>
             </CardTitle>
-            <Button asChild variant="ghost" size="sm" className="text-xs">
-              <Link href="/admin/congregations">View All</Link>
+            <Button asChild variant="ghost" size="sm" className="rounded-xl text-xs gap-1 font-semibold">
+              <Link href="/admin/congregations">
+                <span>View All</span>
+                <ArrowRight size={12} />
+              </Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -285,121 +326,136 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {congregations.slice(0, 5).map((cong) => (
-                  <div
-                    key={cong.id}
-                    className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 text-xs"
-                  >
-                    <div>
-                      <p className="font-bold text-foreground">{cong.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {cong.city ? `${cong.city}, ` : ''}
-                        {cong.country || 'Global'}
-                      </p>
+                {congregations.slice(0, 6).map((cong) => {
+                  const isActive = cong.status === 'active';
+                  return (
+                    <div
+                      key={cong.id}
+                      className="p-3.5 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 text-xs"
+                    >
+                      <div className="space-y-0.5">
+                        <p className="font-bold text-foreground text-sm">{cong.name}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {cong.city ? `${cong.city}, ` : ''}
+                          {cong.country || 'Global'} · Slug: {cong.slug}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`capitalize text-[10px] font-bold ${
+                            isActive
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                              : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
+                          }`}
+                        >
+                          {cong.status}
+                        </Badge>
+                        <Button asChild size="sm" variant="outline" className="rounded-xl text-xs h-7">
+                          <Link href={`/congregation/${cong.id}/dashboard`}>Workspace</Link>
+                        </Button>
+                      </div>
                     </div>
-                    <Badge variant="outline" className="capitalize text-[10px] font-semibold">
-                      {cong.status}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Approve / Reject Dialog */}
-      <ResponsiveDialog
-        open={Boolean(selectedReq && actionType)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedReq(null);
-            setActionType(null);
-            setReviewNote('');
+        {/* Approve / Reject Dialog */}
+        <ResponsiveDialog
+          open={Boolean(selectedReq && actionType)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedReq(null);
+              setActionType(null);
+              setReviewNote('');
+            }
+          }}
+          title={
+            actionType === 'approve'
+              ? selectedReq?.type === 'leave_congregation'
+                ? 'Approve Congregation Departure'
+                : 'Approve Account Deletion'
+              : 'Reject Request'
           }
-        }}
-        title={
-          actionType === 'approve'
-            ? selectedReq?.type === 'leave_congregation'
-              ? 'Approve Congregation Departure'
-              : 'Approve Account Deletion'
-            : 'Reject Request'
-        }
-        description={
-          actionType === 'approve'
-            ? `Confirm approval for ${selectedReq?.userName || selectedReq?.userEmail}.`
-            : `Provide an optional rejection reason for ${selectedReq?.userName || selectedReq?.userEmail}.`
-        }
-      >
-        <div className="space-y-4">
-          {actionType === 'approve' ? (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-              <p className="font-bold">System Admin Action Summary:</p>
-              {selectedReq?.type === 'leave_congregation' ? (
-                <ul className="list-disc pl-4 space-y-0.5">
-                  <li>Remove publisher from {selectedReq?.congregationName || 'the congregation'}.</li>
-                  <li>Unassign from service group and overseer roles.</li>
-                  <li>Automatically return active territory assignments.</li>
-                </ul>
-              ) : (
-                <ul className="list-disc pl-4 space-y-0.5">
-                  <li>Permanently deactivate account and mark deleted.</li>
-                  <li>Remove membership and release all territory assignments.</li>
-                </ul>
-              )}
-            </div>
-          ) : (
-            <div className="p-3 rounded-xl bg-muted text-xs text-muted-foreground">
-              The user will be notified that their request was rejected and their congregation membership will remain active.
-            </div>
-          )}
+          description={
+            actionType === 'approve'
+              ? `Confirm approval for ${selectedReq?.userName || selectedReq?.userEmail}.`
+              : `Provide an optional rejection reason for ${selectedReq?.userName || selectedReq?.userEmail}.`
+          }
+        >
+          <div className="space-y-4">
+            {actionType === 'approve' ? (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <p className="font-bold">System Admin Action Summary:</p>
+                {selectedReq?.type === 'leave_congregation' ? (
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>Remove publisher from {selectedReq?.congregationName || 'the congregation'}.</li>
+                    <li>Unassign from service group and overseer roles.</li>
+                    <li>Automatically return active territory assignments.</li>
+                  </ul>
+                ) : (
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>Permanently deactivate account and mark deleted.</li>
+                    <li>Remove membership and release all territory assignments.</li>
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-muted text-xs text-muted-foreground">
+                The user will be notified that their request was rejected and their congregation membership will remain active.
+              </div>
+            )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="adminNote" className="text-xs font-semibold">
-              Admin Review Note (Optional)
-            </Label>
-            <Textarea
-              id="adminNote"
-              placeholder="Add an internal note or message for the user…"
-              value={reviewNote}
-              onChange={(e) => setReviewNote(e.target.value)}
-              className="text-xs rounded-xl min-h-[70px]"
-            />
-          </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="adminNote" className="text-xs font-semibold">
+                Admin Review Note (Optional)
+              </Label>
+              <Textarea
+                id="adminNote"
+                placeholder="Add an internal note or message for the user…"
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                className="text-xs rounded-xl min-h-[70px]"
+              />
+            </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs"
-              onClick={() => {
-                setSelectedReq(null);
-                setActionType(null);
-                setReviewNote('');
-              }}
-              disabled={isProcessing}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant={actionType === 'approve' ? 'default' : 'destructive'}
-              size="sm"
-              className="rounded-xl text-xs font-semibold"
-              onClick={handleAction}
-              disabled={isProcessing}
-            >
-              {isProcessing
-                ? 'Processing…'
-                : actionType === 'approve'
-                  ? 'Confirm & Approve'
-                  : 'Confirm Rejection'}
-            </Button>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs"
+                onClick={() => {
+                  setSelectedReq(null);
+                  setActionType(null);
+                  setReviewNote('');
+                }}
+                disabled={isProcessing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant={actionType === 'approve' ? 'default' : 'destructive'}
+                size="sm"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleAction}
+                disabled={isProcessing}
+              >
+                {isProcessing
+                  ? 'Processing…'
+                  : actionType === 'approve'
+                    ? 'Confirm & Approve'
+                    : 'Confirm Rejection'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </ResponsiveDialog>
+        </ResponsiveDialog>
+      </div>
     </ProtectedPage>
   );
 }
-
