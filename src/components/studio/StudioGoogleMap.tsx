@@ -49,6 +49,7 @@ interface StudioGoogleMapProps {
   selectedRoadId?: string | null;
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   userHeading?: number | null;
+  fitPrintViewportPadding?: { top: number; right: number; bottom: number; left: number; timestamp: number } | null;
 }
 
 // Fallback default coordinates if not configured on congregation
@@ -278,6 +279,7 @@ export function StudioGoogleMap({
   selectedRoadId,
   userLocation,
   userHeading,
+  fitPrintViewportPadding,
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -598,6 +600,43 @@ export function StudioGoogleMap({
       initialBoundsFittedRef.current = territory.id;
     }
   }, [mapReady, territory?.id]);
+
+  // Fit territory or households inside print viewport framing with exact custom padding
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !fitPrintViewportPadding || typeof google === 'undefined') return;
+
+    const boundaries = getTerritoryBoundaries(territory);
+    let hasValidPoints = false;
+    const bounds = new google.maps.LatLngBounds();
+
+    boundaries.forEach((b) => {
+      b.points.forEach((pt) => {
+        bounds.extend(pt);
+        hasValidPoints = true;
+      });
+    });
+
+    if (!hasValidPoints && households.length > 0) {
+      households.forEach((h) => {
+        const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+        const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+        if (!Number.isNaN(lat) && !Number.isNaN(lng) && lat !== 0 && lng !== 0) {
+          bounds.extend({ lat, lng });
+          hasValidPoints = true;
+        }
+      });
+    }
+
+    if (hasValidPoints) {
+      map.fitBounds(bounds, {
+        top: fitPrintViewportPadding.top,
+        right: fitPrintViewportPadding.right,
+        bottom: fitPrintViewportPadding.bottom,
+        left: fitPrintViewportPadding.left,
+      });
+    }
+  }, [mapReady, fitPrintViewportPadding, territory, households]);
 
   // Smooth cinematic distance-adaptive parabolic fly-in animation (user GPS or search)
   useEffect(() => {

@@ -18,12 +18,15 @@ import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household, Territory } from '@/types/api';
 
 export interface CardDimensionSettings {
+  preset: '4x6' | '5x7' | '8.5x11' | 'a5' | 'a6' | 'custom';
   widthInches: number;
   heightInches: number;
   orientation: 'portrait' | 'landscape';
+  side: 'front' | 'back' | 'both';
   showQrCode: boolean;
   showNotesArea: boolean;
   showStreetsList: boolean;
+  showHouseholdsList: boolean;
 }
 
 interface StudioSidebarProps {
@@ -273,11 +276,23 @@ export function StudioSidebar({
             <div className="space-y-2">
               <Label className="text-xs">Preset Dimensions</Label>
               <Select
-                value={`${cardSettings.widthInches}x${cardSettings.heightInches}`}
-                onValueChange={(val) => {
-                  const [w, h] = val.split('x').map(Number);
+                value={cardSettings.preset}
+                onValueChange={(val: any) => {
+                  let w = 4;
+                  let h = 6;
+                  if (val === '5x7') {
+                    w = 5;
+                    h = 7;
+                  } else if (val === '8.5x11') {
+                    w = 8.5;
+                    h = 11;
+                  } else if (val === 'a5') {
+                    w = 5.83;
+                    h = 8.27;
+                  }
                   onChangeCardSettings({
                     ...cardSettings,
+                    preset: val,
                     widthInches: w,
                     heightInches: h,
                   });
@@ -288,15 +303,70 @@ export function StudioSidebar({
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
                   <SelectItem value="4x6">4″ × 6″ (Pocket Territory Card)</SelectItem>
-                  <SelectItem value="5x7">5″ × 7″ (Standard Card)</SelectItem>
+                  <SelectItem value="5x7">5″ × 7″ (Standard 5x7 Card)</SelectItem>
                   <SelectItem value="8.5x11">8.5″ × 11″ (Full Letter Sheet)</SelectItem>
+                  <SelectItem value="a5">A5 Sheet (5.8″ × 8.3″)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Orientation</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeCardSettings({ ...cardSettings, orientation: 'portrait' })
+                  }
+                  className={`py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                    cardSettings.orientation === 'portrait'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Portrait
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChangeCardSettings({ ...cardSettings, orientation: 'landscape' })
+                  }
+                  className={`py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                    cardSettings.orientation === 'landscape'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Landscape
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 pt-2 border-t border-border">
               <Label className="text-xs">Included Elements</Label>
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]">Publisher Working Record Grid</span>
+                  <input
+                    type="checkbox"
+                    checked={cardSettings.showNotesArea}
+                    onChange={(e) =>
+                      onChangeCardSettings({ ...cardSettings, showNotesArea: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]">Streets & Doors Directory</span>
+                  <input
+                    type="checkbox"
+                    checked={cardSettings.showStreetsList}
+                    onChange={(e) =>
+                      onChangeCardSettings({ ...cardSettings, showStreetsList: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded accent-primary"
+                  />
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px]">QR Code Link</span>
                   <input
@@ -308,38 +378,16 @@ export function StudioSidebar({
                     className="h-4 w-4 rounded accent-primary"
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px]">Streets & Blocks List</span>
-                  <input
-                    type="checkbox"
-                    checked={cardSettings.showStreetsList}
-                    onChange={(e) =>
-                      onChangeCardSettings({ ...cardSettings, showStreetsList: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded accent-primary"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px]">Publisher Notes Grid</span>
-                  <input
-                    type="checkbox"
-                    checked={cardSettings.showNotesArea}
-                    onChange={(e) =>
-                      onChangeCardSettings({ ...cardSettings, showNotesArea: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded accent-primary"
-                  />
-                </div>
               </div>
             </div>
 
             <Button
               type="button"
-              className="w-full h-10 rounded-xl gap-2 font-semibold shadow-md mt-4"
+              className="w-full h-10 rounded-xl gap-2 font-semibold shadow-md mt-2 bg-primary text-primary-foreground"
               onClick={onPrintCard}
             >
               <Printer size={15} />
-              <span>Print Territory Card</span>
+              <span>Open Print Viewport & Fit</span>
             </Button>
           </div>
         )}

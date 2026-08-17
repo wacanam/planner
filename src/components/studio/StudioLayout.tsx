@@ -47,6 +47,8 @@ import { StudioCameraControls } from './StudioCameraControls';
 import { StudioContextActionCard } from './StudioContextActionCard';
 import { getTerritoryBoundaries, normalizePolygons, StudioGoogleMap } from './StudioGoogleMap';
 import { StudioLandmarkDialog } from './StudioLandmarkDialog';
+import { StudioPrintModal } from './StudioPrintModal';
+import { StudioPrintViewport } from './StudioPrintViewport';
 import { StudioRoadDialog } from './StudioRoadDialog';
 import { type CardDimensionSettings, StudioSidebar } from './StudioSidebar';
 import { type StudioTool, StudioTopBar } from './StudioTopBar';
@@ -94,13 +96,27 @@ export function StudioLayout({
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
 
+  // Print Viewport & Formatted Physical Card States
+  const [isPrintViewportActive, setIsPrintViewportActive] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [fitPrintViewportPadding, setFitPrintViewportPadding] = useState<{
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    timestamp: number;
+  } | null>(null);
+
   const [cardSettings, setCardSettings] = useState<CardDimensionSettings>({
+    preset: '4x6',
     widthInches: 4,
     heightInches: 6,
     orientation: 'portrait',
+    side: 'front',
     showQrCode: true,
     showNotesArea: true,
     showStreetsList: true,
+    showHouseholdsList: true,
   });
 
   // Drawing state (Boundary, Roads)
@@ -530,6 +546,11 @@ export function StudioLayout({
         canUndo={drawnPoints.length > 0}
         canRedo={false}
         onSearchLocation={handleSearchLocation}
+        onOpenPrintViewport={() => {
+          setSidebarOpen(false);
+          setIsPrintViewportActive(true);
+          toast.info('Adjust map camera framing to fit your territory card');
+        }}
         households={households}
         landmarks={territory?.annotations?.landmarks}
         roads={territory?.annotations?.roads}
@@ -740,6 +761,25 @@ export function StudioLayout({
           selectedRoadId={selectedRoad?.id}
           userLocation={userLocation}
           userHeading={userHeading}
+          fitPrintViewportPadding={fitPrintViewportPadding}
+        />
+
+        {/* Interactive Print Viewport Framing Overlay */}
+        <StudioPrintViewport
+          active={isPrintViewportActive}
+          onClose={() => setIsPrintViewportActive(false)}
+          cardSettings={cardSettings}
+          onChangeCardSettings={setCardSettings}
+          territory={territory}
+          households={households}
+          onFitTerritoryToFrame={(padding) => {
+            setFitPrintViewportPadding({
+              ...padding,
+              timestamp: Date.now(),
+            });
+            toast.success('Fitted territory to card frame');
+          }}
+          onOpenPrintModal={() => setIsPrintModalOpen(true)}
         />
       </div>
 
@@ -791,14 +831,30 @@ export function StudioLayout({
         cardSettings={cardSettings}
         onChangeCardSettings={setCardSettings}
         onPrintCard={() => {
-          toast.success('Territory map card ready to print');
-          window.print();
+          setSidebarOpen(false);
+          setIsPrintViewportActive(true);
+          toast.info('Adjust map framing for your territory card');
         }}
         onOpenAddHousehold={() => {
           setActiveTool('pin');
           setSidebarOpen(false);
           toast.info('Tap anywhere on the map to place a new household pin');
         }}
+      />
+
+      {/* Formatted Territory Card Print Preview Modal */}
+      <StudioPrintModal
+        open={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        onBackToViewport={() => {
+          setIsPrintModalOpen(false);
+          setIsPrintViewportActive(true);
+        }}
+        territory={territory}
+        congregation={congregation ?? null}
+        households={households}
+        cardSettings={cardSettings}
+        onChangeCardSettings={setCardSettings}
       />
 
       {/* Dialog: Add Household */}

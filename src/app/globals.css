@@ -117,3 +117,31 @@ html {
 .sheet-slide-up {
   animation: sheet-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
+
+/* Territory Card Print Layout */
+@media print {
+  @page {
+    margin: 6mm;
+    size: auto;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation and studio overlays */
+  header,
+  aside,
+  nav,
+  button,
+  .no-print,
+  .bottom-tab-bar,
+  .dashboard-header {
+    display: none !important;
+  }
+}
+

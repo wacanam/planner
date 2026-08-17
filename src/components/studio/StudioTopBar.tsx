@@ -7,6 +7,7 @@ import {
   Menu,
   Milestone,
   MousePointer,
+  Printer,
   Redo2,
   Search,
   Square,
@@ -33,6 +34,7 @@ interface StudioTopBarProps {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onSearchLocation?: (query: string) => void;
+  onOpenPrintViewport?: () => void;
   households?: Household[];
   landmarks?: MapLandmark[];
   roads?: MapRoad[];
@@ -89,6 +91,7 @@ export function StudioTopBar({
   onToggleSidebar,
   sidebarOpen,
   onSearchLocation,
+  onOpenPrintViewport,
   households = [],
   landmarks = [],
   roads = [],
@@ -323,6 +326,20 @@ export function StudioTopBar({
         >
           {searchOpen ? <X size={15} /> : <Search size={15} />}
         </Button>
+
+        {/* Print Territory Card Viewport Trigger */}
+        {onOpenPrintViewport && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onOpenPrintViewport}
+            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 shrink-0"
+            title="Print territory card viewport"
+          >
+            <Printer size={15} />
+          </Button>
+        )}
 
         {/* Undo / Redo */}
         <Button
