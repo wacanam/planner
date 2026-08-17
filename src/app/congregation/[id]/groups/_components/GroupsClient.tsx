@@ -58,7 +58,7 @@ export default function GroupsClient() {
     [members]
   );
 
-  // Map of userId -> current group name
+  // Map of userId -> current group info
   const memberGroupMap = useMemo(() => {
     const map = new Map<string, { groupId: string; groupName: string }>();
     for (const g of groups) {
@@ -71,15 +71,28 @@ export default function GroupsClient() {
     return map;
   }, [groups]);
 
+  // Available members for the current active dialog:
+  // - If creating a new group: only unassigned active members
+  // - If editing an existing group: members in this group + unassigned active members
+  const availableMembers = useMemo(() => {
+    return activeMembers.filter((m) => {
+      const uid = m.userId || m.id;
+      const groupInfo = memberGroupMap.get(uid);
+      if (!groupInfo) return true; // Unassigned member is available
+      if (editGroup && groupInfo.groupId === editGroup.id) return true; // Already in this group is available
+      return false; // Assigned to another group is excluded
+    });
+  }, [activeMembers, memberGroupMap, editGroup]);
+
   const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return activeMembers;
+    if (!memberSearch.trim()) return availableMembers;
     const q = memberSearch.toLowerCase();
-    return activeMembers.filter(
+    return availableMembers.filter(
       (m) =>
         m.user?.name?.toLowerCase().includes(q) ||
         m.user?.email?.toLowerCase().includes(q)
     );
-  }, [activeMembers, memberSearch]);
+  }, [availableMembers, memberSearch]);
 
   const handleOpenCreate = () => {
     setGroupName('');
@@ -335,12 +348,13 @@ export default function GroupsClient() {
                 {membersLoading ? (
                   <p className="text-xs text-muted-foreground text-center py-3">Loading publishers…</p>
                 ) : filteredMembers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">No publishers found</p>
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    No unassigned publishers available. All active members are already in service groups.
+                  </p>
                 ) : (
                   filteredMembers.map((m) => {
                     const uid = m.userId || m.id;
                     const isSelected = selectedUserIds.includes(uid);
-                    const currentGroup = memberGroupMap.get(uid);
 
                     return (
                       <div
@@ -366,11 +380,9 @@ export default function GroupsClient() {
                             </span>
                           </div>
                         </div>
-                        {currentGroup && (
-                          <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0 ml-1">
-                            In {currentGroup.groupName}
-                          </Badge>
-                        )}
+                        <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0 ml-1">
+                          Unassigned
+                        </Badge>
                       </div>
                     );
                   })
@@ -420,7 +432,7 @@ export default function GroupsClient() {
             <div className="space-y-2 pt-2 border-t border-border">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold">
-                  Assigned Publishers ({selectedUserIds.length} assigned)
+                  Publishers ({selectedUserIds.length} in group)
                 </Label>
                 <div className="flex items-center gap-2 text-[11px]">
                   <button
@@ -455,13 +467,13 @@ export default function GroupsClient() {
                 {membersLoading ? (
                   <p className="text-xs text-muted-foreground text-center py-3">Loading publishers…</p>
                 ) : filteredMembers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">No publishers found</p>
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    No unassigned publishers available to add.
+                  </p>
                 ) : (
                   filteredMembers.map((m) => {
                     const uid = m.userId || m.id;
                     const isSelected = selectedUserIds.includes(uid);
-                    const currentGroup = memberGroupMap.get(uid);
-                    const isOtherGroup = currentGroup && currentGroup.groupId !== editGroup?.id;
 
                     return (
                       <div
@@ -487,15 +499,15 @@ export default function GroupsClient() {
                             </span>
                           </div>
                         </div>
-                        {isOtherGroup ? (
-                          <Badge variant="outline" className="text-[9px] text-amber-700 bg-amber-50 border-amber-200 shrink-0 ml-1">
-                            In {currentGroup.groupName}
-                          </Badge>
-                        ) : isSelected ? (
+                        {isSelected ? (
                           <Badge variant="secondary" className="text-[9px] bg-primary/15 text-primary shrink-0 ml-1">
-                            Assigned
+                            In Group
                           </Badge>
-                        ) : null}
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0 ml-1">
+                            Unassigned
+                          </Badge>
+                        )}
                       </div>
                     );
                   })
