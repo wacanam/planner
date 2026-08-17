@@ -14,9 +14,18 @@ export async function captureMapViewportSnapshot({
   frameW: number;
   frameH: number;
 }): Promise<string> {
+  // Ensure all Google tile images have crossOrigin set to anonymous
+  const images = mapContainer.querySelectorAll('img');
+  images.forEach((img) => {
+    if (!img.crossOrigin && img.src && (img.src.includes('google') || img.src.includes('khms') || img.src.includes('gstatic'))) {
+      img.crossOrigin = 'anonymous';
+    }
+  });
+
   const fullCanvas = await toCanvas(mapContainer, {
-    pixelRatio: 2.5, // Crisp 300dpi-equivalent resolution
-    cacheBust: true,
+    pixelRatio: 2.0, // High quality 2x resolution
+    cacheBust: false, // Critical: true breaks signed satellite/hybrid tile URLs
+    skipFonts: true,
     filter: (node) => {
       if (node instanceof HTMLElement) {
         if (
@@ -60,8 +69,9 @@ export async function captureMapViewportSnapshot({
 export async function exportElementToPng(element: HTMLElement, filename: string): Promise<void> {
   const dataUrl = await toPng(element, {
     quality: 0.98,
-    pixelRatio: 2.5,
-    cacheBust: true,
+    pixelRatio: 2.0,
+    cacheBust: false,
+    skipFonts: true,
   });
   const link = document.createElement('a');
   link.download = filename.endsWith('.png') ? filename : `${filename}.png`;
