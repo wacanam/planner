@@ -7,15 +7,17 @@ import {
   Compass,
   Home,
   MapPin,
+  RotateCcw,
   User,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +26,10 @@ import {
   useCongregationTerritories,
   useCurrentUser,
   useMyAssignments,
+  useReturnAssignment,
 } from '@/hooks';
+import { toast } from 'sonner';
+import type { Assignment } from '@/types/api';
 
 export default function MyAssignmentsClient() {
   const params = useParams();
@@ -34,6 +39,9 @@ export default function MyAssignmentsClient() {
   const { data: territories = [], isLoading: loadingTerritories } =
     useCongregationTerritories(congregationId);
   const { groups = [], isLoading: loadingGroups } = useCongregationGroups(congregationId);
+  const { returnTerritory, isPending: returning } = useReturnAssignment();
+
+  const [returnConfirmAssignment, setReturnConfirmAssignment] = useState<Assignment | null>(null);
 
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
@@ -202,30 +210,42 @@ export default function MyAssignmentsClient() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2 pt-3 border-t border-border">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 rounded-xl text-xs"
-                        >
-                          <Link
-                            href={`/congregation/${congregationId}/my-assignments/${assignment.territoryId}`}
+                      <div className="space-y-2 pt-3 border-t border-border">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 rounded-xl text-xs"
                           >
-                            View Details
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          size="sm"
-                          className="flex-1 rounded-xl text-xs gap-1.5 font-semibold shadow-xs"
-                        >
-                          <Link
-                            href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                            <Link
+                              href={`/congregation/${congregationId}/my-assignments/${assignment.territoryId}`}
+                            >
+                              View Details
+                            </Link>
+                          </Button>
+                          <Button
+                            asChild
+                            size="sm"
+                            className="flex-1 rounded-xl text-xs gap-1.5 font-semibold shadow-xs"
                           >
-                            <MapPin size={13} />
-                            <span>Open Studio</span>
-                          </Link>
+                            <Link
+                              href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                            >
+                              <MapPin size={13} />
+                              <span>Open Studio</span>
+                            </Link>
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setReturnConfirmAssignment(assignment)}
+                          className="w-full h-7 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5"
+                        >
+                          <RotateCcw size={12} />
+                          <span>Return Territory to Congregation</span>
                         </Button>
                       </div>
                     </CardContent>
@@ -271,6 +291,32 @@ export default function MyAssignmentsClient() {
             </div>
           </div>
         )}
+
+        {/* Return Territory Confirmation Modal */}
+        <ConfirmDialog
+          open={!!returnConfirmAssignment}
+          onOpenChange={(op) => !op && setReturnConfirmAssignment(null)}
+          title="Return Territory Assignment"
+          description={
+            returnConfirmAssignment
+              ? `Are you sure you want to return Territory #${
+                  territoryMap.get(returnConfirmAssignment.territoryId)?.number ||
+                  returnConfirmAssignment.territoryNumber ||
+                  ''
+                } to the congregation? This will mark your assignment as completed and make the territory available.`
+              : ''
+          }
+          confirmLabel="Return Territory"
+          variant="default"
+          onConfirm={async () => {
+            if (returnConfirmAssignment) {
+              await returnTerritory(returnConfirmAssignment.id);
+              toast.success('Territory returned to congregation');
+              setReturnConfirmAssignment(null);
+            }
+          }}
+          loading={returning}
+        />
       </main>
       <BottomTabBar />
     </ProtectedPage>

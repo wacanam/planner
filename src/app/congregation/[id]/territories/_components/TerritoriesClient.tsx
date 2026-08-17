@@ -1,7 +1,17 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FolderOpen, MapPin, Plus, Search, User, UserCheck, Users } from 'lucide-react';
+import {
+  FolderOpen,
+  MapPin,
+  Plus,
+  RotateCcw,
+  Search,
+  Undo2,
+  User,
+  UserCheck,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -9,6 +19,7 @@ import { useForm } from 'react-hook-form';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +42,7 @@ import {
   useCreateTerritory,
   useCurrentUser,
   useHouseholds,
+  useRevokeTerritory,
   useUpdateCongregation,
 } from '@/hooks';
 import { isTerritoryServant } from '@/lib/permissions';
@@ -64,6 +76,7 @@ export default function TerritoriesClient() {
   const { create: createTerritory, isPending: creatingTerritory } =
     useCreateTerritory(congregationId);
   const { create: createAssignment, isPending: assigningTerritory } = useCreateAssignment();
+  const { revoke: revokeTerritory, isPending: revokingTerritory } = useRevokeTerritory();
 
   const coverageByTerritoryId = useMemo(() => {
     const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
@@ -84,6 +97,7 @@ export default function TerritoriesClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
+  const [revokeConfirmTerritory, setRevokeConfirmTerritory] = useState<Territory | null>(null);
   const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
   const [assignUserId, setAssignUserId] = useState('');
   const [assignGroupId, setAssignGroupId] = useState('');
@@ -389,6 +403,19 @@ export default function TerritoriesClient() {
                         <span>Assign</span>
                       </Button>
                     )}
+
+                    {isServant && (t.status === 'assigned' || t.status === 'pending') && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setRevokeConfirmTerritory(t)}
+                        title="Revoke assignment and make territory available"
+                      >
+                        <RotateCcw size={12} />
+                        <span>Revoke</span>
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -647,6 +674,30 @@ export default function TerritoriesClient() {
             </div>
           </div>
         </ResponsiveDialog>
+
+        {/* Revoke / Return Territory Confirmation */}
+        <ConfirmDialog
+          open={!!revokeConfirmTerritory}
+          onOpenChange={(op) => !op && setRevokeConfirmTerritory(null)}
+          title="Revoke / Return Territory"
+          description={
+            revokeConfirmTerritory
+              ? `Are you sure you want to revoke the assignment for Territory #${revokeConfirmTerritory.number} — ${revokeConfirmTerritory.name}? This will immediately return the territory to Available status for new assignments.`
+              : ''
+          }
+          confirmLabel="Revoke Assignment"
+          variant="destructive"
+          onConfirm={async () => {
+            if (revokeConfirmTerritory) {
+              await revokeTerritory(revokeConfirmTerritory.id);
+              toast.success(
+                `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+              );
+              setRevokeConfirmTerritory(null);
+            }
+          }}
+          loading={revokingTerritory}
+        />
       </main>
       <BottomTabBar />
     </ProtectedPage>

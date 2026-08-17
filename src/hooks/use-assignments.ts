@@ -3,11 +3,13 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
@@ -346,4 +348,100 @@ export function useDeleteAssignment() {
   }, []);
 
   return { remove, isDeleting };
+}
+
+/**
+ * Assignee or Group member checks in / returns the assigned territory.
+ */
+export function useReturnAssignment() {
+  const [isReturning, setIsReturning] = useState(false);
+
+  const returnTerritory = useCallback(async (assignmentId: string) => {
+    setIsReturning(true);
+    try {
+      const now = nowIso();
+      const snap = await getDoc(assignmentDocument(assignmentId));
+      if (!snap.exists()) throw new Error('Assignment not found');
+      const assignment = snap.data() as Assignment;
+
+      await updateDoc(assignmentDocument(assignmentId), {
+        status: AssignmentStatus.COMPLETED,
+        returnedAt: now,
+        updatedAt: now,
+      });
+
+      if (assignment.territoryId) {
+        await updateDoc(
+          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
+          {
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+            updatedAt: now,
+          }
+        );
+      }
+    } finally {
+      setIsReturning(false);
+    }
+  }, []);
+
+  return { returnTerritory, isReturning, isPending: isReturning };
+}
+
+/**
+ * Service Overseer / Territory Servant revokes the active/pending territory assignment.
+ */
+export function useRevokeTerritory() {
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  const revoke = useCallback(async (territoryId: string) => {
+    setIsRevoking(true);
+    try {
+      const now = nowIso();
+      const firestore = getPlannerFirestore();
+
+      const assignmentsSnap = await getDocs(
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+          where('territoryId', '==', territoryId)
+        )
+      );
+
+      const batch = writeBatch(firestore);
+      for (const d of assignmentsSnap.docs) {
+        const data = d.data() as Assignment;
+        if (
+          data.status === 'assigned' ||
+          data.status === 'active' ||
+          data.status === 'pending_approval' ||
+          data.status === AssignmentStatus.PENDING_APPROVAL ||
+          data.status === AssignmentStatus.ACTIVE
+        ) {
+          batch.update(d.ref, {
+            status: AssignmentStatus.COMPLETED,
+            returnedAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+
+      batch.update(doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId), {
+        status: 'available',
+        publisherId: null,
+        publisherName: null,
+        groupId: null,
+        groupName: null,
+        updatedAt: now,
+      });
+
+      await batch.commit();
+    } finally {
+      setIsRevoking(false);
+    }
+  }, []);
+
+  return { revoke, isRevoking, isPending: isRevoking };
 }

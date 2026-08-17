@@ -1,17 +1,25 @@
 'use client';
 
-import { ArrowLeft, BarChart2, Home, MapPin } from 'lucide-react';
+import { ArrowLeft, BarChart2, Home, MapPin, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { useHouseholds, useTerritoryAssignments, useTerritoryDetail } from '@/hooks';
+import {
+  useHouseholds,
+  useReturnAssignment,
+  useTerritoryAssignments,
+  useTerritoryDetail,
+} from '@/hooks';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import { toast } from 'sonner';
 
 export default function AssignmentVisitsClient() {
+  const router = useRouter();
   const params = useParams<{
     id: string;
     assignmentId: string;
@@ -23,10 +31,13 @@ export default function AssignmentVisitsClient() {
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { assignments, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId);
   const { households, isLoading: householdsLoading } = useHouseholds({ territoryId: territoryId ?? undefined });
+  const { returnTerritory, isPending: returning } = useReturnAssignment();
+
+  const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
 
   const _loading = territoryLoading || assignmentsLoading || householdsLoading;
-  const _activeAssignment =
-    assignments.find((a) => a.status === 'assigned') ?? assignments[0] ?? null;
+  const activeAssignment =
+    assignments.find((a) => a.status === 'assigned' || a.status === 'active') ?? assignments[0] ?? null;
 
   const coverageStats = useMemo(() => {
     if (households && households.length > 0) {
@@ -42,10 +53,18 @@ export default function AssignmentVisitsClient() {
     };
   }, [households, territory]);
 
+  const handleReturn = async () => {
+    if (!activeAssignment) return;
+    await returnTerritory(activeAssignment.id);
+    toast.success('Territory returned to congregation');
+    setReturnConfirmOpen(false);
+    router.push(backHref);
+  };
+
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-5xl mx-auto min-w-0 w-full py-8 px-4 sm:px-6 lg:px-8 space-y-6 pb-24 lg:pb-8">
+      <main className="max-w-6xl mx-auto min-w-0 w-full py-8 px-4 sm:px-6 lg:px-8 space-y-6 pb-24 lg:pb-8">
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
             <Link href={backHref}>
@@ -99,7 +118,30 @@ export default function AssignmentVisitsClient() {
               <span>View Households Directory</span>
             </Link>
           </Button>
+          {activeAssignment && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setReturnConfirmOpen(true)}
+              className="w-full h-10 rounded-2xl gap-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            >
+              <RotateCcw size={14} />
+              <span>Return Territory to Congregation</span>
+            </Button>
+          )}
         </div>
+
+        {/* Return Territory Confirmation Modal */}
+        <ConfirmDialog
+          open={returnConfirmOpen}
+          onOpenChange={setReturnConfirmOpen}
+          title="Return Territory Assignment"
+          description={`Are you sure you want to return Territory #${territory?.number || ''} to the congregation? This will make the territory available for new assignments.`}
+          confirmLabel="Return Territory"
+          variant="default"
+          onConfirm={handleReturn}
+          loading={returning}
+        />
       </main>
       <BottomTabBar />
     </ProtectedPage>
