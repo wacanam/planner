@@ -761,7 +761,7 @@ export function StudioPrintViewport({
               <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[8.5px]">
                 <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1 px-2 border-b border-slate-300">
                   <span className="col-span-3">Date Given</span>
-                  <span className="col-span-4">Publisher Name</span>
+                  <span className="col-span-4">Group / Publisher Name</span>
                   <span className="col-span-3">Date Completed</span>
                   <span className="col-span-2 text-right">Remarks</span>
                 </div>
@@ -938,7 +938,7 @@ export function StudioPrintViewport({
             <div className="flex-1 border border-slate-300 rounded-lg overflow-hidden flex flex-col text-[9.5px]">
               <div className="grid grid-cols-12 bg-slate-100 font-bold text-slate-800 py-1.5 px-3 border-b border-slate-300">
                 <span className="col-span-3">Date Given</span>
-                <span className="col-span-4">Publisher Name</span>
+                <span className="col-span-4">Group / Publisher Name</span>
                 <span className="col-span-3">Date Completed</span>
                 <span className="col-span-2 text-right">Remarks</span>
               </div>
