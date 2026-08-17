@@ -212,16 +212,18 @@ export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilte
   if (filters?.territoryId && record.territoryId !== filters.territoryId) return false;
 
   // Personal scope filter: only show records owned by user or shared/transferred to user
-  if (filters?.personalOnly && filters?.userId) {
+  if (filters?.personalOnly) {
     if (isTerritoryServant(filters.userRole)) {
       return true;
     }
-    const isOwner = record.createdById === filters.userId;
+    if (!filters.userId) {
+      return false;
+    }
+    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
     const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
     const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
-    const isLegacyUnowned = !record.createdById && (!record.collaboratorIds || record.collaboratorIds.length === 0);
 
-    return isOwner || isCollaborator || isReadOnly || isLegacyUnowned;
+    return isOwner || isCollaborator || isReadOnly;
   }
 
   return true;

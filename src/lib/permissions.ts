@@ -166,11 +166,6 @@ export function canAccessHouseholdDetails(
   if (household.collaboratorIds?.includes(userId)) return true;
   if (household.readOnlyUserIds?.includes(userId)) return true;
 
-  // Unowned legacy records accessible to authenticated publishers
-  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
-    return true;
-  }
-
   // Check accepted shares
   return shares.some(
     (s) => s.householdId === household.id && s.toUserId === userId && s.status === 'accepted'
@@ -187,12 +182,7 @@ export function canShareHousehold(
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
-  if (household.createdById === user.id) return true;
-  // Legacy unowned record created locally
-  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
-    return true;
-  }
-  return false;
+  return household.createdById === user.id;
 }
 
 /**
@@ -205,12 +195,7 @@ export function canEditHousehold(
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
-  if (household.createdById === user.id) return true;
-  // Legacy unowned record created locally
-  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
-    return true;
-  }
-  return false;
+  return household.createdById === user.id;
 }
 
 /**
@@ -223,12 +208,7 @@ export function canDeleteHousehold(
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
-  if (household.createdById === user.id) return true;
-  // Legacy unowned record created locally
-  if (!household.createdById && (!household.collaboratorIds || household.collaboratorIds.length === 0)) {
-    return true;
-  }
-  return false;
+  return household.createdById === user.id;
 }
 
 /**
@@ -243,7 +223,5 @@ export function canLogVisitOrEncounter(
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
   if (household.createdById === user.id) return true;
-  if (household.collaboratorIds?.includes(user.id)) return true;
-  if (!household.createdById) return true;
-  return false;
+  return Boolean(household.collaboratorIds?.includes(user.id));
 }
