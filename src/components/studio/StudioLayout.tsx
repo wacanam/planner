@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSaveAnnotations } from '@/hooks/use-territories';
 import { useSaveBoundary } from '@/hooks/use-territory-boundary';
+import { useUserLocation } from '@/hooks/use-user-location';
 import { createClientId } from '@/lib/firebase/schema';
 import {
   deleteHouseholdRecord,
@@ -148,8 +149,17 @@ export function StudioLayout({
 
   const { saveBoundary: _saveBoundary, isPending: isSavingBoundary } = useSaveBoundary(territory?.id ?? '');
   const { saveAnnotations, isSaving: isSavingAnnotations } = useSaveAnnotations(territory?.id ?? '');
-
   const boundaryDisplaySaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // User GPS Location & Live Compass Heading Flashlight Beam
+  const {
+    isTracking: isTrackingLocation,
+    location: userLocation,
+    heading: userHeading,
+    toggleTracking: toggleUserLocation,
+  } = useUserLocation();
+
+  const hasInitiallyCenteredUserRef = useRef(false);
 
   // Search navigation state
   const [searchedLocation, setSearchedLocation] = useState<{
@@ -158,6 +168,22 @@ export function StudioLayout({
     zoom?: number;
     timestamp: number;
   } | null>(null);
+
+  // Pan to user location when tracking activates
+  useEffect(() => {
+    if (userLocation && isTrackingLocation && !hasInitiallyCenteredUserRef.current) {
+      hasInitiallyCenteredUserRef.current = true;
+      setSearchedLocation({
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        zoom: 18,
+        timestamp: Date.now(),
+      });
+    }
+    if (!isTrackingLocation) {
+      hasInitiallyCenteredUserRef.current = false;
+    }
+  }, [userLocation, isTrackingLocation]);
 
   const dismissAllFloatingCards = () => {
     setSelectedHousehold(null);
@@ -696,6 +722,8 @@ export function StudioLayout({
           selectedHouseholdId={selectedHousehold?.id}
           selectedLandmarkId={selectedLandmark?.id}
           selectedRoadId={selectedRoad?.id}
+          userLocation={userLocation}
+          userHeading={userHeading}
         />
       </div>
 
@@ -705,6 +733,8 @@ export function StudioLayout({
         tilt={camera.tilt}
         onSetHeading={handleSetHeading}
         onSetTilt={handleSetTilt}
+        isTrackingLocation={isTrackingLocation}
+        onToggleLocation={toggleUserLocation}
       />
 
       {/* Basemap & Layer Popup Switcher */}

@@ -47,6 +47,8 @@ interface StudioGoogleMapProps {
   selectedHouseholdId?: string | null;
   selectedLandmarkId?: string | null;
   selectedRoadId?: string | null;
+  userLocation?: { lat: number; lng: number; accuracy?: number } | null;
+  userHeading?: number | null;
 }
 
 // Fallback default coordinates if not configured on congregation
@@ -271,10 +273,11 @@ export function StudioGoogleMap({
   searchedLocation,
   targetCamera,
   onCameraChange,
-  currentCamera,
   selectedHouseholdId,
   selectedLandmarkId,
   selectedRoadId,
+  userLocation,
+  userHeading,
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -289,6 +292,10 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  // User Live Location & Heading Cone refs
+  const userLocationMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const userLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1432,6 +1439,93 @@ export function StudioGoogleMap({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool, selectedLandmarkId, selectedRoadId]);
+
+  // 9. Render User Live GPS Location Dot with Compass Heading Flashlight Beam
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
+
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.map = null;
+      userLocationMarkerRef.current = null;
+    }
+    if (userLocationAccuracyCircleRef.current) {
+      userLocationAccuracyCircleRef.current.setMap(null);
+      userLocationAccuracyCircleRef.current = null;
+    }
+
+    if (!userLocation || layerSettings.showUserLocation === false) {
+      return;
+    }
+
+    const { AdvancedMarkerElement } = google.maps.marker;
+    const { lat, lng, accuracy } = userLocation;
+    const effectiveHeading = userHeading ?? 0;
+    const hasHeading = userHeading != null;
+
+    // Accuracy Circle
+    if (accuracy && accuracy > 5 && accuracy < 2000) {
+      const circle = new google.maps.Circle({
+        center: { lat, lng },
+        radius: accuracy,
+        strokeColor: '#3B82F6',
+        strokeOpacity: 0.25,
+        strokeWeight: 1,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.08,
+        clickable: false,
+        zIndex: 1,
+        map,
+      });
+      userLocationAccuracyCircleRef.current = circle;
+    }
+
+    // Flashlight cone & GPS dot element
+    const container = document.createElement('div');
+    container.style.position = 'relative';
+    container.style.width = '0px';
+    container.style.height = '0px';
+    container.style.pointerEvents = 'none';
+
+    container.innerHTML = `
+      <!-- Flashlight Heading Beam Cone -->
+      ${
+        hasHeading
+          ? `
+        <div style="position: absolute; left: -75px; bottom: -75px; width: 150px; height: 150px; transform: rotate(${effectiveHeading}deg); transform-origin: 75px 75px; pointer-events: none; transition: transform 0.15s ease-out; z-index: 1;">
+          <svg width="150" height="150" viewBox="0 0 150 150" style="overflow: visible;">
+            <defs>
+              <radialGradient id="flashlightBeam" cx="75" cy="75" r="75" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.65"/>
+                <stop offset="40%" stop-color="#60A5FA" stop-opacity="0.3"/>
+                <stop offset="75%" stop-color="#93C5FD" stop-opacity="0.1"/>
+                <stop offset="100%" stop-color="#BFDBFE" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <!-- 65° Flashlight Beam Sector pointing North (Up) -->
+            <path d="M 75,75 L 34.7,11.7 A 75,75 0 0,1 115.3,11.7 Z" fill="url(#flashlightBeam)" />
+          </svg>
+        </div>
+      `
+          : ''
+      }
+
+      <!-- Pulsing Blue Location Halo -->
+      <div style="position: absolute; left: -18px; bottom: -18px; width: 36px; height: 36px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.2); border: 1.5px solid rgba(59, 130, 246, 0.5); pointer-events: none; z-index: 2;"></div>
+
+      <!-- Core Blue GPS Location Dot -->
+      <div style="position: absolute; left: -7px; bottom: -7px; width: 14px; height: 14px; border-radius: 50%; background-color: #2563EB; border: 2.5px solid #FFFFFF; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 3;"></div>
+    `;
+
+    const marker = new AdvancedMarkerElement({
+      map,
+      position: { lat, lng },
+      content: container,
+      zIndex: 100,
+    });
+
+    userLocationMarkerRef.current = marker;
+  }, [mapReady, userLocation?.lat, userLocation?.lng, userLocation?.accuracy, userHeading, layerSettings.showUserLocation]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">

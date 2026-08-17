@@ -2,6 +2,7 @@
 
 import {
   Check,
+  Compass,
   Eye,
   Filter,
   Flag,
@@ -10,6 +11,7 @@ import {
   Map as MapIcon,
   MapPin,
   Milestone,
+  Navigation,
   Palette,
   Satellite,
   Square,
@@ -37,6 +39,7 @@ export interface StudioLayerSettings {
   showRoads: boolean;
   showStartFlag: boolean;
   showBoundaries: boolean;
+  showUserLocation: boolean;
   householdFilter: HouseholdStatusFilter;
 }
 
@@ -47,6 +50,7 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showRoads: true,
   showStartFlag: true,
   showBoundaries: true,
+  showUserLocation: true,
   householdFilter: 'all',
 };
 
@@ -135,6 +139,7 @@ export function StudioBasemapPopup({
       showRoads: true,
       showStartFlag: true,
       showBoundaries: true,
+      showUserLocation: true,
       householdFilter: 'all',
     });
   };
@@ -147,6 +152,7 @@ export function StudioBasemapPopup({
       showRoads: false,
       showStartFlag: false,
       showBoundaries: false,
+      showUserLocation: false,
       householdFilter: 'all',
     });
   };
@@ -405,6 +411,19 @@ export function StudioBasemapPopup({
                   type="checkbox"
                   checked={layers.showBoundaries}
                   onChange={() => toggleLayer('showBoundaries')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-user-location" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Navigation size={14} className="text-blue-500" />
+                  <span>My Location & Flashlight Beam</span>
+                </Label>
+                <input
+                  id="layer-user-location"
+                  type="checkbox"
+                  checked={layers.showUserLocation}
+                  onChange={() => toggleLayer('showUserLocation')}
                   className="h-4 w-4 rounded accent-primary cursor-pointer"
                 />
               </div>

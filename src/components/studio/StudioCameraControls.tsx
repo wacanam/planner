@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Compass, Layers, SlidersHorizontal } from 'lucide-react';
+import { Box, Compass, Layers, Navigation, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,6 +10,8 @@ interface StudioCameraControlsProps {
   tilt: number;
   onSetHeading: (heading: number) => void;
   onSetTilt: (tilt: number) => void;
+  isTrackingLocation?: boolean;
+  onToggleLocation?: () => void;
 }
 
 export function StudioCameraControls({
@@ -17,6 +19,8 @@ export function StudioCameraControls({
   tilt,
   onSetHeading,
   onSetTilt,
+  isTrackingLocation = false,
+  onToggleLocation,
 }: StudioCameraControlsProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [localHeading, setLocalHeading] = useState(heading);
@@ -104,6 +108,31 @@ export function StudioCameraControls({
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-t-[8px] border-t-slate-400 dark:border-t-slate-500" />
         </div>
       </button>
+
+      {/* Live My Location & Compass Heading Flashlight Beam Toggle */}
+      {onToggleLocation && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onToggleLocation}
+          className={`h-9 w-9 rounded-xl transition-all ${
+            isTrackingLocation
+              ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          }`}
+          title={
+            isTrackingLocation
+              ? 'Tracking current location & compass flashlight beam (Click to stop)'
+              : 'Show my location with compass flashlight beam'
+          }
+        >
+          <Navigation
+            size={15}
+            className={`${isTrackingLocation ? 'fill-white text-white' : ''}`}
+          />
+        </Button>
+      )}
 
       {/* Heading & Tilt Sliders Popover */}
       <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>

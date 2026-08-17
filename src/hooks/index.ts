@@ -10,4 +10,5 @@ export * from './use-reports';
 export * from './use-shares';
 export * from './use-territories';
 export * from './use-territory-boundary';
+export * from './use-user-location';
 export * from './use-visits';
