@@ -96,7 +96,7 @@ export default function SharedRecordsPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       <div>
         <h1 className="text-xl font-bold text-foreground">Shared & Transferred Records</h1>
         <p className="text-xs text-muted-foreground mt-0.5">

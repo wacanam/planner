@@ -41,7 +41,7 @@ export default function HouseholdDetailPage() {
   }, [householdId]);
 
   return (
-    <main className="mx-auto w-full max-w-5xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-8">
+    <main className="mx-auto w-full max-w-6xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-8">
       <Button asChild variant="ghost" size="sm" className="w-fit text-xs gap-1 rounded-xl">
         <Link href={`/congregation/${congregationId}/records/households`}>
           <ArrowLeft className="h-4 w-4" />

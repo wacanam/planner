@@ -159,7 +159,7 @@ export default function HouseholdsClient() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>

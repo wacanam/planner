@@ -39,7 +39,7 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
     <ProtectedPage congregationId={id}>
       <DashboardHeader />
       <div className="border-b border-border bg-background sticky top-16 z-30 shadow-2xs">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-2 py-2 overflow-x-auto" aria-label="Records navigation">
             {tabs.map(({ href, label, icon: Icon }) => {
               const isActive =
