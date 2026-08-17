@@ -342,6 +342,24 @@ export async function updateUserProfile(input: { name?: string; avatarUrl?: stri
     displayName: input.name ?? firebaseUser.displayName,
     photoURL: input.avatarUrl ?? firebaseUser.photoURL,
   }).catch(() => undefined);
+
+  // Sync to congregationMembers collection if a member document exists
+  try {
+    const memberRef = doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, firebaseUser.uid);
+    const memberSnap = await getDoc(memberRef);
+    if (memberSnap.exists()) {
+      const existingUser = memberSnap.data().user || {};
+      await updateDoc(memberRef, {
+        user: {
+          ...existingUser,
+          ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+          ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        },
+      });
+    }
+  } catch {
+    // non-fatal sync
+  }
 }
 
 export async function changeUserPassword(input: { currentPassword: string; newPassword: string }) {
