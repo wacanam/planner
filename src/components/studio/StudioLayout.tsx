@@ -22,11 +22,21 @@ import {
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
-import type { Congregation, Household, MapBoundaryPolygon, MapLandmark, MapRoad, Territory } from '@/types/api';
+import type {
+  Congregation,
+  Household,
+  MapBoundaryPolygon,
+  MapLandmark,
+  MapPoint,
+  MapRoad,
+  Territory,
+  TerritoryAnnotations,
+} from '@/types/api';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
   DEFAULT_BOUNDARY_DISPLAY,
+  DEFAULT_STUDIO_LAYERS,
   resolveBoundaryDisplay,
   StudioBasemapPopup,
   type StudioLayerSettings,
@@ -48,6 +58,12 @@ interface StudioLayoutProps {
   congregationId: string;
   households: Household[];
   activeAssignmentId?: string | null;
+  onAddHousehold?: () => void;
+  onEditHousehold?: (household: Household) => void;
+  onDeleteHousehold?: (householdId: string) => void;
+  onSaveTerritoryBoundary?: (coordinates: MapPoint[], boundaries?: MapBoundaryPolygon[]) => void;
+  onSaveAnnotations?: (annotations: TerritoryAnnotations) => void;
+  onPinHousehold?: (coords: { lat: number; lng: number }) => void;
   pinHouseholdId?: string | null;
   onClearPinHouseholdId?: () => void;
   onHouseholdSaved?: () => void;
@@ -61,6 +77,12 @@ export function StudioLayout({
   congregationId,
   households,
   activeAssignmentId,
+  onAddHousehold,
+  onEditHousehold,
+  onDeleteHousehold,
+  onSaveTerritoryBoundary,
+  onSaveAnnotations,
+  onPinHousehold,
   pinHouseholdId,
   onClearPinHouseholdId,
   onHouseholdSaved,
@@ -69,16 +91,7 @@ export function StudioLayout({
   const [activeTool, setActiveTool] = useState<StudioTool>(pinHouseholdId ? 'pin' : 'pointer');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
-  const [layers, setLayers] = useState<StudioLayerSettings>({
-    showBuildings: true,
-    showHouseLabels: true,
-    showGooglePOIs: false,
-    showStores: false,
-    showSchools: true,
-    showChurches: true,
-    showHospitals: true,
-    cleanMode: false,
-  });
+  const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
 
   const [cardSettings, setCardSettings] = useState<CardDimensionSettings>({
     widthInches: 4,

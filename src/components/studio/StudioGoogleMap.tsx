@@ -127,120 +127,6 @@ function computeCentroidFromPolygons(
   return { lat: latSum / totalPts, lng: lngSum / totalPts };
 }
 
-// Dynamically generate Google Maps vector map style rules matching user POI filters
-export function buildGoogleMapStyles(layers: StudioLayerSettings): google.maps.MapTypeStyle[] {
-  if (layers.cleanMode) {
-    return [
-      // Hide all standard distracting POIs for high-contrast print mode
-      {
-        featureType: 'poi',
-        stylers: [{ visibility: 'off' }],
-      },
-      {
-        featureType: 'transit',
-        stylers: [{ visibility: 'off' }],
-      },
-      {
-        featureType: 'road',
-        elementType: 'geometry',
-        stylers: [{ lightness: -10 }, { saturation: -40 }],
-      },
-      {
-        featureType: 'road',
-        elementType: 'labels.text.fill',
-        stylers: [{ color: '#0F172A' }],
-      },
-      {
-        featureType: 'water',
-        elementType: 'geometry',
-        stylers: [{ color: '#BAE6FD' }],
-      },
-      {
-        featureType: 'landscape',
-        elementType: 'geometry',
-        stylers: [{ color: '#F8FAFC' }],
-      },
-      {
-        featureType: 'landscape.man_made',
-        elementType: 'geometry',
-        stylers: [{ visibility: layers.showBuildings ? 'on' : 'off' }],
-      },
-      {
-        featureType: 'administrative.land_parcel',
-        elementType: 'labels',
-        stylers: [{ visibility: layers.showHouseLabels ? 'on' : 'off' }],
-      },
-    ];
-  }
-
-  const styles: google.maps.MapTypeStyle[] = [];
-
-  // 1. Clean Google Map Base Markers / Commercial Place Icons
-  if (!layers.showGooglePOIs) {
-    styles.push({
-      featureType: 'poi',
-      elementType: 'labels.icon',
-      stylers: [{ visibility: 'off' }],
-    });
-    styles.push({
-      featureType: 'poi.business',
-      stylers: [{ visibility: 'off' }],
-    });
-    styles.push({
-      featureType: 'poi.attraction',
-      stylers: [{ visibility: 'off' }],
-    });
-  } else {
-    styles.push({
-      featureType: 'poi',
-      elementType: 'labels.icon',
-      stylers: [{ visibility: 'on' }],
-    });
-  }
-
-  // 2. 3D Building Outlines / Man-made structures
-  styles.push({
-    featureType: 'landscape.man_made',
-    elementType: 'geometry',
-    stylers: [{ visibility: layers.showBuildings ? 'on' : 'off' }],
-  });
-
-  // 3. Schools & Colleges
-  styles.push({
-    featureType: 'poi.school',
-    stylers: [{ visibility: layers.showSchools ? 'on' : 'off' }],
-  });
-
-  // 4. Churches & Temples (Places of Worship)
-  styles.push({
-    featureType: 'poi.place_of_worship',
-    stylers: [{ visibility: layers.showChurches ? 'on' : 'off' }],
-  });
-
-  // 5. Hospitals & Medical Facilities
-  styles.push({
-    featureType: 'poi.medical',
-    stylers: [{ visibility: layers.showHospitals ? 'on' : 'off' }],
-  });
-
-  // 6. Stores / Businesses
-  if (layers.showStores) {
-    styles.push({
-      featureType: 'poi.business',
-      stylers: [{ visibility: 'on' }],
-    });
-  }
-
-  // 7. House numbers / Land parcels
-  styles.push({
-    featureType: 'administrative.land_parcel',
-    elementType: 'labels',
-    stylers: [{ visibility: layers.showHouseLabels ? 'on' : 'off' }],
-  });
-
-  return styles;
-}
-
 // Full outer world polygon ring spanning the Mercator projection in Clockwise order
 const WORLD_MASK_RING: Array<{ lat: number; lng: number }> = [
   { lat: 85.0, lng: -180.0 },
@@ -575,7 +461,6 @@ export function StudioGoogleMap({
           mapTypeControl: false,
           zoomControl: true,
           gestureHandling: 'greedy',
-          styles: buildGoogleMapStyles(layerSettings),
         });
 
         // Add single stable click listener for tool actions
@@ -763,25 +648,6 @@ export function StudioGoogleMap({
     map.setMapTypeId(basemapMode === 'satellite' ? 'hybrid' : 'roadmap');
   }, [mapReady, basemapMode]);
 
-  // 3b. Update Map Details & POI Layer Styles (3D Buildings, Schools, Churches, Hospitals, Stores, Clean Print Mode)
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapReady || typeof google === 'undefined') return;
-
-    const dynamicStyles = buildGoogleMapStyles(layerSettings);
-    map.setOptions({ styles: dynamicStyles });
-  }, [
-    mapReady,
-    layerSettings.showBuildings,
-    layerSettings.showHouseLabels,
-    layerSettings.showGooglePOIs,
-    layerSettings.showSchools,
-    layerSettings.showChurches,
-    layerSettings.showHospitals,
-    layerSettings.showStores,
-    layerSettings.cleanMode,
-  ]);
-
   // 4. Update Cursor based on Active Tool
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -835,73 +701,77 @@ export function StudioGoogleMap({
       maskPolygonRef.current = maskPoly;
     }
 
-    boundaries.forEach((boundary) => {
-      if (!boundary.points || boundary.points.length < 3) return;
+    const showBoundaries = layerSettings.showBoundaries !== false;
 
-      const polygon = new google.maps.Polygon({
-        paths: boundary.points,
-        strokeColor: boundary.color || effectiveDisplay.strokeColor || effectiveDisplay.fillColor,
-        strokeOpacity: 0.9,
-        strokeWeight: 3,
-        fillColor: boundary.color || effectiveDisplay.fillColor,
-        fillOpacity: effectiveDisplay.fillOpacity,
-        editable: isEditable,
-        draggable: false,
-        map,
-        clickable: true,
-        zIndex: 2,
-      });
+    if (showBoundaries) {
+      boundaries.forEach((boundary) => {
+        if (!boundary.points || boundary.points.length < 3) return;
 
-      // Handle right-click to delete vertex
-      polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
-        if (e.vertex != null) {
-          polygon.getPath().removeAt(e.vertex);
-        }
-      });
+        const polygon = new google.maps.Polygon({
+          paths: boundary.points,
+          strokeColor: boundary.color || effectiveDisplay.strokeColor || effectiveDisplay.fillColor,
+          strokeOpacity: 0.9,
+          strokeWeight: 3,
+          fillColor: boundary.color || effectiveDisplay.fillColor,
+          fillOpacity: effectiveDisplay.fillOpacity,
+          editable: isEditable,
+          draggable: false,
+          map,
+          clickable: true,
+          zIndex: 2,
+        });
 
-      // Click to select boundary in pointer mode, OR pass click to map active tool
-      polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
-        if (activeToolRef.current === 'pointer') {
-          e.stop();
-          handleSelectBoundaryRef.current?.(boundary);
-        } else {
-          if (!e.latLng) return;
-          const lat = e.latLng.lat();
-          const lng = e.latLng.lng();
-          const currentTool = activeToolRef.current;
-
-          if (currentTool === 'pin') {
-            handlePinRef.current?.({ lat, lng });
-          } else if (currentTool === 'landmark') {
-            handlePlaceLandmarkRef.current?.({ lat, lng });
-          } else if (currentTool === 'start') {
-            handleSetStartFlagRef.current?.({ lat, lng });
-          } else if (currentTool === 'boundary' || currentTool === 'road') {
-            handleAddPointRef.current?.({ lat, lng });
+        // Handle right-click to delete vertex
+        polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
+          if (e.vertex != null) {
+            polygon.getPath().removeAt(e.vertex);
           }
-        }
+        });
+
+        // Click to select boundary in pointer mode, OR pass click to map active tool
+        polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
+          if (activeToolRef.current === 'pointer') {
+            e.stop();
+            handleSelectBoundaryRef.current?.(boundary);
+          } else {
+            if (!e.latLng) return;
+            const lat = e.latLng.lat();
+            const lng = e.latLng.lng();
+            const currentTool = activeToolRef.current;
+
+            if (currentTool === 'pin') {
+              handlePinRef.current?.({ lat, lng });
+            } else if (currentTool === 'landmark') {
+              handlePlaceLandmarkRef.current?.({ lat, lng });
+            } else if (currentTool === 'start') {
+              handleSetStartFlagRef.current?.({ lat, lng });
+            } else if (currentTool === 'boundary' || currentTool === 'road') {
+              handleAddPointRef.current?.({ lat, lng });
+            }
+          }
+        });
+
+        // Handle vertex edits / insertions / deletions for this specific boundary
+        const path = polygon.getPath();
+        const handleBoundaryPathChange = () => {
+          const updatedPoints = path.getArray().map((pt) => ({
+            lat: pt.lat(),
+            lng: pt.lng(),
+          }));
+          if (updatedPoints.length >= 3) {
+            handleUpdateBoundaryPolygonRef.current?.(boundary.id, updatedPoints);
+          }
+        };
+
+        path.addListener('set_at', handleBoundaryPathChange);
+        path.addListener('insert_at', handleBoundaryPathChange);
+        path.addListener('remove_at', handleBoundaryPathChange);
+
+        polygonsRef.current.push(polygon);
       });
-
-      // Handle vertex edits / insertions / deletions for this specific boundary
-      const path = polygon.getPath();
-      const handleBoundaryPathChange = () => {
-        const updatedPoints = path.getArray().map((pt) => ({
-          lat: pt.lat(),
-          lng: pt.lng(),
-        }));
-        if (updatedPoints.length >= 3) {
-          handleUpdateBoundaryPolygonRef.current?.(boundary.id, updatedPoints);
-        }
-      };
-
-      path.addListener('set_at', handleBoundaryPathChange);
-      path.addListener('insert_at', handleBoundaryPathChange);
-      path.addListener('remove_at', handleBoundaryPathChange);
-
-      polygonsRef.current.push(polygon);
-    });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, boundariesKey, activeTool]);
+  }, [mapReady, boundariesKey, activeTool, layerSettings.showBoundaries]);
 
   // 5b. Live Dynamic Boundary Style & Mask Updates (No marker flicker or object recreation)
   useEffect(() => {
@@ -946,6 +816,10 @@ export function StudioGoogleMap({
     });
     householdMarkersRef.current = [];
 
+    if (layerSettings.showHouses === false) {
+      return;
+    }
+
     const { AdvancedMarkerElement } = google.maps.marker;
 
     const getStatusColor = (status?: string) => {
@@ -969,7 +843,16 @@ export function StudioGoogleMap({
 
     const isPointerMode = activeTool === 'pointer';
 
-    households.forEach((h) => {
+    const filteredHouseholds = households.filter((h) => {
+      if (!layerSettings.householdFilter || layerSettings.householdFilter === 'all') return true;
+      if (layerSettings.householdFilter === 'return_visit') return h.status === 'return_visit';
+      if (layerSettings.householdFilter === 'active') return h.status === 'active';
+      if (layerSettings.householdFilter === 'not_home') return h.status === 'not_home';
+      if (layerSettings.householdFilter === 'do_not_visit') return h.status === 'do_not_visit';
+      return true;
+    });
+
+    filteredHouseholds.forEach((h) => {
       const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
       const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
       if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
@@ -1071,7 +954,7 @@ export function StudioGoogleMap({
       householdMarkersRef.current.push(marker);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, householdsKey, layerSettings.showHouseLabels, activeTool, selectedHouseholdId]);
+  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool, selectedHouseholdId]);
 
   // 7. Render Active Drawing Preview (Road corridor / polygon)
   useEffect(() => {
@@ -1191,7 +1074,7 @@ export function StudioGoogleMap({
     const isPointerMode = activeTool === 'pointer';
 
     // 8a. Roads: Cartographic road corridor with editable vertices, casing, pavement, center markings, and pointing callout badge
-    if (annotations.roads && annotations.roads.length > 0) {
+    if (layerSettings.showRoads !== false && annotations.roads && annotations.roads.length > 0) {
       annotations.roads.forEach((road) => {
         if (!road.points || road.points.length < 2) return;
 
@@ -1364,7 +1247,7 @@ export function StudioGoogleMap({
     }
 
     // 8b. Landmarks (Teardrop POI Pins with Tip Anchor & Adjacent Label)
-    if (annotations.landmarks && annotations.landmarks.length > 0) {
+    if (layerSettings.showLandmarks !== false && annotations.landmarks && annotations.landmarks.length > 0) {
       annotations.landmarks.forEach((landmark) => {
         if (typeof landmark.lat !== 'number' || typeof landmark.lng !== 'number') return;
 
@@ -1460,7 +1343,7 @@ export function StudioGoogleMap({
     }
 
     // 8c. Start Flag: Physical Map Marker Icon & Pointer Tip with Adjacent Label
-    if (annotations.startFlag) {
+    if (layerSettings.showStartFlag !== false && annotations.startFlag) {
       const sf = annotations.startFlag;
       if (typeof sf.lat === 'number' && typeof sf.lng === 'number') {
         // Zero-width/height container: (0, 0) is the exact start flag coordinate
@@ -1548,7 +1431,7 @@ export function StudioGoogleMap({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, roadsAndLandmarksKey, activeTool, selectedLandmarkId, selectedRoadId]);
+  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool, selectedLandmarkId, selectedRoadId]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">

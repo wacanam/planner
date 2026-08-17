@@ -1,6 +1,20 @@
 'use client';
 
-import { Check, Layers, Map as MapIcon, Palette, Satellite, Sliders } from 'lucide-react';
+import {
+  Check,
+  Eye,
+  Filter,
+  Flag,
+  Home,
+  Layers,
+  Map as MapIcon,
+  MapPin,
+  Milestone,
+  Palette,
+  Satellite,
+  Square,
+  Tag,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,16 +23,32 @@ import type { BoundaryDisplaySettings } from '@/types/api';
 
 export type BasemapMode = 'satellite' | 'street';
 
+export type HouseholdStatusFilter =
+  | 'all'
+  | 'return_visit'
+  | 'active'
+  | 'not_home'
+  | 'do_not_visit';
+
 export interface StudioLayerSettings {
-  showBuildings: boolean;
+  showHouses: boolean;
   showHouseLabels: boolean;
-  showGooglePOIs: boolean;
-  showStores: boolean;
-  showSchools: boolean;
-  showChurches: boolean;
-  showHospitals: boolean;
-  cleanMode: boolean;
+  showLandmarks: boolean;
+  showRoads: boolean;
+  showStartFlag: boolean;
+  showBoundaries: boolean;
+  householdFilter: HouseholdStatusFilter;
 }
+
+export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
+  showHouses: true,
+  showHouseLabels: true,
+  showLandmarks: true,
+  showRoads: true,
+  showStartFlag: true,
+  showBoundaries: true,
+  householdFilter: 'all',
+};
 
 export type { BoundaryDisplaySettings };
 
@@ -51,6 +81,18 @@ const PRESET_BOUNDARY_COLORS = [
   { label: 'Slate', fill: '#64748B', stroke: '#475569' },
 ];
 
+const STATUS_FILTER_OPTIONS: Array<{
+  id: HouseholdStatusFilter;
+  label: string;
+  dotColor: string;
+}> = [
+  { id: 'all', label: 'All Households', dotColor: 'bg-primary' },
+  { id: 'return_visit', label: 'Return Visits & Interested', dotColor: 'bg-blue-600' },
+  { id: 'active', label: 'Active Doors', dotColor: 'bg-emerald-600' },
+  { id: 'not_home', label: 'Not Home', dotColor: 'bg-amber-600' },
+  { id: 'do_not_visit', label: 'Do Not Visit / Call', dotColor: 'bg-rose-600' },
+];
+
 interface StudioBasemapPopupProps {
   mode: BasemapMode;
   onSelectMode: (mode: BasemapMode) => void;
@@ -71,10 +113,41 @@ export function StudioBasemapPopup({
   const [open, setOpen] = useState(false);
   const currentDisplay = resolveBoundaryDisplay(boundaryDisplay);
 
-  const toggleLayer = (key: keyof StudioLayerSettings) => {
+  const toggleLayer = (key: keyof Omit<StudioLayerSettings, 'householdFilter'>) => {
     onChangeLayers({
       ...layers,
       [key]: !layers[key],
+    });
+  };
+
+  const setHouseholdFilter = (filter: HouseholdStatusFilter) => {
+    onChangeLayers({
+      ...layers,
+      householdFilter: filter,
+    });
+  };
+
+  const handleShowAll = () => {
+    onChangeLayers({
+      showHouses: true,
+      showHouseLabels: true,
+      showLandmarks: true,
+      showRoads: true,
+      showStartFlag: true,
+      showBoundaries: true,
+      householdFilter: 'all',
+    });
+  };
+
+  const handleHideAll = () => {
+    onChangeLayers({
+      showHouses: false,
+      showHouseLabels: false,
+      showLandmarks: false,
+      showRoads: false,
+      showStartFlag: false,
+      showBoundaries: false,
+      householdFilter: 'all',
     });
   };
 
@@ -95,15 +168,14 @@ export function StudioBasemapPopup({
             className="h-10 px-3.5 rounded-2xl bg-card border-border shadow-xl text-xs font-semibold gap-2 hover:bg-muted/60 transition-all"
           >
             <Layers size={16} className="text-primary" />
-            <span className="capitalize">{mode} Map & Layers</span>
+            <span className="capitalize">{mode} Map & Filters</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent
           align="start"
           side="top"
-          className="w-80 max-h-[85vh] overflow-y-auto p-4 rounded-2xl bg-card border-border shadow-2xl space-y-4"
+          className="w-84 max-h-[85vh] overflow-y-auto p-4 rounded-2xl bg-card border-border shadow-2xl space-y-4"
         >
-          {/* Basemap Mode */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
               Basemap Style
@@ -121,7 +193,6 @@ export function StudioBasemapPopup({
                 <MapIcon size={20} />
                 <span>Street View</span>
               </button>
-
               <button
                 type="button"
                 onClick={() => onSelectMode('satellite')}
@@ -137,29 +208,27 @@ export function StudioBasemapPopup({
             </div>
           </div>
 
-          {/* Boundary Display Settings */}
           {onChangeBoundaryDisplay && (
-            <div className="pt-3 border-t border-border space-y-3.5">
+            <div className="pt-3 border-t border-border space-y-3">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 <Palette size={13} />
                 <span>Boundary Display & Mask</span>
               </div>
 
-              {/* Fill Color Preset Palette */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground flex items-center justify-between">
+                <div className="flex items-center justify-between text-xs font-semibold">
                   <span>Fill Color</span>
-                  <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                  <span className="text-[10px] text-muted-foreground font-mono uppercase">
                     {currentDisplay.fillColor}
                   </span>
-                </Label>
-                <div className="flex items-center gap-2 pt-0.5">
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {PRESET_BOUNDARY_COLORS.map((c) => {
                     const isSelected =
                       currentDisplay.fillColor.toLowerCase() === c.fill.toLowerCase();
                     return (
                       <button
-                        key={c.fill}
+                        key={c.label}
                         type="button"
                         onClick={() =>
                           handleUpdateBoundary({
@@ -167,13 +236,11 @@ export function StudioBasemapPopup({
                             strokeColor: c.stroke,
                           })
                         }
+                        className="relative h-6 w-6 rounded-full border border-black/10 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer"
                         style={{ backgroundColor: c.fill }}
-                        className={`h-7 w-7 rounded-full flex items-center justify-center border-2 transition-transform hover:scale-110 ${
-                          isSelected ? 'border-foreground shadow-md scale-105' : 'border-white/80'
-                        }`}
                         title={c.label}
                       >
-                        {isSelected && <Check size={12} className="text-white drop-shadow" />}
+                        {isSelected && <Check size={12} className="text-white drop-shadow-sm" />}
                       </button>
                     );
                   })}
@@ -186,57 +253,49 @@ export function StudioBasemapPopup({
                         strokeColor: e.target.value,
                       })
                     }
-                    className="h-7 w-7 rounded-full border border-border cursor-pointer p-0 overflow-hidden shrink-0"
+                    className="h-6 w-6 p-0 border-0 rounded-full cursor-pointer bg-transparent"
                     title="Custom color"
                   />
                 </div>
               </div>
 
-              {/* Fill Opacity Slider */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <Label className="font-medium text-foreground">Fill Opacity</Label>
-                  <span className="font-semibold text-primary">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span>Fill Opacity</span>
+                  <span className="text-xs text-primary font-bold">
                     {Math.round(currentDisplay.fillOpacity * 100)}%
                   </span>
                 </div>
                 <input
                   type="range"
                   min="0"
-                  max="100"
-                  step="5"
-                  value={Math.round(currentDisplay.fillOpacity * 100)}
+                  max="1"
+                  step="0.05"
+                  value={currentDisplay.fillOpacity}
                   onChange={(e) =>
-                    handleUpdateBoundary({
-                      fillOpacity: Number(e.target.value) / 100,
-                    })
+                    handleUpdateBoundary({ fillOpacity: parseFloat(e.target.value) })
                   }
-                  className="w-full accent-primary h-1.5 bg-muted rounded-lg cursor-pointer"
+                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
               </div>
 
-              {/* Outside Mask Opacity Slider */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <Label className="font-medium text-foreground">
-                    Outside Mask (Dim Exterior)
-                  </Label>
-                  <span className="font-semibold text-primary">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span>Outside Mask (Dim Exterior)</span>
+                  <span className="text-xs text-primary font-bold">
                     {Math.round(currentDisplay.maskOpacity * 100)}%
                   </span>
                 </div>
                 <input
                   type="range"
                   min="0"
-                  max="80"
-                  step="5"
-                  value={Math.round(currentDisplay.maskOpacity * 100)}
+                  max="0.9"
+                  step="0.05"
+                  value={currentDisplay.maskOpacity}
                   onChange={(e) =>
-                    handleUpdateBoundary({
-                      maskOpacity: Number(e.target.value) / 100,
-                    })
+                    handleUpdateBoundary({ maskOpacity: parseFloat(e.target.value) })
                   }
-                  className="w-full accent-primary h-1.5 bg-muted rounded-lg cursor-pointer"
+                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <p className="text-[10px] text-muted-foreground">
                   Dims the map area outside your territory boundaries.
@@ -245,105 +304,143 @@ export function StudioBasemapPopup({
             </div>
           )}
 
-          {/* Map Details & POIs */}
+          <div className="pt-3 border-t border-border space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Eye size={13} />
+                <span>Map Elements (What to See)</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleShowAll}
+                  className="text-[10px] text-primary hover:underline font-semibold"
+                >
+                  Show All
+                </button>
+                <span className="text-muted-foreground text-[10px]">•</span>
+                <button
+                  type="button"
+                  onClick={handleHideAll}
+                  className="text-[10px] text-muted-foreground hover:text-foreground font-medium"
+                >
+                  Hide All
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-houses" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Home size={14} className="text-primary" />
+                  <span>House Pins</span>
+                </Label>
+                <input
+                  id="layer-houses"
+                  type="checkbox"
+                  checked={layers.showHouses}
+                  onChange={() => toggleLayer('showHouses')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-house-labels" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Tag size={14} className="text-slate-500" />
+                  <span>House Numbers & Labels</span>
+                </Label>
+                <input
+                  id="layer-house-labels"
+                  type="checkbox"
+                  checked={layers.showHouseLabels}
+                  onChange={() => toggleLayer('showHouseLabels')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-landmarks" className="text-xs cursor-pointer flex items-center gap-2">
+                  <MapPin size={14} className="text-emerald-600" />
+                  <span>Landmarks & POIs</span>
+                </Label>
+                <input
+                  id="layer-landmarks"
+                  type="checkbox"
+                  checked={layers.showLandmarks}
+                  onChange={() => toggleLayer('showLandmarks')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-roads" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Milestone size={14} className="text-blue-600" />
+                  <span>Roads & Route Corridors</span>
+                </Label>
+                <input
+                  id="layer-roads"
+                  type="checkbox"
+                  checked={layers.showRoads}
+                  onChange={() => toggleLayer('showRoads')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-start-flag" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Flag size={14} className="text-amber-600" />
+                  <span>Start Meeting Flag</span>
+                </Label>
+                <input
+                  id="layer-start-flag"
+                  type="checkbox"
+                  checked={layers.showStartFlag}
+                  onChange={() => toggleLayer('showStartFlag')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="layer-boundaries" className="text-xs cursor-pointer flex items-center gap-2">
+                  <Square size={14} className="text-indigo-600" />
+                  <span>Territory Boundary Zones</span>
+                </Label>
+                <input
+                  id="layer-boundaries"
+                  type="checkbox"
+                  checked={layers.showBoundaries}
+                  onChange={() => toggleLayer('showBoundaries')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="pt-3 border-t border-border space-y-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <Sliders size={13} />
-              <span>Map Details & POI</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <Filter size={13} />
+                <span>Filter Households by Status</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-buildings" className="text-xs cursor-pointer">
-                3D Building Outlines
-              </Label>
-              <input
-                id="layer-buildings"
-                type="checkbox"
-                checked={layers.showBuildings}
-                onChange={() => toggleLayer('showBuildings')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-house-labels" className="text-xs cursor-pointer">
-                House Numbers & Addresses
-              </Label>
-              <input
-                id="layer-house-labels"
-                type="checkbox"
-                checked={layers.showHouseLabels}
-                onChange={() => toggleLayer('showHouseLabels')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-google-pois" className="text-xs cursor-pointer">
-                Google Business & Place Icons
-              </Label>
-              <input
-                id="layer-google-pois"
-                type="checkbox"
-                checked={layers.showGooglePOIs}
-                onChange={() => toggleLayer('showGooglePOIs')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-schools" className="text-xs cursor-pointer">
-                Schools & Colleges
-              </Label>
-              <input
-                id="layer-schools"
-                type="checkbox"
-                checked={layers.showSchools}
-                onChange={() => toggleLayer('showSchools')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-churches" className="text-xs cursor-pointer">
-                Churches & Temples
-              </Label>
-              <input
-                id="layer-churches"
-                type="checkbox"
-                checked={layers.showChurches}
-                onChange={() => toggleLayer('showChurches')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="layer-hospitals" className="text-xs cursor-pointer">
-                Hospitals & Medical
-              </Label>
-              <input
-                id="layer-hospitals"
-                type="checkbox"
-                checked={layers.showHospitals}
-                onChange={() => toggleLayer('showHospitals')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label
-                htmlFor="layer-clean"
-                className="text-xs cursor-pointer font-semibold text-primary"
-              >
-                Clean High-Contrast Print Mode
-              </Label>
-              <input
-                id="layer-clean"
-                type="checkbox"
-                checked={layers.cleanMode}
-                onChange={() => toggleLayer('cleanMode')}
-                className="h-4 w-4 rounded accent-primary cursor-pointer"
-              />
+            <div className="space-y-1.5">
+              {STATUS_FILTER_OPTIONS.map((opt) => {
+                const isSelected = layers.householdFilter === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setHouseholdFilter(opt.id)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl text-xs font-medium border transition-all text-left cursor-pointer ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-foreground font-semibold shadow-xs'
+                        : 'border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${opt.dotColor}`} />
+                      <span>{opt.label}</span>
+                    </div>
+                    {isSelected && <Check size={14} className="text-primary" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </PopoverContent>
@@ -351,4 +448,3 @@ export function StudioBasemapPopup({
     </div>
   );
 }
-
