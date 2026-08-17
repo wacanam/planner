@@ -295,7 +295,7 @@ export default function RegisterPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm mt-2"
+                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm mt-2 cursor-pointer"
                   disabled={isSubmitting || isGoogleLoading}
                 >
                   {isSubmitting ? 'Creating account…' : 'Create account'}
