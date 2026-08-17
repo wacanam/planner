@@ -7,10 +7,18 @@ import type {
   ActivityReport,
   Assignment,
   CoverageReport,
+  CoverageTerritory,
+  DoorAnalyticsReport,
+  Group,
+  GroupReportStats,
   Household,
   Member,
   PublishersReport,
+  PublisherStats,
+  S13AssignmentRecord,
   Territory,
+  TerritoryHealthStatus,
+  Visit,
 } from '@/types/api';
 
 function sourceCollection(name: keyof typeof FIRESTORE_COLLECTIONS) {
@@ -91,15 +99,53 @@ function memberFromData(id: string, data: Partial<Member>): Member {
   };
 }
 
+function groupFromData(id: string, data: Partial<Group>): Group {
+  return {
+    id,
+    congregationId: data.congregationId ?? '',
+    name: data.name ?? 'Service Group',
+    overseerId: data.overseerId ?? null,
+    overseerName: data.overseerName ?? null,
+    assistantOverseerId: data.assistantOverseerId ?? null,
+    assistantOverseerName: data.assistantOverseerName ?? null,
+    createdAt: data.createdAt ?? nowIso(),
+    members: data.members ?? [],
+  };
+}
+
+function visitFromData(id: string, data: Partial<Visit>): Visit {
+  return {
+    id,
+    userId: data.userId ?? '',
+    publisherName: data.publisherName ?? null,
+    householdId: data.householdId ?? '',
+    visitDate: data.visitDate ?? nowIso(),
+    outcome: data.outcome ?? 'contacted',
+    duration: data.duration ?? null,
+    literaturePlaced: data.literaturePlaced ?? null,
+    bibleTopicDiscussed: data.bibleTopicDiscussed ?? null,
+    returnVisitPlanned: Boolean(data.returnVisitPlanned),
+    assignmentId: data.assignmentId ?? null,
+    notes: data.notes ?? null,
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? nowIso(),
+  };
+}
+
 function useReportSources(congregationId: string | null | undefined) {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+
   const [territoriesLoading, setTerritoriesLoading] = useState(Boolean(congregationId));
   const [assignmentsLoading, setAssignmentsLoading] = useState(Boolean(congregationId));
   const [membersLoading, setMembersLoading] = useState(Boolean(congregationId));
   const [householdsLoading, setHouseholdsLoading] = useState(Boolean(congregationId));
+  const [groupsLoading, setGroupsLoading] = useState(Boolean(congregationId));
+  const [visitsLoading, setVisitsLoading] = useState(Boolean(congregationId));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -208,6 +254,54 @@ function useReportSources(congregationId: string | null | undefined) {
     );
   }, [congregationId]);
 
+  useEffect(() => {
+    if (!congregationId) {
+      setGroups([]);
+      setGroupsLoading(false);
+      return;
+    }
+    setGroupsLoading(true);
+    return onSnapshot(
+      query(sourceCollection('groups'), where('congregationId', '==', congregationId)),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setGroups(
+          snapshot.docs.map((document) =>
+            groupFromData(document.id, document.data() as Partial<Group>)
+          )
+        );
+        setGroupsLoading(false);
+      },
+      () => {
+        setGroupsLoading(false);
+      }
+    );
+  }, [congregationId]);
+
+  useEffect(() => {
+    if (!congregationId) {
+      setVisits([]);
+      setVisitsLoading(false);
+      return;
+    }
+    setVisitsLoading(true);
+    return onSnapshot(
+      sourceCollection('visits'),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setVisits(
+          snapshot.docs.map((document) =>
+            visitFromData(document.id, document.data() as Partial<Visit>)
+          )
+        );
+        setVisitsLoading(false);
+      },
+      () => {
+        setVisitsLoading(false);
+      }
+    );
+  }, [congregationId]);
+
   const territoryIds = useMemo(
     () => new Set(territories.map((territory) => territory.id)),
     [territories]
@@ -222,13 +316,22 @@ function useReportSources(congregationId: string | null | undefined) {
     assignments: congregationAssignments,
     members,
     households,
-    isLoading: territoriesLoading || assignmentsLoading || membersLoading || householdsLoading,
+    groups,
+    visits,
+    isLoading:
+      territoriesLoading ||
+      assignmentsLoading ||
+      membersLoading ||
+      householdsLoading ||
+      groupsLoading ||
+      visitsLoading,
     error,
   };
 }
 
 export function useCoverageReport(congregationId: string | null | undefined) {
-  const { territories, households, isLoading, error } = useReportSources(congregationId);
+  const { territories, assignments, households, isLoading, error } = useReportSources(congregationId);
+
   const data = useMemo<CoverageReport>(() => {
     const householdsByTerritory = new Map<string, Household[]>();
     for (const h of households) {
@@ -240,110 +343,426 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       }
     }
 
-    const calculatedTerritories = territories.map((territory) => {
+    const assignmentByTerritory = new Map<string, Assignment>();
+    for (const a of assignments) {
+      if (a.status === 'assigned' || a.status === 'active') {
+        assignmentByTerritory.set(a.territoryId, a);
+      }
+    }
+
+    const now = Date.now();
+    let totalWorked = 0;
+    let totalDoors = 0;
+
+    const calculatedTerritories: CoverageTerritory[] = territories.map((territory) => {
       const terrHouseholds = householdsByTerritory.get(territory.id) || [];
-      const coveragePercent =
+      const coverageInfo =
         terrHouseholds.length > 0
-          ? calculateTerritoryCoverage(terrHouseholds).coveragePercent
-          : Number(territory.coveragePercent) || 0;
+          ? calculateTerritoryCoverage(terrHouseholds)
+          : {
+              totalDoors: territory.householdsCount || 0,
+              workedDoors: Math.round(
+                ((Number(territory.coveragePercent) || 0) / 100) * (territory.householdsCount || 0)
+              ),
+              unworkedDoors: Math.max(
+                0,
+                (territory.householdsCount || 0) -
+                  Math.round(
+                    ((Number(territory.coveragePercent) || 0) / 100) *
+                      (territory.householdsCount || 0)
+                  )
+              ),
+              coveragePercent: Number(territory.coveragePercent) || 0,
+            };
+
+      totalWorked += coverageInfo.workedDoors;
+      totalDoors += coverageInfo.totalDoors;
+
+      // Calculate last worked date from households
+      let latestVisitMs = 0;
+      for (const h of terrHouseholds) {
+        if (h.lastVisitDate) {
+          const ms = new Date(h.lastVisitDate).getTime();
+          if (ms > latestVisitMs) latestVisitMs = ms;
+        }
+      }
+
+      const activeAssignment = assignmentByTerritory.get(territory.id);
+      const daysSinceWorked = latestVisitMs ? Math.floor((now - latestVisitMs) / (1000 * 60 * 60 * 24)) : null;
+
+      let healthStatus: TerritoryHealthStatus = 'stale';
+      if (daysSinceWorked !== null) {
+        if (daysSinceWorked < 30) healthStatus = 'fresh';
+        else if (daysSinceWorked <= 90) healthStatus = 'active';
+        else if (daysSinceWorked <= 180) healthStatus = 'dormant';
+        else healthStatus = 'stale';
+      }
 
       return {
         id: territory.id,
         number: territory.number,
         name: territory.name,
         status: territory.status,
-        coveragePercent,
-        publisherName: territory.publisherName ?? undefined,
+        coveragePercent: coverageInfo.coveragePercent,
+        householdsCount: coverageInfo.totalDoors,
+        workedDoors: coverageInfo.workedDoors,
+        unworkedDoors: coverageInfo.unworkedDoors,
+        lastWorkedDate: latestVisitMs ? new Date(latestVisitMs).toISOString() : null,
+        assignedAt: activeAssignment?.assignedAt ?? null,
+        publisherName: activeAssignment?.assigneeName ?? territory.publisherName ?? undefined,
+        groupName: activeAssignment?.groupName ?? territory.groupName ?? undefined,
+        healthStatus,
+        daysSinceWorked,
       };
     });
 
-    const totalCoverage = calculatedTerritories.reduce((sum, t) => sum + t.coveragePercent, 0);
+    const avgCoveragePercent = totalDoors > 0 ? Math.round((totalWorked / totalDoors) * 100) : 0;
+
+    // Calculate completed assignments turnaround days
+    const completedAssignments = assignments.filter(
+      (a) => a.assignedAt && a.returnedAt && ['completed', 'returned'].includes(a.status)
+    );
+    const totalDurationDays = completedAssignments.reduce((sum, a) => {
+      const start = new Date(a.assignedAt!).getTime();
+      const end = new Date(a.returnedAt!).getTime();
+      const diff = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+      return sum + diff;
+    }, 0);
+    const avgTurnaroundDays = completedAssignments.length
+      ? Math.round(totalDurationDays / completedAssignments.length)
+      : 45;
+
+    const assignedCount = territories.filter((t) => t.status === 'assigned').length;
+    const activeAssignmentRate = territories.length
+      ? Math.round((assignedCount / territories.length) * 100)
+      : 0;
 
     return {
       totalTerritories: territories.length,
-      avgCoveragePercent: territories.length ? Math.round(totalCoverage / territories.length) : 0,
+      avgCoveragePercent,
+      totalDoors,
+      workedDoors: totalWorked,
+      unworkedDoors: Math.max(0, totalDoors - totalWorked),
+      activeAssignmentRate,
+      avgTurnaroundDays,
       byStatus: {
-        available: territories.filter((territory) => territory.status === 'available').length,
-        assigned: territories.filter((territory) => territory.status === 'assigned').length,
-        completed: territories.filter((territory) => territory.status === 'completed').length,
-        archived: territories.filter((territory) => territory.status === 'archived').length,
+        available: territories.filter((t) => t.status === 'available').length,
+        assigned: assignedCount,
+        completed: territories.filter((t) => t.status === 'completed').length,
+        archived: territories.filter((t) => t.status === 'archived').length,
+      },
+      byHealth: {
+        fresh: calculatedTerritories.filter((t) => t.healthStatus === 'fresh').length,
+        active: calculatedTerritories.filter((t) => t.healthStatus === 'active').length,
+        dormant: calculatedTerritories.filter((t) => t.healthStatus === 'dormant').length,
+        stale: calculatedTerritories.filter((t) => t.healthStatus === 'stale').length,
       },
       territories: calculatedTerritories,
     };
-  }, [territories, households]);
+  }, [territories, assignments, households]);
+
+  return { data, isLoading, error };
+}
+
+export function useS13Report(congregationId: string | null | undefined) {
+  const { territories, assignments, households, isLoading, error } = useReportSources(congregationId);
+
+  const data = useMemo<S13AssignmentRecord[]>(() => {
+    const territoryById = new Map(territories.map((t) => [t.id, t]));
+    const householdsByTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!householdsByTerritory.has(h.territoryId)) {
+          householdsByTerritory.set(h.territoryId, []);
+        }
+        householdsByTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+
+    return assignments.map((a) => {
+      const terr = territoryById.get(a.territoryId);
+      const terrHouseholds = householdsByTerritory.get(a.territoryId) || [];
+      const currentCoverage =
+        terrHouseholds.length > 0
+          ? calculateTerritoryCoverage(terrHouseholds).coveragePercent
+          : Number(terr?.coveragePercent) || 0;
+
+      let durationDays: number | null = null;
+      if (a.assignedAt) {
+        const start = new Date(a.assignedAt).getTime();
+        const end = a.returnedAt ? new Date(a.returnedAt).getTime() : Date.now();
+        durationDays = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+      }
+
+      return {
+        id: a.id,
+        territoryId: a.territoryId,
+        territoryNumber: terr?.number || a.territoryNumber || '—',
+        territoryName: terr?.name || a.territoryName || 'Territory',
+        assigneeName: a.assigneeName || (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+        assigneeEmail: a.assigneeEmail,
+        isGroupAssignment: Boolean(a.serviceGroupId),
+        groupName: a.groupName,
+        assignedAt: a.assignedAt,
+        dueAt: a.dueAt,
+        returnedAt: a.returnedAt,
+        coverageAtAssignment: Number(a.coverageAtAssignment) || 0,
+        coverageAtReturn: a.returnedAt ? Number(a.coverageAtAssignment) || currentCoverage : currentCoverage,
+        durationDays,
+        status: a.status,
+      };
+    }).sort((left, right) => {
+      const dateA = left.assignedAt ? new Date(left.assignedAt).getTime() : 0;
+      const dateB = right.assignedAt ? new Date(right.assignedAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [assignments, territories, households]);
+
+  return { data, isLoading, error };
+}
+
+export function useGroupsReport(congregationId: string | null | undefined) {
+  const { groups, territories, assignments, households, isLoading, error } =
+    useReportSources(congregationId);
+
+  const data = useMemo<GroupReportStats[]>(() => {
+    const householdsByTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!householdsByTerritory.has(h.territoryId)) {
+          householdsByTerritory.set(h.territoryId, []);
+        }
+        householdsByTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+
+    const territoryById = new Map(territories.map((t) => [t.id, t]));
+
+    return groups.map((group) => {
+      const groupAssignments = assignments.filter(
+        (a) => a.serviceGroupId === group.id && (a.status === 'assigned' || a.status === 'active')
+      );
+
+      const assignedTerritories = groupAssignments
+        .map((a) => territoryById.get(a.territoryId))
+        .filter((t): t is Territory => Boolean(t));
+
+      let totalDoors = 0;
+      let workedDoors = 0;
+
+      for (const t of assignedTerritories) {
+        const hList = householdsByTerritory.get(t.id) || [];
+        if (hList.length > 0) {
+          const stats = calculateTerritoryCoverage(hList);
+          totalDoors += stats.totalDoors;
+          workedDoors += stats.workedDoors;
+        } else {
+          const count = t.householdsCount || 0;
+          totalDoors += count;
+          workedDoors += Math.round(((Number(t.coveragePercent) || 0) / 100) * count);
+        }
+      }
+
+      const avgCoveragePercent = totalDoors > 0 ? Math.round((workedDoors / totalDoors) * 100) : 0;
+
+      return {
+        groupId: group.id,
+        name: group.name,
+        overseerName: group.overseerName || null,
+        assistantOverseerName: group.assistantOverseerName || null,
+        memberCount: group.members?.length || 0,
+        assignedTerritoriesCount: assignedTerritories.length,
+        totalDoors,
+        workedDoors,
+        avgCoveragePercent,
+        territoryNumbers: assignedTerritories.map((t) => `#${t.number}`),
+      };
+    });
+  }, [groups, territories, assignments, households]);
 
   return { data, isLoading, error };
 }
 
 export function usePublishersReport(congregationId: string | null | undefined) {
-  const { territories, assignments, members, isLoading, error } = useReportSources(congregationId);
+  const { territories, assignments, members, groups, visits, isLoading, error } =
+    useReportSources(congregationId);
+
   const data = useMemo<PublishersReport>(() => {
-    const territoryById = new Map(territories.map((territory) => [territory.id, territory]));
+    const territoryById = new Map(territories.map((t) => [t.id, t]));
+
+    // Map memberId -> group name
+    const memberGroupMap = new Map<string, string>();
+    for (const g of groups) {
+      for (const gm of g.members || []) {
+        if (gm.userId) memberGroupMap.set(gm.userId, g.name);
+      }
+    }
+
+    // Map memberId -> total visits & last active date
+    const visitStatsByUser = new Map<string, { count: number; lastDate: string | null }>();
+    for (const v of visits) {
+      if (v.userId) {
+        const curr = visitStatsByUser.get(v.userId) || { count: 0, lastDate: null };
+        curr.count += 1;
+        if (!curr.lastDate || v.visitDate > curr.lastDate) {
+          curr.lastDate = v.visitDate;
+        }
+        visitStatsByUser.set(v.userId, curr);
+      }
+    }
+
     return {
       publishers: members.map((member) => {
-        const memberAssignments = assignments.filter(
-          (assignment) => assignment.userId === member.userId
-        );
+        const uid = member.userId || member.id;
+        const memberAssignments = assignments.filter((a) => a.userId === uid);
         const activeAssignments = memberAssignments.filter(
-          (assignment) => !['completed', 'returned'].includes(assignment.status)
+          (a) => !['completed', 'returned'].includes(a.status)
         );
+
+        const vStats = visitStatsByUser.get(uid);
+
         return {
-          userId: member.userId,
+          userId: uid,
           name: member.user?.name ?? 'Publisher',
           email: member.user?.email ?? '',
+          role: member.congregationRole ?? undefined,
+          groupName: memberGroupMap.get(uid) ?? undefined,
           activeAssignments: activeAssignments.length,
-          totalCompleted: memberAssignments.filter(
-            (assignment) => assignment.status === 'completed'
-          ).length,
+          totalCompleted: memberAssignments.filter((a) => a.status === 'completed').length,
+          totalVisits: vStats?.count || 0,
+          lastActiveDate: vStats?.lastDate || null,
           territories: activeAssignments
-            .map((assignment) => territoryById.get(assignment.territoryId))
-            .filter((territory): territory is Territory => Boolean(territory))
-            .map((territory) => `${territory.number} ${territory.name}`.trim()),
+            .map((a) => territoryById.get(a.territoryId))
+            .filter((t): t is Territory => Boolean(t))
+            .map((t) => `#${t.number} ${t.name}`.trim()),
         };
       }),
     };
-  }, [assignments, members, territories]);
+  }, [assignments, members, territories, groups, visits]);
+
+  return { data, isLoading, error };
+}
+
+export function useDoorAnalyticsReport(congregationId: string | null | undefined) {
+  const { households, visits, isLoading, error } = useReportSources(congregationId);
+
+  const data = useMemo<DoorAnalyticsReport>(() => {
+    let totalDoors = households.length;
+    let workedDoors = 0;
+    let doNotCallCount = 0;
+    let returnVisitsCount = 0;
+
+    const outcomeCounts = {
+      notHome: 0,
+      contacted: 0,
+      placedLiterature: 0,
+      returnVisit: 0,
+      busy: 0,
+      doNotCall: 0,
+      other: 0,
+    };
+
+    const streetCounts = new Map<string, { total: number; worked: number }>();
+
+    for (const h of households) {
+      if (h.status === 'visited' || h.lastVisitDate) {
+        workedDoors += 1;
+      }
+      if (h.status === 'do_not_call' || h.lastVisitOutcome === 'do_not_call') {
+        doNotCallCount += 1;
+      }
+      if (h.lastVisitOutcome === 'return_visit' || (h.totalVisitsCount || 0) > 1) {
+        returnVisitsCount += 1;
+      }
+
+      const street = (h.streetName || h.address || 'Other Area').trim();
+      const curr = streetCounts.get(street) || { total: 0, worked: 0 };
+      curr.total += 1;
+      if (h.status === 'visited' || h.lastVisitDate) curr.worked += 1;
+      streetCounts.set(street, curr);
+    }
+
+    for (const v of visits) {
+      const outcome = (v.outcome || '').toLowerCase();
+      if (outcome.includes('not_home') || outcome.includes('not home')) {
+        outcomeCounts.notHome += 1;
+      } else if (outcome.includes('place') || outcome.includes('literature')) {
+        outcomeCounts.placedLiterature += 1;
+      } else if (outcome.includes('return') || outcome.includes('revisit')) {
+        outcomeCounts.returnVisit += 1;
+      } else if (outcome.includes('busy')) {
+        outcomeCounts.busy += 1;
+      } else if (outcome.includes('do_not_call') || outcome.includes('dnc')) {
+        outcomeCounts.doNotCall += 1;
+      } else if (outcome.includes('contact') || outcome.includes('interested')) {
+        outcomeCounts.contacted += 1;
+      } else {
+        outcomeCounts.other += 1;
+      }
+    }
+
+    const topStreets = Array.from(streetCounts.entries())
+      .map(([streetName, s]) => ({
+        streetName,
+        doorsCount: s.total,
+        workedCount: s.worked,
+      }))
+      .sort((a, b) => b.doorsCount - a.doorsCount)
+      .slice(0, 8);
+
+    return {
+      totalDoors,
+      workedDoors,
+      unworkedDoors: Math.max(0, totalDoors - workedDoors),
+      doNotCallCount,
+      returnVisitsCount,
+      outcomeCounts,
+      topStreets,
+    };
+  }, [households, visits]);
 
   return { data, isLoading, error };
 }
 
 export function useActivityReport(congregationId: string | null | undefined) {
-  const { territories, assignments, isLoading, error } = useReportSources(congregationId);
+  const { territories, assignments, visits, isLoading, error } = useReportSources(congregationId);
+
   const data = useMemo<ActivityReport>(() => {
-    const territoryById = new Map(territories.map((territory) => [territory.id, territory]));
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const recent = assignments.filter((assignment) => {
-      const date = assignment.returnedAt ?? assignment.assignedAt ?? assignment.createdAt;
+    const territoryById = new Map(territories.map((t) => [t.id, t]));
+    const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000; // 60 days
+    const recent = assignments.filter((a) => {
+      const date = a.returnedAt ?? a.assignedAt ?? a.createdAt;
       return new Date(date).getTime() >= cutoff;
     });
+
     return {
       assignments: recent
-        .filter((assignment) => assignment.assignedAt)
-        .map((assignment) => {
-          const territory = territoryById.get(assignment.territoryId);
+        .filter((a) => a.assignedAt)
+        .map((a) => {
+          const territory = territoryById.get(a.territoryId);
           return {
-            id: assignment.id,
-            territoryName: territory?.name ?? 'Unknown territory',
+            id: a.id,
+            territoryName: territory?.name ?? 'Territory',
             territoryNumber: territory?.number ?? '',
-            publisherName: assignment.assigneeName ?? 'Publisher',
-            assignedAt: assignment.assignedAt,
+            publisherName: a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+            assignedAt: a.assignedAt,
           };
         }),
       returns: recent
-        .filter((assignment) => assignment.returnedAt)
-        .map((assignment) => {
-          const territory = territoryById.get(assignment.territoryId);
+        .filter((a) => a.returnedAt)
+        .map((a) => {
+          const territory = territoryById.get(a.territoryId);
           return {
-            id: assignment.id,
-            territoryName: territory?.name ?? 'Unknown territory',
+            id: a.id,
+            territoryName: territory?.name ?? 'Territory',
             territoryNumber: territory?.number ?? '',
-            publisherName: assignment.assigneeName ?? 'Publisher',
-            returnedAt: assignment.returnedAt,
-            coverageAtAssignment: Number(assignment.coverageAtAssignment) || 0,
+            publisherName: a.assigneeName ?? (a.serviceGroupId ? a.groupName || 'Service Group' : 'Publisher'),
+            returnedAt: a.returnedAt,
+            coverageAtAssignment: Number(a.coverageAtAssignment) || 0,
           };
         }),
     };
-  }, [assignments, territories]);
+  }, [assignments, territories, visits]);
 
   return { data, isLoading, error };
 }

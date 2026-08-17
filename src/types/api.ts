@@ -232,33 +232,111 @@ export interface HouseholdShare {
 
 // ─── Reports ───────────────────────────────────────────────────────────────────
 
+export type TerritoryHealthStatus = 'fresh' | 'active' | 'dormant' | 'stale';
+
 export interface CoverageTerritory {
   id: string;
   number: string;
   name: string;
   status: string;
   coveragePercent: number;
+  householdsCount: number;
+  workedDoors: number;
+  unworkedDoors: number;
+  lastWorkedDate?: string | null;
+  assignedAt?: string | null;
   publisherName?: string;
+  groupName?: string;
+  healthStatus: TerritoryHealthStatus;
+  daysSinceWorked: number | null;
 }
 
 export interface CoverageReport {
   totalTerritories: number;
   avgCoveragePercent: number;
+  totalDoors: number;
+  workedDoors: number;
+  unworkedDoors: number;
+  activeAssignmentRate: number;
+  avgTurnaroundDays: number;
   byStatus: {
     available: number;
     assigned: number;
     completed: number;
     archived: number;
   };
+  byHealth: {
+    fresh: number; // worked < 30 days
+    active: number; // worked 30-90 days
+    dormant: number; // worked 90-180 days
+    stale: number; // worked > 180 days or never
+  };
   territories: CoverageTerritory[];
+}
+
+export interface S13AssignmentRecord {
+  id: string;
+  territoryId: string;
+  territoryNumber: string;
+  territoryName: string;
+  assigneeName: string;
+  assigneeEmail: string | null;
+  isGroupAssignment: boolean;
+  groupName: string | null;
+  assignedAt: string | null;
+  dueAt: string | null;
+  returnedAt: string | null;
+  coverageAtAssignment: number;
+  coverageAtReturn: number;
+  durationDays: number | null;
+  status: string;
+}
+
+export interface GroupReportStats {
+  groupId: string;
+  name: string;
+  overseerName: string | null;
+  assistantOverseerName: string | null;
+  memberCount: number;
+  assignedTerritoriesCount: number;
+  totalDoors: number;
+  workedDoors: number;
+  avgCoveragePercent: number;
+  territoryNumbers: string[];
+}
+
+export interface DoorAnalyticsReport {
+  totalDoors: number;
+  workedDoors: number;
+  unworkedDoors: number;
+  doNotCallCount: number;
+  returnVisitsCount: number;
+  outcomeCounts: {
+    notHome: number;
+    contacted: number;
+    placedLiterature: number;
+    returnVisit: number;
+    busy: number;
+    doNotCall: number;
+    other: number;
+  };
+  topStreets: {
+    streetName: string;
+    doorsCount: number;
+    workedCount: number;
+  }[];
 }
 
 export interface PublisherStats {
   userId: string;
   name: string;
   email: string;
+  role?: string;
+  groupName?: string;
   activeAssignments: number;
   totalCompleted: number;
+  totalVisits: number;
+  lastActiveDate: string | null;
   territories: string[];
 }
 

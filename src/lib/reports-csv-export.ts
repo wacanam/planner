@@ -1,0 +1,190 @@
+import type {
+  CoverageTerritory,
+  GroupReportStats,
+  PublisherStats,
+  S13AssignmentRecord,
+} from '@/types/api';
+
+/**
+ * Escapes a cell value for standard CSV formatting (RFC 4180).
+ */
+function escapeCsvCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '""';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return `"${str}"`;
+}
+
+/**
+ * Triggers a file download in the browser.
+ */
+export function triggerCsvDownload(filename: string, csvContent: string): void {
+  if (typeof window === 'undefined') return;
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generates and downloads the official S-13 Congregation Territory Assignment Record CSV.
+ */
+export function exportS13ToCSV(
+  records: S13AssignmentRecord[],
+  congregationName = 'Congregation'
+): void {
+  const headers = [
+    'Territory Number',
+    'Territory Name',
+    'Assigned To',
+    'Type',
+    'Service Group',
+    'Date Assigned',
+    'Date Due',
+    'Date Returned',
+    'Coverage At Assignment (%)',
+    'Coverage At Return (%)',
+    'Duration (Days)',
+    'Status',
+  ];
+
+  const rows = records.map((r) => [
+    escapeCsvCell(r.territoryNumber),
+    escapeCsvCell(r.territoryName),
+    escapeCsvCell(r.assigneeName),
+    escapeCsvCell(r.isGroupAssignment ? 'Service Group' : 'Personal'),
+    escapeCsvCell(r.groupName || '—'),
+    escapeCsvCell(r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—'),
+    escapeCsvCell(r.dueAt ? new Date(r.dueAt).toLocaleDateString() : '—'),
+    escapeCsvCell(r.returnedAt ? new Date(r.returnedAt).toLocaleDateString() : 'Active'),
+    escapeCsvCell(r.coverageAtAssignment),
+    escapeCsvCell(r.coverageAtReturn),
+    escapeCsvCell(r.durationDays !== null ? r.durationDays : '—'),
+    escapeCsvCell(r.status.toUpperCase()),
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+  const filename = `S-13_Territory_Record_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerCsvDownload(filename, csv);
+}
+
+/**
+ * Generates and downloads the Territory Coverage Breakdown CSV.
+ */
+export function exportCoverageToCSV(
+  territories: CoverageTerritory[],
+  congregationName = 'Congregation'
+): void {
+  const headers = [
+    'Territory Number',
+    'Territory Name',
+    'Status',
+    'Coverage (%)',
+    'Total Doors',
+    'Worked Doors',
+    'Unworked Doors',
+    'Health Status',
+    'Last Worked Date',
+    'Days Since Worked',
+    'Assigned To',
+    'Service Group',
+  ];
+
+  const rows = territories.map((t) => [
+    escapeCsvCell(t.number),
+    escapeCsvCell(t.name),
+    escapeCsvCell(t.status.toUpperCase()),
+    escapeCsvCell(Math.round(t.coveragePercent)),
+    escapeCsvCell(t.householdsCount),
+    escapeCsvCell(t.workedDoors),
+    escapeCsvCell(t.unworkedDoors),
+    escapeCsvCell(t.healthStatus.toUpperCase()),
+    escapeCsvCell(t.lastWorkedDate ? new Date(t.lastWorkedDate).toLocaleDateString() : 'Never'),
+    escapeCsvCell(t.daysSinceWorked !== null ? t.daysSinceWorked : '—'),
+    escapeCsvCell(t.publisherName || '—'),
+    escapeCsvCell(t.groupName || '—'),
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+  const filename = `Territory_Coverage_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerCsvDownload(filename, csv);
+}
+
+/**
+ * Generates and downloads the Publisher Activity Summary CSV.
+ */
+export function exportPublishersToCSV(
+  publishers: PublisherStats[],
+  congregationName = 'Congregation'
+): void {
+  const headers = [
+    'Publisher Name',
+    'Email',
+    'Congregation Role',
+    'Service Group',
+    'Active Territory Assignments',
+    'Completed Territories Count',
+    'Total Visits Logged',
+    'Last Active Date',
+    'Assigned Territories',
+  ];
+
+  const rows = publishers.map((p) => [
+    escapeCsvCell(p.name),
+    escapeCsvCell(p.email),
+    escapeCsvCell(p.role || 'Publisher'),
+    escapeCsvCell(p.groupName || '—'),
+    escapeCsvCell(p.activeAssignments),
+    escapeCsvCell(p.totalCompleted),
+    escapeCsvCell(p.totalVisits),
+    escapeCsvCell(p.lastActiveDate ? new Date(p.lastActiveDate).toLocaleDateString() : '—'),
+    escapeCsvCell(p.territories.join('; ') || 'None'),
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+  const filename = `Publishers_Activity_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerCsvDownload(filename, csv);
+}
+
+/**
+ * Generates and downloads the Service Groups Performance CSV.
+ */
+export function exportGroupsToCSV(
+  groups: GroupReportStats[],
+  congregationName = 'Congregation'
+): void {
+  const headers = [
+    'Service Group Name',
+    'Group Overseer',
+    'Assistant Overseer',
+    'Publishers Count',
+    'Assigned Territories Count',
+    'Total Doors',
+    'Worked Doors',
+    'Average Coverage (%)',
+    'Territories',
+  ];
+
+  const rows = groups.map((g) => [
+    escapeCsvCell(g.name),
+    escapeCsvCell(g.overseerName || 'Unassigned'),
+    escapeCsvCell(g.assistantOverseerName || 'None'),
+    escapeCsvCell(g.memberCount),
+    escapeCsvCell(g.assignedTerritoriesCount),
+    escapeCsvCell(g.totalDoors),
+    escapeCsvCell(g.workedDoors),
+    escapeCsvCell(Math.round(g.avgCoveragePercent)),
+    escapeCsvCell(g.territoryNumbers.join('; ') || 'None'),
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+  const filename = `Service_Groups_Performance_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerCsvDownload(filename, csv);
+}
