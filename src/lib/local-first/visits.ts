@@ -84,8 +84,11 @@ export function toVisitView(record: LocalVisit, household?: LocalHousehold | nul
     notes: record.notes,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    householdAddress: household?.address,
+    householdAddress: household?.address || 'Household Record',
     householdCity: household?.city ?? undefined,
+    houseNumber: household?.houseNumber ?? null,
+    unitNumber: household?.unitNumber ?? null,
+    streetName: household?.streetName ?? undefined,
   };
 }
 

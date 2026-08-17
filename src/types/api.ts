@@ -409,6 +409,9 @@ export interface Visit {
   updatedAt: string;
   householdAddress?: string;
   householdCity?: string;
+  houseNumber?: string | null;
+  unitNumber?: string | null;
+  streetName?: string | null;
   encounterCount?: number;
 }
 
@@ -424,28 +427,27 @@ export interface Household {
   city: string;
   postalCode?: string | null;
   country?: string | null;
-  latitude?: string | number | null;
-  longitude?: string | number | null;
-  location?: string | null;
-  type: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  type?: string | null;
   floor?: number | null;
   occupantsCount?: number | null;
   languages?: string | null;
   bestTimeToCall?: string | null;
   status: string;
-  lastVisitDate?: string | null;
-  lastVisitOutcome?: string | null;
   notes?: string | null;
   lwpNotes?: string | null;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
+  territoryId?: string | null;
+  congregationId?: string | null;
   createdById?: string | null;
   creatorName?: string | null;
-  collaboratorIds?: string[];
-  readOnlyUserIds?: string[];
+  collaboratorIds?: string[] | null;
+  readOnlyUserIds?: string[] | null;
   transferredFrom?: string | null;
   transferredFromId?: string | null;
   transferredAt?: string | null;
-  territoryId?: string | null;
-  congregationId?: string | null;
   totalVisitsCount?: number;
   totalEncountersCount?: number;
   updatedById?: string | null;
@@ -486,6 +488,9 @@ export interface Encounter {
   updatedAt: string;
   householdAddress?: string | null;
   householdCity?: string | null;
+  houseNumber?: string | null;
+  unitNumber?: string | null;
+  streetName?: string | null;
   visitDate?: string | null;
   visitOutcome?: string | null;
 }

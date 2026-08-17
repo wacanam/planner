@@ -1,6 +1,8 @@
 'use client';
 
-import { Clock, Search, Trash2 } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Home, Search, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,8 @@ const outcomeColors: Record<string, string> = {
 };
 
 export default function VisitsClient() {
+  const params = useParams();
+  const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const { visits = [], isLoading } = useMyVisits({
     userId: user?.id,
@@ -43,7 +47,10 @@ export default function VisitsClient() {
       list = list.filter(
         (v) =>
           v.householdAddress?.toLowerCase().includes(q) ||
+          v.householdCity?.toLowerCase().includes(q) ||
+          v.streetName?.toLowerCase().includes(q) ||
           v.notes?.toLowerCase().includes(q) ||
+          v.bibleTopicDiscussed?.toLowerCase().includes(q) ||
           v.literaturePlaced?.toLowerCase().includes(q) ||
           v.literatureLeft?.toLowerCase().includes(q)
       );
@@ -62,49 +69,39 @@ export default function VisitsClient() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Visit Records History</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Chronological door-to-door conversation logs and returns
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
+    <div className="space-y-4">
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search notes or address…"
+            placeholder="Search by address, street, city, notes, topic…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 rounded-xl text-xs"
+            className="pl-8 h-9 rounded-xl text-xs bg-card"
           />
         </div>
 
-        <select
-          value={outcomeFilter}
-          onChange={(e) => setOutcomeFilter(e.target.value)}
-          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
-        >
-          <option value="all">All outcomes</option>
-          <option value="answered">Answered</option>
-          <option value="not_home">Not Home</option>
-          <option value="return_visit">Return Visit</option>
-          <option value="do_not_visit">Do Not Visit</option>
-          <option value="moved">Moved</option>
-          <option value="other">Other</option>
-        </select>
+        <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0">
+          {(['all', 'answered', 'not_home', 'return_visit', 'do_not_visit', 'moved'] as const).map((status) => (
+            <Button
+              key={status}
+              size="sm"
+              variant={outcomeFilter === status ? 'default' : 'outline'}
+              className="rounded-xl text-xs capitalize h-9 shrink-0"
+              onClick={() => setOutcomeFilter(status)}
+            >
+              {status.replace(/_/g, ' ')}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Visits List */}
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -123,11 +120,23 @@ export default function VisitsClient() {
               className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
             >
               <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {/* Household Details */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-foreground truncate">
-                      {v.householdAddress || 'Household Record'}
-                    </p>
+                    <Link
+                      href={`/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.householdAddress || '')}`}
+                      className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                    >
+                      <Home size={14} className="text-primary shrink-0" />
+                      <span>
+                        {v.houseNumber ? `${v.houseNumber} ` : ''}
+                        {v.householdAddress || 'Household Record'}
+                        {v.unitNumber ? ` (Unit ${v.unitNumber})` : ''}
+                      </span>
+                    </Link>
+                    {v.householdCity && (
+                      <span className="text-xs text-muted-foreground">· {v.householdCity}</span>
+                    )}
                     <Badge
                       variant="outline"
                       className={`text-[10px] font-bold capitalize py-0 ${outcomeColors[v.outcome] ?? ''}`}
@@ -135,14 +144,41 @@ export default function VisitsClient() {
                       {v.outcome.replace(/_/g, ' ')}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(v.visitDate).toLocaleString()} · {timeAgo(v.visitDate)}
-                  </p>
-                  {(v.literaturePlaced || v.literatureLeft) && (
-                    <p className="text-xs text-primary font-medium">
-                      Literature: {v.literaturePlaced || v.literatureLeft}
+
+                  {/* Visit Date & Relative time */}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar size={12} className="shrink-0" />
+                    <span>
+                      {new Date(v.visitDate).toLocaleString()} · {timeAgo(v.visitDate)}
+                    </span>
+                  </div>
+
+                  {/* Topic & Literature */}
+                  {(v.bibleTopicDiscussed || v.literaturePlaced || v.literatureLeft) && (
+                    <div className="flex items-center gap-3 flex-wrap text-xs text-foreground">
+                      {v.bibleTopicDiscussed && (
+                        <div className="flex items-center gap-1 font-medium text-foreground">
+                          <BookOpen size={12} className="text-primary shrink-0" />
+                          <span>Scripture/Topic: {v.bibleTopicDiscussed}</span>
+                        </div>
+                      )}
+                      {(v.literaturePlaced || v.literatureLeft) && (
+                        <span className="text-primary font-medium">
+                          Literature: {v.literaturePlaced || v.literatureLeft}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Return Visit Planned */}
+                  {v.returnVisitPlanned && v.nextVisitDate && (
+                    <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                      📅 Return Visit Scheduled: {new Date(v.nextVisitDate).toLocaleDateString()}
+                      {v.nextVisitTime ? ` at ${v.nextVisitTime}` : ''}
                     </p>
                   )}
+
+                  {/* Visit Notes */}
                   {v.notes && (
                     <p className="text-xs text-muted-foreground/90 italic line-clamp-2">
                       &ldquo;{v.notes}&rdquo;
@@ -157,6 +193,7 @@ export default function VisitsClient() {
                       variant="ghost"
                       className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteConfirmId(v.id)}
+                      disabled={deletingId === v.id}
                       title="Delete visit record"
                     >
                       <Trash2 size={14} />

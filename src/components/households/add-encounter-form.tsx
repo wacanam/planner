@@ -17,7 +17,8 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Encounter, Household } from '@/types/api';
 
 export const addEncounterSchema = z.object({
-  householdId: z.string().min(1, 'Please select or enter household'),
+  householdId: z.string().optional().nullable(),
+  visitId: z.string().optional().nullable(),
   name: z.string().min(1, 'Person name is required'),
   response: z.enum(['receptive', 'neutral', 'not_interested', 'hostile', 'do_not_visit', 'moved']),
   gender: z.enum(['male', 'female', 'unknown']),
@@ -54,7 +55,8 @@ export function AddEncounterForm({
   const form = useForm<AddEncounterFormValues>({
     resolver: zodResolver(addEncounterSchema) as any,
     defaultValues: {
-      householdId: initialValues?.householdId ?? defaultHouseholdId ?? (households[0]?.id || ''),
+      householdId: initialValues?.householdId ?? defaultHouseholdId ?? 'none',
+      visitId: initialValues?.visitId ?? null,
       name: initialValues?.name ?? '',
       response: (initialValues?.response as AddEncounterFormValues['response']) ?? 'receptive',
       gender: (initialValues?.gender as AddEncounterFormValues['gender']) ?? 'unknown',
@@ -67,22 +69,31 @@ export function AddEncounterForm({
     },
   });
 
+  const handleSubmit = (values: AddEncounterFormValues) => {
+    const formattedValues = {
+      ...values,
+      householdId: values.householdId === 'none' || !values.householdId ? null : values.householdId,
+    };
+    return onSubmit(formattedValues);
+  };
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
       {households.length > 0 && !defaultHouseholdId && (
         <div className="space-y-1">
-          <Label className="text-xs font-semibold">Household Address *</Label>
+          <Label className="text-xs font-semibold">Household (Optional)</Label>
           <Select
-            value={form.watch('householdId')}
-            onValueChange={(val) => form.setValue('householdId', val)}
+            value={form.watch('householdId') || 'none'}
+            onValueChange={(val) => form.setValue('householdId', val === 'none' ? null : val)}
           >
             <SelectTrigger className="h-9 rounded-xl text-xs">
-              <SelectValue placeholder="Select household" />
+              <SelectValue placeholder="Select household or street witnessing" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border max-h-48">
+              <SelectItem value="none">🚶 Street / Public Witnessing / Informal</SelectItem>
               {households.map((h) => (
                 <SelectItem key={h.id} value={h.id}>
-                  {h.address} ({h.city})
+                  🏠 {h.address} ({h.city})
                 </SelectItem>
               ))}
             </SelectContent>

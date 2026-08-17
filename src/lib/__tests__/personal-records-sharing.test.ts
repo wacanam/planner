@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { toEncounterView } from '@/lib/local-first/encounters';
 import { filterHousehold, toHouseholdView } from '@/lib/local-first/households';
 import type { LocalHousehold } from '@/lib/local-first/types';
+import { toVisitView } from '@/lib/local-first/visits';
 import {
   canAccessHouseholdDetails,
   canDeleteHousehold,
@@ -259,6 +261,135 @@ describe('Action Permission Enforcement (Owner or Territory Servant+)', () => {
         updatedAt: '2026-08-16T00:00:00Z',
       };
       expect(canAccessHouseholdDetails(stranger.id, mockHouseholdView, [pendingShare])).toBe(false);
+    });
+  });
+
+  describe('Visit & Encounter Household Mapping', () => {
+    it('toVisitView populates household address, street, house number, unit, and city', () => {
+      const mockVisit = {
+        id: 'visit-1',
+        serverId: 'visit-1',
+        userId: 'user-alice',
+        householdId: 'hh-1',
+        householdServerId: 'hh-1',
+        assignmentId: null,
+        visitDate: '2026-08-15T14:30:00Z',
+        outcome: 'answered',
+        householdStatusBefore: 'new',
+        householdStatusAfter: 'active',
+        duration: 15,
+        literatureLeft: 'Watchtower',
+        bibleTopicDiscussed: 'Future Hope',
+        returnVisitPlanned: true,
+        nextVisitDate: '2026-08-22',
+        nextVisitTime: '10:00',
+        nextVisitNotes: 'Follow up on lesson 1',
+        notes: 'Good discussion',
+        deletedAt: null,
+        createdAt: '2026-08-15T14:30:00Z',
+        updatedAt: '2026-08-15T14:30:00Z',
+      };
+
+      const visitView = toVisitView(mockVisit, mockBaseLocalHousehold);
+      expect(visitView.householdId).toBe('hh-1');
+      expect(visitView.householdAddress).toBe('123 Main St');
+      expect(visitView.householdCity).toBe('Metropolis');
+      expect(visitView.houseNumber).toBe('123');
+      expect(visitView.streetName).toBe('Main St');
+    });
+
+    it('toEncounterView supports optional household and optional visit for street witnessing', () => {
+      const streetEncounter = {
+        id: 'enc-street-1',
+        serverId: 'enc-street-1',
+        userId: 'user-alice',
+        visitId: null,
+        visitServerId: null,
+        householdId: null,
+        householdServerId: null,
+        encounterDate: '2026-08-16T11:00:00Z',
+        name: 'Street Contact',
+        gender: 'male',
+        ageGroup: 'adult',
+        role: null,
+        response: 'receptive',
+        languageSpoken: 'English',
+        topicDiscussed: 'Creation',
+        literatureAccepted: 'Tract',
+        bibleStudyInterest: false,
+        returnVisitRequested: false,
+        nextVisitNotes: null,
+        notes: 'Met at park bench',
+        deletedAt: null,
+        createdAt: '2026-08-16T11:00:00Z',
+        updatedAt: '2026-08-16T11:00:00Z',
+      };
+
+      const encounterView = toEncounterView(streetEncounter, null, null);
+      expect(encounterView.householdId).toBeNull();
+      expect(encounterView.visitId).toBeNull();
+      expect(encounterView.householdAddress).toBeNull();
+      expect(encounterView.name).toBe('Street Contact');
+      expect(encounterView.notes).toBe('Met at park bench');
+    });
+
+    it('toEncounterView links household and visit details when available', () => {
+      const householdEncounter = {
+        id: 'enc-hh-1',
+        serverId: 'enc-hh-1',
+        userId: 'user-alice',
+        visitId: 'visit-1',
+        visitServerId: 'visit-1',
+        householdId: 'hh-1',
+        householdServerId: 'hh-1',
+        encounterDate: '2026-08-15T14:30:00Z',
+        name: 'John Smith',
+        gender: 'male',
+        ageGroup: 'adult',
+        role: 'Householder',
+        response: 'receptive',
+        languageSpoken: 'English',
+        topicDiscussed: 'Future Hope',
+        literatureAccepted: 'Brochure',
+        bibleStudyInterest: true,
+        returnVisitRequested: true,
+        nextVisitNotes: 'Bring Japanese brochure next time',
+        notes: 'Very interested in Bible studies',
+        deletedAt: null,
+        createdAt: '2026-08-15T14:30:00Z',
+        updatedAt: '2026-08-15T14:30:00Z',
+      };
+
+      const mockVisit = {
+        id: 'visit-1',
+        serverId: 'visit-1',
+        userId: 'user-alice',
+        householdId: 'hh-1',
+        householdServerId: 'hh-1',
+        assignmentId: null,
+        visitDate: '2026-08-15T14:30:00Z',
+        outcome: 'answered',
+        householdStatusBefore: 'new',
+        householdStatusAfter: 'active',
+        duration: 15,
+        literatureLeft: 'Watchtower',
+        bibleTopicDiscussed: 'Future Hope',
+        returnVisitPlanned: true,
+        nextVisitDate: null,
+        nextVisitTime: null,
+        nextVisitNotes: null,
+        notes: null,
+        deletedAt: null,
+        createdAt: '2026-08-15T14:30:00Z',
+        updatedAt: '2026-08-15T14:30:00Z',
+      };
+
+      const encounterView = toEncounterView(householdEncounter, mockBaseLocalHousehold, mockVisit);
+      expect(encounterView.householdId).toBe('hh-1');
+      expect(encounterView.householdAddress).toBe('123 Main St');
+      expect(encounterView.householdCity).toBe('Metropolis');
+      expect(encounterView.visitId).toBe('visit-1');
+      expect(encounterView.visitOutcome).toBe('answered');
     });
   });
 });

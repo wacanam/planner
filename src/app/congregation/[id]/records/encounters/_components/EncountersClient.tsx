@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Search, Trash2, Users } from 'lucide-react';
+import { BookOpen, Calendar, Home, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   AddEncounterForm,
@@ -175,21 +175,51 @@ export default function EncountersClient() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}
-                  </p>
-                  {(e.topicsDiscussed || e.topicDiscussed) && (
-                    <p className="text-xs text-foreground font-medium">
-                      Topic: {e.topicsDiscussed || e.topicDiscussed}
-                    </p>
+                  {/* Household / Location Indicator */}
+                  {e.householdAddress ? (
+                    <div className="flex items-center gap-1.5 text-xs text-primary font-semibold flex-wrap">
+                      <Home size={12} className="shrink-0" />
+                      <span>
+                        {e.houseNumber ? `${e.houseNumber} ` : ''}
+                        {e.householdAddress}
+                        {e.unitNumber ? ` (Unit ${e.unitNumber})` : ''}
+                        {e.householdCity ? ` · ${e.householdCity}` : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
+                      <span>🚶 Street / Public Witnessing / Informal</span>
+                    </div>
                   )}
+
+                  {/* Date & Linked Visit */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-1">
+                      <Calendar size={12} className="shrink-0" />
+                      <span>{new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    {e.visitId && (
+                      <span className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md font-medium">
+                        Linked to Visit {e.visitOutcome ? `(${e.visitOutcome})` : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  {(e.topicsDiscussed || e.topicDiscussed) && (
+                    <div className="flex items-center gap-1 text-xs text-foreground font-medium">
+                      <BookOpen size={12} className="text-primary shrink-0" />
+                      <span>Topic: {e.topicsDiscussed || e.topicDiscussed}</span>
+                    </div>
+                  )}
+
                   {(e.literatureOffered || e.literatureAccepted) && (
-                    <p className="text-xs text-primary">
+                    <p className="text-xs text-primary font-medium">
                       Literature: {e.literatureOffered || e.literatureAccepted}
                     </p>
                   )}
+
                   {e.notes && (
-                    <p className="text-xs text-muted-foreground italic line-clamp-2">
+                    <p className="text-xs text-muted-foreground/90 italic line-clamp-2">
                       &ldquo;{e.notes}&rdquo;
                     </p>
                   )}
@@ -202,6 +232,7 @@ export default function EncountersClient() {
                       variant="ghost"
                       className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteConfirmId(e.id)}
+                      disabled={deletingId === e.id}
                       title="Delete encounter"
                     >
                       <Trash2 size={14} />
