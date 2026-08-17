@@ -32,8 +32,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  useAdminUsers,
   useChangePassword,
   useCongregation,
   useCongregationGroups,
@@ -45,6 +47,8 @@ import {
   useUpdateAvatar,
   useUpdateProfile,
 } from '@/hooks';
+import { isSystemAdmin } from '@/lib/permissions';
+import { UserRole } from '@/lib/roles';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
 
@@ -64,6 +68,22 @@ export default function ProfilePage() {
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { updateUserRole, isProcessing: isRoleUpdating } = useAdminUsers();
+  const [downgradeOpen, setDowngradeOpen] = useState(false);
+  const [targetDowngradeRole, setTargetDowngradeRole] = useState<string>(UserRole.USER);
+
+  const handleDowngradeSelf = async () => {
+    if (!user?.id) return;
+    try {
+      await updateUserRole(user.id, targetDowngradeRole);
+      toast.success(`Your role has been updated to ${targetDowngradeRole}.`);
+      setDowngradeOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update role.');
+    }
+  };
 
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
@@ -594,6 +614,47 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
+          {/* System Administrator Privileges & Role Downgrade */}
+          {isSystemAdmin(user.role) && (
+            <Card className="border-purple-500/30 bg-purple-500/5 dark:bg-purple-500/10 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
+                  <Shield size={16} />
+                  <span>System Administrator Privileges</span>
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  You currently hold global system administration permissions across all platform congregations and users
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1 max-w-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-purple-600 text-white font-bold text-[10px] uppercase">
+                        🛡️ {user.role}
+                      </Badge>
+                      <span className="font-bold text-foreground">Global Admin Authority</span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      If you wish to step down from system administration, you can downgrade your account to a Service Overseer, Territory Servant, or Publisher.
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs font-semibold border-purple-500/30 text-purple-700 dark:text-purple-400 hover:bg-purple-500/10"
+                      onClick={() => setDowngradeOpen(true)}
+                    >
+                      Step Down / Downgrade
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Account & Congregation Actions (Danger Zone) */}
           <Card className="border-destructive/30 bg-destructive/5 dark:bg-destructive/10 shadow-xs">
             <CardHeader className="pb-3">
@@ -841,6 +902,78 @@ export default function ProfilePage() {
               disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isSubmittingRequest}
             >
               {isSubmittingRequest ? 'Submitting…' : 'Submit Deletion Request'}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+
+      {/* Step Down / Downgrade System Role Dialog */}
+      <ResponsiveDialog
+        open={downgradeOpen}
+        onOpenChange={setDowngradeOpen}
+        title="Step Down from System Administrator"
+        description="Choose your new account role. This will surrender global system administrator permissions."
+      >
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Select New Role</Label>
+            <Select value={targetDowngradeRole} onValueChange={setTargetDowngradeRole}>
+              <SelectTrigger className="h-10 rounded-xl text-xs">
+                <SelectValue placeholder="Select new role" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl text-xs">
+                <SelectItem value={UserRole.SERVICE_OVERSEER}>
+                  <div className="flex items-center gap-2">
+                    <Building2 size={14} className="text-blue-600" />
+                    <span>Service Overseer (Congregation Leadership)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={UserRole.TERRITORY_SERVANT}>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-emerald-600" />
+                    <span>Territory Servant (Territories & Maps)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={UserRole.USER}>
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-primary" />
+                    <span>Publisher (Standard Field Ministry Access)</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+            <p className="font-bold flex items-center gap-1.5">
+              <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+              <span>Surrendering Global Access</span>
+            </p>
+            <p>
+              Once downgraded, you will no longer be able to access the Global Admin Suite, manage other congregations, or review global account requests.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs"
+              onClick={() => setDowngradeOpen(false)}
+              disabled={isRoleUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-xl text-xs font-semibold"
+              onClick={handleDowngradeSelf}
+              disabled={isRoleUpdating}
+            >
+              {isRoleUpdating ? 'Updating…' : 'Confirm Role Downgrade'}
             </Button>
           </div>
         </div>

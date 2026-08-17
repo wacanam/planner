@@ -6,6 +6,7 @@ import {
   Building2,
   CheckCircle2,
   LogOut,
+  MapPin,
   MoreVertical,
   Search,
   Shield,
@@ -18,6 +19,7 @@ import {
   UserX,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AdminNav } from '@/components/admin-nav';
@@ -55,6 +57,7 @@ export default function AdminUsersClient() {
 
   const { congregations = [] } = useCongregations();
   const { user: currentUser } = useCurrentUser();
+  const router = useRouter();
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
@@ -114,15 +117,34 @@ export default function AdminUsersClient() {
 
   const handleOpenRoleEdit = (u: User) => {
     setSelectedUser(u);
-    setNewRole(isSystemAdmin(u.role) ? UserRole.ADMIN : UserRole.USER);
+    const r = (u.role || '').toUpperCase().replace(/\s+/g, '_');
+    if (r === 'SUPER_ADMIN') setNewRole(UserRole.SUPER_ADMIN);
+    else if (r === 'ADMIN') setNewRole(UserRole.ADMIN);
+    else if (r === 'SERVICE_OVERSEER') setNewRole(UserRole.SERVICE_OVERSEER);
+    else if (r === 'TERRITORY_SERVANT') setNewRole(UserRole.TERRITORY_SERVANT);
+    else setNewRole(UserRole.USER);
   };
 
   const handleSaveRole = async () => {
     if (!selectedUser) return;
+    const isSelfDowngrade =
+      selectedUser.id === currentUser?.id &&
+      isSystemAdmin(selectedUser.role) &&
+      !isSystemAdmin(newRole);
+
     try {
       await updateUserRole(selectedUser.id, newRole);
-      toast.success(`Role updated for ${selectedUser.name || selectedUser.email}!`);
+      toast.success(`Role updated to ${newRole} for ${selectedUser.name || selectedUser.email}!`);
       setSelectedUser(null);
+
+      if (isSelfDowngrade) {
+        toast.info('Your system administrator privileges have been surrendered. Redirecting...');
+        if (currentUser?.congregationId) {
+          router.replace(`/congregation/${currentUser.congregationId}/dashboard`);
+        } else {
+          router.replace('/profile');
+        }
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update role.');
     }
@@ -422,7 +444,11 @@ export default function AdminUsersClient() {
           onOpenChange={(open) => {
             if (!open) setSelectedUser(null);
           }}
-          title="Manage User Role"
+          title={
+            selectedUser?.id === currentUser?.id && isSystemAdmin(selectedUser?.role) && !isSystemAdmin(newRole)
+              ? 'Downgrade Your System Role'
+              : 'Manage User Role'
+          }
           description={`Update system permissions for ${selectedUser?.name || selectedUser?.email}.`}
         >
           <div className="space-y-4">
@@ -433,32 +459,72 @@ export default function AdminUsersClient() {
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl text-xs">
-                  <SelectItem value={UserRole.USER}>
+                  <SelectItem value={UserRole.SUPER_ADMIN}>
                     <div className="flex items-center gap-2">
-                      <Users size={14} className="text-primary" />
-                      <span>Publisher (Standard Access)</span>
+                      <ShieldAlert size={14} className="text-purple-600" />
+                      <span>Super Admin (Root System Authority)</span>
                     </div>
                   </SelectItem>
                   <SelectItem value={UserRole.ADMIN}>
                     <div className="flex items-center gap-2">
-                      <ShieldAlert size={14} className="text-purple-600" />
+                      <ShieldCheck size={14} className="text-purple-600" />
                       <span>System Administrator (Full Global Access)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={UserRole.SERVICE_OVERSEER}>
+                    <div className="flex items-center gap-2">
+                      <Building2 size={14} className="text-blue-600" />
+                      <span>Service Overseer (Congregation Leadership)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={UserRole.TERRITORY_SERVANT}>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className="text-emerald-600" />
+                      <span>Territory Servant (Territory Management)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value={UserRole.USER}>
+                    <div className="flex items-center gap-2">
+                      <Users size={14} className="text-primary" />
+                      <span>Publisher (Standard Field Ministry Access)</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Self-Downgrade Warning */}
+            {selectedUser?.id === currentUser?.id &&
+              isSystemAdmin(selectedUser?.role) &&
+              !isSystemAdmin(newRole) && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+                    <span>Surrendering Administrator Access</span>
+                  </p>
+                  <p>
+                    You are downgrading your own account from System Administrator to{' '}
+                    <strong>{newRole}</strong>. Once saved, you will immediately lose access to the Global Admin Suite and be redirected to your regular workspace.
+                  </p>
+                </div>
+              )}
+
             <div className="p-3 rounded-xl bg-muted/60 text-xs text-muted-foreground space-y-1">
-              <p className="font-semibold text-foreground">Role Permissions:</p>
-              {newRole === UserRole.ADMIN ? (
-                <p>
-                  System Admins can access the Global Admin Suite, manage all congregations, approve/reject requests, and promote other users.
-                </p>
-              ) : (
-                <p>
-                  Standard publishers only access assigned congregation workspaces and territories based on local congregation servant roles.
-                </p>
+              <p className="font-semibold text-foreground">Role Description:</p>
+              {newRole === UserRole.SUPER_ADMIN && (
+                <p>Root system administrator with unrestricted authority across all operations and security rules.</p>
+              )}
+              {newRole === UserRole.ADMIN && (
+                <p>System Admins can access the Global Admin Suite, manage all congregations, approve/reject requests, and manage global users.</p>
+              )}
+              {newRole === UserRole.SERVICE_OVERSEER && (
+                <p>Oversees congregation publishers, manages service groups, and approves territory assignments.</p>
+              )}
+              {newRole === UserRole.TERRITORY_SERVANT && (
+                <p>Maintains territory maps, boundaries, and assignment allocations.</p>
+              )}
+              {newRole === UserRole.USER && (
+                <p>Standard publisher access to personal assignments, territory maps, and field ministry encounters.</p>
               )}
             </div>
 
@@ -475,12 +541,25 @@ export default function AdminUsersClient() {
               </Button>
               <Button
                 type="button"
+                variant={
+                  selectedUser?.id === currentUser?.id &&
+                  isSystemAdmin(selectedUser?.role) &&
+                  !isSystemAdmin(newRole)
+                    ? 'destructive'
+                    : 'default'
+                }
                 size="sm"
                 className="rounded-xl text-xs font-semibold"
                 onClick={handleSaveRole}
                 disabled={isProcessing}
               >
-                {isProcessing ? 'Updating…' : 'Save Role'}
+                {isProcessing
+                  ? 'Updating…'
+                  : selectedUser?.id === currentUser?.id &&
+                      isSystemAdmin(selectedUser?.role) &&
+                      !isSystemAdmin(newRole)
+                    ? 'Confirm Downgrade'
+                    : 'Save Role'}
               </Button>
             </div>
           </div>
