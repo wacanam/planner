@@ -110,10 +110,10 @@ export default function ProfilePage() {
           <CardContent className="p-6 flex flex-col items-center text-center">
             <div className="relative group mb-4">
               <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                {profile?.image ? (
+                {profile?.avatarUrl || profile?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={profile.image}
+                    src={profile.avatarUrl || profile.image!}
                     alt={profile.name ?? 'Avatar'}
                     className="w-full h-full object-cover"
                   />

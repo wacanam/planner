@@ -84,6 +84,7 @@ export interface Member {
     name: string | null;
     email: string | null;
     role: string | null;
+    avatarUrl?: string | null;
   } | null;
 }
 
@@ -100,6 +101,7 @@ export interface JoinRequest {
     id: string | null;
     name: string | null;
     email: string | null;
+    avatarUrl?: string | null;
   } | null;
 }
 

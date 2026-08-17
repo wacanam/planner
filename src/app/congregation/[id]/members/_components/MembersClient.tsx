@@ -7,6 +7,7 @@ import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -170,22 +171,41 @@ export default function MembersClient() {
                   const isSelf = isCurrentSelf(m);
                   return (
                     <Card key={m.id} className="bg-card border-border shadow-xs">
-                      <CardContent className="p-4 flex items-center justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-sm text-foreground">
-                              {m.user?.name || m.user?.email || 'Publisher'}
-                            </p>
-                            {isSelf && (
-                              <Badge
-                                variant="secondary"
-                                className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20"
-                              >
-                                You
-                              </Badge>
+                      <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Avatar className="w-9 h-9 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                            {m.user?.avatarUrl && (
+                              <AvatarImage
+                                src={m.user.avatarUrl}
+                                alt={m.user.name || 'Member'}
+                                className="object-cover w-full h-full rounded-xl"
+                              />
                             )}
+                            <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                              {(m.user?.name || m.user?.email || 'P')
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .toUpperCase()
+                                .slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-sm text-foreground truncate">
+                                {m.user?.name || m.user?.email || 'Publisher'}
+                              </p>
+                              {isSelf && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20"
+                                >
+                                  You
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{m.user?.email}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">{m.user?.email}</p>
                         </div>
 
                         <div className="flex items-center gap-2">

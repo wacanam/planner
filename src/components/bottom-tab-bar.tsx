@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet,
@@ -238,9 +239,23 @@ export function BottomTabBar() {
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 text-foreground">
-                      <User size={16} />
-                    </div>
+                    <Avatar className="w-8 h-8 rounded-lg border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                      {user.avatarUrl && (
+                        <AvatarImage
+                          src={user.avatarUrl}
+                          alt={user.name || 'Profile'}
+                          className="object-cover w-full h-full rounded-lg"
+                        />
+                      )}
+                      <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                        {(user.name || user.email || 'P')
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0">
                       <span className="font-semibold text-xs text-foreground block">Profile & Settings</span>
                       <span className="text-[11px] text-muted-foreground truncate block">Account credentials & preferences</span>

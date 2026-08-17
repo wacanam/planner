@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,6 +85,8 @@ export function DashboardHeader() {
     if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
     return 'Publisher';
   })();
+
+  const avatarUrl = user.avatarUrl || session?.user?.avatarUrl || null;
 
   const userInitials = (user.name || user.email || 'P')
     .split(' ')
@@ -171,12 +174,21 @@ export function DashboardHeader() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-muted/50 border border-transparent hover:border-border transition-all focus-visible:outline-none"
+                  className="flex items-center gap-1.5 p-1 rounded-2xl hover:bg-muted/50 border border-transparent hover:border-border transition-all focus-visible:outline-none cursor-pointer"
                   aria-label="User menu"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-                    {userInitials}
-                  </div>
+                  <Avatar className="w-8 h-8 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                    {avatarUrl && (
+                      <AvatarImage
+                        src={avatarUrl}
+                        alt={user.name || 'User avatar'}
+                        className="object-cover w-full h-full rounded-xl"
+                      />
+                    )}
+                    <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
                   <ChevronDown size={14} className="text-muted-foreground hidden sm:block" />
                 </button>
               </DropdownMenuTrigger>
@@ -184,12 +196,26 @@ export function DashboardHeader() {
                 align="end"
                 className="w-64 bg-popover border-border shadow-lg p-2 rounded-2xl"
               >
-                <DropdownMenuLabel className="px-2 py-1.5 space-y-2 font-normal">
-                  <div>
-                    <p className="text-sm font-bold text-foreground truncate">
-                      {user.name || 'Publisher'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <DropdownMenuLabel className="px-2 py-1.5 space-y-2.5 font-normal">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="w-9 h-9 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                      {avatarUrl && (
+                        <AvatarImage
+                          src={avatarUrl}
+                          alt={user.name || 'User avatar'}
+                          className="object-cover w-full h-full rounded-xl"
+                        />
+                      )}
+                      <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground truncate">
+                        {user.name || 'Publisher'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
                   </div>
 
                   {congregation ? (
