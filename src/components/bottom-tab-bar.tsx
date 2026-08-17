@@ -12,7 +12,6 @@ import {
   Shield,
   User,
   Users,
-  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
@@ -20,7 +19,6 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -157,20 +155,15 @@ export function BottomTabBar() {
             className="p-0 max-h-[85vh] rounded-t-3xl border-t border-border bg-background"
           >
             <div className="p-4 sm:p-6 space-y-4">
-              <SheetHeader className="text-left pb-2 border-b border-border flex flex-row items-center justify-between">
-                <div>
-                  <SheetTitle className="text-base font-bold text-foreground">
-                    {isOverseerRole ? 'Overseer Management' : 'More Menu'}
-                  </SheetTitle>
-                  <SheetDescription className="text-xs text-muted-foreground">
-                    {isOverseerRole
-                      ? 'Quick access to congregation management pages'
-                      : 'Account settings & navigation'}
-                  </SheetDescription>
-                </div>
-                <SheetClose className="rounded-full p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
-                  <X size={16} />
-                </SheetClose>
+              <SheetHeader className="text-left pb-2 border-b border-border pr-8">
+                <SheetTitle className="text-base font-bold text-foreground">
+                  {isOverseerRole ? 'Overseer Management' : 'More Menu'}
+                </SheetTitle>
+                <SheetDescription className="text-xs text-muted-foreground">
+                  {isOverseerRole
+                    ? 'Quick access to congregation management pages'
+                    : 'Account settings & navigation'}
+                </SheetDescription>
               </SheetHeader>
 
               {/* Service Overseer Navigation Links */}
