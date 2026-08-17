@@ -293,6 +293,45 @@ export function StudioGoogleMap({
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
 
+  // Stable Marker & Polyline element references for zero-flicker selection updates
+  const householdMarkersDataRef = useRef<
+    Array<{
+      id: string;
+      marker: google.maps.marker.AdvancedMarkerElement;
+      pinContainer: HTMLDivElement;
+      pinCircle: HTMLDivElement;
+      labelEl?: HTMLSpanElement | null;
+    }>
+  >([]);
+
+  const landmarkMarkersDataRef = useRef<
+    Array<{
+      id: string;
+      marker: google.maps.marker.AdvancedMarkerElement;
+      pinContainer: HTMLDivElement;
+      pinCircle: HTMLDivElement;
+      labelEl?: HTMLSpanElement | null;
+    }>
+  >([]);
+
+  const roadPolylinesDataRef = useRef<
+    Array<{
+      id: string;
+      casing: google.maps.Polyline;
+      pavement: google.maps.Polyline;
+      centerline: google.maps.Polyline;
+      highlightAura?: google.maps.Polyline | null;
+      labelMarker?: google.maps.marker.AdvancedMarkerElement | null;
+      labelDot?: HTMLDivElement | null;
+      labelStem?: HTMLDivElement | null;
+      labelText?: HTMLDivElement | null;
+      casingColor: string;
+      surfaceColor: string;
+      centerColor: string;
+      casingWeight: number;
+    }>
+  >([]);
+
   // User Live Location & Heading Cone refs
   const userLocationMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const userLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
@@ -939,6 +978,7 @@ export function StudioGoogleMap({
       m.map = null;
     });
     householdMarkersRef.current = [];
+    householdMarkersDataRef.current = [];
 
     if (layerSettings.showHouses === false) {
       return;
@@ -1008,21 +1048,46 @@ export function StudioGoogleMap({
         : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
       pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
       pinContainer.style.transformOrigin = 'bottom center';
-      pinContainer.style.transition = 'transform 0.15s ease-out';
+      pinContainer.style.transition = 'transform 0.15s ease-out, filter 0.15s ease-out';
 
-      pinContainer.innerHTML = `
-        <div style="background-color: ${pinColor}; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF; box-shadow: ${isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none'}; color: #FFFFFF; z-index: 2; box-sizing: border-box; padding: 5.5px;">
-          <svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-        <div style="background-color: ${pinColor}; width: 6.5px; height: 6.5px; transform: rotate(45deg); margin-top: -4px; border-right: 2px solid #FFFFFF; border-bottom: 2px solid #FFFFFF; z-index: 1;"></div>
+      const pinCircle = document.createElement('div');
+      pinCircle.style.backgroundColor = pinColor;
+      pinCircle.style.width = '24px';
+      pinCircle.style.height = '24px';
+      pinCircle.style.borderRadius = '50%';
+      pinCircle.style.display = 'flex';
+      pinCircle.style.alignItems = 'center';
+      pinCircle.style.justifyContent = 'center';
+      pinCircle.style.border = '2px solid #FFFFFF';
+      pinCircle.style.boxShadow = isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none';
+      pinCircle.style.color = '#FFFFFF';
+      pinCircle.style.zIndex = '2';
+      pinCircle.style.boxSizing = 'border-box';
+      pinCircle.style.padding = '5.5px';
+      pinCircle.style.transition = 'box-shadow 0.15s ease-out';
+      pinCircle.innerHTML = `
+        <svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
       `;
 
+      const pinTip = document.createElement('div');
+      pinTip.style.backgroundColor = pinColor;
+      pinTip.style.width = '6.5px';
+      pinTip.style.height = '6.5px';
+      pinTip.style.transform = 'rotate(45deg)';
+      pinTip.style.marginTop = '-4px';
+      pinTip.style.borderRight = '2px solid #FFFFFF';
+      pinTip.style.borderBottom = '2px solid #FFFFFF';
+      pinTip.style.zIndex = '1';
+
+      pinContainer.appendChild(pinCircle);
+      pinContainer.appendChild(pinTip);
       wrapper.appendChild(pinContainer);
 
       // Label beside pin: pure text with white stroke / halo
+      let labelEl: HTMLSpanElement | null = null;
       if (layerSettings.showHouseLabels) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
@@ -1031,7 +1096,7 @@ export function StudioGoogleMap({
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
-        const labelEl = document.createElement('span');
+        labelEl = document.createElement('span');
         labelEl.style.fontSize = '10.5px';
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1E293B' : '#334155';
@@ -1040,6 +1105,7 @@ export function StudioGoogleMap({
         labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
+        labelEl.style.transition = 'color 0.15s ease-out';
         labelEl.textContent = h.houseNumber ? `#${h.houseNumber}` : h.address.split(',')[0];
 
         labelWrapper.appendChild(labelEl);
@@ -1076,9 +1142,34 @@ export function StudioGoogleMap({
       });
 
       householdMarkersRef.current.push(marker);
+      householdMarkersDataRef.current.push({
+        id: h.id,
+        marker,
+        pinContainer,
+        pinCircle,
+        labelEl,
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool, selectedHouseholdId]);
+  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool]);
+
+  // 6b. Zero-Flicker Household Selection Synchronizer (In-place styling with 0 marker rebuilds)
+  useEffect(() => {
+    householdMarkersDataRef.current.forEach(({ id, marker, pinContainer, pinCircle, labelEl }) => {
+      const isSelected = selectedHouseholdId === id;
+      marker.zIndex = isSelected ? 50 : 35;
+      pinContainer.style.filter = isSelected
+        ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))'
+        : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
+      pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
+      pinCircle.style.boxShadow = isSelected
+        ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
+        : 'none';
+      if (labelEl) {
+        labelEl.style.color = isSelected ? '#1E293B' : '#334155';
+      }
+    });
+  }, [selectedHouseholdId]);
 
   // 7. Render Active Drawing Preview (Road corridor / polygon)
   useEffect(() => {
@@ -1175,6 +1266,7 @@ export function StudioGoogleMap({
 
     roadPolylinesRef.current.forEach((r) => r.setMap(null));
     roadPolylinesRef.current = [];
+    roadPolylinesDataRef.current = [];
 
     roadLabelMarkersRef.current.forEach((m) => {
       m.map = null;
@@ -1185,6 +1277,7 @@ export function StudioGoogleMap({
       lm.map = null;
     });
     landmarkMarkersRef.current = [];
+    landmarkMarkersDataRef.current = [];
 
     if (startFlagMarkerRef.current) {
       startFlagMarkerRef.current.map = null;
@@ -1231,19 +1324,18 @@ export function StudioGoogleMap({
 
         const isSelected = selectedRoadId === road.id;
 
-        // If selected, render a smooth, subtle blue highlight aura underlay
-        if (isSelected) {
-          const highlightAura = new google.maps.Polyline({
-            path: road.points,
-            strokeColor: '#3B82F6',
-            strokeWeight: casingWeight + 6,
-            strokeOpacity: 0.4,
-            zIndex: 9,
-            clickable: false,
-            map,
-          });
-          roadPolylinesRef.current.push(highlightAura);
-        }
+        // Highlight aura underlay (visible only when selected)
+        const highlightAura = new google.maps.Polyline({
+          path: road.points,
+          strokeColor: '#3B82F6',
+          strokeWeight: casingWeight + 6,
+          strokeOpacity: 0.4,
+          zIndex: 9,
+          clickable: false,
+          visible: isSelected,
+          map,
+        });
+        roadPolylinesRef.current.push(highlightAura);
 
         // Outer dark casing (road curb / asphalt border)
         const casing = new google.maps.Polyline({
@@ -1300,6 +1392,7 @@ export function StudioGoogleMap({
         const handleRoadPathChange = () => {
           casing.setPath(roadPath);
           centerline.setPath(roadPath);
+          highlightAura.setPath(roadPath);
 
           const updatedPoints = roadPath.getArray().map((pt) => ({
             lat: pt.lat(),
@@ -1328,6 +1421,11 @@ export function StudioGoogleMap({
 
         roadPolylinesRef.current.push(casing, pavement, centerline);
 
+        let labelMarker: google.maps.marker.AdvancedMarkerElement | null = null;
+        let labelDot: HTMLDivElement | null = null;
+        let labelStem: HTMLDivElement | null = null;
+        let labelText: HTMLDivElement | null = null;
+
         // Place road callout that POINTS to the road, floating above without overlaying the pavement
         if (road.name) {
           const midIdx = Math.floor(road.points.length / 2);
@@ -1341,16 +1439,47 @@ export function StudioGoogleMap({
           roadCallout.style.cursor = isPointerMode ? 'pointer' : 'default';
           roadCallout.style.pointerEvents = 'auto';
 
-          roadCallout.innerHTML = `
-            <!-- Anchor dot directly on the road coordinate (0, 0) -->
-            <div style="position: absolute; left: -3px; bottom: -3px; width: 6px; height: 6px; border-radius: 50%; background-color: ${isSelected ? '#2563EB' : '#334155'}; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.4);"></div>
-            <!-- Vertical stem extending up from the road -->
-            <div style="position: absolute; left: -1px; bottom: 3px; width: 2px; height: 10px; background-color: ${isSelected ? '#2563EB' : '#334155'};"></div>
-            <!-- Road name with Google Maps white-stroked halo without background chip -->
-            <div style="position: absolute; left: 0; bottom: 13px; transform: translateX(-50%); white-space: nowrap; font-size: 11px; font-weight: 800; color: ${isSelected ? '#1D4ED8' : '#1E293B'}; paint-order: stroke fill; -webkit-text-stroke: 3px #FFFFFF; text-shadow: 0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25); letter-spacing: -0.01em; line-height: 1.15;">
-              ${road.name}
-            </div>
-          `;
+          labelDot = document.createElement('div');
+          labelDot.style.position = 'absolute';
+          labelDot.style.left = '-3px';
+          labelDot.style.bottom = '-3px';
+          labelDot.style.width = '6px';
+          labelDot.style.height = '6px';
+          labelDot.style.borderRadius = '50%';
+          labelDot.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+          labelDot.style.border = '1.5px solid #FFFFFF';
+          labelDot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+          labelDot.style.transition = 'background-color 0.15s ease-out';
+
+          labelStem = document.createElement('div');
+          labelStem.style.position = 'absolute';
+          labelStem.style.left = '-1px';
+          labelStem.style.bottom = '3px';
+          labelStem.style.width = '2px';
+          labelStem.style.height = '10px';
+          labelStem.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+          labelStem.style.transition = 'background-color 0.15s ease-out';
+
+          labelText = document.createElement('div');
+          labelText.style.position = 'absolute';
+          labelText.style.left = '0';
+          labelText.style.bottom = '13px';
+          labelText.style.transform = 'translateX(-50%)';
+          labelText.style.whiteSpace = 'nowrap';
+          labelText.style.fontSize = '11px';
+          labelText.style.fontWeight = '800';
+          labelText.style.color = isSelected ? '#1D4ED8' : '#1E293B';
+          labelText.style.paintOrder = 'stroke fill';
+          labelText.style.webkitTextStroke = '3px #FFFFFF';
+          labelText.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
+          labelText.style.letterSpacing = '-0.01em';
+          labelText.style.lineHeight = '1.15';
+          labelText.style.transition = 'color 0.15s ease-out';
+          labelText.textContent = road.name;
+
+          roadCallout.appendChild(labelDot);
+          roadCallout.appendChild(labelStem);
+          roadCallout.appendChild(labelText);
 
           roadCallout.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1359,7 +1488,7 @@ export function StudioGoogleMap({
             }
           });
 
-          const labelMarker = new AdvancedMarkerElement({
+          labelMarker = new AdvancedMarkerElement({
             map,
             position: midPt,
             content: roadCallout,
@@ -1367,6 +1496,22 @@ export function StudioGoogleMap({
           });
           roadLabelMarkersRef.current.push(labelMarker);
         }
+
+        roadPolylinesDataRef.current.push({
+          id: road.id,
+          casing,
+          pavement,
+          centerline,
+          highlightAura,
+          labelMarker,
+          labelDot,
+          labelStem,
+          labelText,
+          casingColor,
+          surfaceColor,
+          centerColor,
+          casingWeight,
+        });
       });
     }
 
@@ -1402,18 +1547,41 @@ export function StudioGoogleMap({
           : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
         pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
         pinContainer.style.transformOrigin = 'bottom center';
-        pinContainer.style.transition = 'transform 0.15s ease-out';
+        pinContainer.style.transition = 'transform 0.15s ease-out, filter 0.15s ease-out';
 
-        pinContainer.innerHTML = `
-          <div style="background-color: ${bg}; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF; box-shadow: ${isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none'}; color: #FFFFFF; z-index: 2; box-sizing: border-box; padding: 5.5px;">
-            ${svg}
-          </div>
-          <div style="background-color: ${bg}; width: 6.5px; height: 6.5px; transform: rotate(45deg); margin-top: -4px; border-right: 2px solid #FFFFFF; border-bottom: 2px solid #FFFFFF; z-index: 1;"></div>
-        `;
+        const pinCircle = document.createElement('div');
+        pinCircle.style.backgroundColor = bg;
+        pinCircle.style.width = '24px';
+        pinCircle.style.height = '24px';
+        pinCircle.style.borderRadius = '50%';
+        pinCircle.style.display = 'flex';
+        pinCircle.style.alignItems = 'center';
+        pinCircle.style.justifyContent = 'center';
+        pinCircle.style.border = '2px solid #FFFFFF';
+        pinCircle.style.boxShadow = isSelected ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)' : 'none';
+        pinCircle.style.color = '#FFFFFF';
+        pinCircle.style.zIndex = '2';
+        pinCircle.style.boxSizing = 'border-box';
+        pinCircle.style.padding = '5.5px';
+        pinCircle.style.transition = 'box-shadow 0.15s ease-out';
+        pinCircle.innerHTML = svg;
 
+        const pinTip = document.createElement('div');
+        pinTip.style.backgroundColor = bg;
+        pinTip.style.width = '6.5px';
+        pinTip.style.height = '6.5px';
+        pinTip.style.transform = 'rotate(45deg)';
+        pinTip.style.marginTop = '-4px';
+        pinTip.style.borderRight = '2px solid #FFFFFF';
+        pinTip.style.borderBottom = '2px solid #FFFFFF';
+        pinTip.style.zIndex = '1';
+
+        pinContainer.appendChild(pinCircle);
+        pinContainer.appendChild(pinTip);
         wrapper.appendChild(pinContainer);
 
         // Label beside pin: pure text with white stroke / halo
+        let labelEl: HTMLSpanElement | null = null;
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '15px';
@@ -1421,7 +1589,7 @@ export function StudioGoogleMap({
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
-        const labelEl = document.createElement('span');
+        labelEl = document.createElement('span');
         labelEl.style.fontSize = '10.5px';
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1E293B' : '#334155';
@@ -1430,6 +1598,7 @@ export function StudioGoogleMap({
         labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
+        labelEl.style.transition = 'color 0.15s ease-out';
         labelEl.textContent = landmark.label || 'Landmark';
 
         labelWrapper.appendChild(labelEl);
@@ -1463,6 +1632,13 @@ export function StudioGoogleMap({
         });
 
         landmarkMarkersRef.current.push(marker);
+        landmarkMarkersDataRef.current.push({
+          id: landmark.id,
+          marker,
+          pinContainer,
+          pinCircle,
+          labelEl,
+        });
       });
     }
 
@@ -1555,7 +1731,57 @@ export function StudioGoogleMap({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool, selectedLandmarkId, selectedRoadId]);
+  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool]);
+
+  // 8b. Zero-Flicker Landmark & Road Selection Synchronizer (In-place styling with 0 marker rebuilds)
+  useEffect(() => {
+    // Sync Landmarks
+    landmarkMarkersDataRef.current.forEach(({ id, marker, pinContainer, pinCircle, labelEl }) => {
+      const isSelected = selectedLandmarkId === id;
+      marker.zIndex = isSelected ? 50 : 30;
+      pinContainer.style.filter = isSelected
+        ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))'
+        : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
+      pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
+      pinCircle.style.boxShadow = isSelected
+        ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
+        : 'none';
+      if (labelEl) {
+        labelEl.style.color = isSelected ? '#1E293B' : '#334155';
+      }
+    });
+
+    // Sync Roads
+    roadPolylinesDataRef.current.forEach((item) => {
+      const isSelected = selectedRoadId === item.id;
+      if (item.highlightAura) {
+        item.highlightAura.setVisible(isSelected);
+      }
+      item.casing.setOptions({
+        strokeColor: isSelected ? '#1D4ED8' : item.casingColor,
+        strokeWeight: isSelected ? item.casingWeight + 1 : item.casingWeight,
+        zIndex: isSelected ? 14 : 10,
+      });
+      item.pavement.setOptions({
+        zIndex: isSelected ? 15 : 11,
+      });
+      item.centerline.setOptions({
+        zIndex: isSelected ? 16 : 12,
+      });
+      if (item.labelMarker) {
+        item.labelMarker.zIndex = isSelected ? 20 : 15;
+      }
+      if (item.labelDot) {
+        item.labelDot.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+      }
+      if (item.labelStem) {
+        item.labelStem.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+      }
+      if (item.labelText) {
+        item.labelText.style.color = isSelected ? '#1D4ED8' : '#1E293B';
+      }
+    });
+  }, [selectedLandmarkId, selectedRoadId]);
 
   // 9. Render User Live GPS Location Dot with Compass Heading Flashlight Beam
   useEffect(() => {
