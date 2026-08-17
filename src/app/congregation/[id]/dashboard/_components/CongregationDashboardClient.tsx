@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useCongregation,
+  useCongregationGroups,
   useCongregationMembers,
   useCongregationTerritories,
   useCurrentUser,
@@ -29,6 +30,8 @@ import {
   useMyAssignments,
 } from '@/hooks';
 import { isServiceOverseer, isTerritoryServant } from '@/lib/permissions';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import type { Household } from '@/types/api';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
@@ -40,12 +43,48 @@ export default function CongregationDashboardClient() {
   const { data: territories = [], isLoading: territoriesLoading } =
     useCongregationTerritories(congregationId);
   const { assignments = [], isLoading: assignmentsLoading } = useMyAssignments(congregationId);
-  const { households = [], isLoading: householdsLoading } = useHouseholds();
+  const { groups = [], isLoading: groupsLoading } = useCongregationGroups(congregationId);
+  const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
 
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
   }, [territories]);
+
+  // Real-time door counts and coverage calculation per territory
+  const coverageByTerritoryId = useMemo(() => {
+    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const byTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
+        byTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+    for (const [tId, hList] of byTerritory.entries()) {
+      map.set(tId, calculateTerritoryCoverage(hList));
+    }
+    return map;
+  }, [households]);
+
+  // Find all service groups that the current user belongs to
+  const userGroupIds = useMemo(() => {
+    if (!user?.id) return new Set<string>();
+    const ids = new Set<string>();
+    for (const g of groups) {
+      if (
+        g.members?.some(
+          (m) =>
+            m.userId === user.id ||
+            m.id === user.id ||
+            m.user?.email === user.email
+        )
+      ) {
+        ids.add(g.id);
+      }
+    }
+    return ids;
+  }, [groups, user]);
 
   const displayRole = (() => {
     const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
@@ -60,9 +99,20 @@ export default function CongregationDashboardClient() {
   const _isOverseer = isServiceOverseer(user.role);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
-  const activeAssignments = assignments.filter(
-    (a) => a.status === 'assigned' || a.status === 'active'
-  );
+  const activeAssignments = useMemo(() => {
+    if (!user?.id) return [];
+    return assignments.filter((a) => {
+      const isActive = a.status === 'assigned' || a.status === 'active';
+      if (!isActive) return false;
+      // Direct personal or inherited from group
+      return (
+        a.userId === user.id ||
+        a.assigneeEmail === user.email ||
+        (a.serviceGroupId && userGroupIds.has(a.serviceGroupId))
+      );
+    });
+  }, [assignments, user, userGroupIds]);
+
   const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
 
   return (

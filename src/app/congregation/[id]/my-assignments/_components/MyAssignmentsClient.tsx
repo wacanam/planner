@@ -25,11 +25,13 @@ import {
   useCongregationGroups,
   useCongregationTerritories,
   useCurrentUser,
+  useHouseholds,
   useMyAssignments,
   useReturnAssignment,
 } from '@/hooks';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { toast } from 'sonner';
-import type { Assignment } from '@/types/api';
+import type { Assignment, Household } from '@/types/api';
 
 export default function MyAssignmentsClient() {
   const params = useParams();
@@ -39,6 +41,7 @@ export default function MyAssignmentsClient() {
   const { data: territories = [], isLoading: loadingTerritories } =
     useCongregationTerritories(congregationId);
   const { groups = [], isLoading: loadingGroups } = useCongregationGroups(congregationId);
+  const { households = [], isLoading: loadingHouseholds } = useHouseholds({ congregationId });
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmAssignment, setReturnConfirmAssignment] = useState<Assignment | null>(null);
@@ -46,6 +49,22 @@ export default function MyAssignmentsClient() {
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
   }, [territories]);
+
+  // Real-time door counts and coverage calculation per territory
+  const coverageByTerritoryId = useMemo(() => {
+    const map = new Map<string, { totalDoors: number; workedDoors: number; coveragePercent: number }>();
+    const byTerritory = new Map<string, Household[]>();
+    for (const h of households) {
+      if (h.territoryId) {
+        if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
+        byTerritory.get(h.territoryId)!.push(h);
+      }
+    }
+    for (const [tId, hList] of byTerritory.entries()) {
+      map.set(tId, calculateTerritoryCoverage(hList));
+    }
+    return map;
+  }, [households]);
 
   // Find all service groups that the current user belongs to
   const userGroupIds = useMemo(() => {
@@ -80,7 +99,7 @@ export default function MyAssignmentsClient() {
 
   const active = myAssignments.filter((a) => a.status === 'assigned' || a.status === 'active');
   const past = myAssignments.filter((a) => a.status !== 'assigned' && a.status !== 'active');
-  const isLoading = loadingAssignments || loadingTerritories || loadingGroups;
+  const isLoading = loadingAssignments || loadingTerritories || loadingGroups || loadingHouseholds;
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -135,8 +154,9 @@ export default function MyAssignmentsClient() {
                 const terr = territoryMap.get(assignment.territoryId);
                 const number = terr?.number || assignment.territoryNumber || '—';
                 const name = terr?.name || assignment.territoryName || 'Territory';
-                const coverage = Math.round(parseFloat(terr?.coveragePercent ?? '0'));
-                const householdsCount = terr?.householdsCount ?? 0;
+                const liveStats = coverageByTerritoryId.get(assignment.territoryId);
+                const coverage = liveStats?.coveragePercent ?? Math.round(parseFloat(terr?.coveragePercent ?? '0'));
+                const householdsCount = liveStats?.totalDoors ?? terr?.householdsCount ?? 0;
                 const isGroupAssignment = Boolean(assignment.serviceGroupId);
 
                 return (
