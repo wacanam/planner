@@ -20,6 +20,7 @@ import {
   useCurrentUser,
   useHouseholds,
   useMyVisits,
+  useOverseenGroupMates,
 } from '@/hooks';
 import {
   canDeleteHousehold,
@@ -62,6 +63,7 @@ export default function HouseholdsClient() {
   const _searchParams = useSearchParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
+  const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -79,11 +81,13 @@ export default function HouseholdsClient() {
     userId: user?.id,
     userRole: user?.role,
     personalOnly: true,
+    groupMateUserIds,
   });
   const { data: territories = [] } = useCongregationTerritories(congregationId);
   const { visits: allVisits = [] } = useMyVisits({
     userId: user?.id,
     userRole: user?.role,
+    groupMateUserIds,
   });
 
   // Count visits per household
@@ -230,6 +234,14 @@ export default function HouseholdsClient() {
             const isCollaborator = Boolean(user?.id && h.collaboratorIds?.includes(user.id));
             const isReadOnly = Boolean(user?.id && h.readOnlyUserIds?.includes(user.id));
             const isOwner = Boolean(user?.id && h.createdById === user.id);
+            const isGroupMateRecord = Boolean(
+              user?.id &&
+                h.createdById &&
+                h.createdById !== user.id &&
+                !isCollaborator &&
+                !isReadOnly &&
+                groupMateUserIds.has(h.createdById)
+            );
 
             const canShare = canShareHousehold(user, h);
             const canEdit = canEditHousehold(user, h);
@@ -249,7 +261,7 @@ export default function HouseholdsClient() {
                         {h.address}
                       </p>
 
-                      {/* Collaboration / Transfer / Read-Only / Owner Badges */}
+                      {/* Collaboration / Transfer / Read-Only / Group Record / Owner Badges */}
                       {isTransferred && (
                         <Badge
                           variant="outline"
@@ -272,6 +284,14 @@ export default function HouseholdsClient() {
                           className="border-slate-300 text-slate-700 bg-slate-50 dark:bg-slate-950/40 text-[10px] py-0 font-bold"
                         >
                           👁️ Read-Only
+                        </Badge>
+                      )}
+                      {isGroupMateRecord && (
+                        <Badge
+                          variant="outline"
+                          className="border-indigo-300 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-[10px] py-0 font-bold"
+                        >
+                          👥 Group Record
                         </Badge>
                       )}
                       {isOwner && !isTransferred && (
@@ -316,9 +336,7 @@ export default function HouseholdsClient() {
                         <span>0 visits</span>
                       )}
                       {h.lastVisitDate && <span>· Last {timeAgo(h.lastVisitDate)}</span>}
-                      {h.creatorName && isCollaborator && (
-                        <span>· Owner: {h.creatorName}</span>
-                      )}
+                      {h.creatorName && !isOwner && <span>· Owner: {h.creatorName}</span>}
                     </div>
                   </div>
 

@@ -44,6 +44,7 @@ export interface EncounterFilters {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  groupMateUserIds?: string[] | Set<string> | null;
 }
 
 function encounterCollection() {
@@ -58,12 +59,20 @@ function encounterFromSnapshot(snapshot: QueryDocumentSnapshot): LocalEncounter 
   return snapshot.data() as LocalEncounter;
 }
 
-function filterEncounter(record: LocalEncounter, filters?: EncounterFilters) {
+export function filterEncounter(record: LocalEncounter, filters?: EncounterFilters) {
   if (record.deletedAt) return false;
   if (filters?.visitId && record.visitId !== filters.visitId) return false;
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.userId && !isTerritoryServant(filters.userRole)) {
-    if (record.userId !== filters.userId) return false;
+    const isOwn = record.userId === filters.userId;
+    const isGroupMate = Boolean(
+      filters.groupMateUserIds &&
+        record.userId &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.has(record.userId)
+          : filters.groupMateUserIds.includes(record.userId))
+    );
+    if (!isOwn && !isGroupMate) return false;
   }
   return true;
 }

@@ -1468,9 +1468,7 @@ export function StudioGoogleMap({
           strokeOpacity: 1.0,
           zIndex: isSelected ? 15 : 11,
           editable:
-            !isReadOnly &&
-            !isPrintViewportActive &&
-            (isPointerMode || activeTool === 'road'),
+            !isReadOnly && !isPrintViewportActive && (isPointerMode || activeTool === 'road'),
           clickable: !isPrintViewportActive,
           map,
         });
@@ -1660,11 +1658,7 @@ export function StudioGoogleMap({
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
         wrapper.style.cursor =
-          !isReadOnly && isPointerMode
-            ? 'grab'
-            : isPrintViewportActive
-              ? 'default'
-              : 'pointer';
+          !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = `${landmark.label || 'Landmark'} (${landmark.type})`;
 
@@ -1798,11 +1792,7 @@ export function StudioGoogleMap({
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
         wrapper.style.cursor =
-          !isReadOnly && isPointerMode
-            ? 'grab'
-            : isPrintViewportActive
-              ? 'default'
-              : 'pointer';
+          !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 

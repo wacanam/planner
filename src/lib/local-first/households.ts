@@ -59,6 +59,7 @@ export interface HouseholdFilters {
   userId?: string | null;
   userRole?: string | null;
   personalOnly?: boolean;
+  groupMateUserIds?: string[] | Set<string> | null;
 }
 
 function householdCollection() {
@@ -206,12 +207,16 @@ function createLocalHouseholdRecord(
 
 export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilters) {
   if (record.deletedAt) return false;
-  if (filters?.congregationId && record.congregationId && record.congregationId !== filters.congregationId) {
+  if (
+    filters?.congregationId &&
+    record.congregationId &&
+    record.congregationId !== filters.congregationId
+  ) {
     return false;
   }
   if (filters?.territoryId && record.territoryId !== filters.territoryId) return false;
 
-  // Personal scope filter: only show records owned by user or shared/transferred to user
+  // Personal scope filter: only show records owned by user, shared/transferred to user, or owned by group mates if user is a group overseer
   if (filters?.personalOnly) {
     if (isTerritoryServant(filters.userRole)) {
       return true;
@@ -222,8 +227,15 @@ export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilte
     const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
     const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
     const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
+    const isGroupMateRecord = Boolean(
+      filters.groupMateUserIds &&
+        record.createdById &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.has(record.createdById)
+          : filters.groupMateUserIds.includes(record.createdById))
+    );
 
-    return isOwner || isCollaborator || isReadOnly;
+    return isOwner || isCollaborator || isReadOnly || isGroupMateRecord;
   }
 
   return true;

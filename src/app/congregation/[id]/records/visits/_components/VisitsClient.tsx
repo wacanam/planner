@@ -1,6 +1,16 @@
 'use client';
 
-import { BookOpen, Calendar, Clock, Home, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  Home,
+  Pencil,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -13,8 +23,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCurrentUser, useMyEncounters, useMyVisits } from '@/hooks';
-import { canDeleteVisit, canEditVisit, isTerritoryServant } from '@/lib/permissions';
+import { useCurrentUser, useMyEncounters, useMyVisits, useOverseenGroupMates } from '@/hooks';
+import {
+  canDeleteVisit,
+  canEditVisit,
+  canLogVisitOrEncounter,
+  isTerritoryServant,
+} from '@/lib/permissions';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
@@ -43,13 +58,21 @@ export default function VisitsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const { visits = [], households = [], isLoading } = useMyVisits({
+  const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
+
+  const {
+    visits = [],
+    households = [],
+    isLoading,
+  } = useMyVisits({
     userId: user?.id,
     userRole: user?.role,
+    groupMateUserIds,
   });
   const { encounters = [] } = useMyEncounters({
     userId: user?.id,
     userRole: user?.role,
+    groupMateUserIds,
   });
 
   const [search, setSearch] = useState('');
@@ -172,7 +195,10 @@ export default function VisitsClient() {
       {/* Search & Filters */}
       <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             placeholder="Search by address, street, city, notes, topic…"
             value={search}
@@ -249,11 +275,16 @@ export default function VisitsClient() {
                     </div>
 
                     {/* Visit Date & Relative time */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                       <Calendar size={12} className="shrink-0" />
                       <span>
                         {new Date(v.visitDate).toLocaleString()} · {timeAgo(v.visitDate)}
                       </span>
+                      {v.userId !== user?.id && (household?.creatorName || v.publisherName) && (
+                        <span className="text-foreground/80 font-medium">
+                          · Logged by {v.publisherName || household?.creatorName}
+                        </span>
+                      )}
                     </div>
 
                     {/* Topic & Literature */}
@@ -322,16 +353,18 @@ export default function VisitsClient() {
 
                   {/* Actions: Add Encounter, Edit & Delete */}
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
-                      onClick={() => setAddEncounterVisit(v)}
-                      title="Record person met during this visit"
-                    >
-                      <UserPlus size={13} />
-                      <span>+ Person Met</span>
-                    </Button>
+                    {(canLogVisitOrEncounter(user, household) || v.userId === user?.id) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
+                        onClick={() => setAddEncounterVisit(v)}
+                        title="Record person met during this visit"
+                      >
+                        <UserPlus size={13} />
+                        <span>+ Person Met</span>
+                      </Button>
+                    )}
 
                     {canEditVisit(user, v, household) && (
                       <Button

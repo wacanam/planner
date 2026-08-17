@@ -99,7 +99,12 @@ describe('useCongregationMembers helpers', () => {
           userId: 'user-1',
           congregationId: 'cong-1',
           status: 'active',
-          user: { id: 'user-1', name: 'Alice', email: 'alice@example.com', role: UserRole.PUBLISHER },
+          user: {
+            id: 'user-1',
+            name: 'Alice',
+            email: 'alice@example.com',
+            role: UserRole.PUBLISHER,
+          },
         }),
         memberFromData('user-2', {
           id: 'user-2',
@@ -113,7 +118,12 @@ describe('useCongregationMembers helpers', () => {
           userId: 'user-3',
           congregationId: 'cong-1',
           status: 'pending',
-          user: { id: 'user-3', name: 'Charlie', email: 'charlie@example.com', role: UserRole.PUBLISHER },
+          user: {
+            id: 'user-3',
+            name: 'Charlie',
+            email: 'charlie@example.com',
+            role: UserRole.PUBLISHER,
+          },
         }),
       ];
 

@@ -2,6 +2,7 @@
 
 import {
   BarChart2,
+  Bell,
   ChevronRight,
   Compass,
   FileText,
@@ -26,7 +27,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useCurrentUser, usePendingEndorsements, usePendingSharesCount } from '@/hooks';
+import {
+  useCurrentUser,
+  useNotifications,
+  usePendingEndorsements,
+  usePendingSharesCount,
+} from '@/hooks';
 import {
   canViewReports,
   isServiceOverseer,
@@ -42,6 +48,7 @@ export function BottomTabBar() {
   const { user } = useCurrentUser();
   const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
   const { count: pendingSharesCount } = usePendingSharesCount();
+  const { unreadCount: unreadNotificationsCount } = useNotifications();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   if (!id) return null;
@@ -109,7 +116,10 @@ export function BottomTabBar() {
     pathname.includes('/members') ||
     pathname.includes('/groups') ||
     pathname.includes('/reports') ||
+    pathname.includes('/notifications') ||
     pathname.includes('/profile');
+
+  const drawerBadgeCount = (pendingEndorsementsCount || 0) + (unreadNotificationsCount || 0);
 
   const handleNavigate = (href: string) => {
     setSheetOpen(false);
@@ -163,9 +173,9 @@ export function BottomTabBar() {
             >
               <div className="relative mb-0.5">
                 <Menu size={18} />
-                {Boolean(pendingEndorsementsCount) && (
+                {Boolean(drawerBadgeCount) && (
                   <span className="absolute -top-1 -right-2 inline-flex items-center justify-center h-3.5 min-w-3.5 px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-                    {pendingEndorsementsCount}
+                    {drawerBadgeCount}
                   </span>
                 )}
               </div>
@@ -242,6 +252,38 @@ export function BottomTabBar() {
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1">
                   General & Account
                 </p>
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigate(`/congregation/${id}/notifications`)}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                    pathname.includes('/notifications')
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'bg-card border-border hover:bg-muted/60 text-foreground'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                      <Bell size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-xs text-foreground block">
+                          Notifications
+                        </span>
+                        {Boolean(unreadNotificationsCount) && (
+                          <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
+                            {unreadNotificationsCount} New
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground truncate block">
+                        Assignment & ministry updates
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                </button>
 
                 <button
                   type="button"

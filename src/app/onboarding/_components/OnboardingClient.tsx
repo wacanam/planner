@@ -22,7 +22,9 @@ import { Label } from '@/components/ui/label';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import { CongregationRole, MemberStatus } from '@/lib/roles';
+import { notifyCongregationOverseers } from '@/lib/notifications';
+import { CongregationRole, MemberStatus, NotificationType } from '@/lib/roles';
+
 import {
   type CreateCongregationFormData,
   createCongregationSchema,
@@ -174,7 +176,8 @@ export default function OnboardingPage() {
     setJoinError('');
     try {
       if (!userId) throw new Error('Sign in again to request access.');
-      await setDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, userId), {
+      const firestore = getPlannerFirestore();
+      await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.congregationMembers, userId), {
         id: userId,
         userId,
         congregationId: selectedCong.id,
@@ -191,6 +194,24 @@ export default function OnboardingPage() {
           role: session?.user?.role ?? null,
         },
       });
+
+      // Notify congregation overseers of the new join request
+      try {
+        await notifyCongregationOverseers(firestore, selectedCong.id, {
+          type: NotificationType.JOIN_REQUEST,
+          title: 'New Member Access Request',
+          body: `${user?.name || userEmail || 'A user'} requested to join ${selectedCong.name}.`,
+          data: {
+            congregationId: selectedCong.id,
+            userId,
+            applicantName: user?.name || userEmail,
+          },
+          excludeUserId: userId,
+        });
+      } catch (notifErr) {
+        console.error('Failed to notify overseers of join request:', notifErr);
+      }
+
       setMode('join-sent');
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');

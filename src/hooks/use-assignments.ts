@@ -14,7 +14,8 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import { AssignmentStatus, EndorsementStatus } from '@/lib/roles';
+import { createInAppNotification, notifyCongregationOverseers } from '@/lib/notifications';
+import { AssignmentStatus, EndorsementStatus, NotificationType } from '@/lib/roles';
 import type { Assignment } from '@/types/api';
 
 function assignmentCollection() {
@@ -171,6 +172,7 @@ export function useCreateAssignment() {
         const now = nowIso();
         const id = createClientId();
         const territoryId = arg.territoryId;
+        const firestore = getPlannerFirestore();
 
         const assignmentDoc: Assignment = {
           id,
@@ -196,18 +198,42 @@ export function useCreateAssignment() {
 
         await setDoc(assignmentDocument(id), assignmentDoc);
 
+        // Fetch territory info for notification context and update territory status
+        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId);
+        const territorySnap = await getDoc(territoryRef);
+        const territoryData = territorySnap.exists() ? territorySnap.data() : null;
+        const congId = territoryData?.congregationId;
+        const territoryNumber = territoryData?.number || territoryId;
+
         // Also mark territory as pending
-        await updateDoc(
-          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
-          {
-            status: 'pending',
-            publisherId: arg.userId ?? null,
-            publisherName: arg.assigneeName ?? null,
-            groupId: arg.serviceGroupId ?? null,
-            groupName: arg.groupName ?? null,
-            updatedAt: now,
+        await updateDoc(territoryRef, {
+          status: 'pending',
+          publisherId: arg.userId ?? null,
+          publisherName: arg.assigneeName ?? null,
+          groupId: arg.serviceGroupId ?? null,
+          groupName: arg.groupName ?? null,
+          updatedAt: now,
+        });
+
+        // Notify congregation service overseers
+        if (congId) {
+          try {
+            await notifyCongregationOverseers(firestore, congId, {
+              type: NotificationType.TERRITORY_ENDORSED,
+              title: 'New Territory Endorsement',
+              body: `${arg.assigneeName || 'A publisher'} was endorsed for Territory #${territoryNumber}.`,
+              data: {
+                congregationId: congId,
+                territoryId,
+                assignmentId: id,
+                territoryNumber,
+              },
+              excludeUserId: arg.endorsedByUserId,
+            });
+          } catch (notifErr) {
+            console.error('Failed to notify overseers of territory endorsement:', notifErr);
           }
-        );
+        }
 
         return { id };
       } finally {
@@ -234,6 +260,7 @@ export function useApproveAssignment(_congregationId?: string) {
       setIsApproving(true);
       try {
         const now = nowIso();
+        const firestore = getPlannerFirestore();
         const snap = await getDoc(assignmentDocument(assignmentId));
         if (!snap.exists()) throw new Error('Assignment not found');
         const assignment = snap.data() as Assignment;
@@ -247,59 +274,128 @@ export function useApproveAssignment(_congregationId?: string) {
             updatedAt: now,
           });
 
+          let territoryNumber = assignment.territoryNumber || '';
+          let congId = _congregationId;
+
           if (assignment.territoryId) {
-            await updateDoc(
-              doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
-              {
-                status: 'assigned',
-                publisherId: assignment.userId,
-                publisherName: assignment.assigneeName,
-                groupId: assignment.serviceGroupId,
-                groupName: assignment.groupName,
-                updatedAt: now,
-              }
+            const territoryRef = doc(
+              firestore,
+              FIRESTORE_COLLECTIONS.territories,
+              assignment.territoryId
             );
+            const territorySnap = await getDoc(territoryRef);
+            if (territorySnap.exists()) {
+              const tData = territorySnap.data();
+              territoryNumber = tData.number || territoryNumber;
+              congId = tData.congregationId || congId;
+            }
+
+            await updateDoc(territoryRef, {
+              status: 'assigned',
+              publisherId: assignment.userId,
+              publisherName: assignment.assigneeName,
+              groupId: assignment.serviceGroupId,
+              groupName: assignment.groupName,
+              updatedAt: now,
+            });
+          }
+
+          // Notify the assigned publisher
+          if (assignment.userId) {
+            try {
+              await createInAppNotification(firestore, {
+                userId: assignment.userId,
+                type: NotificationType.TERRITORY_APPROVED,
+                title: 'Territory Assignment Approved',
+                body: `Your assignment for Territory #${territoryNumber || ''} has been approved.`,
+                data: {
+                  congregationId: congId,
+                  territoryId: assignment.territoryId,
+                  assignmentId,
+                  territoryNumber,
+                },
+              });
+            } catch (notifErr) {
+              console.error('Failed to notify publisher of approval:', notifErr);
+            }
           }
         }
       } finally {
         setIsApproving(false);
       }
     },
-    []
+    [_congregationId]
   );
 
-  const reject = useCallback(async (assignmentId: string, reason?: string) => {
-    setIsApproving(true);
-    try {
-      const now = nowIso();
-      const snap = await getDoc(assignmentDocument(assignmentId));
-      if (!snap.exists()) throw new Error('Assignment not found');
-      const assignment = snap.data() as Assignment;
+  const reject = useCallback(
+    async (assignmentId: string, reason?: string) => {
+      setIsApproving(true);
+      try {
+        const now = nowIso();
+        const firestore = getPlannerFirestore();
+        const snap = await getDoc(assignmentDocument(assignmentId));
+        if (!snap.exists()) throw new Error('Assignment not found');
+        const assignment = snap.data() as Assignment;
 
-      await updateDoc(assignmentDocument(assignmentId), {
-        status: AssignmentStatus.REJECTED,
-        endorsementStatus: EndorsementStatus.REJECTED,
-        rejectionReason: reason ?? null,
-        updatedAt: now,
-      });
+        await updateDoc(assignmentDocument(assignmentId), {
+          status: AssignmentStatus.REJECTED,
+          endorsementStatus: EndorsementStatus.REJECTED,
+          rejectionReason: reason ?? null,
+          updatedAt: now,
+        });
 
-      if (assignment.territoryId) {
-        await updateDoc(
-          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
-          {
+        let territoryNumber = assignment.territoryNumber || '';
+        let congId = _congregationId;
+
+        if (assignment.territoryId) {
+          const territoryRef = doc(
+            firestore,
+            FIRESTORE_COLLECTIONS.territories,
+            assignment.territoryId
+          );
+          const territorySnap = await getDoc(territoryRef);
+          if (territorySnap.exists()) {
+            const tData = territorySnap.data();
+            territoryNumber = tData.number || territoryNumber;
+            congId = tData.congregationId || congId;
+          }
+
+          await updateDoc(territoryRef, {
             status: 'available',
             publisherId: null,
             publisherName: null,
             groupId: null,
             groupName: null,
             updatedAt: now,
+          });
+        }
+
+        // Notify the assigned publisher and/or the servant who endorsed
+        const recipientId = assignment.userId || assignment.endorsedBy;
+        if (recipientId) {
+          try {
+            await createInAppNotification(firestore, {
+              userId: recipientId,
+              type: NotificationType.TERRITORY_REJECTED,
+              title: 'Territory Assignment Declined',
+              body: `Territory #${territoryNumber || ''} assignment was declined.${reason ? ` Reason: ${reason}` : ''}`,
+              data: {
+                congregationId: congId,
+                territoryId: assignment.territoryId,
+                assignmentId,
+                territoryNumber,
+              },
+            });
+          } catch (notifErr) {
+            console.error('Failed to notify rejection:', notifErr);
           }
-        );
+        }
+      } finally {
+        setIsApproving(false);
       }
-    } finally {
-      setIsApproving(false);
-    }
-  }, []);
+    },
+    [_congregationId]
+  );
 
   return { approve, reject, isApproving, isPending: isApproving };
 }
@@ -360,6 +456,7 @@ export function useReturnAssignment() {
     setIsReturning(true);
     try {
       const now = nowIso();
+      const firestore = getPlannerFirestore();
       const snap = await getDoc(assignmentDocument(assignmentId));
       if (!snap.exists()) throw new Error('Assignment not found');
       const assignment = snap.data() as Assignment;
@@ -370,18 +467,50 @@ export function useReturnAssignment() {
         updatedAt: now,
       });
 
+      let territoryNumber = assignment.territoryNumber || '';
+      let congId: string | undefined;
+
       if (assignment.territoryId) {
-        await updateDoc(
-          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
-          {
-            status: 'available',
-            publisherId: null,
-            publisherName: null,
-            groupId: null,
-            groupName: null,
-            updatedAt: now,
-          }
+        const territoryRef = doc(
+          firestore,
+          FIRESTORE_COLLECTIONS.territories,
+          assignment.territoryId
         );
+        const territorySnap = await getDoc(territoryRef);
+        if (territorySnap.exists()) {
+          const tData = territorySnap.data();
+          territoryNumber = tData.number || territoryNumber;
+          congId = tData.congregationId;
+        }
+
+        await updateDoc(territoryRef, {
+          status: 'available',
+          publisherId: null,
+          publisherName: null,
+          groupId: null,
+          groupName: null,
+          updatedAt: now,
+        });
+      }
+
+      // Notify overseers that territory has been returned
+      if (congId) {
+        try {
+          await notifyCongregationOverseers(firestore, congId, {
+            type: NotificationType.TERRITORY_RETURNED,
+            title: 'Territory Returned',
+            body: `Territory #${territoryNumber} was returned by ${assignment.assigneeName || 'a publisher'}.`,
+            data: {
+              congregationId: congId,
+              territoryId: assignment.territoryId,
+              assignmentId,
+              territoryNumber,
+            },
+            excludeUserId: assignment.userId,
+          });
+        } catch (notifErr) {
+          console.error('Failed to notify overseers of territory return:', notifErr);
+        }
       }
     } finally {
       setIsReturning(false);

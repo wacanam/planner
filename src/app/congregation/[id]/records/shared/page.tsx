@@ -75,7 +75,9 @@ export default function SharedRecordsPage() {
     const newMode = currentMode === 'collaborate' ? 'view' : 'collaborate';
     try {
       await updateSharePermission(householdId, toUserId, newMode, shareId);
-      toast.success(`Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`);
+      toast.success(
+        `Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`
+      );
     } catch (err) {
       toast.error('Failed to update permission');
     } finally {
@@ -295,12 +297,7 @@ export default function SharedRecordsPage() {
                         variant="outline"
                         className="rounded-xl text-xs"
                         onClick={() =>
-                          handleToggleMode(
-                            share.householdId,
-                            share.toUserId,
-                            share.mode,
-                            share.id
-                          )
+                          handleToggleMode(share.householdId, share.toUserId, share.mode, share.id)
                         }
                         disabled={actionInProgress === share.id}
                       >

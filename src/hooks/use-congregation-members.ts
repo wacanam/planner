@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { createInAppNotification } from '@/lib/notifications';
 import { CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
 import type { JoinRequest, Member } from '@/types/api';
 
@@ -167,9 +168,7 @@ export function useReviewJoinRequest(congregationId: string) {
         const db = getPlannerFirestore();
         const memberRef = memberDocument(arg.requestId);
         const memberSnap = await getDoc(memberRef);
-        const memberData = memberSnap.exists()
-          ? (memberSnap.data() as Partial<Member>)
-          : undefined;
+        const memberData = memberSnap.exists() ? (memberSnap.data() as Partial<Member>) : undefined;
         const targetUserId = memberData?.userId || arg.requestId;
 
         // Fetch user data from users collection to guarantee user info in member doc
@@ -190,8 +189,7 @@ export function useReviewJoinRequest(congregationId: string) {
         await updateDoc(memberRef, {
           status: finalStatus,
           congregationRole:
-            memberData?.congregationRole ||
-            (isApproved ? CongregationRole.PUBLISHER : null),
+            memberData?.congregationRole || (isApproved ? CongregationRole.PUBLISHER : null),
           reviewNote: arg.reviewNote ?? null,
           reviewedAt: now,
           updatedAt: now,
@@ -216,21 +214,18 @@ export function useReviewJoinRequest(congregationId: string) {
         }
 
         const notificationId = createClientId();
-        await setDoc(
-          doc(db, FIRESTORE_COLLECTIONS.notifications, notificationId),
-          {
-            id: notificationId,
-            userId: targetUserId,
-            type: isApproved ? NotificationType.JOIN_APPROVED : NotificationType.JOIN_REJECTED,
-            title: isApproved ? 'Join request approved' : 'Join request rejected',
-            body: isApproved
-              ? 'Your congregation access request was approved.'
-              : 'Your congregation access request was not approved.',
-            data: JSON.stringify({ congregationId }),
-            isRead: false,
-            createdAt: now,
-          }
-        );
+        await setDoc(doc(db, FIRESTORE_COLLECTIONS.notifications, notificationId), {
+          id: notificationId,
+          userId: targetUserId,
+          type: isApproved ? NotificationType.JOIN_APPROVED : NotificationType.JOIN_REJECTED,
+          title: isApproved ? 'Join request approved' : 'Join request rejected',
+          body: isApproved
+            ? 'Your congregation access request was approved.'
+            : 'Your congregation access request was not approved.',
+          data: JSON.stringify({ congregationId }),
+          isRead: false,
+          createdAt: now,
+        });
       } finally {
         setIsReviewing(false);
       }
@@ -246,15 +241,39 @@ export function useUpdateMemberRole(_congregationId: string) {
     async (arg: { userId: string; congregationRole: string | null }) => {
       setIsUpdating(true);
       try {
+        const now = nowIso();
+        const firestore = getPlannerFirestore();
         await updateDoc(memberDocument(arg.userId), {
           congregationRole: arg.congregationRole,
-          updatedAt: nowIso(),
+          updatedAt: now,
         });
+
+        const formattedRole = arg.congregationRole
+          ? arg.congregationRole
+              .replace(/_/g, ' ')
+              .toLowerCase()
+              .replace(/\b\w/g, (l) => l.toUpperCase())
+          : 'Publisher';
+
+        try {
+          await createInAppNotification(firestore, {
+            userId: arg.userId,
+            type: NotificationType.ROLE_UPDATED,
+            title: 'Congregation Role Updated',
+            body: `Your congregation role has been set to ${formattedRole}.`,
+            data: {
+              congregationId: _congregationId,
+              role: arg.congregationRole,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to notify member of role change:', notifErr);
+        }
       } finally {
         setIsUpdating(false);
       }
     },
-    []
+    [_congregationId]
   );
   return { updateRole, isUpdating, isPending: isUpdating };
 }

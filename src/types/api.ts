@@ -204,6 +204,43 @@ export interface Assignment {
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
 
+export type NotificationSoundStyle = 'chime' | 'ding' | 'pop' | 'subtle';
+
+export interface UserNotificationSettings {
+  soundEnabled: boolean;
+  soundStyle: NotificationSoundStyle;
+  territoryUpdates: boolean;
+  shareUpdates: boolean;
+  membershipUpdates: boolean;
+  accountUpdates: boolean;
+  systemAnnouncements: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationSettings = {
+  soundEnabled: true,
+  soundStyle: 'chime',
+  territoryUpdates: true,
+  shareUpdates: true,
+  membershipUpdates: true,
+  accountUpdates: true,
+  systemAnnouncements: true,
+};
+
+export interface NotificationDataPayload {
+  congregationId?: string;
+  territoryId?: string;
+  territoryNumber?: string;
+  assignmentId?: string;
+  shareId?: string;
+  householdId?: string;
+  mode?: string;
+  requestId?: string;
+  requestType?: string;
+  role?: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
 export interface Notification {
   id: string;
   userId: string;
@@ -213,6 +250,7 @@ export interface Notification {
   data: string | null;
   isRead: boolean;
   createdAt: string;
+  readAt?: string | null;
 }
 
 // ─── Record Sharing ────────────────────────────────────────────────────────────
@@ -380,6 +418,7 @@ export interface User {
   isActive: boolean;
   avatarUrl?: string | null;
   image?: string | null;
+  notificationSettings?: UserNotificationSettings;
   createdAt: string;
   updatedAt: string;
 }

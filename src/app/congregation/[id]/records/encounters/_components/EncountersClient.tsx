@@ -1,6 +1,7 @@
 'use client';
 
 import { BookOpen, Calendar, Home, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCurrentUser, useHouseholds, useMyEncounters } from '@/hooks';
+import { useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
 import { canDeleteEncounter, canEditEncounter, isTerritoryServant } from '@/lib/permissions';
 import {
   deleteEncounterRecord,
@@ -33,15 +34,21 @@ const responseColors: Record<string, string> = {
 };
 
 export default function EncountersClient() {
+  const params = useParams();
   const { user } = useCurrentUser();
+  const congregationId = (params?.id as string) || user?.congregationId || '';
+  const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
+
   const { encounters = [], isLoading } = useMyEncounters({
     userId: user?.id,
     userRole: user?.role,
+    groupMateUserIds,
   });
   const { households = [] } = useHouseholds({
     userId: user?.id,
     userRole: user?.role,
     personalOnly: true,
+    groupMateUserIds,
   });
 
   const [search, setSearch] = useState('');
@@ -238,6 +245,11 @@ export default function EncountersClient() {
                       <Calendar size={12} className="shrink-0" />
                       <span>{new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}</span>
                     </div>
+                    {e.userId !== user?.id && e.publisherName && (
+                      <span className="text-foreground/80 font-medium">
+                        · Recorded by {e.publisherName}
+                      </span>
+                    )}
                     {e.visitId && (
                       <span className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md font-medium">
                         Linked to Visit {e.visitOutcome ? `(${e.visitOutcome})` : ''}
@@ -266,7 +278,11 @@ export default function EncountersClient() {
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  {canEditEncounter(user, e, households.find((h) => h.id === e.householdId)) && (
+                  {canEditEncounter(
+                    user,
+                    e,
+                    households.find((h) => h.id === e.householdId)
+                  ) && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -278,7 +294,11 @@ export default function EncountersClient() {
                     </Button>
                   )}
 
-                  {canDeleteEncounter(user, e, households.find((h) => h.id === e.householdId)) && (
+                  {canDeleteEncounter(
+                    user,
+                    e,
+                    households.find((h) => h.id === e.householdId)
+                  ) && (
                     <Button
                       size="sm"
                       variant="ghost"

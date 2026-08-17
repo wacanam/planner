@@ -90,8 +90,13 @@ export const NotificationType = {
   TERRITORY_ENDORSED: 'territory_endorsed',
   TERRITORY_APPROVED: 'territory_approved',
   TERRITORY_REJECTED: 'territory_rejected',
+  TERRITORY_RETURNED: 'territory_returned',
   SHARE_REQUEST: 'share_request',
   SHARE_ACCEPTED: 'share_accepted',
   SHARE_DECLINED: 'share_declined',
+  ROLE_UPDATED: 'role_updated',
+  ACCOUNT_REQUEST_SUBMITTED: 'account_request_submitted',
+  ACCOUNT_REQUEST_RESOLVED: 'account_request_resolved',
+  SYSTEM_ANNOUNCEMENT: 'system_announcement',
 } as const;
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

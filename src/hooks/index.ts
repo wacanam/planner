@@ -7,6 +7,9 @@ export * from './use-congregations';
 export * from './use-current-user';
 export * from './use-encounters';
 export * from './use-notifications';
+export * from './use-notification-sound';
+export * from './use-notification-settings';
+
 export * from './use-profile';
 export * from './use-reports';
 export * from './use-shares';

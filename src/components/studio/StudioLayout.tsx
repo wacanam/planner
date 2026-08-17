@@ -1075,7 +1075,9 @@ export function StudioLayout({
                       window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
                     ) {
                       const existingBoundaries = getTerritoryBoundaries(territory);
-                      const updated = existingBoundaries.filter((b) => b.id !== selectedBoundary.id);
+                      const updated = existingBoundaries.filter(
+                        (b) => b.id !== selectedBoundary.id
+                      );
                       await saveAnnotations({
                         ...territory.annotations,
                         boundaries: updated,

@@ -46,10 +46,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
   const [notes, setNotes] = useState('');
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  const activeMembers = useMemo(
-    () => members.filter((m) => m.status === 'active'),
-    [members]
-  );
+  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members]);
 
   const memberMap = useMemo(
     () => new Map(members.map((m) => [m.userId, m.user?.name || m.user?.email || m.userId])),
@@ -60,10 +57,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
   const activeCollaborators = household?.collaboratorIds || [];
   const activeReadOnly = household?.readOnlyUserIds || [];
   const pendingOutgoingForThisHousehold = useMemo(
-    () =>
-      outgoingShares.filter(
-        (s) => s.householdId === household?.id && s.status === 'pending'
-      ),
+    () => outgoingShares.filter((s) => s.householdId === household?.id && s.status === 'pending'),
     [household?.id, outgoingShares]
   );
 
@@ -73,8 +67,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
   const handleShare = async () => {
     if (!household || !targetUserId) return;
     const selectedMember = activeMembers.find((m) => m.userId === targetUserId);
-    const recipientName =
-      selectedMember?.user?.name || selectedMember?.user?.email || 'Publisher';
+    const recipientName = selectedMember?.user?.name || selectedMember?.user?.email || 'Publisher';
     try {
       await createShare({
         toUserId: targetUserId,
@@ -83,9 +76,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
         notes: notes || undefined,
       });
       toast.success(
-        shareType === 'transfer'
-          ? 'Transfer invitation sent'
-          : `Shared with ${recipientName}`
+        shareType === 'transfer' ? 'Transfer invitation sent' : `Shared with ${recipientName}`
       );
       onOpenChange(false);
       setTargetUserId('');
@@ -120,7 +111,9 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
         (s) => s.householdId === household.id && s.toUserId === targetUserId
       );
       await updateSharePermission(household.id, targetUserId, newMode, matchShare?.id);
-      toast.success(`Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`);
+      toast.success(
+        `Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`
+      );
     } catch (err) {
       toast.error('Failed to update permission');
     } finally {
@@ -146,7 +139,9 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
       onOpenChange={onOpenChange}
       title="Record Sharing & Access Control"
       description={
-        household ? `${household.address} (${household.city})` : 'Collaborate with fellow publishers'
+        household
+          ? `${household.address} (${household.city})`
+          : 'Collaborate with fellow publishers'
       }
     >
       <div className="space-y-4">
@@ -206,9 +201,13 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
                   <SelectValue placeholder="Action type" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
-                  <SelectItem value="collaborate">🤝 Collaborate (Partner can log visits & encounters)</SelectItem>
+                  <SelectItem value="collaborate">
+                    🤝 Collaborate (Partner can log visits & encounters)
+                  </SelectItem>
                   <SelectItem value="view">👁️ View Only (Read notes & history)</SelectItem>
-                  <SelectItem value="transfer">🔄 Full Transfer (Transfer record ownership completely)</SelectItem>
+                  <SelectItem value="transfer">
+                    🔄 Full Transfer (Transfer record ownership completely)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

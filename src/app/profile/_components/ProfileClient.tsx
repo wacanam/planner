@@ -3,22 +3,27 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
+  Bell,
   Building2,
   Calendar,
   Camera,
   CheckCircle2,
   ChevronRight,
+  Cloud,
   Eye,
   EyeOff,
   KeyRound,
   Layers,
   LogOut,
   MapPin,
+  Share2,
   Shield,
   Sparkles,
   Trash2,
   User,
   Users,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
@@ -32,6 +37,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useChangePassword,
@@ -41,10 +54,12 @@ import {
   useCurrentUser,
   useMyAccountRequests,
   useMyAssignments,
+  useNotificationSettings,
   useProfile,
   useUpdateAvatar,
   useUpdateProfile,
 } from '@/hooks';
+import type { NotificationSoundStyle } from '@/types/api';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
 
@@ -60,6 +75,16 @@ export default function ProfilePage() {
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
   const updateAvatar = useUpdateAvatar();
+  const {
+    settings: notifSettings,
+    soundEnabled: notifSoundEnabled,
+    soundStyle: notifSoundStyle,
+    isUpdating: isUpdatingNotif,
+    updateSettings: updateNotifSettings,
+    toggleSound: toggleNotifSound,
+    setSoundStyle: setNotifSoundStyle,
+    playPreview: playNotifPreview,
+  } = useNotificationSettings();
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState('');
@@ -601,6 +626,217 @@ export default function ProfilePage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          {/* Notification Preferences Form */}
+          <Card className="bg-card border-border shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Bell size={16} className="text-primary" />
+                  <span>Notification Preferences</span>
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] py-0 h-4 border-primary/30 text-primary"
+                >
+                  <Cloud size={11} className="mr-1" />
+                  Firebase Cloud Sync
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-muted-foreground">
+                Manage real-time in-app alerts and audio chimes stored in your Firebase account
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Audio Sound Settings */}
+              <div className="p-3.5 rounded-2xl border border-border bg-muted/20 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor="profile-sound-switch"
+                      className="font-semibold text-xs text-foreground cursor-pointer"
+                    >
+                      Notification Audio Sound
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Play a gentle chime when new notifications arrive in real-time.
+                    </p>
+                  </div>
+                  <Switch
+                    id="profile-sound-switch"
+                    checked={notifSoundEnabled}
+                    onCheckedChange={toggleNotifSound}
+                    disabled={isUpdatingNotif}
+                  />
+                </div>
+
+                {notifSoundEnabled && (
+                  <div className="pt-2.5 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-semibold text-foreground">Chime Style</span>
+                      <p className="text-[11px] text-muted-foreground">
+                        Choose synthesizer tone profile.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={notifSoundStyle}
+                        onValueChange={(style) =>
+                          setNotifSoundStyle(style as NotificationSoundStyle)
+                        }
+                        disabled={isUpdatingNotif}
+                      >
+                        <SelectTrigger className="h-8 w-[135px] rounded-xl text-xs">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="chime" className="text-xs">
+                            Chime (Modern)
+                          </SelectItem>
+                          <SelectItem value="ding" className="text-xs">
+                            Ding (Bell)
+                          </SelectItem>
+                          <SelectItem value="pop" className="text-xs">
+                            Pop (Crisp)
+                          </SelectItem>
+                          <SelectItem value="subtle" className="text-xs">
+                            Subtle (Warm)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => playNotifPreview(notifSoundStyle)}
+                        className="h-8 px-2.5 rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer"
+                      >
+                        <Volume2 size={13} className="mr-1" />
+                        Test
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Categories */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+                  Event Categories
+                </p>
+
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <MapPin size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <Label
+                          htmlFor="profile-cat-territory"
+                          className="text-xs font-semibold text-foreground block cursor-pointer"
+                        >
+                          Territories & Assignments
+                        </Label>
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          Approvals, endorsements, rejections & returns
+                        </span>
+                      </div>
+                    </div>
+                    <Switch
+                      id="profile-cat-territory"
+                      checked={notifSettings.territoryUpdates}
+                      onCheckedChange={(checked) =>
+                        updateNotifSettings({ territoryUpdates: checked })
+                      }
+                      disabled={isUpdatingNotif}
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                        <Share2 size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <Label
+                          htmlFor="profile-cat-share"
+                          className="text-xs font-semibold text-foreground block cursor-pointer"
+                        >
+                          Record Sharing
+                        </Label>
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          Household share requests, acceptances & declines
+                        </span>
+                      </div>
+                    </div>
+                    <Switch
+                      id="profile-cat-share"
+                      checked={notifSettings.shareUpdates}
+                      onCheckedChange={(checked) => updateNotifSettings({ shareUpdates: checked })}
+                      disabled={isUpdatingNotif}
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                        <Users size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <Label
+                          htmlFor="profile-cat-membership"
+                          className="text-xs font-semibold text-foreground block cursor-pointer"
+                        >
+                          Membership & Access
+                        </Label>
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          Join requests, endorsements & role updates
+                        </span>
+                      </div>
+                    </div>
+                    <Switch
+                      id="profile-cat-membership"
+                      checked={notifSettings.membershipUpdates}
+                      onCheckedChange={(checked) =>
+                        updateNotifSettings({ membershipUpdates: checked })
+                      }
+                      disabled={isUpdatingNotif}
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <Shield size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <Label
+                          htmlFor="profile-cat-account"
+                          className="text-xs font-semibold text-foreground block cursor-pointer"
+                        >
+                          Account & Requests
+                        </Label>
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          Leave requests & account status updates
+                        </span>
+                      </div>
+                    </div>
+                    <Switch
+                      id="profile-cat-account"
+                      checked={notifSettings.accountUpdates}
+                      onCheckedChange={(checked) =>
+                        updateNotifSettings({ accountUpdates: checked })
+                      }
+                      disabled={isUpdatingNotif}
+                    />
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

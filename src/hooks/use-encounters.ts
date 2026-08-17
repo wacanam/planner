@@ -19,11 +19,13 @@ function useEncounterRecords(filters?: {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  groupMateUserIds?: string[] | Set<string> | null;
 }) {
   const visitId = filters?.visitId ?? null;
   const householdId = filters?.householdId ?? null;
   const userId = filters?.userId ?? null;
   const userRole = filters?.userRole ?? null;
+  const groupMateUserIds = filters?.groupMateUserIds ?? null;
 
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
@@ -38,7 +40,7 @@ function useEncounterRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { visitId, householdId },
+      { visitId, householdId, userId, userRole, groupMateUserIds },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -47,7 +49,7 @@ function useEncounterRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { personalOnly: true, userId, userRole },
+      { personalOnly: true, userId, userRole, groupMateUserIds },
       setHouseholds,
       handleError
     );
@@ -57,7 +59,7 @@ function useEncounterRecords(filters?: {
       unsubscribeHouseholds();
       unsubscribeVisits();
     };
-  }, [householdId, userId, userRole, visitId]);
+  }, [groupMateUserIds, householdId, userId, userRole, visitId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),
@@ -67,12 +69,19 @@ function useEncounterRecords(filters?: {
     () => new Map(visits.map((visit) => [visit.id, visit] as const)),
     [visits]
   );
+  const groupMateSet = useMemo(() => {
+    if (!groupMateUserIds) return null;
+    return groupMateUserIds instanceof Set ? groupMateUserIds : new Set(groupMateUserIds);
+  }, [groupMateUserIds]);
 
   const mappedEncounters = useMemo(() => {
     let filtered = encounters;
     if (userId && !isTerritoryServant(userRole)) {
       filtered = encounters.filter(
-        (e) => e.userId === userId || (e.householdId && householdMap.has(e.householdId))
+        (e) =>
+          e.userId === userId ||
+          (e.householdId && householdMap.has(e.householdId)) ||
+          Boolean(groupMateSet && e.userId && groupMateSet.has(e.userId))
       );
     }
     return sortEncounters(
@@ -84,7 +93,7 @@ function useEncounterRecords(filters?: {
         )
       )
     );
-  }, [encounters, householdMap, userId, userRole, visitMap]);
+  }, [encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
 
   return { encounters: mappedEncounters, households, isLoading, error };
 }
@@ -98,6 +107,7 @@ export function useMyEncounters(filters?: {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  groupMateUserIds?: string[] | Set<string> | null;
 }) {
   return useEncounterRecords(filters);
 }

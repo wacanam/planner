@@ -83,7 +83,10 @@ export function canViewReports(role?: string | null): boolean {
 export function isGroupOverseer(
   userId: string | null | undefined,
   group:
-    | { overseerId?: string | null; members?: { userId: string; role?: string }[] }
+    | {
+        overseerId?: string | null;
+        members?: { userId?: string | null; id?: string | null; role?: string | null }[];
+      }
     | null
     | undefined
 ): boolean {
@@ -92,7 +95,7 @@ export function isGroupOverseer(
   return Boolean(
     group.members?.some(
       (m) =>
-        m.userId === userId &&
+        (m.userId === userId || m.id === userId) &&
         (m.role === 'group_overseer' || m.role === 'OVERSEER' || m.role === 'groupOverseer')
     )
   );
@@ -104,7 +107,10 @@ export function isGroupOverseer(
 export function isGroupOverseerAssistant(
   userId: string | null | undefined,
   group:
-    | { assistantOverseerId?: string | null; members?: { userId: string; role?: string }[] }
+    | {
+        assistantOverseerId?: string | null;
+        members?: { userId?: string | null; id?: string | null; role?: string | null }[];
+      }
     | null
     | undefined
 ): boolean {
@@ -113,10 +119,62 @@ export function isGroupOverseerAssistant(
   return Boolean(
     group.members?.some(
       (m) =>
-        m.userId === userId &&
+        (m.userId === userId || m.id === userId) &&
         (m.role === 'assistant_overseer' || m.role === 'ASSISTANT' || m.role === 'groupAssistant')
     )
   );
+}
+
+/**
+ * Returns a Set of member user IDs across all groups where the specified user is a Group Overseer.
+ */
+export function getOverseenGroupMateIds(
+  userId: string | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = []
+): Set<string> {
+  const mateIds = new Set<string>();
+  if (!userId || !groups || groups.length === 0) return mateIds;
+
+  for (const group of groups) {
+    if (isGroupOverseer(userId, group)) {
+      if (group.members) {
+        for (const member of group.members) {
+          const uid = member.userId || member.id;
+          if (uid) {
+            mateIds.add(uid);
+          }
+        }
+      }
+      if (group.overseerId) {
+        mateIds.add(group.overseerId);
+      }
+      if (group.assistantOverseerId) {
+        mateIds.add(group.assistantOverseerId);
+      }
+    }
+  }
+
+  return mateIds;
+}
+
+/**
+ * Checks if a user is the Group Overseer of a group containing the target user.
+ */
+export function isGroupOverseerOfUser(
+  overseerUserId: string | null | undefined,
+  targetUserId: string | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = []
+): boolean {
+  if (!overseerUserId || !targetUserId || !groups || groups.length === 0) return false;
+  return getOverseenGroupMateIds(overseerUserId, groups).has(targetUserId);
 }
 
 /**
@@ -212,22 +270,55 @@ export function canEditTerritoryInStudio(
   return isUserAssignedToTerritory(user, assignments, userGroupIds);
 }
 
-
 /**
  * Checks if the current user has full detail access (contact info, private notes) to a household.
- * Owners, accepted collaborators, read-only viewers, and Territory Servants+ have access.
+ * Owners, accepted collaborators, read-only viewers, Territory Servants+, and Group Overseers of the owner have access.
  */
 export function canAccessHouseholdDetails(
   userId: string | null | undefined,
   household: Household,
   shares: HouseholdShare[] = [],
-  userRole?: string | null
+  userRole?: string | null,
+  groupsOrGroupMates?:
+    | Array<{
+        overseerId?: string | null;
+        assistantOverseerId?: string | null;
+        members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+      }>
+    | Set<string>
+    | string[]
+    | null
 ): boolean {
   if (isTerritoryServant(userRole)) return true;
   if (!userId) return false;
   if (household.createdById === userId) return true;
   if (household.collaboratorIds?.includes(userId)) return true;
   if (household.readOnlyUserIds?.includes(userId)) return true;
+
+  // Group Overseer read-only access to group mates' records
+  if (groupsOrGroupMates && household.createdById) {
+    if (groupsOrGroupMates instanceof Set) {
+      if (groupsOrGroupMates.has(household.createdById)) return true;
+    } else if (Array.isArray(groupsOrGroupMates)) {
+      if (groupsOrGroupMates.length > 0 && typeof groupsOrGroupMates[0] === 'string') {
+        if ((groupsOrGroupMates as string[]).includes(household.createdById)) return true;
+      } else {
+        if (
+          isGroupOverseerOfUser(
+            userId,
+            household.createdById,
+            groupsOrGroupMates as Array<{
+              overseerId?: string | null;
+              assistantOverseerId?: string | null;
+              members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+            }>
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+  }
 
   // Check accepted shares
   return shares.some(
@@ -241,10 +332,11 @@ export function canAccessHouseholdDetails(
  */
 export function canShareHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household: Household
+  household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
+  if (!household) return false;
   return household.createdById === user.id;
 }
 
@@ -254,10 +346,11 @@ export function canShareHousehold(
  */
 export function canEditHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household: Household
+  household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
+  if (!household) return false;
   return household.createdById === user.id;
 }
 
@@ -267,10 +360,11 @@ export function canEditHousehold(
  */
 export function canDeleteHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household: Household
+  household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
+  if (!household) return false;
   return household.createdById === user.id;
 }
 
@@ -281,10 +375,11 @@ export function canDeleteHousehold(
  */
 export function canLogVisitOrEncounter(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household: Household
+  household?: { createdById?: string | null; collaboratorIds?: string[] | null } | null
 ): boolean {
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
+  if (!household) return false;
   if (household.createdById === user.id) return true;
   return Boolean(household.collaboratorIds?.includes(user.id));
 }

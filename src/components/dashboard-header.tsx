@@ -1,5 +1,6 @@
 import {
   BarChart2,
+  Bell,
   Building2,
   ChevronDown,
   Compass,
@@ -15,7 +16,9 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +33,7 @@ import {
 import {
   useCongregation,
   useCurrentUser,
+  useNotifications,
   usePendingEndorsements,
   usePendingSharesCount,
 } from '@/hooks';
@@ -51,6 +55,7 @@ export function DashboardHeader() {
   const { congregation } = useCongregation(id);
   const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
   const { count: pendingSharesCount } = usePendingSharesCount();
+  const { unreadCount: unreadNotificationsCount } = useNotifications();
 
   if (!session?.user) return null;
 
@@ -190,6 +195,8 @@ export function DashboardHeader() {
               </Button>
             )}
 
+            <NotificationBell />
+
             <ThemeToggle />
 
             <DropdownMenu>
@@ -320,11 +327,29 @@ export function DashboardHeader() {
                 )}
 
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link
+                    href={id ? `/congregation/${id}/notifications` : '/profile'}
+                    className="flex items-center justify-between px-3 py-2 text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bell size={14} />
+                      <span>Notifications</span>
+                    </div>
+                    {unreadNotificationsCount > 0 && (
+                      <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
+                        {unreadNotificationsCount}
+                      </Badge>
+                    )}
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                   <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-xs">
                     <User size={14} />
                     <span>Profile & Settings</span>
                   </Link>
                 </DropdownMenuItem>
+
                 {isSystemAdmin(user.role) && (
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                     <Link

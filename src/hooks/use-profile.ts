@@ -26,6 +26,7 @@ function userFromData(id: string, data: Partial<User>): User {
     congregationId: data.congregationId ?? null,
     isActive: data.isActive ?? true,
     avatarUrl: data.avatarUrl ?? null,
+    notificationSettings: data.notificationSettings,
     createdAt: data.createdAt ?? now,
     updatedAt: data.updatedAt ?? now,
   };

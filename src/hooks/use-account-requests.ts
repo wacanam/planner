@@ -15,6 +15,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { createInAppNotification, notifyCongregationOverseers } from '@/lib/notifications';
+import { NotificationType } from '@/lib/roles';
 import type { AccountRequest, AccountRequestType } from '@/types/api';
 import { useCurrentUser } from './use-current-user';
 
@@ -103,6 +105,8 @@ export function useMyAccountRequests() {
       setIsSubmitting(true);
       try {
         const id = createClientId();
+        const firestore = getPlannerFirestore();
+        const targetCongregationId = params.congregationId ?? user.congregationId ?? null;
         const newReq: AccountRequest = {
           id,
           userId: user.id,
@@ -110,7 +114,7 @@ export function useMyAccountRequests() {
           userEmail: user.email || '',
           userAvatarUrl: user.avatarUrl || null,
           type: params.type,
-          congregationId: params.congregationId ?? user.congregationId ?? null,
+          congregationId: targetCongregationId,
           congregationName: params.congregationName ?? null,
           reason: params.reason?.trim() || null,
           status: 'pending',
@@ -118,6 +122,28 @@ export function useMyAccountRequests() {
         };
 
         await setDoc(requestDoc(id), newReq);
+
+        if (targetCongregationId) {
+          try {
+            const reqLabel =
+              params.type === 'leave_congregation' ? 'leave the congregation' : 'delete account';
+            await notifyCongregationOverseers(firestore, targetCongregationId, {
+              type: NotificationType.ACCOUNT_REQUEST_SUBMITTED,
+              title: 'Account Request Submitted',
+              body: `${user.name || user.email} requested to ${reqLabel}.`,
+              data: {
+                requestId: id,
+                requestType: params.type,
+                userId: user.id,
+                congregationId: targetCongregationId,
+              },
+              excludeUserId: user.id,
+            });
+          } catch (notifErr) {
+            console.error('Failed to notify overseers of account request:', notifErr);
+          }
+        }
+
         return newReq;
       } finally {
         setIsSubmitting(false);
@@ -311,6 +337,24 @@ export function useAdminAccountRequests() {
             }).catch(() => undefined);
           }
         }
+
+        // Notify user of approval
+        try {
+          await createInAppNotification(db, {
+            userId: targetUserId,
+            type: NotificationType.ACCOUNT_REQUEST_RESOLVED,
+            title: 'Account Request Approved',
+            body: `Your ${reqData.type === 'leave_congregation' ? 'leave congregation' : 'account deletion'} request has been approved.${reviewNote ? ` Note: ${reviewNote}` : ''}`,
+            data: {
+              requestId,
+              status: 'approved',
+              type: reqData.type,
+              congregationId: reqData.congregationId,
+            },
+          });
+        } catch (notifErr) {
+          console.error('Failed to notify user of approved account request:', notifErr);
+        }
       } finally {
         setIsProcessing(false);
       }
@@ -322,6 +366,11 @@ export function useAdminAccountRequests() {
     async (requestId: string, reviewNote?: string) => {
       setIsProcessing(true);
       try {
+        const snap = await getDoc(requestDoc(requestId));
+        const reqData = snap.exists() ? (snap.data() as AccountRequest) : null;
+        const targetUserId = reqData?.userId;
+        const db = getPlannerFirestore();
+
         await updateDoc(requestDoc(requestId), {
           status: 'rejected',
           reviewedAt: nowIso(),
@@ -329,6 +378,25 @@ export function useAdminAccountRequests() {
           reviewedByName: user.name || 'System Admin',
           reviewNote: reviewNote?.trim() || null,
         });
+
+        if (targetUserId) {
+          try {
+            await createInAppNotification(db, {
+              userId: targetUserId,
+              type: NotificationType.ACCOUNT_REQUEST_RESOLVED,
+              title: 'Account Request Declined',
+              body: `Your account request was declined.${reviewNote ? ` Reason: ${reviewNote}` : ''}`,
+              data: {
+                requestId,
+                status: 'rejected',
+                type: reqData?.type,
+                congregationId: reqData?.congregationId,
+              },
+            });
+          } catch (notifErr) {
+            console.error('Failed to notify user of rejected account request:', notifErr);
+          }
+        }
       } finally {
         setIsProcessing(false);
       }

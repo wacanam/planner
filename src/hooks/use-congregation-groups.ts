@@ -9,9 +9,10 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { getOverseenGroupMateIds } from '@/lib/permissions';
 import type { Group, GroupMember } from '@/types/api';
 
 function groupCollection() {
@@ -89,6 +90,17 @@ export function useCongregationGroups(congregationId: string | null | undefined)
   }, [congregationId]);
 
   return { groups, data: groups, isLoading, error };
+}
+
+/**
+ * Returns a Set of member user IDs across all groups where userId is a Group Overseer.
+ */
+export function useOverseenGroupMates(
+  congregationId: string | null | undefined,
+  userId: string | null | undefined
+): Set<string> {
+  const { groups = [] } = useCongregationGroups(congregationId);
+  return useMemo(() => getOverseenGroupMateIds(userId, groups), [userId, groups]);
 }
 
 export function useCreateGroup(congregationId: string) {

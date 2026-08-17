@@ -179,18 +179,14 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
   it('correctly checks if user is assigned to territory', () => {
     // Direct personal assignment matching userId
     expect(
-      isUserAssignedToTerritory(
-        { id: 'user-publisher-1', email: 'pub1@example.com' },
-        [assignments[0]]
-      )
+      isUserAssignedToTerritory({ id: 'user-publisher-1', email: 'pub1@example.com' }, [
+        assignments[0],
+      ])
     ).toBe(true);
 
     // Direct personal assignment matching assigneeEmail
     expect(
-      isUserAssignedToTerritory(
-        { id: 'user-diff-id', email: 'pub1@example.com' },
-        [assignments[0]]
-      )
+      isUserAssignedToTerritory({ id: 'user-diff-id', email: 'pub1@example.com' }, [assignments[0]])
     ).toBe(true);
 
     // Service group assignment when user belongs to that group
@@ -213,18 +209,14 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
 
     // Inactive assignment (completed/returned) does NOT count as assigned
     expect(
-      isUserAssignedToTerritory(
-        { id: 'user-publisher-2', email: 'pub2@example.com' },
-        [assignments[2]]
-      )
+      isUserAssignedToTerritory({ id: 'user-publisher-2', email: 'pub2@example.com' }, [
+        assignments[2],
+      ])
     ).toBe(false);
 
     // Empty assignments
     expect(
-      isUserAssignedToTerritory(
-        { id: 'user-publisher-1', email: 'pub1@example.com' },
-        []
-      )
+      isUserAssignedToTerritory({ id: 'user-publisher-1', email: 'pub1@example.com' }, [])
     ).toBe(false);
   });
 
@@ -292,4 +284,3 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
     ).toBe(false);
   });
 });
-

@@ -167,7 +167,8 @@ export function StudioSidebar({
                 <div>
                   <p className="font-bold text-foreground">Read-Only View</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                    You are viewing this territory in read-only mode because you are not currently assigned to it.
+                    You are viewing this territory in read-only mode because you are not currently
+                    assigned to it.
                   </p>
                 </div>
               </div>

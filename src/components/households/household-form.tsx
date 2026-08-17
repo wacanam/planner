@@ -63,7 +63,7 @@ export function HouseholdForm({
       houseNumber: initialValues?.houseNumber ?? '',
       streetName: initialValues?.streetName ?? '',
       unit: initialValues?.unit ?? '',
-      city: initialValues?.city ?? 'Springfield',
+      city: initialValues?.city ?? '',
       postalCode: initialValues?.postalCode ?? '',
       type: (initialValues?.type as HouseholdFormValues['type']) ?? 'house',
       status: (initialValues?.status as HouseholdFormValues['status']) ?? 'new',

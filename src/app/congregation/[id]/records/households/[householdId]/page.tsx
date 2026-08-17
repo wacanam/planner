@@ -62,6 +62,7 @@ export default function HouseholdDetailPage() {
                   <h1 className="text-xl font-bold text-foreground">{household.address}</h1>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {household.streetName}, {household.city}
+                    {household.creatorName ? ` · Owner: ${household.creatorName}` : ''}
                   </p>
                 </div>
                 <Badge variant="outline" className="capitalize text-xs font-semibold">

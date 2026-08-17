@@ -40,6 +40,7 @@ export interface VisitFilters {
   assignmentId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  groupMateUserIds?: string[] | Set<string> | null;
 }
 
 function visitCollection() {
@@ -54,12 +55,20 @@ function visitFromSnapshot(snapshot: QueryDocumentSnapshot): LocalVisit {
   return snapshot.data() as LocalVisit;
 }
 
-function filterVisit(record: LocalVisit, filters?: VisitFilters) {
+export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   if (record.deletedAt) return false;
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
   if (filters?.userId && !isTerritoryServant(filters.userRole)) {
-    if (record.userId !== filters.userId) return false;
+    const isOwn = record.userId === filters.userId;
+    const isGroupMate = Boolean(
+      filters.groupMateUserIds &&
+        record.userId &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.has(record.userId)
+          : filters.groupMateUserIds.includes(record.userId))
+    );
+    if (!isOwn && !isGroupMate) return false;
   }
   return true;
 }

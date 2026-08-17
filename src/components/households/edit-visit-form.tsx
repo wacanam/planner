@@ -37,12 +37,7 @@ interface EditVisitFormProps {
   onCancel?: () => void;
 }
 
-export function EditVisitForm({
-  visit,
-  onSubmit,
-  loading = false,
-  onCancel,
-}: EditVisitFormProps) {
+export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: EditVisitFormProps) {
   const form = useForm<EditVisitFormValues>({
     resolver: zodResolver(editVisitSchema) as any,
     defaultValues: {

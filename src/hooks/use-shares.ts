@@ -367,9 +367,7 @@ export function useShares() {
     error,
     sendShareRequest,
     respondToShare,
-    pendingIncomingCount: incomingShares.filter(
-      (s) => s.status === ShareStatus.PENDING
-    ).length,
+    pendingIncomingCount: incomingShares.filter((s) => s.status === ShareStatus.PENDING).length,
     revokeShareAccess,
     updateSharePermission,
     cancelOutgoingShare,
