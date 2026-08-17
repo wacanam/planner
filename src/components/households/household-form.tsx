@@ -19,7 +19,7 @@ import type { Household } from '@/types/api';
 export const householdFormSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   houseNumber: z.string().optional(),
-  streetName: z.string().min(1, 'Street name is required'),
+  streetName: z.string().min(1, 'Name is required'),
   unit: z.string().optional(),
   city: z.string().min(1, 'City is required'),
   postalCode: z.string().optional(),
@@ -90,7 +90,7 @@ export function HouseholdForm({
         </div>
         <div className="space-y-1 col-span-2">
           <Label htmlFor="streetName" className="text-xs font-semibold">
-            Street Name *
+            Name *
           </Label>
           <Input
             id="streetName"
