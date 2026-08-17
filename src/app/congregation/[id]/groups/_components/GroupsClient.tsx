@@ -2,10 +2,12 @@
 
 import {
   Check,
+  Crown,
   FolderOpen,
   Pencil,
   Plus,
   Search,
+  Shield,
   Trash2,
   UserCheck,
   UserPlus,
@@ -25,6 +27,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   useCongregationGroups,
   useCongregationMembers,
@@ -49,6 +58,8 @@ export default function GroupsClient() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [groupName, setGroupName] = useState('');
+  const [overseerId, setOverseerId] = useState<string>('none');
+  const [assistantOverseerId, setAssistantOverseerId] = useState<string>('none');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -57,6 +68,10 @@ export default function GroupsClient() {
     () => members.filter((m) => m.status === 'active'),
     [members]
   );
+
+  const activeMemberMap = useMemo(() => {
+    return new Map(activeMembers.map((m) => [m.userId || m.id, m]));
+  }, [activeMembers]);
 
   // Map of userId -> current group info
   const memberGroupMap = useMemo(() => {
@@ -96,6 +111,8 @@ export default function GroupsClient() {
 
   const handleOpenCreate = () => {
     setGroupName('');
+    setOverseerId('none');
+    setAssistantOverseerId('none');
     setSelectedUserIds([]);
     setMemberSearch('');
     setCreateOpen(true);
@@ -104,14 +121,23 @@ export default function GroupsClient() {
   const handleOpenEdit = (group: Group) => {
     setEditGroup(group);
     setGroupName(group.name);
+    setOverseerId(group.overseerId || 'none');
+    setAssistantOverseerId(group.assistantOverseerId || 'none');
     setSelectedUserIds((group.members || []).map((m) => m.userId).filter(Boolean));
     setMemberSearch('');
   };
 
   const toggleMemberSelection = (userId: string) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
+    setSelectedUserIds((prev) => {
+      const next = prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId];
+      if (!next.includes(overseerId) && overseerId === userId) {
+        setOverseerId('none');
+      }
+      if (!next.includes(assistantOverseerId) && assistantOverseerId === userId) {
+        setAssistantOverseerId('none');
+      }
+      return next;
+    });
   };
 
   const handleSelectAll = () => {
@@ -121,51 +147,112 @@ export default function GroupsClient() {
 
   const handleClearSelection = () => {
     setSelectedUserIds([]);
+    setOverseerId('none');
+    setAssistantOverseerId('none');
   };
 
   const handleCreate = async () => {
     if (!groupName.trim()) return;
-    const newGroup = await createGroup({ name: groupName.trim() });
-    if (newGroup?.id && selectedUserIds.length > 0) {
-      const assigned: GroupMember[] = activeMembers
-        .filter((m) => selectedUserIds.includes(m.userId || m.id))
-        .map((m) => ({
-          id: m.userId || m.id,
-          userId: m.userId || m.id,
+    const finalOverseerId = overseerId !== 'none' ? overseerId : null;
+    const finalAssistantId = assistantOverseerId !== 'none' ? assistantOverseerId : null;
+
+    const overseerMember = finalOverseerId ? activeMemberMap.get(finalOverseerId) : null;
+    const assistantMember = finalAssistantId ? activeMemberMap.get(finalAssistantId) : null;
+
+    // Ensure overseer and assistant are included in selectedUserIds
+    const allUserIds = Array.from(
+      new Set([
+        ...selectedUserIds,
+        ...(finalOverseerId ? [finalOverseerId] : []),
+        ...(finalAssistantId ? [finalAssistantId] : []),
+      ])
+    );
+
+    const assigned: GroupMember[] = activeMembers
+      .filter((m) => allUserIds.includes(m.userId || m.id))
+      .map((m) => {
+        const uid = m.userId || m.id;
+        let role = 'member';
+        if (uid === finalOverseerId) role = 'group_overseer';
+        else if (uid === finalAssistantId) role = 'assistant_overseer';
+        return {
+          id: uid,
+          userId: uid,
+          role,
           user: {
             name: m.user?.name || null,
             email: m.user?.email || null,
           },
-        }));
-      await updateGroup({ id: newGroup.id, name: groupName.trim(), members: assigned });
-    }
+        };
+      });
+
+    await createGroup({
+      name: groupName.trim(),
+      overseerId: finalOverseerId,
+      overseerName: overseerMember?.user?.name || overseerMember?.user?.email || null,
+      assistantOverseerId: finalAssistantId,
+      assistantOverseerName: assistantMember?.user?.name || assistantMember?.user?.email || null,
+      members: assigned,
+    });
+
     toast.success('Service group created');
     setGroupName('');
+    setOverseerId('none');
+    setAssistantOverseerId('none');
     setSelectedUserIds([]);
     setCreateOpen(false);
   };
 
   const handleUpdate = async () => {
     if (!editGroup || !groupName.trim()) return;
+    const finalOverseerId = overseerId !== 'none' ? overseerId : null;
+    const finalAssistantId = assistantOverseerId !== 'none' ? assistantOverseerId : null;
+
+    const overseerMember = finalOverseerId ? activeMemberMap.get(finalOverseerId) : null;
+    const assistantMember = finalAssistantId ? activeMemberMap.get(finalAssistantId) : null;
+
+    // Ensure overseer and assistant are included in selectedUserIds
+    const allUserIds = Array.from(
+      new Set([
+        ...selectedUserIds,
+        ...(finalOverseerId ? [finalOverseerId] : []),
+        ...(finalAssistantId ? [finalAssistantId] : []),
+      ])
+    );
+
     const assigned: GroupMember[] = activeMembers
-      .filter((m) => selectedUserIds.includes(m.userId || m.id))
-      .map((m) => ({
-        id: m.userId || m.id,
-        userId: m.userId || m.id,
-        user: {
-          name: m.user?.name || null,
-          email: m.user?.email || null,
-        },
-      }));
+      .filter((m) => allUserIds.includes(m.userId || m.id))
+      .map((m) => {
+        const uid = m.userId || m.id;
+        let role = 'member';
+        if (uid === finalOverseerId) role = 'group_overseer';
+        else if (uid === finalAssistantId) role = 'assistant_overseer';
+        return {
+          id: uid,
+          userId: uid,
+          role,
+          user: {
+            name: m.user?.name || null,
+            email: m.user?.email || null,
+          },
+        };
+      });
 
     await updateGroup({
       id: editGroup.id,
       name: groupName.trim(),
+      overseerId: finalOverseerId,
+      overseerName: overseerMember?.user?.name || overseerMember?.user?.email || null,
+      assistantOverseerId: finalAssistantId,
+      assistantOverseerName: assistantMember?.user?.name || assistantMember?.user?.email || null,
       members: assigned,
     });
+
     toast.success('Service group updated');
     setEditGroup(null);
     setGroupName('');
+    setOverseerId('none');
+    setAssistantOverseerId('none');
     setSelectedUserIds([]);
   };
 
@@ -177,7 +264,7 @@ export default function GroupsClient() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Service Groups</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Field ministry service groups and publisher assignments
+              Field ministry service groups, group overseers, and publisher assignments
             </p>
           </div>
           <Button
@@ -193,7 +280,7 @@ export default function GroupsClient() {
         {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-36 bg-muted animate-pulse rounded-2xl" />
+              <div key={i} className="h-44 bg-muted animate-pulse rounded-2xl" />
             ))}
           </div>
         ) : groups.length === 0 ? (
@@ -201,13 +288,16 @@ export default function GroupsClient() {
             <FolderOpen size={40} className="text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm font-semibold text-foreground">No service groups yet</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Create groups to organize field ministry arrangements and assign publishers.
+              Create groups to organize field ministry arrangements, assign overseers, and assign publishers.
             </p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((group) => {
               const groupMembersList = group.members || [];
+              const overseer = group.overseerName || groupMembersList.find((m) => m.userId === group.overseerId || m.role === 'group_overseer')?.user?.name;
+              const assistant = group.assistantOverseerName || groupMembersList.find((m) => m.userId === group.assistantOverseerId || m.role === 'assistant_overseer')?.user?.name;
+
               return (
                 <Card
                   key={group.id}
@@ -248,21 +338,55 @@ export default function GroupsClient() {
                       </div>
                     </div>
 
+                    {/* Roles Summary */}
+                    <div className="space-y-1 py-1.5 px-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Crown size={12} className="text-amber-500" /> Overseer:
+                        </span>
+                        <span className="font-semibold text-foreground truncate text-[11px]">
+                          {overseer || <span className="text-muted-foreground font-normal italic">Unassigned</span>}
+                        </span>
+                      </div>
+                      {assistant && (
+                        <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-border/40">
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Shield size={12} className="text-blue-500" /> Assistant:
+                          </span>
+                          <span className="font-semibold text-foreground truncate text-[11px]">
+                            {assistant}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Assigned Members Chips Preview */}
                     <div className="pt-1 border-t border-border/60">
                       {groupMembersList.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {groupMembersList.slice(0, 4).map((gm) => (
-                            <span
-                              key={gm.userId}
-                              className="text-[10px] bg-muted px-2 py-0.5 rounded-lg text-foreground font-medium truncate max-w-[130px]"
-                            >
-                              {gm.user?.name || gm.user?.email || 'Publisher'}
-                            </span>
-                          ))}
-                          {groupMembersList.length > 4 && (
+                          {groupMembersList.slice(0, 5).map((gm) => {
+                            const isOverseer = gm.userId === group.overseerId || gm.role === 'group_overseer';
+                            const isAssistant = gm.userId === group.assistantOverseerId || gm.role === 'assistant_overseer';
+                            return (
+                              <span
+                                key={gm.userId}
+                                className={`text-[10px] px-2 py-0.5 rounded-lg font-medium truncate max-w-[130px] flex items-center gap-1 ${
+                                  isOverseer
+                                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 font-bold border border-amber-500/30'
+                                    : isAssistant
+                                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 font-bold border border-blue-500/30'
+                                    : 'bg-muted text-foreground'
+                                }`}
+                              >
+                                {isOverseer && <Crown size={9} />}
+                                {isAssistant && <Shield size={9} />}
+                                <span>{gm.user?.name || gm.user?.email || 'Publisher'}</span>
+                              </span>
+                            );
+                          })}
+                          {groupMembersList.length > 5 && (
                             <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-lg font-bold">
-                              +{groupMembersList.length - 4} more
+                              +{groupMembersList.length - 5} more
                             </span>
                           )}
                         </div>
@@ -282,7 +406,7 @@ export default function GroupsClient() {
                       className="w-full h-8 text-xs font-semibold rounded-xl gap-1.5 mt-2 bg-muted/30 hover:bg-muted"
                     >
                       <UserCheck size={13} className="text-primary" />
-                      <span>Manage Publishers ({groupMembersList.length})</span>
+                      <span>Manage Group & Roles ({groupMembersList.length})</span>
                     </Button>
                   </CardContent>
                 </Card>
@@ -296,7 +420,7 @@ export default function GroupsClient() {
           open={createOpen}
           onOpenChange={setCreateOpen}
           title="Create Service Group"
-          description="Add a new service group and assign publishers"
+          description="Add a new service group, designate overseers, and assign publishers"
         >
           <div className="space-y-4">
             <div className="space-y-1">
@@ -307,6 +431,55 @@ export default function GroupsClient() {
                 onChange={(e) => setGroupName(e.target.value)}
                 className="h-9 rounded-xl text-xs"
               />
+            </div>
+
+            {/* Overseer & Assistant Roles Selection */}
+            <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Crown size={13} className="text-amber-500" />
+                  <span>Group Overseer</span>
+                </Label>
+                <Select value={overseerId} onValueChange={setOverseerId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Choose Overseer…" />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {activeMembers.map((m) => {
+                      const uid = m.userId || m.id;
+                      return (
+                        <SelectItem key={uid} value={uid}>
+                          {m.user?.name || m.user?.email || uid}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Shield size={13} className="text-blue-500" />
+                  <span>Assistant Overseer</span>
+                </Label>
+                <Select value={assistantOverseerId} onValueChange={setAssistantOverseerId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Choose Assistant (Optional)…" />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectItem value="none">None (Optional)</SelectItem>
+                    {activeMembers.map((m) => {
+                      const uid = m.userId || m.id;
+                      return (
+                        <SelectItem key={uid} value={uid}>
+                          {m.user?.name || m.user?.email || uid}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Member Assignment Section */}
@@ -355,6 +528,8 @@ export default function GroupsClient() {
                   filteredMembers.map((m) => {
                     const uid = m.userId || m.id;
                     const isSelected = selectedUserIds.includes(uid);
+                    const isOverseer = overseerId === uid;
+                    const isAssistant = assistantOverseerId === uid;
 
                     return (
                       <div
@@ -380,9 +555,21 @@ export default function GroupsClient() {
                             </span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0 ml-1">
-                          Unassigned
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          {isOverseer ? (
+                            <Badge className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold gap-0.5">
+                              <Crown size={9} /> Overseer
+                            </Badge>
+                          ) : isAssistant ? (
+                            <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 font-bold gap-0.5">
+                              <Shield size={9} /> Assistant
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                              Publisher
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     );
                   })
@@ -411,12 +598,12 @@ export default function GroupsClient() {
           </div>
         </ResponsiveDialog>
 
-        {/* Edit Group Dialog (with Member Assignment) */}
+        {/* Edit Group Dialog (with Member Assignment & Roles) */}
         <ResponsiveDialog
           open={!!editGroup}
           onOpenChange={(op) => !op && setEditGroup(null)}
           title="Manage Service Group"
-          description={`Update group details and assign publishers to ${editGroup?.name || 'group'}`}
+          description={`Update group details, designate overseers, and manage publishers for ${editGroup?.name || 'group'}`}
         >
           <div className="space-y-4">
             <div className="space-y-1">
@@ -426,6 +613,55 @@ export default function GroupsClient() {
                 onChange={(e) => setGroupName(e.target.value)}
                 className="h-9 rounded-xl text-xs"
               />
+            </div>
+
+            {/* Overseer & Assistant Roles Selection */}
+            <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Crown size={13} className="text-amber-500" />
+                  <span>Group Overseer</span>
+                </Label>
+                <Select value={overseerId} onValueChange={setOverseerId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Choose Overseer…" />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {availableMembers.map((m) => {
+                      const uid = m.userId || m.id;
+                      return (
+                        <SelectItem key={uid} value={uid}>
+                          {m.user?.name || m.user?.email || uid}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Shield size={13} className="text-blue-500" />
+                  <span>Assistant Overseer</span>
+                </Label>
+                <Select value={assistantOverseerId} onValueChange={setAssistantOverseerId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Choose Assistant (Optional)…" />
+                  </SelectTrigger>
+                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectItem value="none">None (Optional)</SelectItem>
+                    {availableMembers.map((m) => {
+                      const uid = m.userId || m.id;
+                      return (
+                        <SelectItem key={uid} value={uid}>
+                          {m.user?.name || m.user?.email || uid}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Member Assignment Section */}
@@ -474,6 +710,8 @@ export default function GroupsClient() {
                   filteredMembers.map((m) => {
                     const uid = m.userId || m.id;
                     const isSelected = selectedUserIds.includes(uid);
+                    const isOverseer = overseerId === uid;
+                    const isAssistant = assistantOverseerId === uid;
 
                     return (
                       <div
@@ -499,15 +737,25 @@ export default function GroupsClient() {
                             </span>
                           </div>
                         </div>
-                        {isSelected ? (
-                          <Badge variant="secondary" className="text-[9px] bg-primary/15 text-primary shrink-0 ml-1">
-                            In Group
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[9px] text-muted-foreground shrink-0 ml-1">
-                            Unassigned
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          {isOverseer ? (
+                            <Badge className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold gap-0.5">
+                              <Crown size={9} /> Overseer
+                            </Badge>
+                          ) : isAssistant ? (
+                            <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 font-bold gap-0.5">
+                              <Shield size={9} /> Assistant
+                            </Badge>
+                          ) : isSelected ? (
+                            <Badge variant="secondary" className="text-[9px] bg-primary/15 text-primary">
+                              In Group
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                              Unassigned
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     );
                   })

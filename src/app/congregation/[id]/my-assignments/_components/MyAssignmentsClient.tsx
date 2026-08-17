@@ -5,9 +5,11 @@ import {
   Calendar,
   Clock,
   Compass,
+  Crown,
   Home,
   MapPin,
   RotateCcw,
+  Shield,
   User,
   Users,
 } from 'lucide-react';
@@ -29,6 +31,7 @@ import {
   useMyAssignments,
   useReturnAssignment,
 } from '@/hooks';
+import { canReturnAssignment } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { toast } from 'sonner';
 import type { Assignment, Household } from '@/types/api';
@@ -158,6 +161,8 @@ export default function MyAssignmentsClient() {
                 const coverage = liveStats?.coveragePercent ?? Math.round(parseFloat(terr?.coveragePercent ?? '0'));
                 const householdsCount = liveStats?.totalDoors ?? terr?.householdsCount ?? 0;
                 const isGroupAssignment = Boolean(assignment.serviceGroupId);
+                const assignedGroup = groups.find((g) => g.id === assignment.serviceGroupId);
+                const canReturn = canReturnAssignment(user, assignment, assignedGroup);
 
                 return (
                   <Card
@@ -257,16 +262,28 @@ export default function MyAssignmentsClient() {
                             </Link>
                           </Button>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setReturnConfirmAssignment(assignment)}
-                          className="w-full h-7 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5"
-                        >
-                          <RotateCcw size={12} />
-                          <span>Return Territory to Congregation</span>
-                        </Button>
+                        {canReturn ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setReturnConfirmAssignment(assignment)}
+                            className="w-full h-7 rounded-lg text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5"
+                          >
+                            <RotateCcw size={12} />
+                            <span>Return Territory to Congregation</span>
+                          </Button>
+                        ) : (
+                          <div className="py-1 px-2.5 rounded-lg bg-muted/30 border border-border/50 text-center">
+                            <p className="text-[10px] text-muted-foreground italic flex items-center justify-center gap-1">
+                              <Crown size={11} className="text-amber-500 shrink-0" />
+                              <span>
+                                Return managed by Group Overseer
+                                {assignedGroup?.overseerName ? ` (${assignedGroup.overseerName})` : ''}
+                              </span>
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

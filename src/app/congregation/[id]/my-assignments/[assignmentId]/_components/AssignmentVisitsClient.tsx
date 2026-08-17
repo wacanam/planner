@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, BarChart2, Home, MapPin, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BarChart2, Crown, Home, MapPin, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -10,11 +10,14 @@ import { ProtectedPage } from '@/components/protected-page';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import {
+  useCongregationGroups,
+  useCurrentUser,
   useHouseholds,
   useReturnAssignment,
   useTerritoryAssignments,
   useTerritoryDetail,
 } from '@/hooks';
+import { canReturnAssignment } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { toast } from 'sonner';
 
@@ -28,8 +31,10 @@ export default function AssignmentVisitsClient() {
   const territoryId = params?.assignmentId ?? null;
   const backHref = `/congregation/${congregationId}/my-assignments`;
 
+  const { user } = useCurrentUser();
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { assignments, isLoading: assignmentsLoading } = useTerritoryAssignments(territoryId);
+  const { groups = [] } = useCongregationGroups(congregationId);
   const { households, isLoading: householdsLoading } = useHouseholds({ territoryId: territoryId ?? undefined });
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
@@ -38,6 +43,9 @@ export default function AssignmentVisitsClient() {
   const _loading = territoryLoading || assignmentsLoading || householdsLoading;
   const activeAssignment =
     assignments.find((a) => a.status === 'assigned' || a.status === 'active') ?? assignments[0] ?? null;
+
+  const assignedGroup = groups.find((g) => g.id === activeAssignment?.serviceGroupId);
+  const canReturn = canReturnAssignment(user, activeAssignment, assignedGroup);
 
   const coverageStats = useMemo(() => {
     if (households && households.length > 0) {
@@ -119,15 +127,27 @@ export default function AssignmentVisitsClient() {
             </Link>
           </Button>
           {activeAssignment && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setReturnConfirmOpen(true)}
-              className="w-full h-10 rounded-2xl gap-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            >
-              <RotateCcw size={14} />
-              <span>Return Territory to Congregation</span>
-            </Button>
+            canReturn ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setReturnConfirmOpen(true)}
+                className="w-full h-10 rounded-2xl gap-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              >
+                <RotateCcw size={14} />
+                <span>Return Territory to Congregation</span>
+              </Button>
+            ) : (
+              <div className="p-3 rounded-2xl bg-muted/30 border border-border/60 text-center">
+                <p className="text-xs text-muted-foreground italic flex items-center justify-center gap-1.5">
+                  <Crown size={13} className="text-amber-500 shrink-0" />
+                  <span>
+                    Group territory return is managed by the Group Overseer
+                    {assignedGroup?.overseerName ? ` (${assignedGroup.overseerName})` : ''}.
+                  </span>
+                </p>
+              </div>
+            )
           )}
         </div>
 

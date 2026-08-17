@@ -148,9 +148,12 @@ export interface TerritoryRequest {
 
 // ─── Groups ────────────────────────────────────────────────────────────────────
 
+export type GroupMemberRole = 'group_overseer' | 'assistant_overseer' | 'member' | string;
+
 export interface GroupMember {
   id: string;
   userId: string;
+  role?: GroupMemberRole;
   user: {
     name: string | null;
     email: string | null;
@@ -162,7 +165,9 @@ export interface Group {
   congregationId: string;
   name: string;
   overseerId?: string | null;
+  overseerName?: string | null;
   assistantOverseerId?: string | null;
+  assistantOverseerName?: string | null;
   createdAt: string;
   members: GroupMember[];
 }

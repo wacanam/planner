@@ -23,12 +23,35 @@ function groupDocument(id: string) {
 }
 
 function groupFromData(id: string, data: Partial<Group>): Group {
+  const overseerId = data.overseerId ?? null;
+  const assistantOverseerId = data.assistantOverseerId ?? null;
   return {
     id,
     congregationId: data.congregationId ?? '',
     name: data.name ?? 'Unnamed group',
+    overseerId,
+    overseerName: data.overseerName ?? null,
+    assistantOverseerId,
+    assistantOverseerName: data.assistantOverseerName ?? null,
     createdAt: data.createdAt ?? nowIso(),
-    members: data.members ?? [],
+    members: (data.members ?? []).map((m) => {
+      const uid = m.userId ?? m.id;
+      let role = m.role;
+      if (!role) {
+        if (uid === overseerId) role = 'group_overseer';
+        else if (uid === assistantOverseerId) role = 'assistant_overseer';
+        else role = 'member';
+      }
+      return {
+        id: uid,
+        userId: uid,
+        role,
+        user: {
+          name: m.user?.name ?? null,
+          email: m.user?.email ?? null,
+        },
+      };
+    }),
   };
 }
 
@@ -71,16 +94,27 @@ export function useCongregationGroups(congregationId: string | null | undefined)
 export function useCreateGroup(congregationId: string) {
   const [isCreating, setIsCreating] = useState(false);
   const create = useCallback(
-    async (arg: Record<string, unknown>) => {
+    async (arg: {
+      name: string;
+      overseerId?: string | null;
+      overseerName?: string | null;
+      assistantOverseerId?: string | null;
+      assistantOverseerName?: string | null;
+      members?: GroupMember[];
+    }) => {
       setIsCreating(true);
       try {
         const id = createClientId();
         await setDoc(groupDocument(id), {
           id,
           congregationId,
-          name: String(arg.name ?? 'Unnamed group'),
+          name: String(arg.name ?? 'Unnamed group').trim(),
+          overseerId: arg.overseerId ?? null,
+          overseerName: arg.overseerName ?? null,
+          assistantOverseerId: arg.assistantOverseerId ?? null,
+          assistantOverseerName: arg.assistantOverseerName ?? null,
           createdAt: nowIso(),
-          members: [],
+          members: arg.members ?? [],
         } satisfies Group);
         return { id };
       } finally {
@@ -95,11 +129,23 @@ export function useCreateGroup(congregationId: string) {
 export function useUpdateGroup(congregationId: string) {
   const [isUpdating, setIsUpdating] = useState(false);
   const update = useCallback(
-    async (arg: { id: string; name?: string; members?: GroupMember[] }) => {
+    async (arg: {
+      id: string;
+      name?: string;
+      overseerId?: string | null;
+      overseerName?: string | null;
+      assistantOverseerId?: string | null;
+      assistantOverseerName?: string | null;
+      members?: GroupMember[];
+    }) => {
       setIsUpdating(true);
       try {
         const updates: Record<string, unknown> = {};
         if (arg.name !== undefined) updates.name = arg.name.trim();
+        if (arg.overseerId !== undefined) updates.overseerId = arg.overseerId;
+        if (arg.overseerName !== undefined) updates.overseerName = arg.overseerName;
+        if (arg.assistantOverseerId !== undefined) updates.assistantOverseerId = arg.assistantOverseerId;
+        if (arg.assistantOverseerName !== undefined) updates.assistantOverseerName = arg.assistantOverseerName;
         if (arg.members !== undefined) updates.members = arg.members;
         if (Object.keys(updates).length === 0) return;
 

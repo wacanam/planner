@@ -69,6 +69,70 @@ export function canEndorseAssignment(role?: string | null): boolean {
 }
 
 /**
+ * Checks if the current user is the Group Overseer of a given group.
+ */
+export function isGroupOverseer(
+  userId: string | null | undefined,
+  group: { overseerId?: string | null; members?: { userId: string; role?: string }[] } | null | undefined
+): boolean {
+  if (!userId || !group) return false;
+  if (group.overseerId === userId) return true;
+  return Boolean(
+    group.members?.some(
+      (m) =>
+        m.userId === userId &&
+        (m.role === 'group_overseer' || m.role === 'OVERSEER' || m.role === 'groupOverseer')
+    )
+  );
+}
+
+/**
+ * Checks if the current user is the Group Overseer Assistant of a given group.
+ */
+export function isGroupOverseerAssistant(
+  userId: string | null | undefined,
+  group: { assistantOverseerId?: string | null; members?: { userId: string; role?: string }[] } | null | undefined
+): boolean {
+  if (!userId || !group) return false;
+  if (group.assistantOverseerId === userId) return true;
+  return Boolean(
+    group.members?.some(
+      (m) =>
+        m.userId === userId &&
+        (m.role === 'assistant_overseer' || m.role === 'ASSISTANT' || m.role === 'groupAssistant')
+    )
+  );
+}
+
+/**
+ * Checks if a user is authorized to return an assignment:
+ * - Personal assignment: The assigned user can return it.
+ * - Group assignment: Only the Group Overseer (or Service Overseer / Territory Servant) can return it.
+ */
+export function canReturnAssignment(
+  user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
+  assignment: { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null } | null | undefined,
+  group?: { overseerId?: string | null; members?: { userId: string; role?: string }[] } | null
+): boolean {
+  if (!user?.id || !assignment) return false;
+
+  // Service Overseers & Territory Servants can always return/revoke assignments
+  if (isTerritoryServant(user.role)) return true;
+
+  // Personal assignment
+  if (!assignment.serviceGroupId) {
+    const matchesId = Boolean(assignment.userId && user.id && assignment.userId === user.id);
+    const matchesEmail = Boolean(
+      assignment.assigneeEmail && user.email && assignment.assigneeEmail === user.email
+    );
+    return matchesId || matchesEmail;
+  }
+
+  // Group assignment: ONLY the Group Overseer can return
+  return isGroupOverseer(user.id, group);
+}
+
+/**
  * Checks if the current user has full detail access (contact info, private notes) to a household.
  * Owners and accepted collaborators have full access.
  */
