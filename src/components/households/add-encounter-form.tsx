@@ -33,9 +33,9 @@ export type AddEncounterFormValues = z.infer<typeof addEncounterSchema>;
 
 interface AddEncounterFormProps {
   initialValues?: Partial<Encounter> & {
-    language?: string;
-    topicsDiscussed?: string;
-    literatureOffered?: string;
+    language?: string | null;
+    topicsDiscussed?: string | null;
+    literatureOffered?: string | null;
   };
   households?: Household[];
   defaultHouseholdId?: string;

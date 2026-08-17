@@ -81,6 +81,7 @@ export function StudioLayout({
   congregationId,
   households,
   activeAssignmentId,
+  isReadOnly = false,
   onAddHousehold,
   onEditHousehold,
   onDeleteHousehold,
@@ -93,7 +94,9 @@ export function StudioLayout({
 }: StudioLayoutProps) {
   const _router = useRouter();
   const { user } = useCurrentUser();
-  const [activeTool, setActiveTool] = useState<StudioTool>(pinHouseholdId ? 'pin' : 'pointer');
+  const [activeTool, setActiveTool] = useState<StudioTool>(
+    !isReadOnly && pinHouseholdId ? 'pin' : 'pointer'
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
@@ -380,14 +383,17 @@ export function StudioLayout({
     });
   };
 
-  // If pinHouseholdId is provided, track the household to be placed
-  const householdToPin = pinHouseholdId ? households.find((h) => h.id === pinHouseholdId) : null;
+  const effectiveActiveTool: StudioTool = isReadOnly ? 'pointer' : activeTool;
+
+  // If pinHouseholdId is provided and not in read-only mode, track the household to be placed
+  const householdToPin =
+    !isReadOnly && pinHouseholdId ? households.find((h) => h.id === pinHouseholdId) : null;
 
   useEffect(() => {
-    if (pinHouseholdId) {
+    if (pinHouseholdId && !isReadOnly) {
       setActiveTool('pin');
     }
-  }, [pinHouseholdId]);
+  }, [pinHouseholdId, isReadOnly]);
 
   const handleUndoPoint = () => {
     if (drawnPoints.length > 0) {
@@ -537,8 +543,13 @@ export function StudioLayout({
         <StudioTopBar
           territoryNumber={territory?.number}
           territoryName={territory?.name}
-          activeTool={activeTool}
+          activeTool={effectiveActiveTool}
+          isReadOnly={isReadOnly}
           onSelectTool={(tool) => {
+            if (isReadOnly) {
+              setActiveTool('pointer');
+              return;
+            }
             dismissAllFloatingCards();
             setActiveTool(tool);
             setDrawnPoints([]);
@@ -603,10 +614,10 @@ export function StudioLayout({
         />
       )}
 
-      {/* Floating Context Action Card (hidden during print viewport mode) */}
-      {!isPrintViewportActive && (
+      {/* Floating Context Action Card (hidden during print viewport mode or read-only mode) */}
+      {!isPrintViewportActive && !isReadOnly && (
         <StudioContextActionCard
-          activeTool={activeTool}
+          activeTool={effectiveActiveTool}
           pointCount={drawnPoints.length}
           onUndoPoint={handleUndoPoint}
           onDone={handleDoneTool}
@@ -626,7 +637,8 @@ export function StudioLayout({
           territory={territory}
           congregation={congregation}
           households={households}
-          activeTool={activeTool}
+          activeTool={effectiveActiveTool}
+          isReadOnly={isReadOnly}
           drawnPoints={drawnPoints}
           onAddPoint={(point) => {
             const nextPoints = [...drawnPoints, point];
@@ -668,10 +680,12 @@ export function StudioLayout({
           onSelectRoad={(road) => {
             dismissAllFloatingCards();
             setSelectedRoad(road);
-            setRoadDialogOpen(true);
+            if (!isReadOnly) {
+              setRoadDialogOpen(true);
+            }
           }}
           onUpdateRoadPoints={async (roadId, points) => {
-            if (!territory?.id) return;
+            if (!territory?.id || isReadOnly) return;
             try {
               const existingRoads = territory.annotations?.roads || [];
               const updated = existingRoads.map((r) => (r.id === roadId ? { ...r, points } : r));
@@ -689,7 +703,7 @@ export function StudioLayout({
             setSelectedBoundary(boundary);
           }}
           onUpdateBoundaryPolygon={async (boundaryId, points) => {
-            if (!territory?.id) return;
+            if (!territory?.id || isReadOnly) return;
             try {
               const existingBoundaries = getTerritoryBoundaries(territory);
               const updated = existingBoundaries.map((b) =>
@@ -706,8 +720,10 @@ export function StudioLayout({
           }}
           onSelectStartFlag={() => {
             dismissAllFloatingCards();
-            setStartFlagLabel(territory?.annotations?.startFlag?.label || 'Start Meeting Point');
-            setStartFlagDialogOpen(true);
+            if (!isReadOnly) {
+              setStartFlagLabel(territory?.annotations?.startFlag?.label || 'Start Meeting Point');
+              setStartFlagDialogOpen(true);
+            }
           }}
           onMoveStartFlag={async (lat, lng) => {
             if (!territory?.id) return;
@@ -831,6 +847,7 @@ export function StudioLayout({
         onSelectTerritory={onSelectTerritory}
         households={households}
         selectedHouseholdId={selectedHousehold?.id}
+        isReadOnly={isReadOnly}
         onSelectHousehold={(h) => {
           setSelectedHousehold(h);
           if (
@@ -855,6 +872,7 @@ export function StudioLayout({
           toast.info('Adjust map framing for your territory card');
         }}
         onOpenAddHousehold={() => {
+          if (isReadOnly) return;
           setActiveTool('pin');
           setSidebarOpen(false);
           toast.info('Tap anywhere on the map to place a new household pin');
@@ -952,55 +970,57 @@ export function StudioLayout({
               </p>
             )}
 
-            <div className="flex items-center gap-1.5 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 rounded-xl text-xs font-semibold"
-                onClick={() => {
-                  setLogVisitHousehold(selectedHousehold);
-                  setSelectedHousehold(null);
-                }}
-              >
-                Log Visit
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 rounded-xl text-xs font-semibold"
-                onClick={() => {
-                  setEncounterHousehold(selectedHousehold);
-                  setSelectedHousehold(null);
-                }}
-              >
-                Encounter
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
-                title="Edit Household details"
-                onClick={() => {
-                  setEditingHousehold(selectedHousehold);
-                  setSelectedHousehold(null);
-                }}
-              >
-                <Edit size={14} />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                title="Delete Household door"
-                onClick={() => {
-                  if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
-                    void handleDeleteHousehold(selectedHousehold.id);
-                  }
-                }}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold"
+                  onClick={() => {
+                    setLogVisitHousehold(selectedHousehold);
+                    setSelectedHousehold(null);
+                  }}
+                >
+                  Log Visit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold"
+                  onClick={() => {
+                    setEncounterHousehold(selectedHousehold);
+                    setSelectedHousehold(null);
+                  }}
+                >
+                  Encounter
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                  title="Edit Household details"
+                  onClick={() => {
+                    setEditingHousehold(selectedHousehold);
+                    setSelectedHousehold(null);
+                  }}
+                >
+                  <Edit size={14} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                  title="Delete Household door"
+                  onClick={() => {
+                    if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
+                      void handleDeleteHousehold(selectedHousehold.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1033,40 +1053,42 @@ export function StudioLayout({
               </Button>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
-                onClick={() => setBoundaryDialogOpen(true)}
-              >
-                <Edit size={13} />
-                <span>Edit Zone Details</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                title="Delete Boundary Polygon"
-                onClick={async () => {
-                  if (!territory?.id) return;
-                  if (
-                    window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
-                  ) {
-                    const existingBoundaries = getTerritoryBoundaries(territory);
-                    const updated = existingBoundaries.filter((b) => b.id !== selectedBoundary.id);
-                    await saveAnnotations({
-                      ...territory.annotations,
-                      boundaries: updated,
-                    });
-                    toast.success('Boundary polygon deleted');
-                    setSelectedBoundary(null);
-                  }
-                }}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                  onClick={() => setBoundaryDialogOpen(true)}
+                >
+                  <Edit size={13} />
+                  <span>Edit Zone Details</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                  title="Delete Boundary Polygon"
+                  onClick={async () => {
+                    if (!territory?.id) return;
+                    if (
+                      window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
+                    ) {
+                      const existingBoundaries = getTerritoryBoundaries(territory);
+                      const updated = existingBoundaries.filter((b) => b.id !== selectedBoundary.id);
+                      await saveAnnotations({
+                        ...territory.annotations,
+                        boundaries: updated,
+                      });
+                      toast.success('Boundary polygon deleted');
+                      setSelectedBoundary(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1099,44 +1121,46 @@ export function StudioLayout({
               </Button>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1">
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
-                onClick={() => setLandmarkDialogOpen(true)}
-              >
-                <Edit size={13} />
-                <span>Edit Landmark</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                title="Delete Landmark"
-                onClick={async () => {
-                  if (!territory?.id) return;
-                  if (
-                    window.confirm(
-                      `Delete landmark "${selectedLandmark.label || selectedLandmark.type}" from territory?`
-                    )
-                  ) {
-                    const existingLandmarks = territory.annotations?.landmarks || [];
-                    const filtered = existingLandmarks.filter(
-                      (lm) => lm.id !== selectedLandmark.id
-                    );
-                    await saveAnnotations({
-                      ...territory.annotations,
-                      landmarks: filtered,
-                    });
-                    toast.success('Landmark deleted');
-                    setSelectedLandmark(null);
-                  }
-                }}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </div>
+            {!isReadOnly && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                  onClick={() => setLandmarkDialogOpen(true)}
+                >
+                  <Edit size={13} />
+                  <span>Edit Landmark</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                  title="Delete Landmark"
+                  onClick={async () => {
+                    if (!territory?.id) return;
+                    if (
+                      window.confirm(
+                        `Delete landmark "${selectedLandmark.label || selectedLandmark.type}" from territory?`
+                      )
+                    ) {
+                      const existingLandmarks = territory.annotations?.landmarks || [];
+                      const filtered = existingLandmarks.filter(
+                        (lm) => lm.id !== selectedLandmark.id
+                      );
+                      await saveAnnotations({
+                        ...territory.annotations,
+                        landmarks: filtered,
+                      });
+                      toast.success('Landmark deleted');
+                      setSelectedLandmark(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

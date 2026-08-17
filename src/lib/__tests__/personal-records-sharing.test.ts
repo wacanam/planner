@@ -8,7 +8,9 @@ import {
   canDeleteEncounter,
   canDeleteHousehold,
   canDeleteVisit,
+  canEditEncounter,
   canEditHousehold,
+  canEditVisit,
   canLogVisitOrEncounter,
   canShareHousehold,
 } from '@/lib/permissions';
@@ -448,6 +450,52 @@ describe('Action Permission Enforcement (Owner or Territory Servant+)', () => {
 
     it('denies unrelated stranger from deleting encounters', () => {
       expect(canDeleteEncounter(stranger, mockEncounter, mockHouseholdView)).toBe(false);
+    });
+  });
+
+  describe('canEditVisit', () => {
+    const mockVisit = {
+      userId: 'user-bob',
+      householdId: 'hh-1',
+    };
+
+    it('allows author of the visit to edit it', () => {
+      expect(canEditVisit(bob, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows household owner to edit visits on their household', () => {
+      expect(canEditVisit(alice, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows Territory Servant to edit visits', () => {
+      expect(canEditVisit(territoryServant, mockVisit, mockHouseholdView)).toBe(true);
+    });
+
+    it('denies stranger from editing visits', () => {
+      expect(canEditVisit(stranger, mockVisit, mockHouseholdView)).toBe(false);
+    });
+  });
+
+  describe('canEditEncounter', () => {
+    const mockEncounter = {
+      userId: 'user-bob',
+      householdId: 'hh-1',
+    };
+
+    it('allows author of the encounter to edit it', () => {
+      expect(canEditEncounter(bob, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows household owner to edit encounters on their household', () => {
+      expect(canEditEncounter(alice, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('allows Territory Servant to edit encounters', () => {
+      expect(canEditEncounter(territoryServant, mockEncounter, mockHouseholdView)).toBe(true);
+    });
+
+    it('denies stranger from editing encounters', () => {
+      expect(canEditEncounter(stranger, mockEncounter, mockHouseholdView)).toBe(false);
     });
   });
 });

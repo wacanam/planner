@@ -901,17 +901,18 @@ export function StudioGoogleMap({
     if (!map || !mapReady) return;
 
     if (
-      activeTool === 'pin' ||
-      activeTool === 'boundary' ||
-      activeTool === 'road' ||
-      activeTool === 'landmark' ||
-      activeTool === 'start'
+      !isReadOnly &&
+      (activeTool === 'pin' ||
+        activeTool === 'boundary' ||
+        activeTool === 'road' ||
+        activeTool === 'landmark' ||
+        activeTool === 'start')
     ) {
       map.setOptions({ draggableCursor: 'crosshair' });
     } else {
       map.setOptions({ draggableCursor: 'grab' });
     }
-  }, [mapReady, activeTool]);
+  }, [mapReady, activeTool, isReadOnly]);
 
   // 5. Render Saved Territory Independent Boundary Polygons & Outside Mask Overlay
   useEffect(() => {
@@ -928,7 +929,9 @@ export function StudioGoogleMap({
 
     const boundaries = getTerritoryBoundaries(territory);
     const isEditable =
-      !isPrintViewportActive && (activeTool === 'pointer' || activeTool === 'boundary');
+      !isReadOnly &&
+      !isPrintViewportActive &&
+      (activeTool === 'pointer' || activeTool === 'boundary');
     const effectiveDisplay = resolveBoundaryDisplay(boundaryDisplay);
 
     // Render outside dimming mask with cutouts for territory boundaries
@@ -971,7 +974,7 @@ export function StudioGoogleMap({
 
         // Handle right-click to delete vertex
         polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           if (e.vertex != null) {
             polygon.getPath().removeAt(e.vertex);
           }
@@ -1118,7 +1121,8 @@ export function StudioGoogleMap({
       wrapper.style.position = 'relative';
       wrapper.style.width = '0px';
       wrapper.style.height = '0px';
-      wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+      wrapper.style.cursor =
+        !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
       wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
       wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
 
@@ -1180,7 +1184,7 @@ export function StudioGoogleMap({
 
       // Label beside pin: pure text with white stroke / halo
       let labelEl: HTMLSpanElement | null = null;
-      if (layerSettings.showHouseLabels) {
+      if (layerSettings.showHouseLabels !== false) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '15px';
@@ -1189,9 +1193,9 @@ export function StudioGoogleMap({
         labelWrapper.style.pointerEvents = 'none';
 
         labelEl = document.createElement('span');
-        labelEl.style.fontSize = '10.5px';
+        labelEl.style.fontSize = '10px';
         labelEl.style.fontWeight = '700';
-        labelEl.style.color = isSelected ? '#1E293B' : '#334155';
+        labelEl.style.color = isSelected ? '#1D4ED8' : '#1E293B';
         labelEl.style.paintOrder = 'stroke fill';
         labelEl.style.webkitTextStroke = '3px #FFFFFF';
         labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
@@ -1209,7 +1213,7 @@ export function StudioGoogleMap({
         position: { lat, lng },
         title: h.address,
         content: wrapper,
-        gmpDraggable: isPointerMode,
+        gmpDraggable: !isReadOnly && isPointerMode,
         zIndex: isSelected ? 50 : 35,
       });
 
@@ -1224,7 +1228,7 @@ export function StudioGoogleMap({
 
       // Drag event to move household location
       marker.addListener('dragend', () => {
-        if (isPrintViewportActiveRef.current) return;
+        if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
         const newPos = marker.position;
         if (newPos) {
           const newLat =
@@ -1463,7 +1467,10 @@ export function StudioGoogleMap({
           strokeWeight: surfaceWeight,
           strokeOpacity: 1.0,
           zIndex: isSelected ? 15 : 11,
-          editable: !isPrintViewportActive && (isPointerMode || activeTool === 'road'),
+          editable:
+            !isReadOnly &&
+            !isPrintViewportActive &&
+            (isPointerMode || activeTool === 'road'),
           clickable: !isPrintViewportActive,
           map,
         });
@@ -1492,7 +1499,7 @@ export function StudioGoogleMap({
 
         // Right-click vertex deletion on road
         pavement.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           if (e.vertex != null) {
             pavement.getPath().removeAt(e.vertex);
           }
@@ -1501,7 +1508,7 @@ export function StudioGoogleMap({
         // Sync vertex modifications across all 3 layers and propagate to database
         const roadPath = pavement.getPath();
         const handleRoadPathChange = () => {
-          if (isPrintViewportActiveRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           casing.setPath(roadPath);
           centerline.setPath(roadPath);
           highlightAura.setPath(roadPath);
@@ -1652,13 +1659,14 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode
-          ? 'grab'
-          : isPrintViewportActive
-            ? 'default'
-            : 'pointer';
+        wrapper.style.cursor =
+          !isReadOnly && isPointerMode
+            ? 'grab'
+            : isPrintViewportActive
+              ? 'default'
+              : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
-        wrapper.title = landmark.label || 'Landmark';
+        wrapper.title = `${landmark.label || 'Landmark'} (${landmark.type})`;
 
         const isSelected = selectedLandmarkId === landmark.id;
 
@@ -1712,7 +1720,6 @@ export function StudioGoogleMap({
         wrapper.appendChild(pinContainer);
 
         // Label beside pin: pure text with white stroke / halo
-        let labelEl: HTMLSpanElement | null = null;
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '15px';
@@ -1720,10 +1727,10 @@ export function StudioGoogleMap({
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
-        labelEl = document.createElement('span');
-        labelEl.style.fontSize = '10.5px';
+        const labelEl = document.createElement('span');
+        labelEl.style.fontSize = '10px';
         labelEl.style.fontWeight = '700';
-        labelEl.style.color = isSelected ? '#1E293B' : '#334155';
+        labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
         labelEl.style.paintOrder = 'stroke fill';
         labelEl.style.webkitTextStroke = '3px #FFFFFF';
         labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
@@ -1748,12 +1755,12 @@ export function StudioGoogleMap({
           position: { lat: landmark.lat, lng: landmark.lng },
           title: landmark.label || 'Landmark',
           content: wrapper,
-          gmpDraggable: isPointerMode,
+          gmpDraggable: !isReadOnly && isPointerMode,
           zIndex: isSelected ? 50 : 30,
         });
 
         marker.addListener('dragend', () => {
-          if (isPrintViewportActiveRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           const newPos = marker.position;
           if (newPos) {
             const newLat =
@@ -1790,11 +1797,12 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode
-          ? 'grab'
-          : isPrintViewportActive
-            ? 'default'
-            : 'pointer';
+        wrapper.style.cursor =
+          !isReadOnly && isPointerMode
+            ? 'grab'
+            : isPrintViewportActive
+              ? 'default'
+              : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 
@@ -1856,12 +1864,12 @@ export function StudioGoogleMap({
           position: { lat: sf.lat, lng: sf.lng },
           title: sf.label || 'Territory Start Meeting Point',
           content: wrapper,
-          gmpDraggable: isPointerMode,
+          gmpDraggable: !isReadOnly && isPointerMode,
           zIndex: 40,
         });
 
         marker.addListener('dragend', () => {
-          if (isPrintViewportActiveRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           const newPos = marker.position;
           if (newPos) {
             const newLat =

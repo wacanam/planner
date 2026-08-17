@@ -1,7 +1,8 @@
 'use client';
 
-import { BookOpen, Calendar, Home, Plus, Search, Trash2, Users } from 'lucide-react';
+import { BookOpen, Calendar, Home, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   AddEncounterForm,
   type AddEncounterFormValues,
@@ -13,8 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useHouseholds, useMyEncounters } from '@/hooks';
-import { canDeleteEncounter, isTerritoryServant } from '@/lib/permissions';
-import { deleteEncounterRecord, saveEncounterRecord } from '@/lib/record-writes';
+import { canDeleteEncounter, canEditEncounter, isTerritoryServant } from '@/lib/permissions';
+import {
+  deleteEncounterRecord,
+  saveEncounterRecord,
+  updateEncounterRecord,
+} from '@/lib/record-writes';
+import type { Encounter } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
@@ -41,6 +47,8 @@ export default function EncountersClient() {
   const [search, setSearch] = useState('');
   const [responseFilter, setResponseFilter] = useState<string>('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editEncounter, setEditEncounter] = useState<Encounter | null>(null);
+  const [editingEncounter, setEditingEncounter] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -63,20 +71,49 @@ export default function EncountersClient() {
   }, [encounters, responseFilter, search]);
 
   const handleSaveEncounter = async (values: AddEncounterFormValues) => {
-    await saveEncounterRecord({
-      householdId: values.householdId,
-      name: values.name,
-      response: values.response,
-      gender: values.gender,
-      ageGroup: values.ageGroup,
-      language: values.language,
-      notes: values.notes || undefined,
-      topicsDiscussed: values.topicsDiscussed || undefined,
-      literatureOffered: values.literatureOffered || undefined,
-      visitDate: new Date().toISOString(),
-      userId: user?.id || null,
-    });
-    setAddDialogOpen(false);
+    try {
+      await saveEncounterRecord({
+        householdId: values.householdId,
+        name: values.name,
+        response: values.response,
+        gender: values.gender,
+        ageGroup: values.ageGroup,
+        language: values.language,
+        notes: values.notes || undefined,
+        topicsDiscussed: values.topicsDiscussed || undefined,
+        literatureOffered: values.literatureOffered || undefined,
+        visitDate: new Date().toISOString(),
+        userId: user?.id || null,
+      });
+      toast.success(`Encounter with ${values.name} recorded`);
+      setAddDialogOpen(false);
+    } catch (err) {
+      toast.error('Failed to record encounter');
+    }
+  };
+
+  const handleUpdateEncounter = async (values: AddEncounterFormValues) => {
+    if (!editEncounter) return;
+    setEditingEncounter(true);
+    try {
+      await updateEncounterRecord(editEncounter.id, {
+        householdId: values.householdId ?? null,
+        name: values.name,
+        response: values.response,
+        gender: values.gender,
+        ageGroup: values.ageGroup,
+        languageSpoken: values.language,
+        notes: values.notes || undefined,
+        topicDiscussed: values.topicsDiscussed || undefined,
+        literatureAccepted: values.literatureOffered || undefined,
+      });
+      toast.success('Encounter updated');
+      setEditEncounter(null);
+    } catch (err) {
+      toast.error('Failed to update encounter');
+    } finally {
+      setEditingEncounter(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -84,6 +121,9 @@ export default function EncountersClient() {
     try {
       await deleteEncounterRecord(id);
       setDeleteConfirmId(null);
+      toast.success('Encounter deleted');
+    } catch (err) {
+      toast.error('Failed to delete encounter');
     } finally {
       setDeletingId(null);
     }
@@ -225,7 +265,19 @@ export default function EncountersClient() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {canEditEncounter(user, e, households.find((h) => h.id === e.householdId)) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={() => setEditEncounter(e)}
+                      title="Edit encounter details"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  )}
+
                   {canDeleteEncounter(user, e, households.find((h) => h.id === e.householdId)) && (
                     <Button
                       size="sm"
@@ -257,6 +309,28 @@ export default function EncountersClient() {
           onSubmit={handleSaveEncounter}
           onCancel={() => setAddDialogOpen(false)}
         />
+      </ResponsiveDialog>
+
+      {/* Edit Encounter Dialog */}
+      <ResponsiveDialog
+        open={!!editEncounter}
+        onOpenChange={(op) => !op && setEditEncounter(null)}
+        title="Edit Person Encounter"
+        description={
+          editEncounter
+            ? `Update details or fix typos for ${editEncounter.name}`
+            : 'Update encounter details'
+        }
+      >
+        {editEncounter && (
+          <AddEncounterForm
+            initialValues={editEncounter}
+            households={households}
+            onSubmit={handleUpdateEncounter}
+            loading={editingEncounter}
+            onCancel={() => setEditEncounter(null)}
+          />
+        )}
       </ResponsiveDialog>
 
       {/* Delete Confirmation Dialog */}

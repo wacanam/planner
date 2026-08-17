@@ -290,6 +290,25 @@ export function canLogVisitOrEncounter(
 }
 
 /**
+ * Checks if a user is allowed to EDIT a visit record (fix typos, notes, outcome, topics).
+ * Allowed for:
+ * 1. The original author who created the visit (visit.userId === user.id)
+ * 2. The owner of the household (household.createdById === user.id)
+ * 3. Territory Servant / Service Overseer / Admin (isTerritoryServant)
+ */
+export function canEditVisit(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  visit: { userId?: string | null; householdId?: string | null },
+  household?: { createdById?: string | null } | null
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (visit.userId && visit.userId === user.id) return true;
+  if (household?.createdById && household.createdById === user.id) return true;
+  return false;
+}
+
+/**
  * Checks if a user is allowed to DELETE a visit record.
  * Allowed for:
  * 1. The original author who created the visit (visit.userId === user.id)
@@ -305,6 +324,25 @@ export function canDeleteVisit(
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
   if (visit.userId && visit.userId === user.id) return true;
+  if (household?.createdById && household.createdById === user.id) return true;
+  return false;
+}
+
+/**
+ * Checks if a user is allowed to EDIT an encounter record (fix typos, notes, name, response).
+ * Allowed for:
+ * 1. The original author who created the encounter (encounter.userId === user.id)
+ * 2. The owner of the household (household.createdById === user.id)
+ * 3. Territory Servant / Service Overseer / Admin (isTerritoryServant)
+ */
+export function canEditEncounter(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  encounter: { userId?: string | null; householdId?: string | null },
+  household?: { createdById?: string | null } | null
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  if (encounter.userId && encounter.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
 }

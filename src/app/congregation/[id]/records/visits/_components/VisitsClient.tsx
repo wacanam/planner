@@ -1,11 +1,12 @@
 'use client';
 
-import { BookOpen, Calendar, Clock, Home, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Home, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AddEncounterForm } from '@/components/households/add-encounter-form';
+import { EditVisitForm } from '@/components/households/edit-visit-form';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useMyEncounters, useMyVisits } from '@/hooks';
-import { canDeleteVisit, isTerritoryServant } from '@/lib/permissions';
-import { deleteVisitRecord, saveEncounterRecord } from '@/lib/record-writes';
+import { canDeleteVisit, canEditVisit, isTerritoryServant } from '@/lib/permissions';
+import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
 
@@ -57,6 +58,8 @@ export default function VisitsClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [addEncounterVisit, setAddEncounterVisit] = useState<Visit | null>(null);
   const [savingEncounter, setSavingEncounter] = useState(false);
+  const [editVisit, setEditVisit] = useState<Visit | null>(null);
+  const [editingVisit, setEditingVisit] = useState(false);
 
   // Group encounters by visitId
   const encountersByVisit = useMemo(() => {
@@ -102,6 +105,29 @@ export default function VisitsClient() {
       toast.error('Failed to delete visit');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleUpdateVisit = async (values: any) => {
+    if (!editVisit) return;
+    setEditingVisit(true);
+    try {
+      await updateVisitRecord(editVisit.id, {
+        outcome: values.outcome,
+        bibleTopicDiscussed: values.bibleTopicDiscussed || undefined,
+        literatureLeft: values.literatureLeft || undefined,
+        notes: values.notes || undefined,
+        returnVisitPlanned: values.returnVisitPlanned,
+        nextVisitDate: values.nextVisitDate || undefined,
+        nextVisitTime: values.nextVisitTime || undefined,
+        nextVisitNotes: values.nextVisitNotes || undefined,
+      });
+      toast.success('Visit record updated');
+      setEditVisit(null);
+    } catch (err) {
+      toast.error('Failed to update visit');
+    } finally {
+      setEditingVisit(false);
     }
   };
 
@@ -294,8 +320,8 @@ export default function VisitsClient() {
                     )}
                   </div>
 
-                  {/* Actions: Add Encounter & Delete */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Actions: Add Encounter, Edit & Delete */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
@@ -306,6 +332,18 @@ export default function VisitsClient() {
                       <UserPlus size={13} />
                       <span>+ Person Met</span>
                     </Button>
+
+                    {canEditVisit(user, v, household) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        onClick={() => setEditVisit(v)}
+                        title="Edit visit record"
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                    )}
 
                     {canDeleteVisit(user, v, household) && (
                       <Button
@@ -326,6 +364,27 @@ export default function VisitsClient() {
           })}
         </div>
       )}
+
+      {/* Edit Visit Modal */}
+      <ResponsiveDialog
+        open={!!editVisit}
+        onOpenChange={(op) => !op && setEditVisit(null)}
+        title="Edit Visit Record"
+        description={
+          editVisit
+            ? `Update visit details for ${editVisit.householdAddress || 'household'}`
+            : 'Update visit details'
+        }
+      >
+        {editVisit && (
+          <EditVisitForm
+            visit={editVisit}
+            onSubmit={handleUpdateVisit}
+            loading={editingVisit}
+            onCancel={() => setEditVisit(null)}
+          />
+        )}
+      </ResponsiveDialog>
 
       {/* Add Encounter to Visit Modal */}
       <ResponsiveDialog
