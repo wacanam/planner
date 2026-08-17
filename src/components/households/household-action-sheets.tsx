@@ -1,80 +1,80 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { useForm } from 'react-hook-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
-  AddEncounterForm,
-  type AddEncounterFormValues,
-} from '@/components/households/add-encounter-form';
-import { LogVisitForm, type LogVisitFormValues } from '@/components/households/log-visit-form';
-import { createEncounter, createVisit } from '@/lib/local-first';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
+import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Household } from '@/types/api';
+import { AddEncounterForm, type AddEncounterFormValues } from './add-encounter-form';
 
-interface HouseholdSheetProps {
-  household: Household | null;
+interface LogVisitSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  visitId?: string | null;
-}
-
-interface HouseholdLogVisitSheetProps extends HouseholdSheetProps {
+  household: Household | null;
   assignmentId?: string | null;
-}
-
-function householdDescription(household: Household | null) {
-  if (!household) return undefined;
-  return [household.address, household.city].filter(Boolean).join(', ');
+  onSaved?: () => void;
 }
 
 export function HouseholdLogVisitSheet({
-  household,
-  assignmentId,
   open,
   onOpenChange,
-}: HouseholdLogVisitSheetProps) {
+  household,
+  assignmentId,
+  onSaved,
+}: LogVisitSheetProps) {
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (values: LogVisitFormValues, encounters: AddEncounterFormValues[]) => {
-    if (!household) return;
+  const form = useForm<LogVisitFormData>({
+    resolver: zodResolver(logVisitSchema) as any,
+    defaultValues: {
+      householdId: household?.id ?? '',
+      assignmentId: assignmentId ?? undefined,
+      outcome: 'answered',
+      notes: '',
+      literaturePlaced: '',
+      returnVisitDate: undefined,
+      status: 'active',
+    },
+  });
 
+  const onSubmit = async (data: LogVisitFormData) => {
+    if (!household) return;
     setSubmitting(true);
     try {
-      const visit = await createVisit({
+      await saveVisitRecord({
         householdId: household.id,
-        assignmentId,
-        outcome: values.outcome,
-        householdStatusAfter: values.householdStatusAfter,
-        duration: values.duration,
-        literatureLeft: values.literatureLeft,
-        bibleTopicDiscussed: values.bibleTopicDiscussed,
-        returnVisitPlanned: values.returnVisitPlanned,
-        nextVisitDate: values.nextVisitDate,
-        nextVisitTime: values.nextVisitTime,
-        nextVisitNotes: values.nextVisitNotes,
-        notes: values.notes,
+        assignmentId: assignmentId ?? undefined,
+        outcome: data.outcome,
+        notes: data.notes || undefined,
+        literaturePlaced: data.literaturePlaced || undefined,
+        returnVisitDate: data.returnVisitDate || undefined,
+        visitDate: new Date().toISOString(),
       });
 
-      await Promise.all(
-        encounters.map((encounter) =>
-          createEncounter({
-            visitId: visit.id,
-            householdId: household.id,
-            encounterDate: visit.visitDate,
-            name: encounter.name,
-            response: encounter.response,
-            topicDiscussed: encounter.topicDiscussed,
-            literatureAccepted: encounter.literatureAccepted,
-            returnVisitRequested: encounter.returnVisitRequested,
-            notes: encounter.notes,
-          })
-        )
-      );
+      // Update household status
+      if (data.status && data.status !== household.status) {
+        await updateHouseholdRecord(household.id, {
+          status: data.status as LogVisitFormData['status'],
+          lastVisitDate: new Date().toISOString(),
+        });
+      }
 
-      toast.success(encounters.length ? 'Visit and encounter saved' : 'Visit saved');
+      onSaved?.();
       onOpenChange(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
+      form.reset();
     } finally {
       setSubmitting(false);
     }
@@ -82,45 +82,150 @@ export function HouseholdLogVisitSheet({
 
   return (
     <ResponsiveDialog
-      open={open && !!household}
+      open={open}
       onOpenChange={onOpenChange}
-      title="Log Visit"
-      description={householdDescription(household)}
-      contentClassName="sm:max-w-lg"
+      title="Log Visit Record"
+      description={
+        household ? `${household.address} (${household.city})` : 'Record visit details'
+      }
     >
-      <LogVisitForm submitting={submitting} onSubmit={handleSubmit} />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Visit Outcome *</Label>
+          <Select
+            value={form.watch('outcome')}
+            onValueChange={(val) =>
+              form.setValue('outcome', val as LogVisitFormData['outcome'])
+            }
+          >
+            <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectValue placeholder="Outcome" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="answered">Answered / Conversation</SelectItem>
+              <SelectItem value="not_home">Not Home</SelectItem>
+              <SelectItem value="return_visit">Return Visit Made</SelectItem>
+              <SelectItem value="do_not_visit">Do Not Call / Visit</SelectItem>
+              <SelectItem value="moved">Moved Away</SelectItem>
+              <SelectItem value="other">Other Outcome</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold">Update Household Status</Label>
+            <Select
+              value={form.watch('status')}
+              onValueChange={(val) =>
+                form.setValue('status', val as LogVisitFormData['status'])
+              }
+            >
+              <SelectTrigger className="h-9 rounded-xl text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="not_home">Not Home</SelectItem>
+                <SelectItem value="return_visit">Return Visit</SelectItem>
+                <SelectItem value="do_not_visit">Do Not Visit</SelectItem>
+                <SelectItem value="moved">Moved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="returnVisitDate" className="text-xs font-semibold">
+              Return Visit Date
+            </Label>
+            <Input
+              id="returnVisitDate"
+              type="date"
+              className="h-9 rounded-xl text-xs"
+              {...form.register('returnVisitDate')}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="literaturePlaced" className="text-xs font-semibold">
+            Literature Left / Video Shown
+          </Label>
+          <Input
+            id="literaturePlaced"
+            placeholder="e.g. Watchtower, brochure, tract"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('literaturePlaced')}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="notes" className="text-xs font-semibold">
+            Visit Notes
+          </Label>
+          <Textarea
+            id="notes"
+            placeholder="Note topics discussed, questions for next time…"
+            className="rounded-xl text-xs resize-none h-18"
+            {...form.register('notes')}
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl text-xs"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="rounded-xl text-xs font-semibold"
+            disabled={submitting}
+          >
+            {submitting ? 'Saving…' : 'Save Visit Record'}
+          </Button>
+        </div>
+      </form>
     </ResponsiveDialog>
   );
 }
 
+interface EncounterSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  household: Household | null;
+  onSaved?: () => void;
+}
+
 export function HouseholdEncounterSheet({
-  household,
   open,
   onOpenChange,
-  visitId,
-}: HouseholdSheetProps) {
+  household,
+  onSaved,
+}: EncounterSheetProps) {
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (values: AddEncounterFormValues) => {
-    if (!household) return;
-
+  const handleSaveEncounter = async (values: AddEncounterFormValues) => {
     setSubmitting(true);
     try {
-      await createEncounter({
-        visitId,
-        householdId: household.id,
-        encounterDate: new Date().toISOString(),
+      await saveEncounterRecord({
+        householdId: values.householdId,
         name: values.name,
         response: values.response,
-        topicDiscussed: values.topicDiscussed,
-        literatureAccepted: values.literatureAccepted,
-        returnVisitRequested: values.returnVisitRequested,
-        notes: values.notes,
+        gender: values.gender,
+        ageGroup: values.ageGroup,
+        language: values.language,
+        notes: values.notes || undefined,
+        topicsDiscussed: values.topicsDiscussed || undefined,
+        literatureOffered: values.literatureOffered || undefined,
+        visitDate: new Date().toISOString(),
       });
-      toast.success('Encounter saved');
+      onSaved?.();
       onOpenChange(false);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
     } finally {
       setSubmitting(false);
     }
@@ -128,13 +233,19 @@ export function HouseholdEncounterSheet({
 
   return (
     <ResponsiveDialog
-      open={open && !!household}
+      open={open}
       onOpenChange={onOpenChange}
-      title="Add Encounter"
-      description={householdDescription(household)}
-      contentClassName="sm:max-w-lg"
+      title="Record Person Encounter"
+      description={
+        household ? `${household.address} (${household.city})` : 'Conversation details'
+      }
     >
-      <AddEncounterForm submitting={submitting} onSubmit={handleSubmit} />
+      <AddEncounterForm
+        defaultHouseholdId={household?.id}
+        onSubmit={handleSaveEncounter}
+        loading={submitting}
+        onCancel={() => onOpenChange(false)}
+      />
     </ResponsiveDialog>
   );
 }

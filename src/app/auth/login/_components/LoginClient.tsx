@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Eye, EyeOff, MapPin, ArrowRight, AlertCircle } from 'lucide-react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, ArrowLeft, Eye, EyeOff, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { loginSchema, type LoginFormData } from '@/schemas';
 import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { type LoginFormData, loginSchema } from '@/schemas';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
     setError('');
     try {
       await signInWithEmail(data.email, data.password);
-      router.push('/dashboard');
+      router.push('/onboarding');
       router.refresh();
     } catch (err) {
       console.error('[login error]', err);
@@ -45,7 +46,7 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      router.push('/dashboard');
+      router.push('/onboarding');
       router.refresh();
     } catch (err) {
       console.error('[google login error]', err);
@@ -56,150 +57,141 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5">
-      <div className="w-full max-w-md">
-        {/* Card */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
-          {/* Logo & heading */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/15 mb-4">
-              <MapPin size={24} className="text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-            <p className="text-muted-foreground mt-1.5 text-sm">
-              Sign in to your Ministry Planner account
-            </p>
-          </div>
+    <div className="flex-1 flex flex-col justify-between min-h-screen bg-background text-foreground p-4 sm:p-6 relative transition-colors duration-200">
+      {/* Top Floating Utility Bar */}
+      <div className="flex items-center justify-between w-full max-w-5xl mx-auto py-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft size={15} />
+          <span>Back to Home</span>
+        </Link>
+        <ThemeToggle />
+      </div>
 
-          {/* Error alert */}
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertCircle size={16} className="absolute left-4 top-3.5" />
-              <AlertDescription className="pl-6">{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-5"
-            size="lg"
-            onClick={() => void handleGoogleSignIn()}
-            disabled={isSubmitting || isGoogleLoading}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-semibold">
-              G
-            </span>
-            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
-          </Button>
-
-          <div className="relative mb-5 flex items-center">
-            <div className="h-px flex-1 bg-border" />
-            <span className="px-3 text-xs text-muted-foreground">or</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* Email */}
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                {...register('email')}
-                placeholder="you@example.com"
-                disabled={isSubmitting}
-                aria-invalid={!!errors.email}
-                className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot password?
-                </Link>
+      {/* Centered Auth Card */}
+      <div className="flex-1 flex items-center justify-center my-6">
+        <div className="w-full max-w-md">
+          {/* Solid Card */}
+          <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
+            {/* Studio Brand Header */}
+            <div className="bg-primary px-6 py-6 text-primary-foreground text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-foreground/20 mb-3 shadow-xs">
+                <MapPin size={22} className="text-primary-foreground" />
               </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  {...register('password')}
-                  placeholder="••••••••"
-                  disabled={isSubmitting}
-                  aria-invalid={!!errors.password}
-                  className={`pr-10${errors.password ? ' border-destructive focus-visible:ring-destructive' : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
-              )}
+              <h1 className="text-xl font-bold tracking-tight">Ministry Planner</h1>
+              <p className="text-xs text-primary-foreground/80 mt-1">
+                Sign in to your territory management workspace
+              </p>
             </div>
 
-            {/* Submit */}
-            <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  Signing in…
+            <div className="p-6 sm:p-8 space-y-5">
+              {/* Error alert */}
+              {error && (
+                <Alert variant="destructive" className="rounded-xl">
+                  <AlertCircle size={15} />
+                  <AlertDescription className="text-xs">{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Google Sign In */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 rounded-xl text-xs font-semibold gap-2"
+                onClick={() => void handleGoogleSignIn()}
+                disabled={isSubmitting || isGoogleLoading}
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold">
+                  G
                 </span>
-              ) : (
-                <>
-                  Sign In
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </Button>
-          </form>
+                {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
+              </Button>
 
-          {/* Sign up link */}
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link
-              href="/auth/register"
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              Sign up free
-            </Link>
-          </p>
+              <div className="relative flex items-center">
+                <div className="h-px flex-1 bg-border" />
+                <span className="px-3 text-[11px] text-muted-foreground uppercase font-medium">
+                  or continue with email
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-medium">
+                    Email address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    className="h-10 rounded-xl text-xs"
+                    autoComplete="email"
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <p className="text-[11px] text-destructive">{errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-xs font-medium">
+                      Password
+                    </Label>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className="h-10 rounded-xl text-xs pr-10"
+                      autoComplete="current-password"
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-[11px] text-destructive">{errors.password.message}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm"
+                  disabled={isSubmitting || isGoogleLoading}
+                >
+                  {isSubmitting ? 'Signing in…' : 'Sign in'}
+                </Button>
+              </form>
+
+              <div className="text-center pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Don&apos;t have an account?{' '}
+                  <Link
+                    href="/auth/register"
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Create one now
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Footer copyright */}
+      <div className="py-2 text-center text-[11px] text-muted-foreground">
+        © {new Date().getFullYear()} Ministry Planner
       </div>
     </div>
   );

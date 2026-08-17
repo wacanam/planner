@@ -6,9 +6,6 @@ const nextConfig: NextConfig = {
       '@': './src',
     },
   },
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-  },
   async headers() {
     return [
       {

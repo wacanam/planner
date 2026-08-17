@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -11,6 +9,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import type { Group, GroupMember } from '@/types/api';
@@ -90,7 +89,7 @@ export function useCreateGroup(congregationId: string) {
     },
     [congregationId]
   );
-  return { create, isCreating };
+  return { create, isCreating, isPending: isCreating };
 }
 
 export function useUpdateGroup(congregationId: string) {
@@ -141,7 +140,7 @@ export function useUpdateGroup(congregationId: string) {
     },
     [congregationId]
   );
-  return { update, isUpdating };
+  return { update, isUpdating, isPending: isUpdating };
 }
 
 export function useDeleteGroup(_congregationId: string) {
@@ -151,17 +150,20 @@ export function useDeleteGroup(_congregationId: string) {
     try {
       const firestore = getPlannerFirestore();
       const assignments = await getDocs(
-        query(collection(firestore, FIRESTORE_COLLECTIONS.assignments), where('serviceGroupId', '==', id))
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+          where('serviceGroupId', '==', id)
+        )
       );
       const batch = writeBatch(firestore);
       for (const assignment of assignments.docs) {
-        batch.update(assignment.ref, { serviceGroupId: null, groupName: null, updatedAt: nowIso() });
+        batch.delete(assignment.ref);
       }
-      if (!assignments.empty) await batch.commit();
-      await deleteDoc(groupDocument(id));
+      batch.delete(groupDocument(id));
+      await batch.commit();
     } finally {
       setIsDeleting(false);
     }
   }, []);
-  return { remove, isDeleting };
+  return { remove, isDeleting, isPending: isDeleting };
 }

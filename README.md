@@ -10,6 +10,7 @@ Ministry Planner is a mobile-first, offline-first web app for congregation terri
 - Firebase Authentication with email/password and Google sign-in
 - Google Maps territory and household map surfaces with marker clustering
 - Service worker for installability and app-shell caching
+- Bun runtime and package manager
 
 ## MVP Features
 
@@ -23,7 +24,7 @@ Ministry Planner is a mobile-first, offline-first web app for congregation terri
 1. Install dependencies:
 
    ```bash
-   pnpm install
+   bun install
    ```
 
 2. Configure `.env.local`:
@@ -44,7 +45,7 @@ Ministry Planner is a mobile-first, offline-first web app for congregation terri
 3. Start the dev server:
 
    ```bash
-   pnpm dev
+   bun dev
    ```
 
 Visit [http://localhost:3000](http://localhost:3000).
@@ -53,12 +54,12 @@ Visit [http://localhost:3000](http://localhost:3000).
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Start the development server |
-| `pnpm build` | Build the production app |
-| `pnpm start` | Run the production server |
-| `pnpm lint` | Run Biome linting |
-| `pnpm format` | Format the repository |
-| `pnpm test` | Run Vitest tests |
+| `bun dev` | Start the development server |
+| `bun run build` | Build the production app |
+| `bun run start` | Run the production server |
+| `bun run lint` | Run Biome linting |
+| `bun run format` | Format the repository |
+| `bun run test` | Run Vitest tests |
 
 ## Firestore Schema
 
@@ -69,5 +70,5 @@ The app schema is documented in [FIREBASE-FIRESTORE-SCHEMA.md](FIREBASE-FIRESTOR
 Run the full local validation pass before shipping changes:
 
 ```bash
-pnpm lint && pnpm build && pnpm test
+bun run lint && bun run build && bun run test
 ```

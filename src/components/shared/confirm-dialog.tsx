@@ -1,7 +1,15 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -10,10 +18,9 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  confirmVariant?: 'default' | 'destructive';
-  loading?: boolean;
-  error?: string | null;
+  variant?: 'default' | 'destructive';
   onConfirm: () => void | Promise<void>;
+  loading?: boolean;
 }
 
 export function ConfirmDialog({
@@ -23,30 +30,39 @@ export function ConfirmDialog({
   description,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
-  confirmVariant = 'default',
-  loading = false,
-  error,
+  variant = 'default',
   onConfirm,
+  loading = false,
 }: ConfirmDialogProps) {
   return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      contentClassName="sm:max-w-md"
-    >
-      <div className="space-y-4">
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={loading}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="bg-card border-border shadow-2xl rounded-2xl max-w-md p-6">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-lg font-bold text-foreground">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-muted-foreground mt-1.5">
+            {description}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="mt-6 flex gap-2">
+          <AlertDialogCancel disabled={loading} className="rounded-xl text-xs">
             {cancelLabel}
-          </Button>
-          <Button type="button" variant={confirmVariant} className="flex-1" onClick={() => void onConfirm()} disabled={loading}>
-            {loading ? 'Please wait…' : confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </ResponsiveDialog>
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={loading}
+            onClick={(e) => {
+              e.preventDefault();
+              void onConfirm();
+            }}
+            className={`rounded-xl text-xs font-semibold ${
+              variant === 'destructive'
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
+          >
+            {loading ? 'Processing…' : confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

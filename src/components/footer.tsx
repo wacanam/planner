@@ -1,21 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { MapPin } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const DASHBOARD_PREFIXES = [
-  '/admin',
-  '/congregation',
-  '/dashboard',
-  '/records',
-  '/profile',
-  '/notifications',
-  '/onboarding',
-  '/territories',
-  '/no-congregation',
-  '/auth',
-];
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth'];
 
 export function Footer() {
   const pathname = usePathname();
@@ -23,7 +12,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border/60 bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand */}
           <div>
@@ -43,7 +32,7 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Product</h3>
             <ul className="space-y-2">
-              {['Features', 'How It Works', 'Security'].map((item) => (
+              {['Features', 'How It Works'].map((item) => (
                 <li key={item}>
                   <Link
                     href={`/#${item.toLowerCase().replace(' ', '-')}`}

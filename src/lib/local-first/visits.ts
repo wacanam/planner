@@ -3,20 +3,20 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
   query,
+  type Unsubscribe,
   updateDoc,
   where,
   writeBatch,
-  type QueryConstraint,
-  type QueryDocumentSnapshot,
-  type Unsubscribe,
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import type { Visit } from '@/types/api';
 import { getHouseholdById } from './households';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold, LocalVisit } from './types';
-import type { Visit } from '@/types/api';
 
 export interface CreateVisitInput {
   householdId: string;
@@ -57,10 +57,7 @@ function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   return true;
 }
 
-export function toVisitView(
-  record: LocalVisit,
-  household?: LocalHousehold | null
-): Visit {
+export function toVisitView(record: LocalVisit, household?: LocalHousehold | null): Visit {
   return {
     id: record.id,
     userId: record.userId ?? '',
@@ -177,14 +174,19 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
     updates.householdStatusAfter = nullableString(input.householdStatusAfter);
   }
   if (input.duration !== undefined) updates.duration = nullableNumber(input.duration);
-  if (input.literatureLeft !== undefined) updates.literatureLeft = nullableString(input.literatureLeft);
+  if (input.literatureLeft !== undefined)
+    updates.literatureLeft = nullableString(input.literatureLeft);
   if (input.bibleTopicDiscussed !== undefined) {
     updates.bibleTopicDiscussed = nullableString(input.bibleTopicDiscussed);
   }
-  if (input.returnVisitPlanned !== undefined) updates.returnVisitPlanned = Boolean(input.returnVisitPlanned);
-  if (input.nextVisitDate !== undefined) updates.nextVisitDate = nullableString(input.nextVisitDate);
-  if (input.nextVisitTime !== undefined) updates.nextVisitTime = nullableString(input.nextVisitTime);
-  if (input.nextVisitNotes !== undefined) updates.nextVisitNotes = nullableString(input.nextVisitNotes);
+  if (input.returnVisitPlanned !== undefined)
+    updates.returnVisitPlanned = Boolean(input.returnVisitPlanned);
+  if (input.nextVisitDate !== undefined)
+    updates.nextVisitDate = nullableString(input.nextVisitDate);
+  if (input.nextVisitTime !== undefined)
+    updates.nextVisitTime = nullableString(input.nextVisitTime);
+  if (input.nextVisitNotes !== undefined)
+    updates.nextVisitNotes = nullableString(input.nextVisitNotes);
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
   if (input.assignmentId !== undefined) updates.assignmentId = nullableString(input.assignmentId);
   await updateDoc(visitDocument(id), updates);
@@ -210,7 +212,8 @@ export function watchVisits(
   const constraints: QueryConstraint[] = [];
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
   if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
-  const visitQuery = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
+  const visitQuery =
+    constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
 
   return onSnapshot(
     visitQuery,

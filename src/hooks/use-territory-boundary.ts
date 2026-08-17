@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useCallback, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 
@@ -32,7 +32,7 @@ export interface UseTerritoryBoundaryReturn {
 
 /**
  * Hook for managing territory boundaries
- * 
+ *
  * Handles:
  * - Fetching existing boundaries from Firestore
  * - Saving new boundaries as GeoJSON
@@ -48,59 +48,63 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
   const clearError = useCallback(() => setError(null), []);
 
   const territoryDocument = useCallback(
-    (territoryId: string) => doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
+    (territoryId: string) =>
+      doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
     []
   );
 
   /**
    * Fetch existing boundary from server
    */
-  const fetchBoundary = useCallback(async (territoryId: string) => {
-    if (!territoryId) {
-      setError('Territory ID is required');
-      return;
-    }
+  const fetchBoundary = useCallback(
+    async (territoryId: string) => {
+      if (!territoryId) {
+        setError('Territory ID is required');
+        return;
+      }
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const snapshot = await getDoc(territoryDocument(territoryId));
-      const rawBoundary = snapshot.exists()
-        ? ((snapshot.data().boundary ?? null) as string | GeoJSONGeometry | null)
-        : null;
-      const data = {
-        boundary:
-          typeof rawBoundary === 'string'
-            ? ((JSON.parse(rawBoundary) as GeoJSONGeometry | null) ?? null)
-            : rawBoundary,
-      };
+      try {
+        const snapshot = await getDoc(territoryDocument(territoryId));
+        const rawBoundary = snapshot.exists()
+          ? ((snapshot.data().boundary ?? null) as string | GeoJSONGeometry | null)
+          : null;
+        const data = {
+          boundary:
+            typeof rawBoundary === 'string'
+              ? ((JSON.parse(rawBoundary) as GeoJSONGeometry | null) ?? null)
+              : rawBoundary,
+        };
 
-      if (data.boundary) {
-        // Validate boundary structure
-        if (validateGeoJSON(data.boundary)) {
-          setBoundary(data.boundary);
+        if (data.boundary) {
+          // Validate boundary structure
+          if (validateGeoJSON(data.boundary)) {
+            setBoundary(data.boundary);
+          } else {
+            setError('Invalid boundary data received from server');
+            console.warn('[useTerritoryBoundary] Invalid GeoJSON:', data.boundary);
+          }
         } else {
-          setError('Invalid boundary data received from server');
-          console.warn('[useTerritoryBoundary] Invalid GeoJSON:', data.boundary);
+          setBoundary(null);
         }
-      } else {
-        setBoundary(null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // "Not found" means the territory exists but has no boundary yet — treat as empty
+        if (message.toLowerCase().includes('not found')) {
+          setBoundary(null);
+        } else {
+          // Surface unexpected errors (network failures, server errors, etc.)
+          setError(`Failed to fetch boundary: ${message}`);
+          console.error('[useTerritoryBoundary] Fetch error:', err);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      // "Not found" means the territory exists but has no boundary yet — treat as empty
-      if (message.toLowerCase().includes('not found')) {
-        setBoundary(null);
-      } else {
-        // Surface unexpected errors (network failures, server errors, etc.)
-        setError(`Failed to fetch boundary: ${message}`);
-        console.error('[useTerritoryBoundary] Fetch error:', err);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [territoryDocument]);
+    },
+    [territoryDocument]
+  );
 
   /**
    * Save boundary to server
@@ -181,7 +185,7 @@ export function useTerritoryBoundary(): UseTerritoryBoundaryReturn {
 
 /**
  * Validate GeoJSON Polygon or MultiPolygon geometry
- * 
+ *
  * @param geometry - GeoJSON geometry to validate
  * @returns true if valid, false otherwise
  */
@@ -214,10 +218,83 @@ export function validateGeoJSON(geometry: unknown): geometry is GeoJSONGeometry 
 }
 
 function isPosition(value: unknown): value is GeoJSONPosition {
-  return Array.isArray(value) && value.length >= 2 && value.every((part) => typeof part === 'number');
+  return (
+    Array.isArray(value) && value.length >= 2 && value.every((part) => typeof part === 'number')
+  );
 }
 
 function isLinearRing(value: unknown): value is GeoJSONPosition[] {
   return Array.isArray(value) && value.length >= 4 && value.every(isPosition);
 }
 
+export function serializeBoundaryCoordinates(
+  pointsOrPolygons:
+    | Array<{ lat: number; lng: number; polygonIndex?: number }>
+    | Array<Array<{ lat: number; lng: number }>>
+): Array<{ lat: number; lng: number; polygonIndex?: number }> {
+  if (!pointsOrPolygons || !Array.isArray(pointsOrPolygons) || pointsOrPolygons.length === 0) {
+    return [];
+  }
+
+  // Check if it's a MultiPolygon (nested array of arrays)
+  if (Array.isArray(pointsOrPolygons[0])) {
+    const multi = pointsOrPolygons as Array<Array<{ lat: number; lng: number }>>;
+    if (multi.length === 1) {
+      // Single polygon part: serialize as clean 1D array of points
+      return multi[0].map((pt) => ({
+        lat: Number(pt.lat),
+        lng: Number(pt.lng),
+      }));
+    }
+    // Multiple polygon parts: flatten with polygonIndex for Firestore compatibility
+    return multi.flatMap((poly, polyIndex) =>
+      poly.map((pt) => ({
+        lat: Number(pt.lat),
+        lng: Number(pt.lng),
+        polygonIndex: polyIndex,
+      }))
+    );
+  }
+
+  // Single polygon (1D array of points)
+  return (pointsOrPolygons as Array<{ lat: number; lng: number; polygonIndex?: number }>).map(
+    (pt) => ({
+      lat: Number(pt.lat),
+      lng: Number(pt.lng),
+      ...(pt.polygonIndex != null ? { polygonIndex: Number(pt.polygonIndex) } : {}),
+    })
+  );
+}
+
+export function useSaveBoundary(territoryId: string) {
+  const [isPending, setIsPending] = useState(false);
+
+  const saveBoundary = useCallback(
+    async (
+      pointsOrPolygons:
+        | Array<{ lat: number; lng: number; polygonIndex?: number }>
+        | Array<Array<{ lat: number; lng: number }>>
+    ) => {
+      setIsPending(true);
+      try {
+        const now = nowIso();
+        const serialized = serializeBoundaryCoordinates(pointsOrPolygons);
+        await updateDoc(
+          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
+          {
+            boundaryCoordinates: serialized,
+            updatedAt: now,
+          }
+        );
+      } catch (err) {
+        console.error('[useSaveBoundary] Error saving boundary to Firestore:', err);
+        throw err;
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [territoryId]
+  );
+
+  return { saveBoundary, isPending };
+}

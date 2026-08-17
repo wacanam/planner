@@ -1,16 +1,16 @@
-import Link from 'next/link';
 import {
-  Map as MapIcon,
-  WifiOff,
-  ClipboardCheck,
   BarChart3,
+  ChevronRight,
+  ClipboardCheck,
+  Map as MapIcon,
+  MapPin,
   ShieldCheck,
   Smartphone,
-  ChevronRight,
   UserCog,
   Users,
-  MapPin,
+  WifiOff,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 

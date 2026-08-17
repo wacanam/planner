@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   doc,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
-  type QueryConstraint,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import type { JoinRequest, Member } from '@/types/api';
@@ -40,6 +40,7 @@ function joinRequestFromMember(
 ): JoinRequest {
   return {
     id: member.id,
+    userId: member.userId || member.id,
     congregationId: member.congregationId,
     status: member.status,
     joinMessage: member.joinMessage,
@@ -176,7 +177,7 @@ export function useReviewJoinRequest(congregationId: string) {
     },
     [congregationId]
   );
-  return { review, isReviewing };
+  return { review, isReviewing, isPending: isReviewing };
 }
 
 export function useUpdateMemberRole(_congregationId: string) {
@@ -195,7 +196,7 @@ export function useUpdateMemberRole(_congregationId: string) {
     },
     []
   );
-  return { updateRole, isUpdating };
+  return { updateRole, isUpdating, isPending: isUpdating };
 }
 
 export function useAddMember(congregationId: string) {

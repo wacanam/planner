@@ -1,492 +1,229 @@
 'use client';
 
-import { FolderOpen, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { FolderOpen, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { Group } from '@/types/api';
 import {
   useCongregationGroups,
-  useCongregationMembers,
   useCreateGroup,
   useDeleteGroup,
   useUpdateGroup,
 } from '@/hooks';
-import { createGroupSchema, type CreateGroupFormData } from '@/schemas';
+import { UserRole } from '@/lib/roles';
+import type { Group } from '@/types/api';
 
-export default function CongregationGroupsPage() {
+export default function GroupsClient() {
   const params = useParams();
-  const congregationId = params?.id as string;
-  const { data: session } = useSession();
-  const sessionUser = session?.user as { id?: string; role?: string } | undefined;
+  const congregationId = (params?.id as string) || '';
 
-  const { data: groupsData, isLoading: loading } = useCongregationGroups(congregationId);
-  const groups = groupsData;
-  const { data: members } = useCongregationMembers(congregationId);
-  const { create: createGroupMutation } = useCreateGroup(congregationId);
-  const { update: updateGroup } = useUpdateGroup(congregationId);
-  const { remove: deleteGroup } = useDeleteGroup(congregationId);
-  const [search, setSearch] = useState('');
-  const myRole =
-    members.find((member) => member.userId === sessionUser?.id)?.congregationRole ?? null;
-  const canManageGroups =
-    myRole === 'service_overseer' ||
-    ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER'].includes(sessionUser?.role ?? '');
-
-  const filtered = useMemo(() => {
-    if (!search) return groups;
-    const s = search.toLowerCase();
-    return groups.filter((g) => g.name.toLowerCase().includes(s));
-  }, [search, groups]);
+  const { groups = [], isLoading } = useCongregationGroups(congregationId);
+  const { create: createGroup, isPending: creating } = useCreateGroup(congregationId);
+  const { update: updateGroup, isPending: updating } = useUpdateGroup(congregationId);
+  const { remove: deleteGroup, isPending: deleting } = useDeleteGroup(congregationId);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createError, setCreateError] = useState('');
-  const createForm = useForm<CreateGroupFormData>({
-    resolver: zodResolver(createGroupSchema),
-    defaultValues: { name: '' },
-  });
+  const [editGroup, setEditGroup] = useState<Group | null>(null);
+  const [groupName, setGroupName] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const handleCreate = async () => {
+    if (!groupName.trim()) return;
+    await createGroup({ name: groupName.trim() });
+    setGroupName('');
+    setCreateOpen(false);
+  };
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Group | null>(null);
-  const [editError, setEditError] = useState('');
-  const editForm = useForm<CreateGroupFormData>({
-    resolver: zodResolver(createGroupSchema),
-    defaultValues: { name: '' },
-  });
-  const [membersOpen, setMembersOpen] = useState(false);
-  const [membersTarget, setMembersTarget] = useState<Group | null>(null);
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-  const [membersError, setMembersError] = useState('');
-  const [membersSaving, setMembersSaving] = useState(false);
-
-  async function handleCreate(data: CreateGroupFormData) {
-    setCreateError('');
-    try {
-      await createGroupMutation({ name: data.name });
-      setCreateOpen(false);
-      createForm.reset();
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create group');
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget) return;
-    setDeleteLoading(true);
-    try {
-      await deleteGroup(deleteTarget.id);
-      setDeleteOpen(false);
-    } catch {
-      // ignore
-    } finally {
-      setDeleteLoading(false);
-    }
-  }
-
-  function openEdit(group: Group) {
-    setEditTarget(group);
-    setEditError('');
-    editForm.reset({ name: group.name });
-    setEditOpen(true);
-  }
-
-  async function handleEdit(data: CreateGroupFormData) {
-    if (!editTarget) return;
-    setEditError('');
-    try {
-      await updateGroup({ id: editTarget.id, name: data.name });
-      setEditOpen(false);
-      editForm.reset();
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to update group');
-    }
-  }
-
-  function openMembers(group: Group) {
-    setMembersTarget(group);
-    setSelectedMemberIds(group.members.map((member) => member.userId));
-    setMembersError('');
-    setMembersOpen(true);
-  }
-
-  function toggleMember(userId: string) {
-    setSelectedMemberIds((current) =>
-      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId]
-    );
-  }
-
-  async function handleSaveMembers() {
-    if (!membersTarget) return;
-    setMembersError('');
-    setMembersSaving(true);
-    try {
-      await updateGroup({
-        id: membersTarget.id,
-        members: members
-          .filter((member) => selectedMemberIds.includes(member.userId))
-          .map((member) => ({
-            id: member.id,
-            userId: member.userId,
-            user: {
-              name: member.user?.name ?? null,
-              email: member.user?.email ?? null,
-            },
-          })),
-      });
-      setMembersOpen(false);
-      setMembersTarget(null);
-    } catch (err) {
-      setMembersError(err instanceof Error ? err.message : 'Failed to update group members');
-    } finally {
-      setMembersSaving(false);
-    }
-  }
+  const handleUpdate = async () => {
+    if (!editGroup || !groupName.trim()) return;
+    await updateGroup({ id: editGroup.id, name: groupName.trim() });
+    setEditGroup(null);
+    setGroupName('');
+  };
 
   return (
-    <ProtectedPage congregationId={congregationId}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
+      <DashboardHeader />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Groups</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage service groups in this congregation
+            <h1 className="text-2xl font-bold text-foreground">Service Groups</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Field ministry service groups and overseer assignments
             </p>
           </div>
-          {canManageGroups && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={14} />
-              New Group
-            </Button>
-          )}
+          <Button
+            onClick={() => {
+              setGroupName('');
+              setCreateOpen(true);
+            }}
+            className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-4 shadow-sm"
+          >
+            <Plus size={15} />
+            <span>Create Group</span>
+          </Button>
         </div>
 
-        <div className="relative max-w-sm">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            placeholder="Search groups…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Groups Grid */}
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-32 bg-muted animate-pulse rounded-2xl" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <FolderOpen size={44} className="mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              {search ? 'No groups match your search' : 'No groups yet'}
+        ) : groups.length === 0 ? (
+          <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+            <FolderOpen size={40} className="text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground">No service groups yet</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Create groups to organize morning field service meetings.
             </p>
-            {!search && canManageGroups && (
-              <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-                <Plus size={14} />
-                Create First Group
-              </Button>
-            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((g) => (
-              <Card key={g.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                        <FolderOpen size={18} className="text-purple-600 dark:text-purple-400" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {groups.map((group) => (
+              <Card
+                key={group.id}
+                className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
+              >
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                        <Users size={16} />
                       </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{g.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Created {new Date(g.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
+                      <h2 className="font-bold text-sm text-foreground truncate">{group.name}</h2>
                     </div>
-                    {canManageGroups && (
-                      <div className="flex items-center gap-1 -mt-1 -mr-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openMembers(g)}
-                          aria-label="Manage members"
-                        >
-                          <Users size={13} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEdit(g)}
-                          aria-label="Edit group"
-                        >
-                          <Pencil size={13} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          onClick={() => {
-                            setDeleteTarget(g);
-                            setDeleteOpen(true);
-                          }}
-                          aria-label="Delete group"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-lg p-0"
+                        onClick={() => {
+                          setEditGroup(group);
+                          setGroupName(group.name);
+                        }}
+                      >
+                        <Pencil size={13} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-lg p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteConfirmId(group.id)}
+                      >
+                        <Trash2 size={13} />
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users size={13} />
-                    <span>{g.members?.length ?? 0} members</span>
-                  </div>
-
-                  {g.members && g.members.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {g.members.slice(0, 3).map((m) => (
-                        <span
-                          key={m.id}
-                          className="text-[11px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground"
-                        >
-                          {m.user?.name ?? 'Member'}
-                        </span>
-                      ))}
-                      {g.members.length > 3 && (
-                        <span className="text-[11px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                          +{g.members.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {group.members?.length ?? 0} publishers assigned
+                  </p>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
-      </div>
 
-      <Dialog
-        open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) createForm.reset();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Group</DialogTitle>
-            <DialogDescription>Create a new service group.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 mt-2">
-            {createError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {createError}
-              </p>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="g-name">Group Name *</Label>
+        {/* Create Group Dialog */}
+        <ResponsiveDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          title="Create Service Group"
+          description="Add a new congregation ministry group"
+        >
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Group Name *</Label>
               <Input
-                id="g-name"
-                {...createForm.register('name')}
-                placeholder="e.g. Monday Group"
-                disabled={createForm.formState.isSubmitting}
-                aria-invalid={!!createForm.formState.errors.name}
-                className={
-                  createForm.formState.errors.name
-                    ? 'border-destructive focus-visible:ring-destructive'
-                    : ''
-                }
+                placeholder="e.g. Group 1 — North Area"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="h-9 rounded-xl text-xs"
               />
-              {createForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1">
-                  {createForm.formState.errors.name.message}
-                </p>
-              )}
             </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setCreateOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createForm.formState.isSubmitting}>
-                {createForm.formState.isSubmitting ? 'Creating…' : 'Create Group'}
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleCreate}
+                disabled={!groupName.trim() || creating}
+              >
+                {creating ? 'Creating…' : 'Create Group'}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={editOpen}
-        onOpenChange={(open) => {
-          setEditOpen(open);
-          if (!open) editForm.reset();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Group</DialogTitle>
-            <DialogDescription>Update this service group.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 mt-2">
-            {editError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {editError}
-              </p>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-g-name">Group Name *</Label>
-              <Input
-                id="edit-g-name"
-                {...editForm.register('name')}
-                disabled={editForm.formState.isSubmitting}
-                aria-invalid={!!editForm.formState.errors.name}
-              />
-              {editForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1">
-                  {editForm.formState.errors.name.message}
-                </p>
-              )}
             </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={editForm.formState.isSubmitting}>
-                {editForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={membersOpen}
-        onOpenChange={(open) => {
-          setMembersOpen(open);
-          if (!open) {
-            setMembersTarget(null);
-            setMembersError('');
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Group Members</DialogTitle>
-            <DialogDescription>
-              Assign active congregation members to {membersTarget?.name ?? 'this group'}.
-            </DialogDescription>
-          </DialogHeader>
-
-          {membersError && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-              {membersError}
-            </p>
-          )}
-
-          <div className="mt-2 max-h-80 space-y-2 overflow-y-auto pr-1">
-            {members.length === 0 ? (
-              <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-                No active members available.
-              </p>
-            ) : (
-              members.map((member) => {
-                const selected = selectedMemberIds.includes(member.userId);
-                const currentGroup = groups.find(
-                  (group) =>
-                    group.id !== membersTarget?.id &&
-                    group.members.some((groupMember) => groupMember.userId === member.userId)
-                );
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    onClick={() => toggleMember(member.userId)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-                      selected
-                        ? 'border-primary bg-primary/10'
-                        : currentGroup
-                          ? 'border-amber-300 bg-amber-50/70 hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10 dark:hover:bg-amber-900/20'
-                          : 'border-border hover:bg-muted/60'
-                    }`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {member.user?.name ?? 'Unnamed member'}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {member.user?.email ?? member.congregationRole ?? 'Publisher'}
-                      </span>
-                      {!selected && currentGroup ? (
-                        <span className="mt-0.5 block truncate text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                          In {currentGroup.name}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium">
-                      {selected ? 'Assigned' : currentGroup ? 'Move' : 'Add'}
-                    </span>
-                  </button>
-                );
-              })
-            )}
           </div>
+        </ResponsiveDialog>
 
-          <DialogFooter className="gap-2 mt-4">
-            <Button variant="ghost" onClick={() => setMembersOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveMembers} disabled={membersSaving || !membersTarget}>
-              {membersSaving ? 'Saving...' : 'Save Members'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Edit Group Dialog */}
+        <ResponsiveDialog
+          open={!!editGroup}
+          onOpenChange={(op) => !op && setEditGroup(null)}
+          title="Edit Service Group"
+          description="Update group name"
+        >
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Group Name *</Label>
+              <Input
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="h-9 rounded-xl text-xs"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setEditGroup(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleUpdate}
+                disabled={!groupName.trim() || updating}
+              >
+                {updating ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
 
-      {/* Delete confirm */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Group?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <strong>{deleteTarget?.name}</strong>?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 mt-4">
-            <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
-              {deleteLoading ? 'Deleting…' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Delete Confirmation */}
+        <ConfirmDialog
+          open={!!deleteConfirmId}
+          onOpenChange={(op) => !op && setDeleteConfirmId(null)}
+          title="Delete Service Group"
+          description="Are you sure you want to delete this service group?"
+          confirmLabel="Delete Group"
+          variant="destructive"
+          onConfirm={() => {
+            if (deleteConfirmId) void deleteGroup(deleteConfirmId);
+          }}
+          loading={deleting}
+        />
+      </main>
+      <BottomTabBar />
     </ProtectedPage>
   );
 }

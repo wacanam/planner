@@ -4,16 +4,16 @@ import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   EmailAuthProvider,
+  type User as FirebaseUser,
+  signOut as firebaseSignOut,
   GoogleAuthProvider,
   onIdTokenChanged,
   reauthenticateWithCredential,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signOut as firebaseSignOut,
   updatePassword,
   updateProfile,
-  type User as FirebaseUser,
 } from 'firebase/auth';
 import {
   collection,
@@ -29,12 +29,12 @@ import {
 } from 'firebase/firestore';
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from 'react';
 import { getPlannerAuth, getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
@@ -108,15 +108,26 @@ function fallbackUser(firebaseUser: FirebaseUser): SessionUser {
 }
 
 async function activeMembershipCongregationId(userId: string) {
-  const snapshot = await getDocs(
-    query(
-      collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
-      where('userId', '==', userId),
-      where('status', '==', MemberStatus.ACTIVE),
-      limit(1)
-    )
-  );
-  return (snapshot.docs[0]?.data().congregationId as string | null | undefined) ?? null;
+  try {
+    const directDoc = await getDoc(
+      doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers, userId)
+    );
+    if (directDoc.exists()) {
+      const data = directDoc.data();
+      if (data.congregationId) return String(data.congregationId);
+    }
+    const snapshot = await getDocs(
+      query(
+        collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
+        where('userId', '==', userId),
+        limit(1)
+      )
+    );
+    const data = snapshot.docs[0]?.data();
+    return (data?.congregationId as string | null | undefined) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function findExistingUserByEmail(email: string) {

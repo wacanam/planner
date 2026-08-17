@@ -14,30 +14,37 @@ export class HeadingFilter {
 
   update(deg: number): number {
     const rad = deg * (Math.PI / 180);
-    const s   = Math.sin(rad);
-    const co  = Math.cos(rad);
+    const s = Math.sin(rad);
+    const co = Math.cos(rad);
 
     if (this.buf.length < this.size) {
       this.buf.push(deg);
       this.sinSum += s;
       this.cosSum += co;
     } else {
-      const old    = this.buf[this.idx] * (Math.PI / 180);
-      this.sinSum += s  - Math.sin(old);
+      const old = this.buf[this.idx] * (Math.PI / 180);
+      this.sinSum += s - Math.sin(old);
       this.cosSum += co - Math.cos(old);
       this.buf[this.idx] = deg;
       this.idx = (this.idx + 1) % this.size;
     }
 
-    return (Math.atan2(this.sinSum, this.cosSum) * 180 / Math.PI + 360) % 360;
+    return ((Math.atan2(this.sinSum, this.cosSum) * 180) / Math.PI + 360) % 360;
   }
 
-  reset() { this.sinSum = 0; this.cosSum = 0; this.buf = []; this.idx = 0; }
+  reset() {
+    this.sinSum = 0;
+    this.cosSum = 0;
+    this.buf = [];
+    this.idx = 0;
+  }
 
-  get isReady() { return this.buf.length > 0; }
+  get isReady() {
+    return this.buf.length > 0;
+  }
   get current() {
     if (!this.isReady) return 0;
-    return (Math.atan2(this.sinSum, this.cosSum) * 180 / Math.PI + 360) % 360;
+    return ((Math.atan2(this.sinSum, this.cosSum) * 180) / Math.PI + 360) % 360;
   }
 }
 
@@ -63,7 +70,7 @@ export function getTiltCompensatedHeading(
 
   const r = Math.PI / 180;
   const α = e.alpha * r;
-  const β = e.beta  * r;
+  const β = e.beta * r;
   const γ = e.gamma * r;
 
   const x = Math.cos(α) * Math.sin(β) * Math.sin(γ) - Math.sin(α) * Math.cos(γ);
@@ -109,7 +116,7 @@ export function getCompassAccuracy(
 ): CompassAccuracy {
   const a = e.webkitCompassAccuracy;
   if (a === undefined || a === null) return 'unknown';
-  if (a < 0)   return 'uncalibrated';
+  if (a < 0) return 'uncalibrated';
   if (a <= 10) return 'good';
   if (a <= 25) return 'ok';
   return 'poor';

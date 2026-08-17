@@ -1,5 +1,56 @@
 // src/types/api.ts
-// Shared entity types used by Firestore hooks and retained profile API helpers.
+// Shared entity types used by Firestore hooks and application components.
+
+// ─── Map Drawing Annotations ──────────────────────────────────────────────────
+
+export interface MapPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface MapRoad {
+  id: string;
+  name?: string;
+  color?: string;
+  points: MapPoint[];
+}
+
+export interface MapLandmark {
+  id: string;
+  type: 'tree' | 'hazard' | 'landmark' | 'gate' | 'school' | 'church' | 'store' | 'other';
+  lat: number;
+  lng: number;
+  label?: string;
+}
+
+export interface MapStartFlag {
+  lat: number;
+  lng: number;
+  label?: string;
+}
+
+export interface MapBoundaryPolygon {
+  id: string;
+  name?: string;
+  points: MapPoint[];
+  color?: string;
+}
+
+export interface BoundaryDisplaySettings {
+  fillColor?: string;
+  fillOpacity?: number;
+  maskOpacity?: number;
+  strokeColor?: string;
+  strokeWeight?: number;
+}
+
+export interface TerritoryAnnotations {
+  roads?: MapRoad[];
+  landmarks?: MapLandmark[];
+  startFlag?: MapStartFlag | null;
+  boundaries?: MapBoundaryPolygon[];
+  boundaryDisplay?: BoundaryDisplaySettings | null;
+}
 
 // ─── Congregation ──────────────────────────────────────────────────────────────
 
@@ -9,6 +60,8 @@ export interface Congregation {
   slug: string;
   city: string | null;
   country: string | null;
+  defaultLatitude?: number | null;
+  defaultLongitude?: number | null;
   status: string;
   createdById: string | null;
   createdAt: string;
@@ -22,10 +75,10 @@ export interface Member {
   userId: string;
   congregationId: string;
   congregationRole: string | null;
+  groupId?: string | null;
   status: string;
   joinMessage: string | null;
   joinedAt: string;
-  /** null when the user row is missing (leftJoin) */
   user: {
     id: string | null;
     name: string | null;
@@ -37,6 +90,7 @@ export interface Member {
 export interface JoinRequest {
   id: string;
   congregationId: string;
+  userId: string;
   status: string;
   joinMessage: string | null;
   reviewNote: string | null;
@@ -55,6 +109,7 @@ export interface Territory {
   id: string;
   number: string;
   name: string;
+  city?: string | null;
   notes: string | null;
   status: string;
   householdsCount: number;
@@ -64,11 +119,13 @@ export interface Territory {
   groupId: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Territory boundary GeoJSON string, null until drawn. */
   boundary?: string | null;
-  /** Denormalized publisher display name for list/detail screens. */
+  boundaryCoordinates?:
+    | Array<{ lat: number; lng: number }>
+    | Array<Array<{ lat: number; lng: number }>>
+    | null;
+  annotations?: TerritoryAnnotations | null;
   publisherName?: string | null;
-  /** Denormalized group display name for list/detail screens. */
   groupName?: string | null;
 }
 
@@ -104,6 +161,8 @@ export interface Group {
   id: string;
   congregationId: string;
   name: string;
+  overseerId?: string | null;
+  assistantOverseerId?: string | null;
   createdAt: string;
   members: GroupMember[];
 }
@@ -116,6 +175,12 @@ export interface Assignment {
   userId: string | null;
   serviceGroupId: string | null;
   status: string;
+  endorsementStatus?: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  endorsedBy?: string | null;
+  endorsedAt?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  rejectionReason?: string | null;
   assignedAt: string | null;
   dueAt: string | null;
   returnedAt: string | null;
@@ -125,6 +190,9 @@ export interface Assignment {
   assigneeName: string | null;
   assigneeEmail: string | null;
   groupName: string | null;
+  territoryName?: string | null;
+  territoryNumber?: string | null;
+  territory?: Territory | null;
 }
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
@@ -138,6 +206,23 @@ export interface Notification {
   data: string | null;
   isRead: boolean;
   createdAt: string;
+}
+
+// ─── Record Sharing ────────────────────────────────────────────────────────────
+
+export interface HouseholdShare {
+  id: string;
+  householdId: string;
+  householdAddress?: string | null;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  toUserName: string;
+  mode: 'collaborate' | 'transfer';
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Reports ───────────────────────────────────────────────────────────────────
@@ -206,8 +291,10 @@ export interface User {
   email: string;
   role: string;
   congregationId?: string | null;
+  groupId?: string | null;
   isActive: boolean;
   avatarUrl?: string | null;
+  image?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -217,6 +304,7 @@ export interface User {
 export interface Visit {
   id: string;
   userId: string;
+  publisherName?: string | null;
   householdId: string;
   visitDate: string;
   outcome: string;
@@ -224,6 +312,7 @@ export interface Visit {
   householdStatusAfter?: string | null;
   duration?: number | null;
   literatureLeft?: string | null;
+  literaturePlaced?: string | null;
   bibleTopicDiscussed?: string | null;
   returnVisitPlanned: boolean;
   nextVisitDate?: string | null;
@@ -233,7 +322,6 @@ export interface Visit {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Joined fields */
   householdAddress?: string;
   householdCity?: string;
   encounterCount?: number;
@@ -251,8 +339,8 @@ export interface Household {
   city: string;
   postalCode?: string | null;
   country?: string | null;
-  latitude?: string | null;
-  longitude?: string | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
   location?: string | null;
   type: string;
   floor?: number | null;
@@ -265,6 +353,12 @@ export interface Household {
   notes?: string | null;
   lwpNotes?: string | null;
   createdById?: string | null;
+  creatorName?: string | null;
+  collaboratorIds?: string[];
+  territoryId?: string | null;
+  congregationId?: string | null;
+  totalVisitsCount?: number;
+  totalEncountersCount?: number;
   updatedById?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -272,18 +366,28 @@ export interface Household {
 
 // ─── Encounters ────────────────────────────────────────────────────────────────
 
+export type EncounterLocationType = 'household' | 'street' | 'informal' | 'public_witnessing';
+
 export interface Encounter {
   id: string;
   visitId: string | null;
   householdId: string | null;
+  territoryId?: string | null;
+  congregationId?: string | null;
+  locationType?: EncounterLocationType;
+  locationDescription?: string | null;
   userId: string;
+  publisherName?: string | null;
   name?: string | null;
   gender?: string | null;
   ageGroup?: string | null;
   role?: string | null;
   response: string;
+  language?: string | null;
   languageSpoken?: string | null;
+  topicsDiscussed?: string | null;
   topicDiscussed?: string | null;
+  literatureOffered?: string | null;
   literatureAccepted?: string | null;
   bibleStudyInterest: boolean;
   returnVisitRequested: boolean;
@@ -291,7 +395,6 @@ export interface Encounter {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Denormalized display fields for record lists. */
   householdAddress?: string | null;
   householdCity?: string | null;
   visitDate?: string | null;

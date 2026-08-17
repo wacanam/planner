@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import OnboardingClient from './_components/OnboardingClient';
+import OnboardingPage from './_components/OnboardingClient';
 
-export const metadata: Metadata = {
-  title: 'Onboarding | Ministry Planner',
-};
+export const metadata: Metadata = { title: 'Welcome | Ministry Planner' };
 
 export default function Page() {
-  return <OnboardingClient />;
+  return <OnboardingPage />;
 }

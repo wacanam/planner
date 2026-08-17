@@ -3,21 +3,21 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
   query,
+  type Unsubscribe,
   updateDoc,
   where,
   writeBatch,
-  type QueryConstraint,
-  type QueryDocumentSnapshot,
-  type Unsubscribe,
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import type { Encounter } from '@/types/api';
 import { getHouseholdById } from './households';
-import { getAllVisits } from './visits';
 import { isoDate, nowIso, nullableString } from './shared';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from './types';
-import type { Encounter } from '@/types/api';
+import { getAllVisits } from './visits';
 
 export interface CreateEncounterInput {
   visitId?: string | null;
@@ -176,22 +176,27 @@ export async function updateEncounter(
   const updates: Record<string, unknown> = { updatedAt: nowIso() };
   if (input.visitId !== undefined) updates.visitId = nullableString(input.visitId);
   if (input.householdId !== undefined) updates.householdId = nullableString(input.householdId);
-  if (input.encounterDate !== undefined) updates.encounterDate = nullableString(input.encounterDate) ?? nowIso();
+  if (input.encounterDate !== undefined)
+    updates.encounterDate = nullableString(input.encounterDate) ?? nowIso();
   if (input.name !== undefined) updates.name = nullableString(input.name);
   if (input.gender !== undefined) updates.gender = nullableString(input.gender);
   if (input.ageGroup !== undefined) updates.ageGroup = nullableString(input.ageGroup);
   if (input.role !== undefined) updates.role = nullableString(input.role);
   if (input.response !== undefined) updates.response = input.response;
-  if (input.languageSpoken !== undefined) updates.languageSpoken = nullableString(input.languageSpoken);
-  if (input.topicDiscussed !== undefined) updates.topicDiscussed = nullableString(input.topicDiscussed);
+  if (input.languageSpoken !== undefined)
+    updates.languageSpoken = nullableString(input.languageSpoken);
+  if (input.topicDiscussed !== undefined)
+    updates.topicDiscussed = nullableString(input.topicDiscussed);
   if (input.literatureAccepted !== undefined) {
     updates.literatureAccepted = nullableString(input.literatureAccepted);
   }
-  if (input.bibleStudyInterest !== undefined) updates.bibleStudyInterest = Boolean(input.bibleStudyInterest);
+  if (input.bibleStudyInterest !== undefined)
+    updates.bibleStudyInterest = Boolean(input.bibleStudyInterest);
   if (input.returnVisitRequested !== undefined) {
     updates.returnVisitRequested = Boolean(input.returnVisitRequested);
   }
-  if (input.nextVisitNotes !== undefined) updates.nextVisitNotes = nullableString(input.nextVisitNotes);
+  if (input.nextVisitNotes !== undefined)
+    updates.nextVisitNotes = nullableString(input.nextVisitNotes);
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
   await updateDoc(encounterDocument(id), updates);
 }
@@ -220,7 +225,8 @@ export function watchEncounters(
   const constraints: QueryConstraint[] = [];
   if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  const encounterQuery = constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
+  const encounterQuery =
+    constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
 
   return onSnapshot(
     encounterQuery,
@@ -270,6 +276,9 @@ export function encounterPayload(
   };
 }
 
-export async function markEncounterSynced(_document: unknown, _encounter: Encounter): Promise<void> {
+export async function markEncounterSynced(
+  _document: unknown,
+  _encounter: Encounter
+): Promise<void> {
   return undefined;
 }

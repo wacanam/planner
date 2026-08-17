@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
   doc,
   getDocs,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
   writeBatch,
-  type QueryConstraint,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import type { Territory, TerritoryRequest } from '@/types/api';
+import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
 
 type MutationOptions = { throwOnError?: boolean };
 
@@ -34,12 +34,51 @@ function requestDocument(id: string) {
   return doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territoryRequests, id);
 }
 
+export function parseBoundaryCoordinates(
+  raw: unknown
+): Array<{ lat: number; lng: number; polygonIndex?: number }> | Array<Array<{ lat: number; lng: number }>> | null {
+  if (!raw) return null;
+
+  // Case 1: Array
+  if (Array.isArray(raw) && raw.length > 0) {
+    // Check if flat array with polygonIndex: [{ lat, lng, polygonIndex: 0 }, ...]
+    if (typeof raw[0] === 'object' && raw[0] !== null && 'polygonIndex' in raw[0]) {
+      return (raw as Array<{ lat: unknown; lng: unknown; polygonIndex?: unknown }>).map((item) => ({
+        lat: Number(item.lat),
+        lng: Number(item.lng),
+        polygonIndex: Number(item.polygonIndex ?? 0),
+      }));
+    }
+
+    // Check if nested array [[{lat, lng}]]
+    if (Array.isArray(raw[0])) {
+      return (raw as Array<Array<{ lat: unknown; lng: unknown }>>).map((poly) =>
+        poly.map((pt) => ({
+          lat: Number(pt.lat),
+          lng: Number(pt.lng),
+        }))
+      );
+    }
+
+    // Standard flat array of points [{lat, lng}]
+    return (raw as Array<{ lat: unknown; lng: unknown }>).map((pt) => ({
+      lat: Number(pt.lat),
+      lng: Number(pt.lng),
+    }));
+  }
+
+  return null;
+}
+
 function territoryFromData(id: string, data: Partial<Territory>): Territory {
   const now = nowIso();
+  const boundaryCoordinates = parseBoundaryCoordinates(data.boundaryCoordinates);
+
   return {
     id,
     number: data.number ?? '',
     name: data.name ?? 'Unnamed territory',
+    city: data.city ?? null,
     notes: data.notes ?? null,
     status: data.status ?? 'available',
     householdsCount: Number(data.householdsCount ?? 0),
@@ -50,6 +89,8 @@ function territoryFromData(id: string, data: Partial<Territory>): Territory {
     createdAt: data.createdAt ?? now,
     updatedAt: data.updatedAt ?? now,
     boundary: data.boundary ?? null,
+    boundaryCoordinates,
+    annotations: data.annotations ?? null,
     publisherName: data.publisherName ?? null,
     groupName: data.groupName ?? null,
   };
@@ -86,15 +127,22 @@ export function useCongregationTerritories(congregationId: string | null | undef
     }
 
     setIsLoading(true);
-    const territoryQuery = query(territoryCollection(), where('congregationId', '==', congregationId));
+    const territoryQuery = query(
+      territoryCollection(),
+      where('congregationId', '==', congregationId)
+    );
     return onSnapshot(
       territoryQuery,
       { includeMetadataChanges: true },
       (snapshot) => {
         setData(
           snapshot.docs
-            .map((document) => territoryFromData(document.id, document.data() as Partial<Territory>))
-            .sort((left, right) => left.number.localeCompare(right.number, undefined, { numeric: true }))
+            .map((document) =>
+              territoryFromData(document.id, document.data() as Partial<Territory>)
+            )
+            .sort((left, right) =>
+              left.number.localeCompare(right.number, undefined, { numeric: true })
+            )
         );
         setError(null);
         setIsLoading(false);
@@ -145,7 +193,7 @@ export function useCreateTerritory(congregationId: string) {
     [congregationId]
   );
 
-  return { create, isCreating };
+  return { create, isCreating, isPending: isCreating };
 }
 
 export function useUpdateTerritory() {
@@ -188,7 +236,9 @@ export function useCongregationTerritoryRequests(
       (snapshot) => {
         setData(
           snapshot.docs
-            .map((document) => requestFromData(document.id, document.data() as Partial<TerritoryRequest>))
+            .map((document) =>
+              requestFromData(document.id, document.data() as Partial<TerritoryRequest>)
+            )
             .sort((left, right) => right.requestedAt.localeCompare(left.requestedAt))
         );
         setError(null);
@@ -264,22 +314,25 @@ export function useReviewTerritoryRequest(_congregationId: string) {
 
         if (arg.status === 'approved' && arg.territoryId) {
           const assignmentId = createClientId();
-          await setDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments, assignmentId), {
-            id: assignmentId,
-            territoryId: arg.territoryId,
-            userId: arg.publisherId ?? null,
-            serviceGroupId: null,
-            status: 'assigned',
-            assignedAt: now,
-            dueAt: null,
-            returnedAt: null,
-            notes: null,
-            coverageAtAssignment: '0',
-            createdAt: now,
-            assigneeName: arg.publisherName ?? null,
-            assigneeEmail: null,
-            groupName: null,
-          });
+          await setDoc(
+            doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments, assignmentId),
+            {
+              id: assignmentId,
+              territoryId: arg.territoryId,
+              userId: arg.publisherId ?? null,
+              serviceGroupId: null,
+              status: 'assigned',
+              assignedAt: now,
+              dueAt: null,
+              returnedAt: null,
+              notes: null,
+              coverageAtAssignment: '0',
+              createdAt: now,
+              assigneeName: arg.publisherName ?? null,
+              assigneeEmail: null,
+              groupName: null,
+            }
+          );
           await updateDoc(territoryDocument(arg.territoryId), {
             status: 'assigned',
             publisherId: arg.publisherId ?? null,
@@ -314,7 +367,11 @@ export function useTerritoryDetail(territoryId: string | null | undefined) {
       territoryDocument(territoryId),
       { includeMetadataChanges: true },
       (snapshot) => {
-        setTerritory(snapshot.exists() ? territoryFromData(snapshot.id, snapshot.data() as Partial<Territory>) : null);
+        setTerritory(
+          snapshot.exists()
+            ? territoryFromData(snapshot.id, snapshot.data() as Partial<Territory>)
+            : null
+        );
         setError(null);
         setIsLoading(false);
       },
@@ -336,7 +393,12 @@ export function useDeleteTerritory() {
     try {
       const firestore = getPlannerFirestore();
       const [assignments, requests] = await Promise.all([
-        getDocs(query(collection(firestore, FIRESTORE_COLLECTIONS.assignments), where('territoryId', '==', id))),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+            where('territoryId', '==', id)
+          )
+        ),
         getDocs(query(requestCollection(), where('territoryId', '==', id))),
       ]);
       const batch = writeBatch(firestore);
@@ -364,3 +426,27 @@ export function useDeleteTerritoryRequest() {
   }, []);
   return { remove, isDeleting };
 }
+
+export function useSaveAnnotations(territoryId: string) {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const saveAnnotations = useCallback(
+    async (annotations: TerritoryAnnotations) => {
+      if (!territoryId) return;
+      setIsSaving(true);
+      try {
+        const now = nowIso();
+        await updateDoc(territoryDocument(territoryId), {
+          annotations,
+          updatedAt: now,
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [territoryId]
+  );
+
+  return { saveAnnotations, isSaving };
+}
+

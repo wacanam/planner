@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
-import { UserRole } from '@/lib/roles';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { UserRole } from '@/lib/roles';
 
 interface ProtectedPageProps {
   children: ReactNode;
   /**
-   * Required global role. If the user's role is lower, redirect to /dashboard.
+   * Required global role. If the user's role is lower, redirect to /onboarding.
    * If omitted, only authentication is checked.
    */
   requiredRole?: UserRole;
@@ -20,7 +20,7 @@ interface ProtectedPageProps {
   congregationId?: string;
   /** Where to redirect on auth failure. Defaults to /auth/login */
   loginRedirect?: string;
-  /** Where to redirect on role failure. Defaults to /dashboard */
+  /** Where to redirect on role failure. Defaults to /onboarding */
   roleRedirect?: string;
 }
 
@@ -37,24 +37,18 @@ export function ProtectedPage({
   requiredRole,
   congregationId,
   loginRedirect = '/auth/login',
-  roleRedirect = '/dashboard',
+  roleRedirect = '/onboarding',
 }: ProtectedPageProps) {
-  const { data: session, status } = useSession();
+  const { user, loading, isAuthenticated } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (loading) return;
 
-    if (!session?.user) {
+    if (!isAuthenticated || !user?.id) {
       router.replace(loginRedirect);
       return;
     }
-
-    const user = session.user as {
-      id: string;
-      role: UserRole;
-      congregationId?: string | null;
-    };
 
     if (requiredRole) {
       const userRank = ROLE_RANK[user.role] ?? 0;
@@ -66,15 +60,15 @@ export function ProtectedPage({
     }
 
     // Congregation scoping: if a congregationId is required and user is not
-    // a global admin, check they belong to it.
+    // a global admin, verify they belong to it once membership is resolved.
     if (congregationId && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
-      if (user.congregationId !== congregationId) {
+      if (user.congregationId && user.congregationId !== congregationId) {
         router.replace(roleRedirect);
       }
     }
-  }, [session, status, router, requiredRole, congregationId, loginRedirect, roleRedirect]);
+  }, [user.id, user.role, user.congregationId, loading, isAuthenticated, router, requiredRole, congregationId, loginRedirect, roleRedirect]);
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
@@ -104,7 +98,7 @@ export function ProtectedPage({
     );
   }
 
-  if (!session?.user) return null;
+  if (!isAuthenticated) return null;
 
   return <>{children}</>;
 }

@@ -4,19 +4,19 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  type QueryDocumentSnapshot,
   query,
   setDoc,
+  type Unsubscribe,
   updateDoc,
   where,
   writeBatch,
-  type QueryDocumentSnapshot,
-  type Unsubscribe,
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import type { Household } from '@/types/api';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold } from './types';
-import type { Household } from '@/types/api';
 
 export interface CreateHouseholdInput {
   name?: string;
@@ -34,6 +34,8 @@ export interface CreateHouseholdInput {
   languages?: string | null;
   bestTimeToCall?: string | null;
   status?: string | null;
+  lastVisitDate?: string | null;
+  lastVisitOutcome?: string | null;
   notes?: string | null;
   lwpNotes?: string | null;
   latitude?: number | string | null;
@@ -62,6 +64,8 @@ function householdFromSnapshot(snapshot: QueryDocumentSnapshot): LocalHousehold 
 export function toHouseholdView(record: LocalHousehold): Household {
   return {
     id: record.id,
+    congregationId: record.congregationId,
+    territoryId: record.territoryId,
     name: record.name,
     address: record.address,
     houseNumber: record.houseNumber,
@@ -104,8 +108,8 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
     city: household.city,
     postalCode: household.postalCode ?? null,
     country: household.country ?? null,
-    latitude: household.latitude ?? null,
-    longitude: household.longitude ?? null,
+    latitude: household.latitude != null ? String(household.latitude) : null,
+    longitude: household.longitude != null ? String(household.longitude) : null,
     type: household.type ?? 'house',
     floor: nullableNumber(household.floor),
     occupantsCount: nullableNumber(household.occupantsCount),
@@ -124,11 +128,15 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
   };
 }
 
-function createLocalHouseholdRecord(input: CreateHouseholdInput, id = createClientId()): LocalHousehold {
+function createLocalHouseholdRecord(
+  input: CreateHouseholdInput,
+  id = createClientId()
+): LocalHousehold {
   const now = nowIso();
   const latitude = nullableString(input.latitude);
   const longitude = nullableString(input.longitude);
-  const coordinateLabel = latitude && longitude ? `Pinned household ${latitude}, ${longitude}` : 'Pinned household';
+  const coordinateLabel =
+    latitude && longitude ? `Pinned household ${latitude}, ${longitude}` : 'Pinned household';
   const address = nullableString(input.address) ?? nullableString(input.name) ?? coordinateLabel;
   const name = nullableString(input.name);
   const streetName = nullableString(input.streetName) ?? '';
@@ -201,7 +209,8 @@ export async function updateHousehold(
   input: Partial<CreateHouseholdInput>
 ): Promise<void> {
   const updates: Record<string, unknown> = { updatedAt: nowIso() };
-  if (input.address !== undefined) updates.address = nullableString(input.address) ?? 'Pinned household';
+  if (input.address !== undefined)
+    updates.address = nullableString(input.address) ?? 'Pinned household';
   if (input.name !== undefined) updates.name = nullableString(input.name);
   if (input.houseNumber !== undefined) updates.houseNumber = nullableString(input.houseNumber);
   if (input.unitNumber !== undefined) updates.unitNumber = nullableString(input.unitNumber);
@@ -215,14 +224,16 @@ export async function updateHousehold(
     updates.occupantsCount = nullableNumber(input.occupantsCount ?? input.membersCount);
   }
   if (input.languages !== undefined) updates.languages = nullableString(input.languages);
-  if (input.bestTimeToCall !== undefined) updates.bestTimeToCall = nullableString(input.bestTimeToCall);
+  if (input.bestTimeToCall !== undefined)
+    updates.bestTimeToCall = nullableString(input.bestTimeToCall);
   if (input.status !== undefined) updates.status = nullableString(input.status) ?? 'new';
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
   if (input.lwpNotes !== undefined) updates.lwpNotes = nullableString(input.lwpNotes);
   if (input.latitude !== undefined) updates.latitude = nullableString(input.latitude);
   if (input.longitude !== undefined) updates.longitude = nullableString(input.longitude);
   if (input.territoryId !== undefined) updates.territoryId = nullableString(input.territoryId);
-  if (input.congregationId !== undefined) updates.congregationId = nullableString(input.congregationId);
+  if (input.congregationId !== undefined)
+    updates.congregationId = nullableString(input.congregationId);
   await updateDoc(householdDocument(id), updates);
 }
 
@@ -274,9 +285,11 @@ export function watchHouseholds(
   onError?: (error: Error) => void
 ): Unsubscribe {
   const constraints = [];
-  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
+  if (filters?.congregationId)
+    constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.territoryId) constraints.push(where('territoryId', '==', filters.territoryId));
-  const householdQuery = constraints.length > 0 ? query(householdCollection(), ...constraints) : householdCollection();
+  const householdQuery =
+    constraints.length > 0 ? query(householdCollection(), ...constraints) : householdCollection();
 
   return onSnapshot(
     householdQuery,

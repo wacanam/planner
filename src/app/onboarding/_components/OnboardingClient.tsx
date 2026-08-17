@@ -1,34 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
-import { useRouter } from 'next/navigation';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import {
-  MapPin,
-  Building2,
-  Globe,
-  Search,
   AlertCircle,
-  ArrowRight,
-  Users,
-  Clock,
+  Building2,
   ChevronRight,
+  Clock,
+  Globe,
+  MapPin,
+  Search,
+  Users,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { collection, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { CongregationRole, MemberStatus } from '@/lib/roles';
 import {
-  createCongregationSchema,
   type CreateCongregationFormData,
-  joinRequestSchema,
+  createCongregationSchema,
   type JoinRequestFormData,
+  joinRequestSchema,
 } from '@/schemas';
 
 type Mode = 'choose' | 'create' | 'join' | 'join-sent';
@@ -73,7 +72,7 @@ export default function OnboardingPage() {
   const userEmail = session?.user?.email ?? null;
 
   if (user?.congregationId) {
-    router.replace('/dashboard');
+    router.replace(`/congregation/${user.congregationId}/dashboard`);
     return null;
   }
 
@@ -189,14 +188,12 @@ export default function OnboardingPage() {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-
   const firstName = user?.name?.split(' ')[0] ?? '';
 
   // ── MODE: choose ─────────────────────────────────────────────────────────
   if (mode === 'choose') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground px-4 py-12">
         <div className="w-full max-w-lg">
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/15 mb-5">
@@ -206,8 +203,7 @@ export default function OnboardingPage() {
               Welcome{firstName ? `, ${firstName}` : ''}! 👋
             </h1>
             <p className="text-muted-foreground text-base max-w-sm mx-auto">
-              You&apos;re almost in. Are you setting up a new congregation or joining an existing
-              one?
+              Are you setting up a new congregation or joining an existing one?
             </p>
           </div>
 
@@ -262,7 +258,7 @@ export default function OnboardingPage() {
   // ── MODE: create ─────────────────────────────────────────────────────────
   if (mode === 'create') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
             <div className="text-center mb-8">
@@ -293,12 +289,6 @@ export default function OnboardingPage() {
                   {...createForm.register('name')}
                   placeholder="e.g. Southside Congregation"
                   disabled={createForm.formState.isSubmitting}
-                  aria-invalid={!!createForm.formState.errors.name}
-                  className={
-                    createForm.formState.errors.name
-                      ? 'border-destructive focus-visible:ring-destructive'
-                      : ''
-                  }
                 />
                 {createForm.formState.errors.name && (
                   <p className="text-xs text-destructive mt-1">
@@ -351,35 +341,7 @@ export default function OnboardingPage() {
                   disabled={createForm.formState.isSubmitting}
                   className="flex-2"
                 >
-                  {createForm.formState.isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <svg
-                        className="animate-spin h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      Creating…
-                    </span>
-                  ) : (
-                    <>
-                      Create congregation <ArrowRight size={16} className="ml-1" />
-                    </>
-                  )}
+                  {createForm.formState.isSubmitting ? 'Creating…' : 'Create congregation'}
                 </Button>
               </div>
             </form>
@@ -392,7 +354,7 @@ export default function OnboardingPage() {
   // ── MODE: join ────────────────────────────────────────────────────────────
   if (mode === 'join') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4 py-12">
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground px-4 py-12">
         <div className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
             <div className="text-center mb-8">
@@ -424,30 +386,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <Button type="submit" disabled={searchLoading || searchQuery.trim().length < 2}>
-                  {searchLoading ? (
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  ) : (
-                    'Search'
-                  )}
+                  {searchLoading ? '…' : 'Search'}
                 </Button>
               </form>
             )}
@@ -458,7 +397,6 @@ export default function OnboardingPage() {
                 {searchResults.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground text-sm">
                     <p>No congregations found for &quot;{searchQuery}&quot;.</p>
-                    <p className="mt-1">Try a different name or city.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -488,7 +426,6 @@ export default function OnboardingPage() {
             {/* Join request form */}
             {selectedCong && (
               <form onSubmit={joinForm.handleSubmit(handleJoin)} className="space-y-5">
-                {/* Selected congregation */}
                 <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-foreground text-sm">{selectedCong.name}</p>
@@ -507,26 +444,15 @@ export default function OnboardingPage() {
                   </button>
                 </div>
 
-                {/* Optional message */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="join-message">
-                    Message to overseer{' '}
-                    <span className="text-muted-foreground text-xs">(optional)</span>
-                  </Label>
+                  <Label htmlFor="join-message">Message to overseer</Label>
                   <textarea
                     id="join-message"
                     {...joinForm.register('message')}
                     placeholder="e.g. Hi, I'm a publisher in this congregation…"
                     rows={3}
-                    disabled={joinForm.formState.isSubmitting}
-                    aria-invalid={!!joinForm.formState.errors.message}
-                    className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${joinForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                   />
-                  {joinForm.formState.errors.message && (
-                    <p className="text-xs text-destructive mt-1">
-                      {joinForm.formState.errors.message.message}
-                    </p>
-                  )}
                 </div>
 
                 {joinError && (
@@ -541,7 +467,6 @@ export default function OnboardingPage() {
                     type="button"
                     variant="outline"
                     onClick={() => setSelectedCong(null)}
-                    disabled={joinForm.formState.isSubmitting}
                     className="flex-1"
                   >
                     Back
@@ -551,35 +476,7 @@ export default function OnboardingPage() {
                     disabled={joinForm.formState.isSubmitting}
                     className="flex-2"
                   >
-                    {joinForm.formState.isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <svg
-                          className="animate-spin h-4 w-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          />
-                        </svg>
-                        Sending…
-                      </span>
-                    ) : (
-                      <>
-                        Send join request <ArrowRight size={16} className="ml-1" />
-                      </>
-                    )}
+                    {joinForm.formState.isSubmitting ? 'Sending…' : 'Send join request'}
                   </Button>
                 </div>
               </form>
@@ -603,7 +500,7 @@ export default function OnboardingPage() {
 
   // ── MODE: join-sent ───────────────────────────────────────────────────────
   return (
-    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-primary/5 via-background to-secondary/5 px-4">
+    <div className="flex items-center justify-center min-h-screen bg-background text-foreground px-4">
       <div className="w-full max-w-md text-center bg-card rounded-2xl shadow-sm border border-border p-10">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/15 mb-5">
           <Clock size={28} className="text-green-600" />
@@ -614,14 +511,9 @@ export default function OnboardingPage() {
           <span className="font-medium text-foreground">{selectedCong?.name}</span>.
         </p>
         <p className="text-muted-foreground text-sm mb-8">
-          The service overseer will review your request. You&apos;ll receive a notification once
-          it&apos;s been approved.
+          The service overseer will review your request.
         </p>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/no-congregation')}
-          className="w-full"
-        >
+        <Button variant="outline" onClick={() => router.push('/')} className="w-full">
           Back to home
         </Button>
       </div>

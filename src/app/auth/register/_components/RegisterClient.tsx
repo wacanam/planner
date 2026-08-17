@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Eye, EyeOff, MapPin, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, ArrowLeft, CheckCircle2, Eye, EyeOff, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { registerSchema, type RegisterFormData } from '@/schemas';
 import { registerWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { type RegisterFormData, registerSchema } from '@/schemas';
 
 type StrengthInfo = {
   label: string;
@@ -35,8 +36,8 @@ function getPasswordStrength(password: string): StrengthInfo {
   if (extras === 0)
     return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400', score: 3 };
   if (extras <= 1)
-    return { label: 'Good', width: '75%', color: 'text-accent', bg: 'bg-accent', score: 4 };
-  return { label: 'Strong', width: '100%', color: 'text-green-400', bg: 'bg-green-400', score: 5 };
+    return { label: 'Good', width: '75%', color: 'text-blue-500', bg: 'bg-blue-500', score: 4 };
+  return { label: 'Strong', width: '100%', color: 'text-green-500', bg: 'bg-green-500', score: 5 };
 }
 
 export default function RegisterPage() {
@@ -67,24 +68,21 @@ export default function RegisterPage() {
   const confirmPasswordValue = watch('confirmPassword') ?? '';
   const strength = getPasswordStrength(passwordValue);
   const passwordsMatch = confirmPasswordValue.length > 0 && passwordValue === confirmPasswordValue;
-  const passwordsDontMatch =
-    confirmPasswordValue.length > 0 && passwordValue !== confirmPasswordValue;
 
   async function onSubmit(data: RegisterFormData) {
     setError('');
     setSuccess('');
-
     const name = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
 
     try {
       await registerWithEmail({ email: data.email, password: data.password, name });
-      setSuccess('Welcome! Setting up your account…');
+      setSuccess('Welcome! Setting up your workspace…');
       setTimeout(() => {
         router.push('/onboarding');
         router.refresh();
-      }, 700);
+      }, 600);
     } catch (err) {
-      console.error('[register] catch error:', err);
+      console.error('[register error]:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }
   }
@@ -95,243 +93,231 @@ export default function RegisterPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      setSuccess('Welcome! Setting up your account…');
+      setSuccess('Welcome! Setting up your workspace…');
       setTimeout(() => {
         router.push('/onboarding');
         router.refresh();
-      }, 700);
+      }, 600);
     } catch (err) {
-      console.error('[register google error]', err);
-      setError(err instanceof Error ? err.message : 'Google sign-in failed. Please try again.');
+      console.error('[google register error]:', err);
+      setError(
+        err instanceof Error ? err.message : 'Google registration failed. Please try again.'
+      );
     } finally {
       setIsGoogleLoading(false);
     }
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center px-4 py-12 min-h-screen bg-linear-to-br from-accent/5 via-background to-primary/5">
-      <div className="w-full max-w-md">
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-10">
-          {/* Logo & heading */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/30 mb-4">
-              <MapPin size={24} className="text-accent-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
-            <p className="text-muted-foreground mt-1.5 text-sm">
-              Join Ministry Planner today — it&apos;s free
-            </p>
-          </div>
+    <div className="flex-1 flex flex-col justify-between min-h-screen bg-background text-foreground p-4 sm:p-6 relative transition-colors duration-200">
+      {/* Top Floating Utility Bar */}
+      <div className="flex items-center justify-between w-full max-w-5xl mx-auto py-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft size={15} />
+          <span>Back to Home</span>
+        </Link>
+        <ThemeToggle />
+      </div>
 
-          {/* Alerts */}
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertCircle size={16} className="absolute left-4 top-3.5" />
-              <AlertDescription className="pl-6">{error}</AlertDescription>
-            </Alert>
-          )}
-          {success && (
-            <Alert variant="success" className="mb-6">
-              <CheckCircle2 size={16} className="absolute left-4 top-3.5" />
-              <AlertDescription className="pl-6">{success}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full mb-5"
-            size="lg"
-            onClick={() => void handleGoogleSignIn()}
-            disabled={isSubmitting || isGoogleLoading}
-          >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-semibold">
-              G
-            </span>
-            {isGoogleLoading ? 'Connecting…' : 'Continue with Google'}
-          </Button>
-
-          <div className="relative mb-5 flex items-center">
-            <div className="h-px flex-1 bg-border" />
-            <span className="px-3 text-xs text-muted-foreground">or</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="firstName">First name</Label>
-                <Input
-                  id="firstName"
-                  type="text"
-                  autoComplete="given-name"
-                  {...register('firstName')}
-                  placeholder="Jane"
-                  disabled={isSubmitting}
-                  aria-invalid={!!errors.firstName}
-                  className={
-                    errors.firstName ? 'border-destructive focus-visible:ring-destructive' : ''
-                  }
-                />
-                {errors.firstName && (
-                  <p className="text-xs text-destructive mt-1">{errors.firstName.message}</p>
-                )}
+      {/* Centered Register Card */}
+      <div className="flex-1 flex items-center justify-center my-6">
+        <div className="w-full max-w-md">
+          {/* Solid Card */}
+          <div className="bg-card rounded-2xl shadow-xl border border-border overflow-hidden">
+            {/* Studio Brand Header */}
+            <div className="bg-primary px-6 py-6 text-primary-foreground text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary-foreground/20 mb-3 shadow-xs">
+                <MapPin size={22} className="text-primary-foreground" />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="lastName">Last name</Label>
-                <Input
-                  id="lastName"
-                  type="text"
-                  autoComplete="family-name"
-                  {...register('lastName')}
-                  placeholder="Doe"
-                  disabled={isSubmitting}
-                  aria-invalid={!!errors.lastName}
-                  className={
-                    errors.lastName ? 'border-destructive focus-visible:ring-destructive' : ''
-                  }
-                />
-                {errors.lastName && (
-                  <p className="text-xs text-destructive mt-1">{errors.lastName.message}</p>
-                )}
-              </div>
+              <h1 className="text-xl font-bold tracking-tight">Create Account</h1>
+              <p className="text-xs text-primary-foreground/80 mt-1">
+                Join your congregation&apos;s territory workspace
+              </p>
             </div>
 
-            {/* Email */}
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                {...register('email')}
-                placeholder="you@example.com"
-                disabled={isSubmitting}
-                aria-invalid={!!errors.email}
-                className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  {...register('password')}
-                  placeholder="••••••••"
-                  disabled={isSubmitting}
-                  aria-invalid={!!errors.password}
-                  className={`pr-10${errors.password ? ' border-destructive focus-visible:ring-destructive' : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={isSubmitting}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
+            <div className="p-6 sm:p-8 space-y-4">
+              {error && (
+                <Alert variant="destructive" className="rounded-xl">
+                  <AlertCircle size={15} />
+                  <AlertDescription className="text-xs">{error}</AlertDescription>
+                </Alert>
               )}
 
-              {/* Password strength indicator */}
-              <div className="mt-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-muted-foreground">Password strength</span>
-                  {strength.label && (
-                    <span className={`text-xs font-medium ${strength.color}`}>
-                      {strength.label}
-                    </span>
+              {success && (
+                <Alert className="rounded-xl border-green-200 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400">
+                  <CheckCircle2 size={15} />
+                  <AlertDescription className="text-xs">{success}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Google Sign In */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 rounded-xl text-xs font-semibold gap-2"
+                onClick={() => void handleGoogleSignIn()}
+                disabled={isSubmitting || isGoogleLoading}
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold">
+                  G
+                </span>
+                {isGoogleLoading ? 'Connecting…' : 'Sign up with Google'}
+              </Button>
+
+              <div className="relative flex items-center">
+                <div className="h-px flex-1 bg-border" />
+                <span className="px-3 text-[11px] text-muted-foreground uppercase font-medium">
+                  or continue with email
+                </span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="firstName" className="text-xs font-medium">
+                      First name
+                    </Label>
+                    <Input
+                      id="firstName"
+                      placeholder="John"
+                      className="h-9 rounded-xl text-xs"
+                      {...register('firstName')}
+                    />
+                    {errors.firstName && (
+                      <p className="text-[10px] text-destructive">{errors.firstName.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="lastName" className="text-xs font-medium">
+                      Last name
+                    </Label>
+                    <Input
+                      id="lastName"
+                      placeholder="Doe"
+                      className="h-9 rounded-xl text-xs"
+                      {...register('lastName')}
+                    />
+                    {errors.lastName && (
+                      <p className="text-[10px] text-destructive">{errors.lastName.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-xs font-medium">
+                    Email address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    className="h-9 rounded-xl text-xs"
+                    autoComplete="email"
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <p className="text-[10px] text-destructive">{errors.email.message}</p>
                   )}
                 </div>
-                <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${strength.bg}`}
-                    style={{ width: strength.width }}
-                  />
+
+                <div className="space-y-1">
+                  <Label htmlFor="password" className="text-xs font-medium">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className="h-9 rounded-xl text-xs pr-9"
+                      autoComplete="new-password"
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {passwordValue.length > 0 && (
+                    <div className="mt-1.5 space-y-1">
+                      <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${strength.bg} transition-all duration-300`}
+                          style={{ width: strength.width }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {errors.password && (
+                    <p className="text-[10px] text-destructive">{errors.password.message}</p>
+                  )}
                 </div>
-              </div>
-            </div>
 
-            {/* Confirm password */}
-            <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirm ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  {...register('confirmPassword')}
-                  placeholder="••••••••"
-                  disabled={isSubmitting}
-                  aria-invalid={!!errors.confirmPassword}
-                  className={`pr-10${errors.confirmPassword ? ' border-destructive focus-visible:ring-destructive' : ''}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={isSubmitting}
+                <div className="space-y-1">
+                  <Label htmlFor="confirmPassword" className="text-xs font-medium">
+                    Confirm password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirm ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      className="h-9 rounded-xl text-xs pr-9"
+                      autoComplete="new-password"
+                      {...register('confirmPassword')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {passwordsMatch && (
+                    <p className="text-[10px] text-green-600 dark:text-green-400">
+                      ✓ Passwords match
+                    </p>
+                  )}
+                  {errors.confirmPassword && (
+                    <p className="text-[10px] text-destructive">{errors.confirmPassword.message}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-10 rounded-xl text-xs font-semibold shadow-sm mt-2"
+                  disabled={isSubmitting || isGoogleLoading}
                 >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                  {isSubmitting ? 'Creating account…' : 'Create account'}
+                </Button>
+              </form>
+
+              <div className="text-center pt-1">
+                <p className="text-xs text-muted-foreground">
+                  Already have an account?{' '}
+                  <Link href="/auth/login" className="font-semibold text-primary hover:underline">
+                    Sign in
+                  </Link>
+                </p>
               </div>
-              {errors.confirmPassword && (
-                <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>
-              )}
-              {!errors.confirmPassword && passwordsDontMatch && (
-                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
-              )}
-              {passwordsMatch && <p className="text-xs text-green-500 mt-1">✓ Passwords match</p>}
             </div>
-
-            {/* Terms checkbox */}
-            <div className="flex items-start gap-2 pt-2">
-              <input
-                id="terms"
-                type="checkbox"
-                {...register('agreeTerms')}
-                disabled={isSubmitting}
-                className="w-4 h-4 rounded border-border bg-background cursor-pointer mt-0.5"
-              />
-              <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
-                I agree to the{' '}
-                <Link href="/terms" className="text-accent hover:underline">
-                  terms
-                </Link>{' '}
-                and{' '}
-                <Link href="/privacy" className="text-accent hover:underline">
-                  privacy policy
-                </Link>
-              </label>
-            </div>
-            {errors.agreeTerms && (
-              <p className="text-xs text-destructive mt-1">{errors.agreeTerms.message}</p>
-            )}
-
-            {/* Submit button */}
-            <Button type="submit" disabled={isSubmitting} className="w-full mt-6" size="lg">
-              {isSubmitting ? 'Creating account…' : 'Create account'}
-            </Button>
-          </form>
-
-          {/* Sign in link */}
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="text-accent font-medium hover:underline">
-              Sign in here
-            </Link>
-          </p>
+          </div>
         </div>
+      </div>
+
+      {/* Footer copyright */}
+      <div className="py-2 text-center text-[11px] text-muted-foreground">
+        © {new Date().getFullYear()} Ministry Planner
       </div>
     </div>
   );

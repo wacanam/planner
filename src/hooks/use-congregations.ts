@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+'use client';
+
 import {
   collection,
   deleteDoc,
@@ -11,6 +12,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import type { Congregation } from '@/types/api';
@@ -61,6 +63,10 @@ function congregationFromData(id: string, data: Partial<Congregation>): Congrega
     slug: data.slug ?? slugify(data.name ?? id),
     city: data.city ?? null,
     country: data.country ?? null,
+    defaultLatitude:
+      typeof data.defaultLatitude === 'number' ? data.defaultLatitude : null,
+    defaultLongitude:
+      typeof data.defaultLongitude === 'number' ? data.defaultLongitude : null,
     status: data.status ?? 'active',
     createdById: data.createdById ?? null,
     createdAt: data.createdAt ?? now,
@@ -148,6 +154,10 @@ export function useCreateCongregation() {
         slug: slugify(name),
         city: arg.city ? String(arg.city) : null,
         country: arg.country ? String(arg.country) : null,
+        defaultLatitude:
+          typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null,
+        defaultLongitude:
+          typeof arg.defaultLongitude === 'number' ? arg.defaultLongitude : null,
         status: String(arg.status ?? 'active'),
         createdById: arg.createdById ? String(arg.createdById) : null,
         createdAt: now,
@@ -174,6 +184,14 @@ export function useUpdateCongregation(id: string) {
         }
         if (arg.city !== undefined) updates.city = arg.city ? String(arg.city) : null;
         if (arg.country !== undefined) updates.country = arg.country ? String(arg.country) : null;
+        if (arg.defaultLatitude !== undefined) {
+          updates.defaultLatitude =
+            typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null;
+        }
+        if (arg.defaultLongitude !== undefined) {
+          updates.defaultLongitude =
+            typeof arg.defaultLongitude === 'number' ? arg.defaultLongitude : null;
+        }
         if (arg.status !== undefined) updates.status = String(arg.status);
         await updateDoc(congregationDocument(id), updates);
       } finally {

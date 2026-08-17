@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import ProfileClient from './_components/ProfileClient';
+import ProfilePage from './_components/ProfileClient';
 
-export const metadata: Metadata = {
-  title: 'Profile | Ministry Planner',
-};
+export const metadata: Metadata = { title: 'Profile & Settings | Ministry Planner' };
 
-export default function ProfilePage() {
-  return <ProfileClient />;
+export default function Page() {
+  return <ProfilePage />;
 }

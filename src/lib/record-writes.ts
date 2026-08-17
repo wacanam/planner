@@ -1,4 +1,7 @@
 import {
+  type CreateEncounterInput,
+  type CreateHouseholdInput,
+  type CreateVisitInput,
   createEncounter,
   createHousehold,
   createVisit,
@@ -8,9 +11,6 @@ import {
   updateEncounter,
   updateHousehold,
   updateVisit,
-  type CreateEncounterInput,
-  type CreateHouseholdInput,
-  type CreateVisitInput,
 } from '@/lib/local-first';
 
 export async function saveVisitRecord(data: Record<string, unknown>): Promise<string> {
@@ -89,7 +89,10 @@ export async function deleteEncounterRecord(encounterId: string): Promise<string
   return encounterId;
 }
 
-export async function updateVisitRecord(id: string, data: Partial<CreateVisitInput>): Promise<string> {
+export async function updateVisitRecord(
+  id: string,
+  data: Partial<CreateVisitInput>
+): Promise<string> {
   await updateVisit(id, data);
   return id;
 }

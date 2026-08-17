@@ -18,4 +18,3 @@ export function isoDate(value: unknown, fallback = nowIso()): string {
   if (typeof value === 'string' && value.length > 0) return value;
   return fallback;
 }
-

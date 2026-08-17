@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import AdminDashboardClient from './_components/AdminDashboardClient';
+import AdminDashboardPage from './_components/AdminDashboardClient';
 
-export const metadata: Metadata = {
-  title: 'Admin Dashboard | Ministry Planner',
-};
+export const metadata: Metadata = { title: 'Global Admin Dashboard | Ministry Planner' };
 
 export default function Page() {
-  return <AdminDashboardClient />;
+  return <AdminDashboardPage />;
 }

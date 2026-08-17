@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  toHouseholdView,
-  toVisitView,
-  watchHouseholds,
-  watchVisits,
-} from '@/lib/local-first';
+import { toHouseholdView, toVisitView, watchHouseholds, watchVisits } from '@/lib/local-first';
 import type { HouseholdFilters } from '@/lib/local-first/households';
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import type { Household, Visit } from '@/types/api';
@@ -36,11 +31,15 @@ function useVisitRecords(filters?: { householdId?: string; assignmentId?: string
       },
       handleError
     );
-    const unsubscribeHouseholds = watchHouseholds(undefined, (records) => {
-      setHouseholds(records);
-      setError(null);
-      setIsLoading(false);
-    }, handleError);
+    const unsubscribeHouseholds = watchHouseholds(
+      undefined,
+      (records) => {
+        setHouseholds(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
     return () => {
       unsubscribeVisits();
       unsubscribeHouseholds();
@@ -52,7 +51,8 @@ function useVisitRecords(filters?: { householdId?: string; assignmentId?: string
     [households]
   );
   const mappedVisits = useMemo(
-    () => sortVisits(visits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))),
+    () =>
+      sortVisits(visits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))),
     [householdMap, visits]
   );
 
@@ -79,11 +79,15 @@ export function useTerritoryVisits(territoryId: string | null) {
       setError(err.message);
       setIsLoading(false);
     };
-    const unsubscribeVisits = watchVisits(undefined, (records) => {
-      setVisits(records);
-      setError(null);
-      setIsLoading(false);
-    }, handleError);
+    const unsubscribeVisits = watchVisits(
+      undefined,
+      (records) => {
+        setVisits(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
     const unsubscribeHouseholds = watchHouseholds(
       territoryId ? { territoryId } : undefined,
       (records) => {
@@ -141,7 +145,8 @@ export function useHouseholds(filters?: HouseholdFilters) {
   }, [congregationId, territoryId]);
 
   const households = useMemo(
-    () => records.map(toHouseholdView).sort((left, right) => left.address.localeCompare(right.address)),
+    () =>
+      records.map(toHouseholdView).sort((left, right) => left.address.localeCompare(right.address)),
     [records]
   );
 

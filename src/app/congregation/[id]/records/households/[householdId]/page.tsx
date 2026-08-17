@@ -1,11 +1,12 @@
 'use client';
 
+import { ArrowLeft, Clock, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   getEncountersByHousehold,
   getHouseholdById,
@@ -40,61 +41,123 @@ export default function HouseholdDetailPage() {
   }, [householdId]);
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-4 px-4 py-6">
-      <Button asChild variant="ghost" className="w-fit">
+    <main className="mx-auto w-full max-w-5xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-8">
+      <Button asChild variant="ghost" size="sm" className="w-fit text-xs gap-1 rounded-xl">
         <Link href={`/congregation/${congregationId}/records/households`}>
           <ArrowLeft className="h-4 w-4" />
-          Back
+          <span>Back to Households</span>
         </Link>
       </Button>
 
       {!household ? (
-        <p className="text-sm text-muted-foreground">Household not found in Firestore records.</p>
+        <div className="p-12 text-center bg-card rounded-3xl border border-border">
+          <p className="text-sm text-muted-foreground">Household record not found.</p>
+        </div>
       ) : (
         <>
-          <div className="rounded-xl border p-4">
-            <h1 className="text-lg font-semibold">{household.address}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{household.address}</p>
-            <div className="mt-3 flex gap-2">
-              <Badge variant="outline">Occupants: {household.occupantsCount ?? 1}</Badge>
-              {household.latitude && household.longitude ? (
-                <Badge variant="outline">
-                  {Number(household.latitude).toFixed(5)}, {Number(household.longitude).toFixed(5)}
+          <Card className="bg-card border-border shadow-xs">
+            <CardContent className="p-6 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">{household.address}</h1>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {household.streetName}, {household.city}
+                  </p>
+                </div>
+                <Badge variant="outline" className="capitalize text-xs font-semibold">
+                  {household.status}
                 </Badge>
-              ) : null}
-            </div>
-            {household.notes ? <p className="mt-3 text-sm">{household.notes}</p> : null}
-          </div>
+              </div>
 
-          <div className="rounded-xl border p-4 space-y-2">
-            <h2 className="text-sm font-semibold">Visits ({visits.length})</h2>
+              <div className="flex gap-2 flex-wrap text-xs pt-2">
+                <Badge variant="outline">Occupants: {household.occupantsCount ?? 1}</Badge>
+                <Badge variant="outline" className="capitalize">
+                  {household.type}
+                </Badge>
+                {household.latitude && household.longitude ? (
+                  <Badge variant="outline" className="text-primary font-bold">
+                    📍 {Number(household.latitude).toFixed(5)},{' '}
+                    {Number(household.longitude).toFixed(5)}
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/40"
+                  >
+                    📍 Needs Pinning
+                  </Badge>
+                )}
+              </div>
+
+              {household.notes && (
+                <div className="p-3 bg-muted/40 rounded-xl border border-border text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground mb-1">Notes / Instructions:</p>
+                  <p>{household.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Visits Timeline */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Clock size={16} className="text-primary" />
+              <span>Visit Records ({visits.length})</span>
+            </h2>
             {visits.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No local visit records yet.</p>
+              <p className="text-xs text-muted-foreground p-4 bg-card rounded-2xl border border-border text-center">
+                No visits logged yet.
+              </p>
             ) : (
               visits.map((visit) => (
-                <div key={visit.id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium capitalize">
-                    {visit.outcome.replace(/_/g, ' ')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(visit.visitDate).toLocaleString()}
-                  </p>
-                  {visit.notes ? <p className="text-sm mt-1">{visit.notes}</p> : null}
+                <div
+                  key={visit.id}
+                  className="p-4 rounded-2xl border border-border bg-card space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-foreground capitalize">
+                      {visit.outcome.replace(/_/g, ' ')}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(visit.visitDate).toLocaleString()}
+                    </p>
+                  </div>
+                  {visit.notes && <p className="text-xs text-muted-foreground">{visit.notes}</p>}
                 </div>
               ))
             )}
           </div>
 
-          <div className="rounded-xl border p-4 space-y-2">
-            <h2 className="text-sm font-semibold">Encounters ({encounters.length})</h2>
+          {/* Encounters Timeline */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+              <Users size={16} className="text-primary" />
+              <span>Person Encounters ({encounters.length})</span>
+            </h2>
             {encounters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No local encounter records yet.</p>
+              <p className="text-xs text-muted-foreground p-4 bg-card rounded-2xl border border-border text-center">
+                No conversation encounters recorded yet.
+              </p>
             ) : (
               encounters.map((encounter) => (
-                <div key={encounter.id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium">{encounter.name ?? 'Unknown person'}</p>
-                  <p className="text-xs text-muted-foreground">{encounter.response}</p>
-                  {encounter.notes ? <p className="text-sm mt-1">{encounter.notes}</p> : null}
+                <div
+                  key={encounter.id}
+                  className="p-4 rounded-2xl border border-border bg-card space-y-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-foreground">{encounter.name}</p>
+                    <Badge variant="outline" className="text-[9px] capitalize font-semibold">
+                      {encounter.response}
+                    </Badge>
+                  </div>
+                  {encounter.topicDiscussed && (
+                    <p className="text-xs text-muted-foreground">
+                      Topic: {encounter.topicDiscussed}
+                    </p>
+                  )}
+                  {encounter.notes && (
+                    <p className="text-xs text-muted-foreground">{encounter.notes}</p>
+                  )}
                 </div>
               ))
             )}

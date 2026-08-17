@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import AdminCongregationsClient from './_components/AdminCongregationsClient';
+import AdminCongregationsPage from './_components/AdminCongregationsClient';
 
-export const metadata: Metadata = {
-  title: 'Congregations | Ministry Planner',
-};
+export const metadata: Metadata = { title: 'Manage Congregations | Ministry Planner' };
 
 export default function Page() {
-  return <AdminCongregationsClient />;
+  return <AdminCongregationsPage />;
 }

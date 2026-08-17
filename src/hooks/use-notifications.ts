@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -11,6 +9,8 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import type { Notification } from '@/types/api';
@@ -115,25 +115,31 @@ export function useMarkNotificationsRead() {
 
 export function useCreateNotification() {
   const [isCreating, setIsCreating] = useState(false);
-  const create = useCallback(async (arg: Omit<Notification, 'id' | 'createdAt' | 'isRead'> & Partial<Pick<Notification, 'id' | 'createdAt' | 'isRead'>>) => {
-    setIsCreating(true);
-    try {
-      const id = arg.id ?? createClientId();
-      await setDoc(notificationDocument(id), {
-        id,
-        userId: arg.userId,
-        type: arg.type,
-        title: arg.title,
-        body: arg.body,
-        data: arg.data ?? null,
-        isRead: arg.isRead ?? false,
-        createdAt: arg.createdAt ?? nowIso(),
-      } satisfies Notification);
-      return { id };
-    } finally {
-      setIsCreating(false);
-    }
-  }, []);
+  const create = useCallback(
+    async (
+      arg: Omit<Notification, 'id' | 'createdAt' | 'isRead'> &
+        Partial<Pick<Notification, 'id' | 'createdAt' | 'isRead'>>
+    ) => {
+      setIsCreating(true);
+      try {
+        const id = arg.id ?? createClientId();
+        await setDoc(notificationDocument(id), {
+          id,
+          userId: arg.userId,
+          type: arg.type,
+          title: arg.title,
+          body: arg.body,
+          data: arg.data ?? null,
+          isRead: arg.isRead ?? false,
+          createdAt: arg.createdAt ?? nowIso(),
+        } satisfies Notification);
+        return { id };
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    []
+  );
   return { create, isCreating };
 }
 

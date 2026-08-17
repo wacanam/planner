@@ -81,5 +81,5 @@ const ERROR_CODES = {
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 } as const;
 
-export type { ApiResponse, ApiErrorResponse, ApiPaginatedResponse };
-export { HTTP_STATUS, ERROR_CODES };
+export type { ApiErrorResponse, ApiPaginatedResponse, ApiResponse };
+export { ERROR_CODES, HTTP_STATUS };

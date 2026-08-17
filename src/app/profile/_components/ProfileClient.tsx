@@ -1,361 +1,323 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Camera, Loader2 } from 'lucide-react';
-import {
-  useProfile,
-  useUpdateProfile,
-  useChangePassword,
-  useUpdateAvatar,
-} from '@/hooks/use-profile';
-import { FormField } from '@/components/ui/form-field';
-import { Button } from '@/components/ui/button';
+import { Building2, Camera, Eye, EyeOff, KeyRound, User } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { updateProfileSchema, changePasswordSchema } from '@/schemas/profile';
-import type { UpdateProfileFormData, ChangePasswordFormData } from '@/schemas/profile';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCongregation } from '@/hooks/use-congregations';
+import {
+  useChangePassword,
+  useProfile,
+  useUpdateAvatar,
+  useUpdateProfile,
+} from '@/hooks/use-profile';
+import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
+import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
 
-// ─── Password strength ────────────────────────────────────────────────────────
-
-type StrengthInfo = { label: string; width: string; color: string; bg: string };
-
-function getPasswordStrength(p: string): StrengthInfo {
-  if (!p) return { label: '', width: '0%', color: '', bg: 'bg-muted' };
-  if (p.length < 6)
-    return { label: 'Too short', width: '20%', color: 'text-red-400', bg: 'bg-red-400' };
-  if (p.length < 8)
-    return { label: 'Weak', width: '40%', color: 'text-orange-400', bg: 'bg-orange-400' };
-  const extras = [/[A-Z]/.test(p), /[0-9]/.test(p), /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
-  if (extras === 0)
-    return { label: 'Fair', width: '55%', color: 'text-yellow-400', bg: 'bg-yellow-400' };
-  if (extras <= 1) return { label: 'Good', width: '75%', color: 'text-primary', bg: 'bg-primary' };
-  return { label: 'Strong', width: '100%', color: 'text-green-500', bg: 'bg-green-500' };
-}
-
-function roleLabel(role: string) {
+function roleLabel(role?: string | null) {
   const map: Record<string, string> = {
     SUPER_ADMIN: 'Super Admin',
     ADMIN: 'Admin',
     SERVICE_OVERSEER: 'Service Overseer',
     TERRITORY_SERVANT: 'Territory Servant',
   };
-  return map[role] ?? 'Member';
+  return role ? (map[role] ?? 'Publisher') : 'Publisher';
 }
 
-// ─── Avatar circle ────────────────────────────────────────────────────────────
+export default function ProfilePage() {
+  const { data: profile } = useProfile();
+  const { congregation } = useCongregation(profile?.congregationId);
+  const updateProfile = useUpdateProfile();
+  const changePassword = useChangePassword();
+  const updateAvatar = useUpdateAvatar();
 
-function AvatarCircle({
-  url,
-  name,
-  size,
-  loading,
-  onClick,
-}: {
-  url?: string | null;
-  name: string;
-  size: number;
-  loading?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative rounded-full overflow-hidden shrink-0 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 group"
-      style={{ width: size, height: size }}
-      aria-label="Change profile photo"
-    >
-      {url ? (
-        // biome-ignore lint/performance/noImgElement: blob/remote URL, next/image can't handle it
-        <img src={url} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <div
-          className="w-full h-full bg-primary flex items-center justify-center text-primary-foreground font-semibold"
-          style={{ fontSize: size * 0.38 }}
-        >
-          {name[0]?.toUpperCase()}
-        </div>
-      )}
-      {onClick && !loading && (
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Camera size={size * 0.3} className="text-white" />
-        </div>
-      )}
-      {loading && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <Loader2 size={size * 0.3} className="text-white animate-spin" />
-        </div>
-      )}
-    </button>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
-export default function ProfileClient() {
-  const { profile, isLoading } = useProfile();
-  const { update } = useUpdateProfile();
-  const { changePassword } = useChangePassword();
-  const { updateAvatar, isUpdatingAvatar } = useUpdateAvatar();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [cropImgSrc, setCropImgSrc] = useState('');
   const [cropOpen, setCropOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [offlineMsg, setOfflineMsg] = useState('');
-  const [uploadError, setUploadError] = useState('');
+  const [cropSrc, setCropSrc] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── File → crop ──────────────────────────────────────────────────────────
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+
+  const profileForm = useForm<UpdateProfileFormData>({
+    resolver: zodResolver(updateProfileSchema) as any,
+    values: {
+      name: profile?.name ?? '',
+    },
+  });
+
+  const passwordForm = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema) as any,
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmNewPassword: '',
+    },
+  });
+
+  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadError('');
     const reader = new FileReader();
     reader.onload = () => {
-      setCropImgSrc(reader.result as string);
+      setCropSrc(reader.result as string);
       setCropOpen(true);
     };
     reader.readAsDataURL(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
+  };
 
-  async function handleCropComplete(file: File) {
-    if (!profile?.id) return;
-    try {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
-      const result = await updateAvatar({ file });
-      setPreviewUrl(result.avatarUrl);
-      setOfflineMsg(
-        navigator.onLine ? 'Photo saved.' : 'Photo saved locally and will sync automatically.'
-      );
-      setUploadError('');
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Photo update failed.');
-    }
-  }
+  const handleCropComplete = async (blob: Blob) => {
+    const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+    await updateAvatar.mutateAsync(file);
+  };
 
-  // ── Name form ────────────────────────────────────────────────────────────
-  const [nameSuccess, setNameSuccess] = useState('');
-  const [nameError, setNameError] = useState('');
-  const nameForm = useForm<UpdateProfileFormData>({
-    resolver: zodResolver(updateProfileSchema),
-    values: { name: profile?.name ?? '' },
-  });
-  async function onUpdateName(data: UpdateProfileFormData) {
-    setNameSuccess('');
-    setNameError('');
-    try {
-      await update({ name: data.name });
-      setNameSuccess('Name updated.');
-    } catch (e) {
-      setNameError(e instanceof Error ? e.message : 'Failed.');
-    }
-  }
+  const onProfileSubmit = async (data: UpdateProfileFormData) => {
+    await updateProfile.mutateAsync(data);
+  };
 
-  // ── Password form ────────────────────────────────────────────────────────
-  const [pwSuccess, setPwSuccess] = useState('');
-  const [pwError, setPwError] = useState('');
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const pwForm = useForm<ChangePasswordFormData>({
-    resolver: zodResolver(changePasswordSchema),
-    defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' },
-  });
-  const newPw = pwForm.watch('newPassword');
-  const strength = getPasswordStrength(newPw ?? '');
-  async function onChangePassword(data: ChangePasswordFormData) {
-    setPwSuccess('');
-    setPwError('');
-    try {
-      await changePassword({
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-      setPwSuccess('Password changed.');
-      pwForm.reset();
-    } catch (e) {
-      setPwError(e instanceof Error ? e.message : 'Failed.');
-    }
-  }
+  const onPasswordSubmit = async (data: ChangePasswordFormData) => {
+    await changePassword.mutateAsync(data);
+    passwordForm.reset();
+  };
 
-  // ── Render ───────────────────────────────────────────────────────────────
-  if (isLoading)
-    return (
-      <div className="flex items-center justify-center min-h-[40vh] text-sm text-muted-foreground">
-        Loading…
-      </div>
-    );
-  if (!profile)
-    return (
-      <div className="flex items-center justify-center min-h-[40vh] text-sm text-destructive">
-        Could not load profile.
-      </div>
-    );
-
-  const displayUrl = previewUrl ?? profile.avatarUrl;
-  const memberSince = new Date(profile.createdAt).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const userInitials = (profile?.name || profile?.email || 'P')
+    .split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
-      <AvatarCropDialog
-        open={cropOpen}
-        onOpenChange={setCropOpen}
-        imgSrc={cropImgSrc}
-        onCropComplete={handleCropComplete}
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-
-      {/* ── Profile card ── */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <div className="flex items-center gap-4">
-          <AvatarCircle
-            url={displayUrl}
-            name={profile.name}
-            size={72}
-            loading={isUpdatingAvatar}
-            onClick={() => fileInputRef.current?.click()}
-          />
-          <div className="min-w-0">
-            <p className="text-xl font-bold text-foreground leading-tight truncate">
-              {profile.name}
-            </p>
-            <p className="text-sm text-muted-foreground truncate">{profile.email}</p>
-            <span className="text-xs text-muted-foreground">{roleLabel(profile.role)}</span>
-          </div>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Profile & Settings</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Manage your account information and preferences
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">Member since {memberSince}</p>
-        {offlineMsg && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-xs text-amber-500 cursor-default">{offlineMsg}</p>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Your photo is stored on this device. It will automatically upload to the cloud once
-                the cloud storage is configured.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
       </div>
 
-      {/* ── Update Name card ── */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">Update Name</h2>
-        <form onSubmit={nameForm.handleSubmit(onUpdateName)} className="space-y-3">
-          <FormField
-            id="name"
-            type="text"
-            error={nameForm.formState.errors.name?.message}
-            {...nameForm.register('name')}
-          />
-          {nameSuccess && <p className="text-xs text-green-500">{nameSuccess}</p>}
-          {nameError && <p className="text-xs text-destructive">{nameError}</p>}
-          <Button type="submit" size="sm" disabled={nameForm.formState.isSubmitting}>
-            {nameForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
-          </Button>
-        </form>
-      </div>
-
-      {/* ── Change Password card ── */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground">Change Password</h2>
-        <form onSubmit={pwForm.handleSubmit(onChangePassword)} className="space-y-3">
-          <div className="relative">
-            <FormField
-              id="currentPassword"
-              label="Current Password"
-              type={showCurrent ? 'text' : 'password'}
-              error={pwForm.formState.errors.currentPassword?.message}
-              {...pwForm.register('currentPassword')}
-            />
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => setShowCurrent((v) => !v)}
-              className="absolute right-3 text-muted-foreground hover:text-foreground"
-              style={{ top: 34 }}
-            >
-              {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
-
-          <div className="relative">
-            <FormField
-              id="newPassword"
-              label="New Password"
-              type={showNew ? 'text' : 'password'}
-              error={pwForm.formState.errors.newPassword?.message}
-              {...pwForm.register('newPassword')}
-            />
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => setShowNew((v) => !v)}
-              className="absolute right-3 text-muted-foreground hover:text-foreground"
-              style={{ top: 34 }}
-            >
-              {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
-
-          {newPw?.length > 0 && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Strength</span>
-                <span className={strength.color}>{strength.label}</span>
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Profile Card */}
+        <Card className="md:col-span-1 bg-card border-border shadow-xs">
+          <CardContent className="p-6 flex flex-col items-center text-center">
+            <div className="relative group mb-4">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
+                {profile?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.image}
+                    alt={profile.name ?? 'Avatar'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitials
+                )}
               </div>
-              <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                  className={`h-full transition-all ${strength.bg}`}
-                  style={{ width: strength.width }}
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                title="Change photo"
+              >
+                <Camera size={20} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onSelectFile}
+              />
             </div>
-          )}
 
-          <div className="relative">
-            <FormField
-              id="confirmNewPassword"
-              label="Confirm Password"
-              type={showConfirm ? 'text' : 'password'}
-              error={pwForm.formState.errors.confirmNewPassword?.message}
-              {...pwForm.register('confirmNewPassword')}
-            />
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 text-muted-foreground hover:text-foreground"
-              style={{ top: 34 }}
-            >
-              {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
+            <h2 className="text-base font-bold text-foreground truncate max-w-full">
+              {profile?.name || 'Publisher'}
+            </h2>
+            <p className="text-xs text-muted-foreground truncate max-w-full">{profile?.email}</p>
 
-          {pwSuccess && <p className="text-xs text-green-500">{pwSuccess}</p>}
-          {pwError && <p className="text-xs text-destructive">{pwError}</p>}
-          <Button type="submit" size="sm" disabled={pwForm.formState.isSubmitting}>
-            {pwForm.formState.isSubmitting ? 'Changing…' : 'Change Password'}
-          </Button>
-        </form>
+            <div className="mt-3">
+              <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5">
+                {roleLabel(profile?.role)}
+              </Badge>
+            </div>
+
+            {/* Congregation Details */}
+            <div className="mt-5 pt-4 border-t border-border w-full text-left space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Congregation
+              </p>
+              {congregation ? (
+                <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Building2 size={13} className="text-primary shrink-0" />
+                    <span className="truncate">{congregation.name}</span>
+                  </div>
+                  {congregation.city && (
+                    <p className="text-[11px] text-muted-foreground pl-5">{congregation.city}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No congregation assigned</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Forms */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Account Details */}
+          <Card className="bg-card border-border shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <User size={16} className="text-primary" />
+                <span>Account Information</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-semibold">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="Your name"
+                    className="h-10 rounded-xl text-xs"
+                    {...profileForm.register('name')}
+                  />
+                  {profileForm.formState.errors.name && (
+                    <p className="text-[11px] text-destructive">
+                      {profileForm.formState.errors.name.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-semibold">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profile?.email ?? ''}
+                    disabled
+                    className="h-10 rounded-xl text-xs opacity-60 bg-muted/50"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="submit"
+                    className="rounded-xl text-xs font-semibold"
+                    disabled={updateProfile.isPending}
+                  >
+                    {updateProfile.isPending ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Change Password */}
+          <Card className="bg-card border-border shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <KeyRound size={16} className="text-primary" />
+                <span>Security & Password</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentPassword" className="text-xs font-semibold">
+                    Current Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="currentPassword"
+                      type={showCurrentPw ? 'text' : 'password'}
+                      className="h-10 rounded-xl text-xs pr-10"
+                      {...passwordForm.register('currentPassword')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPw(!showCurrentPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                      {showCurrentPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="newPassword" className="text-xs font-semibold">
+                      New Password
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPw ? 'text' : 'password'}
+                        className="h-10 rounded-xl text-xs pr-10"
+                        {...passwordForm.register('newPassword')}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPw(!showNewPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      >
+                        {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-xs font-semibold">
+                      Confirm New Password
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      className="h-10 rounded-xl text-xs"
+                      {...passwordForm.register('confirmNewPassword')}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="rounded-xl text-xs font-semibold"
+                    disabled={changePassword.isPending}
+                  >
+                    {changePassword.isPending ? 'Updating…' : 'Update Password'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* Avatar Crop Dialog */}
+      {cropOpen && (
+        <AvatarCropDialog
+          open={cropOpen}
+          onOpenChange={setCropOpen}
+          imageSrc={cropSrc}
+          onCropComplete={handleCropComplete}
+          loading={updateAvatar.isPending}
+        />
+      )}
     </div>
   );
 }

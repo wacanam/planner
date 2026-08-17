@@ -1,25 +1,14 @@
 'use client';
 
+import { MapPin, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, MapPin } from 'lucide-react';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import { useAuthSession as useSession } from '@/lib/firebase/auth';
 
-/** Routes that have their own DashboardHeader — hide the public header entirely */
-const DASHBOARD_PREFIXES = [
-  '/admin',
-  '/congregation',
-  '/dashboard',
-  '/records',
-  '/profile',
-  '/notifications',
-  '/onboarding',
-  '/territories',
-  '/no-congregation',
-];
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth'];
 
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },
@@ -29,17 +18,17 @@ const publicNavLinks = [
 export function Header() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const sessionUser = session?.user as { role?: string; congregationId?: string } | undefined;
   const isAuthenticated = status === 'authenticated' || !!session;
-  const isAuthPage = pathname.startsWith('/auth');
   const isDashboardPage = DASHBOARD_PREFIXES.some((p) => pathname.startsWith(p));
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Hide entirely on dashboard/authenticated app routes
+  // Hide on dashboard or auth app routes
   if (isDashboardPage) return null;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background shadow-xs">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -49,46 +38,54 @@ export function Header() {
             <span className="font-bold text-foreground tracking-tight">Ministry Planner</span>
           </Link>
 
-          {/* Desktop nav — only on landing for unauthenticated */}
-          {!isAuthPage && !isAuthenticated && (
-            <nav className="hidden md:flex items-center gap-1">
-              {publicNavLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/20 transition-all"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          )}
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            {publicNavLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent/20 transition-all"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
 
-            {/* Unauthenticated — show Sign In / Get Started */}
-            {!isAuthPage && !isAuthenticated && (
+            {!isAuthenticated ? (
               <>
-                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-xs">
                   <Link href="/auth/login">Sign In</Link>
                 </Button>
-                <Button size="sm" asChild className="hidden sm:inline-flex">
+                <Button
+                  size="sm"
+                  asChild
+                  className="hidden sm:inline-flex text-xs font-semibold rounded-xl"
+                >
                   <Link href="/auth/register">Get Started</Link>
                 </Button>
               </>
-            )}
-
-            {/* Authenticated on landing page — show Go to App */}
-            {isAuthenticated && !isAuthPage && (
-              <Button size="sm" asChild>
-                <Link href="/dashboard">Go to App</Link>
+            ) : (
+              <Button size="sm" asChild className="text-xs font-semibold rounded-xl">
+                <Link
+                  href={
+                    sessionUser?.role === 'super_admin'
+                      ? '/admin/dashboard'
+                      : sessionUser?.congregationId
+                        ? `/congregation/${sessionUser.congregationId}/dashboard`
+                        : '/onboarding'
+                  }
+                >
+                  Go to App
+                </Link>
               </Button>
             )}
 
-            {/* Mobile menu toggle — only for unauthenticated landing */}
-            {!isAuthPage && !isAuthenticated && (
+            {/* Mobile menu toggle */}
+            {!isAuthenticated && (
               <button
                 type="button"
                 className="md:hidden ml-1 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-all"
@@ -101,8 +98,8 @@ export function Header() {
           </div>
         </div>
 
-        {/* Mobile menu — unauthenticated only */}
-        {!isAuthPage && !isAuthenticated && mobileOpen && (
+        {/* Mobile menu */}
+        {!isAuthenticated && mobileOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-border/60 pt-3">
             {publicNavLinks.map((link) => (
               <Link
@@ -115,10 +112,10 @@ export function Header() {
               </Link>
             ))}
             <div className="flex gap-2 pt-2">
-              <Button variant="ghost" size="sm" asChild className="flex-1">
+              <Button variant="ghost" size="sm" asChild className="flex-1 text-xs">
                 <Link href="/auth/login">Sign In</Link>
               </Button>
-              <Button size="sm" asChild className="flex-1">
+              <Button size="sm" asChild className="flex-1 text-xs font-semibold rounded-xl">
                 <Link href="/auth/register">Get Started</Link>
               </Button>
             </div>

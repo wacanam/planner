@@ -1,35 +1,33 @@
 'use client';
 
-import { ArrowRight, Building2, Globe, Plus, TrendingUp } from 'lucide-react';
+import { Building2, Globe, Shield, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserRole } from '@/lib/roles';
 import { useCongregations } from '@/hooks';
+import { UserRole } from '@/lib/roles';
 
 export default function AdminDashboardPage() {
-  const { congregations, isLoading: loading } = useCongregations();
-
+  const { congregations = [], isLoading: loading } = useCongregations();
   const totalActive = congregations.filter((c) => c.status === 'active').length;
 
   return (
     <ProtectedPage requiredRole={UserRole.ADMIN}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Page header */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Global Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              System-wide overview of all congregations
+              System-wide overview of all registered congregations
             </p>
           </div>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 h-9">
             <Link href="/admin/congregations">
               <Globe size={14} />
-              Manage Congregations
+              <span>Manage Congregations</span>
             </Link>
           </Button>
         </div>
@@ -56,79 +54,48 @@ export default function AdminDashboardPage() {
             color="orange"
             loading={loading}
           />
-          <StatCard
-            title="Countries"
-            value={
-              loading ? '—' : new Set(congregations.map((c) => c.country).filter(Boolean)).size
-            }
-            icon={Globe}
-            color="purple"
-            loading={loading}
-          />
+          <StatCard title="Platform Status" value="Operational" icon={Shield} color="purple" />
         </div>
 
-        {/* Congregations list */}
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-4">
-            <CardTitle className="text-base">All Congregations</CardTitle>
-            <Button asChild size="sm" variant="soft">
-              <Link href="/admin/congregations">
-                View All
-                <ArrowRight size={14} />
-              </Link>
+        {/* Congregations List */}
+        <Card className="bg-card border-border shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Building2 size={16} className="text-primary" />
+              <span>Congregations</span>
+            </CardTitle>
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link href="/admin/congregations">View All</Link>
             </Button>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
                 ))}
               </div>
             ) : congregations.length === 0 ? (
-              <div className="text-center py-12">
-                <Building2 size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">No congregations yet</p>
-                <Button asChild size="sm" className="mt-4">
-                  <Link href="/admin/congregations">
-                    <Plus size={14} />
-                    Create First Congregation
-                  </Link>
-                </Button>
+              <div className="text-center py-10">
+                <p className="text-xs text-muted-foreground">No congregations registered yet.</p>
               </div>
             ) : (
-              <div className="divide-y divide-border">
-                {congregations.slice(0, 8).map((c) => (
+              <div className="space-y-2">
+                {congregations.slice(0, 5).map((cong) => (
                   <div
-                    key={c.id}
-                    className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
+                    key={cong.id}
+                    className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 text-xs"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Building2 size={14} className="text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{c.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {[c.city, c.country].filter(Boolean).join(', ') || 'No location'}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="font-bold text-foreground">{cong.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {cong.city ? `${cong.city}, ` : ''}
+                        {cong.country || 'Global'}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={
-                          c.status === 'active'
-                            ? 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400'
-                            : 'text-muted-foreground'
-                        }
-                      >
-                        {c.status}
-                      </Badge>
-                      <Button asChild size="sm" variant="ghost">
-                        <Link href={`/congregation/${c.id}/dashboard`}>View</Link>
-                      </Button>
-                    </div>
+                    <Badge variant="outline" className="capitalize text-[10px] font-semibold">
+                      {cong.status}
+                    </Badge>
                   </div>
                 ))}
               </div>

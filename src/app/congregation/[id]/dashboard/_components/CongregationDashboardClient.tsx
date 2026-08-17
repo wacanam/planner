@@ -2,617 +2,293 @@
 
 import {
   ArrowRight,
-  BarChart2,
-  ClipboardList,
-  Clock,
-  FolderOpen,
+  Building2,
+  CheckCircle2,
+  Compass,
+  FileText,
+  Home,
   MapPin,
-  Plus,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
+import { useParams, useRouter } from 'next/navigation';
+import { useMemo } from 'react';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
-import { TerritoryRequestDialog } from '@/components/territory-request-dialog';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { CongregationRole, UserRole } from '@/lib/roles';
 import {
   useCongregation,
   useCongregationMembers,
-  useCongregationGroups,
   useCongregationTerritories,
-  useCongregationTerritoryRequests,
+  useCurrentUser,
+  useHouseholds,
+  useMyAssignments,
 } from '@/hooks';
+import { isServiceOverseer, isTerritoryServant } from '@/lib/permissions';
 
-const statusColors: Record<string, string> = {
-  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
-  completed:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
-  archived: 'text-muted-foreground border-border bg-muted/30',
-  pending:
-    'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400',
-  approved: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  rejected: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-900/20 dark:text-red-400',
-};
-
-export default function CongregationDashboardPage() {
+export default function CongregationDashboardClient() {
   const params = useParams();
-  const congregationId = params?.id as string;
-  const { data: session } = useSession();
+  const _router = useRouter();
+  const congregationId = (params?.id as string) || '';
+  const { user } = useCurrentUser();
+  const { congregation } = useCongregation(congregationId);
 
-  const sessionUser = session?.user as
-    | { id?: string; role?: string; congregationId?: string }
-    | undefined;
-
-  const { congregation: congData, isLoading: congLoading } = useCongregation(
-    congregationId ?? null
-  );
-  const { data: membersData, isLoading: membersLoading } = useCongregationMembers(congregationId);
-  const { groups: groupsData, isLoading: groupsLoading } = useCongregationGroups(congregationId);
-  const { data: territoriesData, isLoading: territoriesLoading } =
+  const { data: territories = [], isLoading: territoriesLoading } =
     useCongregationTerritories(congregationId);
-  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
-    congregationId,
-    'pending'
-  );
+  const { assignments = [], isLoading: assignmentsLoading } = useMyAssignments(congregationId);
+  const { households = [], isLoading: householdsLoading } = useHouseholds();
+  const { data: members = [] } = useCongregationMembers(congregationId);
 
-  const loading =
-    congLoading || membersLoading || groupsLoading || territoriesLoading || requestsLoading;
+  const territoryMap = useMemo(() => {
+    return new Map(territories.map((t) => [t.id, t]));
+  }, [territories]);
 
-  const congregation = congData ?? null;
-  const members = membersData;
-  const groups = groupsData;
-  const territories = territoriesData;
-  const requests = requestsData;
+  const displayRole = (() => {
+    const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
+    if (r === 'SUPER_ADMIN') return 'Super Admin';
+    if (r === 'ADMIN') return 'Admin';
+    if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
+    if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
+    return 'Publisher';
+  })();
 
-  const me = sessionUser?.id
-    ? members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id)
-    : undefined;
-  const myRole = membersLoading ? null : (me?.congregationRole ?? '');
-
-  const isOverseer =
-    myRole === CongregationRole.SERVICE_OVERSEER ||
-    myRole === CongregationRole.TERRITORY_SERVANT ||
-    sessionUser?.role === UserRole.SUPER_ADMIN ||
-    sessionUser?.role === UserRole.ADMIN;
-
-  const loadAll = () => undefined;
+  const _isServant = isTerritoryServant(user.role);
+  const _isOverseer = isServiceOverseer(user.role);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
-  const pendingRequests = requests.length;
-
-  // Publisher-specific derived data
-  const myActiveTerritories = territories.filter(
-    (t) => t.status === 'assigned' && t.publisherId === sessionUser?.id
+  const activeAssignments = assignments.filter(
+    (a) => a.status === 'assigned' || a.status === 'active'
   );
-  const myRequests = isOverseer ? [] : requests;
-
-  // Set of territory IDs the publisher already has a pending request for
-  const requestedTerritoryIds = new Set(
-    myRequests.filter((r) => r.territoryId).map((r) => r.territoryId as string)
-  );
-
-  // Helper to look up territory name by id
-  const getTerritoryLabel = (territoryId?: string | null) => {
-    if (!territoryId) return 'Any available territory';
-    const t = territories.find((t) => t.id === territoryId);
-    return t ? `#${t.number} ${t.name}` : 'Specific territory';
-  };
+  const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
 
   return (
     <ProtectedPage congregationId={congregationId}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              {congregation?.name ?? 'Congregation'} Dashboard
-            </h1>
-            {loading || myRole === null ? (
-              <Skeleton className="mt-1 h-4 w-48 rounded-md" />
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {isOverseer ? 'Congregation overview and quick actions' : 'Your ministry overview'}
-              </p>
+      <DashboardHeader />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
+        {/* Welcome & Quick Studio Trigger */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 rounded-3xl border border-primary/20">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                Welcome back, {user.name || 'Publisher'}! 👋
+              </h1>
+              <Badge
+                variant="outline"
+                className="text-xs uppercase font-bold bg-primary/10 text-primary border-primary/30"
+              >
+                {displayRole}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+              <span className="flex items-center gap-1.5 font-bold text-foreground">
+                <Building2 size={15} className="text-primary" />
+                {congregation?.name || 'Congregation Workspace'}
+              </span>
+              {congregation?.city && <span>• {congregation.city}</span>}
+              <span className="hidden sm:inline text-muted-foreground/80">
+                — Field ministry territory & visit tracking
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {territories.length > 0 && (
+              <Button
+                asChild
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
+              >
+                <Link href={`/congregation/${congregationId}/territories/${territories[0].id}`}>
+                  <MapPin size={15} />
+                  <span>Launch Territory Studio</span>
+                </Link>
+              </Button>
             )}
           </div>
-          {loading || myRole === null ? (
-            <div className="flex gap-2">
-              <Skeleton className="h-8 w-28 rounded-md" />
-              <Skeleton className="h-8 w-32 rounded-md" />
-            </div>
-          ) : isOverseer ? (
-            <div className="flex gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/congregation/${congregationId}/members`}>
-                  <Plus size={14} />
-                  Add Member
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/congregation/${congregationId}/reports`}>
-                  <BarChart2 size={14} />
-                  Reports
-                </Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href={`/congregation/${congregationId}/territories`}>
-                  <MapPin size={14} />
-                  Territories
-                  {pendingRequests > 0 && (
-                    <span className="ml-1 bg-red-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                      {pendingRequests}
-                    </span>
-                  )}
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/congregation/${congregationId}/territories`}>
-                  <MapPin size={14} />
-                  Browse Territories
-                </Link>
-              </Button>
-              <TerritoryRequestDialog
-                congregationId={congregationId}
-                onSuccess={loadAll}
-                trigger={
-                  <Button size="sm">
-                    <ClipboardList size={14} />
-                    Request Territory
-                  </Button>
-                }
-              />
-            </div>
-          )}
         </div>
 
-        {/* ── OVERSEER VIEW ──────────────────────────────────────────── */}
-        {isOverseer ? (
-          <>
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatCard
-                title="Members"
-                value={loading ? '—' : members.length}
-                icon={Users}
-                color="blue"
-                loading={loading}
-              />
-              <StatCard
-                title="Groups"
-                value={loading ? '—' : groups.length}
-                icon={FolderOpen}
-                color="purple"
-                loading={loading}
-              />
-              <StatCard
-                title="Territories"
-                value={loading ? '—' : territories.length}
-                subtitle={`${availableTerritories.length} available`}
-                icon={MapPin}
-                color="green"
-                loading={loading}
-              />
-              <StatCard
-                title="Pending Requests"
-                value={loading ? '—' : pendingRequests}
-                icon={ClipboardList}
-                color={pendingRequests > 0 ? 'orange' : 'default'}
-                loading={loading}
-              />
-            </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Territories"
+            value={territoriesLoading ? '—' : territories.length}
+            description={`${availableTerritories.length} available to assign`}
+            icon={MapPin}
+            color="blue"
+            loading={territoriesLoading}
+          />
+          <StatCard
+            title="My Assignments"
+            value={assignmentsLoading ? '—' : activeAssignments.length}
+            description="Active territories in work"
+            icon={Compass}
+            color="green"
+            loading={assignmentsLoading}
+          />
+          <StatCard
+            title="Door Records"
+            value={householdsLoading ? '—' : households.length}
+            description={
+              needsPinningCount > 0 ? `📍 ${needsPinningCount} needs pinning` : 'All pinned on map'
+            }
+            icon={Home}
+            color={needsPinningCount > 0 ? 'orange' : 'purple'}
+            loading={householdsLoading}
+          />
+          <StatCard
+            title="Publishers"
+            value={members.length}
+            description="Congregation members"
+            icon={Users}
+            color="gray"
+          />
+        </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Groups */}
-              <Card>
-                <CardHeader className="flex-row items-center justify-between pb-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FolderOpen size={16} className="text-purple-500" />
-                    Groups
-                  </CardTitle>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link href={`/congregation/${congregationId}/groups`}>
-                      View All
-                      <ArrowRight size={13} />
-                    </Link>
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {loading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
-                      ))}
-                    </div>
-                  ) : groups.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FolderOpen size={28} className="mx-auto text-muted-foreground/40 mb-2" />
-                      <p className="text-sm text-muted-foreground">No groups yet</p>
-                      <Button asChild size="sm" className="mt-3">
-                        <Link href={`/congregation/${congregationId}/groups`}>
-                          <Plus size={13} />
-                          Create Group
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    groups.slice(0, 5).map((g) => (
-                      <div
-                        key={g.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <FolderOpen
-                              size={12}
-                              className="text-purple-600 dark:text-purple-400"
-                            />
-                          </div>
-                          <span className="text-sm font-medium">{g.name}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {g.members?.length ?? 0} members
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Territories */}
-              <Card>
-                <CardHeader className="flex-row items-center justify-between pb-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <MapPin size={16} className="text-green-500" />
-                    Territory Status
-                  </CardTitle>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link href={`/congregation/${congregationId}/territories`}>
-                      Manage
-                      <ArrowRight size={13} />
-                    </Link>
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {loading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
-                      ))}
-                    </div>
-                  ) : territories.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MapPin size={28} className="mx-auto text-muted-foreground/40 mb-2" />
-                      <p className="text-sm text-muted-foreground">No territories yet</p>
-                      <Button asChild size="sm" className="mt-3">
-                        <Link href={`/congregation/${congregationId}/territories`}>
-                          <Plus size={13} />
-                          Add Territory
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    territories.slice(0, 5).map((t) => (
-                      <div
-                        key={t.id}
-                        className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">
-                            #{t.number} {t.name}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className={statusColors[t.status] ?? ''}>
-                          {t.status}
-                        </Badge>
-                      </div>
-                    ))
-                  )}
-                  {!loading && territories.length > 5 && (
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                      +{territories.length - 5} more
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Members list */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users size={16} className="text-blue-500" />
-                  Members
-                </CardTitle>
-                <Button asChild size="sm" variant="ghost">
-                  <Link href={`/congregation/${congregationId}/members`}>
-                    View All
-                    <ArrowRight size={13} />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : members.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users size={28} className="mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">No members yet</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {members.slice(0, 6).map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary">
-                            {m.user?.name?.charAt(0)?.toUpperCase() ?? '?'}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{m.user?.name}</p>
-                            <p className="text-xs text-muted-foreground">{m.user?.email}</p>
-                          </div>
-                        </div>
-                        {m.congregationRole && (
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {m.congregationRole.replace('_', ' ')}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Pending territory requests */}
-            {pendingRequests > 0 && (
-              <Card className="border-orange-200 dark:border-orange-900/40">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Clock size={16} className="text-orange-500" />
-                    Pending Territory Requests
-                    <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 ml-1">
-                      {pendingRequests}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {requests.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Clock size={14} className="text-orange-500" />
-                        <span className="text-sm">
-                          {r.publisher?.name ?? 'Unknown'} requested{' '}
-                          {r.territoryId
-                            ? getTerritoryLabel(r.territoryId)
-                            : 'any available territory'}
-                        </span>
-                      </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/congregation/${congregationId}/territories`}>Review</Link>
-                      </Button>
-                    </div>
+        {/* Action Sections */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* My Active Working Territories */}
+          <Card className="lg:col-span-2 bg-card border-border shadow-xs">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Compass size={16} className="text-primary" />
+                <span>My Active Assignments</span>
+              </CardTitle>
+              <Button asChild variant="ghost" size="sm" className="text-xs h-8">
+                <Link href={`/congregation/${congregationId}/my-assignments`}>
+                  View All ({assignments.length})
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {assignmentsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
                   ))}
-                </CardContent>
-              </Card>
-            )}
-          </>
-        ) : (
-          /* ── PUBLISHER VIEW ────────────────────────────────────────── */
-          <>
-            {/* Quick stats bar */}
-            <div className="grid grid-cols-3 gap-3">
-              <StatCard
-                title="Assigned"
-                value={loading ? '—' : myActiveTerritories.length}
-                icon={MapPin}
-                color="blue"
-                loading={loading}
-              />
-              <StatCard
-                title="Pending"
-                value={loading ? '—' : myRequests.length}
-                icon={ClipboardList}
-                color={myRequests.length > 0 ? 'orange' : 'default'}
-                loading={loading}
-              />
-              <StatCard
-                title="Members"
-                value={loading ? '—' : members.length}
-                icon={Users}
-                color="purple"
-                loading={loading}
-              />
-            </div>
+                </div>
+              ) : activeAssignments.length === 0 ? (
+                <div className="text-center py-10">
+                  <Compass size={36} className="text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">No territory assigned right now.</p>
+                  <Button asChild variant="outline" size="sm" className="mt-3 text-xs rounded-xl">
+                    <Link href={`/congregation/${congregationId}/territories`}>
+                      Browse Available Territories
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeAssignments.map((assignment) => {
+                    const terr = territoryMap.get(assignment.territoryId);
+                    const number = terr?.number || assignment.territoryNumber || '—';
+                    const name = terr?.name || assignment.territoryName || 'Territory';
 
-            {/* My Active Territories */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin size={16} className="text-blue-500" />
-                  My Active Territories
-                </CardTitle>
-                <Button asChild size="sm" variant="ghost">
-                  <Link href={`/congregation/${congregationId}/my-assignments`}>
-                    View All
-                    <ArrowRight size={13} />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {loading ? (
-                  <div className="space-y-2">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : myActiveTerritories.length === 0 ? (
-                  <div className="text-center py-8">
-                    <MapPin size={28} className="mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      No territories currently assigned to you
-                    </p>
-                  </div>
-                ) : (
-                  myActiveTerritories.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          #{t.number} {t.name}
-                        </p>
-                      </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                          View
-                          <ArrowRight size={12} />
-                        </Link>
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* My Territory Requests */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ClipboardList size={16} className="text-orange-500" />
-                  My Territory Requests
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {loading ? (
-                  <div className="space-y-2">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : myRequests.length === 0 ? (
-                  <div className="text-center py-6">
-                    <ClipboardList size={24} className="mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">No pending requests</p>
-                  </div>
-                ) : (
-                  myRequests.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">{getTerritoryLabel(r.territoryId)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(r.requestedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className={statusColors[r.status] ?? ''}>
-                        {r.status}
-                      </Badge>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Available Territories */}
-            <Card>
-              <CardHeader className="flex-row items-center justify-between pb-4">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin size={16} className="text-green-500" />
-                  Available Territories
-                </CardTitle>
-                <Button asChild size="sm" variant="ghost">
-                  <Link href={`/congregation/${congregationId}/territories`}>
-                    View all
-                    <ArrowRight size={13} />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {loading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-12 bg-muted animate-pulse rounded-xl" />
-                    ))}
-                  </div>
-                ) : availableTerritories.length === 0 ? (
-                  <div className="text-center py-6">
-                    <MapPin size={24} className="mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      No territories currently available
-                    </p>
-                  </div>
-                ) : (
-                  availableTerritories.slice(0, 6).map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          #{t.number} {t.name}
-                        </p>
-                        {t.householdsCount !== undefined && t.householdsCount > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {t.householdsCount} households
+                    return (
+                      <div
+                        key={assignment.id}
+                        className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-foreground">
+                              #{number} — {name}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40"
+                            >
+                              Working
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Assigned on{' '}
+                            {assignment.assignedAt
+                              ? new Date(assignment.assignedAt).toLocaleDateString()
+                              : 'Recently'}
                           </p>
-                        )}
-                      </div>
-                      <TerritoryRequestDialog
-                        congregationId={congregationId}
-                        territoryId={t.id}
-                        territoryName={`#${t.number} ${t.name}`}
-                        onSuccess={loadAll}
-                        trigger={
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={requestedTerritoryIds.has(t.id)}
+                        </div>
+
+                        <Button asChild size="sm" className="rounded-xl text-xs gap-1 shrink-0">
+                          <Link
+                            href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
                           >
-                            {requestedTerritoryIds.has(t.id) ? 'Requested' : 'Request'}
-                          </Button>
-                        }
-                      />
-                    </div>
-                  ))
-                )}
-                {!loading && availableTerritories.length > 6 && (
-                  <div className="pt-2 text-center">
-                    <Button asChild size="sm" variant="ghost">
-                      <Link href={`/congregation/${congregationId}/territories`}>
-                        View all {availableTerritories.length} available
-                        <ArrowRight size={13} />
-                      </Link>
-                    </Button>
+                            <MapPin size={13} />
+                            <span>Open Map</span>
+                          </Link>
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Hub Navigator */}
+          <Card className="bg-card border-border shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <FileText size={16} className="text-primary" />
+                <span>Records & Workspace</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Link
+                href={`/congregation/${congregationId}/records/households`}
+                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                    <Home size={15} />
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
+                  <div>
+                    <p className="font-semibold text-xs text-foreground">Household Directory</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {households.length} door records
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground" />
+              </Link>
+
+              <Link
+                href={`/congregation/${congregationId}/records/visits`}
+                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-green-500/10 text-green-600">
+                    <CheckCircle2 size={15} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs text-foreground">Visit History</p>
+                    <p className="text-[10px] text-muted-foreground">Door-to-door logs</p>
+                  </div>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground" />
+              </Link>
+
+              <Link
+                href={`/congregation/${congregationId}/records/shared`}
+                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
+                    <Users size={15} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs text-foreground">Shared Records</p>
+                    <p className="text-[10px] text-muted-foreground">Collaborate with publishers</p>
+                  </div>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground" />
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+      <BottomTabBar />
     </ProtectedPage>
   );
 }

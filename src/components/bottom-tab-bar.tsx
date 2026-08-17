@@ -1,77 +1,82 @@
 'use client';
 
-import { BarChart2, BookOpen, Building, ClipboardList, House, MapPin, Users } from 'lucide-react';
+import { Compass, FileText, Layers, MapPin, Menu } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { UserRole } from '@/lib/roles';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { cn } from '@/lib/utils';
+import { useParams, usePathname } from 'next/navigation';
+import { useCurrentUser, usePendingEndorsements } from '@/hooks';
+import { isServiceOverseer } from '@/lib/permissions';
 
-interface TabItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-}
-
-interface BottomTabBarProps {
-  congregationId?: string;
-}
-
-export function BottomTabBar({ congregationId }: BottomTabBarProps) {
-  const { user } = useCurrentUser();
+export function BottomTabBar() {
   const pathname = usePathname();
+  const params = useParams();
+  const id = (params?.id as string) || '';
+  const { user } = useCurrentUser();
+  const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
 
-  if (!user) return null;
+  if (!id) return null;
 
-  let tabs: TabItem[] = [];
-
-  if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
-    tabs = [
-      { href: '/admin/dashboard', label: 'Dashboard', icon: House },
-      { href: '/admin/congregations', label: 'Congregations', icon: Building },
-    ];
-  } else if (user.role === UserRole.SERVICE_OVERSEER || user.role === UserRole.TERRITORY_SERVANT) {
-    const id = congregationId ?? user.congregationId ?? '';
-    if (id) {
-      tabs = [
-        { href: `/congregation/${id}/dashboard`, label: 'Dashboard', icon: House },
-        { href: `/congregation/${id}/territories`, label: 'Territories', icon: MapPin },
-        { href: `/congregation/${id}/reports`, label: 'Reports', icon: BarChart2 },
-        { href: `/congregation/${id}/members`, label: 'Members', icon: Users },
-      ];
-    }
-  } else {
-    const id = congregationId ?? user.congregationId ?? '';
-    if (id) {
-      tabs = [
-        { href: `/congregation/${id}/dashboard`, label: 'Home', icon: House },
-        { href: `/congregation/${id}/my-assignments`, label: 'My Work', icon: ClipboardList },
-        { href: '/records', label: 'Records', icon: BookOpen },
-        { href: `/congregation/${id}/territories`, label: 'Territories', icon: MapPin },
-      ];
-    }
-  }
-
-  if (tabs.length === 0) return null;
+  const tabs = [
+    {
+      href: `/congregation/${id}/dashboard`,
+      label: 'Home',
+      icon: Layers,
+    },
+    {
+      href: `/congregation/${id}/territories`,
+      label: 'Territories',
+      icon: MapPin,
+    },
+    {
+      href: `/congregation/${id}/my-assignments`,
+      label: 'Mine',
+      icon: Compass,
+    },
+    {
+      href: `/congregation/${id}/records/households`,
+      label: 'Records',
+      icon: FileText,
+    },
+    {
+      href: isServiceOverseer(user.role) ? `/congregation/${id}/members` : `/profile`,
+      label: isServiceOverseer(user.role) ? 'Oversee' : 'More',
+      icon: Menu,
+      badgeCount: pendingEndorsementsCount,
+    },
+  ];
 
   return (
     <nav
-      className="flex md:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border"
+      className="flex lg:hidden fixed bottom-0 inset-x-0 bg-background border-t border-border shadow-lg"
       style={{ zIndex: 900, paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {tabs.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+      {tabs.map(({ href, label, icon: Icon, badgeCount }) => {
+        const isActive =
+          pathname === href ||
+          (href.includes('/records/') && pathname.includes('/records/')) ||
+          (href.includes('/territories') && pathname.includes('/territories')) ||
+          (href.includes('/my-assignments') && pathname.includes('/my-assignments')) ||
+          (href.includes('/members') &&
+            (pathname.includes('/members') ||
+              pathname.includes('/groups') ||
+              pathname.includes('/reports')));
+
         return (
           <Link
             key={href}
             href={href}
-            className={cn(
-              'flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors',
-              active ? 'text-primary' : 'text-muted-foreground'
-            )}
+            className={`flex-1 flex flex-col items-center justify-center py-2 px-1 text-[11px] font-semibold transition-colors duration-150 relative ${
+              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <Icon size={20} />
-            <span>{label}</span>
+            <div className="relative mb-0.5">
+              <Icon size={18} />
+              {Boolean(badgeCount) && (
+                <span className="absolute -top-1 -right-2 inline-flex items-center justify-center h-3.5 min-w-3.5 px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                  {badgeCount}
+                </span>
+              )}
+            </div>
+            <span className="truncate max-w-[64px]">{label}</span>
           </Link>
         );
       })}

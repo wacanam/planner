@@ -1,143 +1,251 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import type { Household } from '@/types/api';
 
-const schema = z.object({
-  name: z.string().max(120).optional(),
-  address: z.string().max(255).optional(),
-  streetName: z.string().max(255).optional(),
-  city: z.string().max(255).optional(),
-  type: z.string().optional(),
-  membersCount: z.number().int().min(0).optional(),
+export const householdFormSchema = z.object({
+  address: z.string().min(1, 'Address is required'),
+  houseNumber: z.string().optional(),
+  streetName: z.string().min(1, 'Street name is required'),
+  unit: z.string().optional(),
+  city: z.string().min(1, 'City is required'),
+  postalCode: z.string().optional(),
+  type: z.enum(['house', 'apartment', 'business', 'gated_community', 'other']),
+  status: z.enum(['new', 'active', 'not_home', 'return_visit', 'do_not_visit', 'moved', 'inactive']),
+  occupantsCount: z.number().min(1),
   notes: z.string().optional(),
+  language: z.string().optional(),
+  territoryId: z.string().optional().nullable(),
 });
 
-export type HouseholdFormValues = z.infer<typeof schema>;
+export type HouseholdFormValues = z.infer<typeof householdFormSchema>;
 
 interface HouseholdFormProps {
-  defaultValues?: Partial<HouseholdFormValues>;
-  submitting?: boolean;
-  submitLabel?: string;
-  onSubmit: (values: HouseholdFormValues) => Promise<void> | void;
+  initialValues?: Partial<Household> & { unit?: string; language?: string };
+  onSubmit: (values: HouseholdFormValues) => void | Promise<void>;
+  loading?: boolean;
+  onCancel?: () => void;
+  territories?: Array<{ id: string; name: string; number: string }>;
 }
 
 export function HouseholdForm({
-  defaultValues,
-  submitting = false,
-  submitLabel = 'Save Household',
+  initialValues,
   onSubmit,
+  loading = false,
+  onCancel,
+  territories = [],
 }: HouseholdFormProps) {
-  const formDefaults = useMemo(
-    () =>
-      ({
-        name: defaultValues?.name ?? '',
-        address: defaultValues?.address ?? '',
-        streetName: defaultValues?.streetName ?? '',
-        city: defaultValues?.city ?? '',
-        type: defaultValues?.type ?? 'house',
-        membersCount:
-          typeof defaultValues?.membersCount === 'number' ? defaultValues.membersCount : 1,
-        notes: defaultValues?.notes ?? '',
-      }) satisfies HouseholdFormValues,
-    [defaultValues]
-  );
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<HouseholdFormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: formDefaults,
+  const form = useForm<HouseholdFormValues>({
+    resolver: zodResolver(householdFormSchema) as any,
+    defaultValues: {
+      address: initialValues?.address ?? '',
+      houseNumber: initialValues?.houseNumber ?? '',
+      streetName: initialValues?.streetName ?? '',
+      unit: initialValues?.unit ?? '',
+      city: initialValues?.city ?? 'Springfield',
+      postalCode: initialValues?.postalCode ?? '',
+      type: (initialValues?.type as HouseholdFormValues['type']) ?? 'house',
+      status: (initialValues?.status as HouseholdFormValues['status']) ?? 'new',
+      occupantsCount: initialValues?.occupantsCount ?? 1,
+      notes: initialValues?.notes ?? '',
+      language: initialValues?.language ?? initialValues?.languages?.[0] ?? 'English',
+      territoryId: initialValues?.territoryId ?? null,
+    },
   });
 
-  useEffect(() => {
-    reset(formDefaults);
-  }, [formDefaults, reset]);
-
   return (
-    <form className="space-y-4" onSubmit={handleSubmit(async (values) => onSubmit(values))}>
-      <div className="space-y-1.5">
-        <Label htmlFor="household-name">Household label</Label>
-        <Input id="household-name" {...register('name')} />
-        {errors.name ? <p className="text-xs text-destructive">{errors.name.message}</p> : null}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="household-address">Address or map label</Label>
-        <Input id="household-address" {...register('address')} />
-        {errors.address ? (
-          <p className="text-xs text-destructive">{errors.address.message}</p>
-        ) : null}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="household-type">Dwelling type</Label>
-          <select
-            id="household-type"
-            className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            {...register('type')}
-          >
-            <option value="house">House</option>
-            <option value="apartment">Apartment</option>
-            <option value="condo">Condo</option>
-            <option value="townhouse">Townhouse</option>
-            <option value="business">Business</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="household-members">Occupants</Label>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="space-y-1 col-span-1">
+          <Label htmlFor="houseNumber" className="text-xs font-semibold">
+            House / Bldg #
+          </Label>
           <Input
-            id="household-members"
-            type="number"
-            min={0}
-            {...register('membersCount', {
-              setValueAs: (value) => (value === '' ? undefined : Number(value)),
-            })}
+            id="houseNumber"
+            placeholder="e.g. 104"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('houseNumber')}
           />
-          {errors.membersCount ? (
-            <p className="text-xs text-destructive">{errors.membersCount.message}</p>
-          ) : null}
+        </div>
+        <div className="space-y-1 col-span-2">
+          <Label htmlFor="streetName" className="text-xs font-semibold">
+            Street Name *
+          </Label>
+          <Input
+            id="streetName"
+            placeholder="e.g. Maple Street"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('streetName')}
+          />
+          {form.formState.errors.streetName && (
+            <p className="text-[10px] text-destructive">
+              {form.formState.errors.streetName.message}
+            </p>
+          )}
         </div>
       </div>
 
-      <details className="rounded-2xl border border-border bg-muted/20 p-3">
-        <summary className="cursor-pointer text-sm font-medium">Address details</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="household-street-name">Street name</Label>
-            <Input id="household-street-name" {...register('streetName')} />
-            {errors.streetName ? (
-              <p className="text-xs text-destructive">{errors.streetName.message}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="household-city">City</Label>
-            <Input id="household-city" {...register('city')} />
-            {errors.city ? <p className="text-xs text-destructive">{errors.city.message}</p> : null}
-          </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="unit" className="text-xs font-semibold">
+            Unit / Apt / Flr
+          </Label>
+          <Input
+            id="unit"
+            placeholder="e.g. Apt 3B"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('unit')}
+          />
         </div>
-      </details>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="household-notes">Notes</Label>
-        <Textarea id="household-notes" rows={3} {...register('notes')} />
+        <div className="space-y-1">
+          <Label htmlFor="address" className="text-xs font-semibold">
+            Full Address Label *
+          </Label>
+          <Input
+            id="address"
+            placeholder="e.g. 104 Maple St, Apt 3B"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('address')}
+          />
+          {form.formState.errors.address && (
+            <p className="text-[10px] text-destructive">{form.formState.errors.address.message}</p>
+          )}
+        </div>
       </div>
 
-      <Button type="submit" className="w-full h-11" disabled={submitting}>
-        {submitting ? 'Saving…' : submitLabel}
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="city" className="text-xs font-semibold">
+            City *
+          </Label>
+          <Input
+            id="city"
+            placeholder="City"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('city')}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="postalCode" className="text-xs font-semibold">
+            Postal Code
+          </Label>
+          <Input
+            id="postalCode"
+            placeholder="Postal code"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('postalCode')}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Structure Type</Label>
+          <Select
+            value={form.watch('type')}
+            onValueChange={(val) =>
+              form.setValue('type', val as HouseholdFormValues['type'])
+            }
+          >
+            <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="house">Single Family House</SelectItem>
+              <SelectItem value="apartment">Apartment / Condominium</SelectItem>
+              <SelectItem value="business">Business / Commercial</SelectItem>
+              <SelectItem value="gated_community">Gated Community</SelectItem>
+              <SelectItem value="other">Other Structure</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Initial Status</Label>
+          <Select
+            value={form.watch('status')}
+            onValueChange={(val) =>
+              form.setValue('status', val as HouseholdFormValues['status'])
+            }
+          >
+            <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="new">New Record</SelectItem>
+              <SelectItem value="active">Active Household</SelectItem>
+              <SelectItem value="not_home">Not Home</SelectItem>
+              <SelectItem value="return_visit">Return Visit</SelectItem>
+              <SelectItem value="do_not_visit">Do Not Visit</SelectItem>
+              <SelectItem value="moved">Moved Away</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {territories.length > 0 && (
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Territory (Optional)</Label>
+          <Select
+            value={form.watch('territoryId') || 'none'}
+            onValueChange={(val) => form.setValue('territoryId', val === 'none' ? null : val)}
+          >
+            <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectValue placeholder="Assign to territory" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="none">No territory assigned (Mapless)</SelectItem>
+              {territories.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  Territory #{t.number} — {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <Label htmlFor="notes" className="text-xs font-semibold">
+          Notes / Gate Codes / Special Directions
+        </Label>
+        <Textarea
+          id="notes"
+          placeholder="e.g. Ring top buzzer, beware of dog"
+          className="rounded-xl text-xs resize-none h-20"
+          {...form.register('notes')}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl text-xs"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+        )}
+        <Button type="submit" className="rounded-xl text-xs font-semibold" disabled={loading}>
+          {loading ? 'Saving…' : initialValues?.id ? 'Update Household' : 'Save Household'}
+        </Button>
+      </div>
     </form>
   );
 }

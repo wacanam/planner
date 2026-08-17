@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { hasPermission, hasRole } from '../permissions';
+import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
+import {
+  hasPermission,
+  hasRole,
+  isServiceOverseer,
+  isSystemAdmin,
+  isTerritoryServant,
+} from '../permissions';
 
 describe('hasPermission', () => {
   it('USER cannot access TERRITORY_SERVANT routes', () => {
@@ -31,10 +37,35 @@ describe('hasPermission', () => {
 
 describe('hasRole', () => {
   it('returns true when role is in allowedRoles', () => {
-    expect(hasRole(UserRole.SERVICE_OVERSEER, UserRole.SERVICE_OVERSEER, UserRole.ADMIN)).toBe(true);
+    expect(hasRole(UserRole.SERVICE_OVERSEER, UserRole.SERVICE_OVERSEER, UserRole.ADMIN)).toBe(
+      true
+    );
   });
 
   it('returns false when role is not in allowedRoles', () => {
     expect(hasRole(UserRole.USER, UserRole.SERVICE_OVERSEER, UserRole.ADMIN)).toBe(false);
+  });
+});
+
+describe('RBAC Matrix Helper Functions', () => {
+  it('identifies system admins correctly', () => {
+    expect(isSystemAdmin(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(isSystemAdmin(UserRole.ADMIN)).toBe(true);
+    expect(isSystemAdmin(UserRole.SERVICE_OVERSEER)).toBe(false);
+    expect(isSystemAdmin(UserRole.USER)).toBe(false);
+  });
+
+  it('identifies service overseers and higher', () => {
+    expect(isServiceOverseer(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(isServiceOverseer(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(isServiceOverseer(UserRole.TERRITORY_SERVANT)).toBe(false);
+    expect(isServiceOverseer(UserRole.USER)).toBe(false);
+  });
+
+  it('identifies territory servants and higher (can draw boundary and create territories)', () => {
+    expect(isTerritoryServant(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(isTerritoryServant(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(isTerritoryServant(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(isTerritoryServant(UserRole.USER)).toBe(false);
   });
 });

@@ -4,12 +4,14 @@ export const UserRole = {
   SERVICE_OVERSEER: 'SERVICE_OVERSEER',
   TERRITORY_SERVANT: 'TERRITORY_SERVANT',
   USER: 'USER',
+  PUBLISHER: 'USER',
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const CongregationRole = {
   SERVICE_OVERSEER: 'service_overseer',
   TERRITORY_SERVANT: 'territory_servant',
+  PUBLISHER: 'publisher',
 } as const;
 export type CongregationRole = (typeof CongregationRole)[keyof typeof CongregationRole];
 
@@ -30,10 +32,34 @@ export type TerritoryStatus = (typeof TerritoryStatus)[keyof typeof TerritorySta
 
 export const AssignmentStatus = {
   ACTIVE: 'active',
+  PENDING_APPROVAL: 'pending_approval',
   COMPLETED: 'completed',
   RETURNED: 'returned',
+  REJECTED: 'rejected',
 } as const;
 export type AssignmentStatus = (typeof AssignmentStatus)[keyof typeof AssignmentStatus];
+
+export const EndorsementStatus = {
+  DRAFT: 'draft',
+  PENDING_APPROVAL: 'pending_approval',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+} as const;
+export type EndorsementStatus = (typeof EndorsementStatus)[keyof typeof EndorsementStatus];
+
+export const ShareMode = {
+  COLLABORATE: 'collaborate',
+  TRANSFER: 'transfer',
+} as const;
+export type ShareMode = (typeof ShareMode)[keyof typeof ShareMode];
+
+export const ShareStatus = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  DECLINED: 'declined',
+  CANCELLED: 'cancelled',
+} as const;
+export type ShareStatus = (typeof ShareStatus)[keyof typeof ShareStatus];
 
 export const RotationStatus = {
   ACTIVE: 'active',
@@ -61,5 +87,11 @@ export const NotificationType = {
   JOIN_REQUEST: 'join_request',
   JOIN_APPROVED: 'join_approved',
   JOIN_REJECTED: 'join_rejected',
+  TERRITORY_ENDORSED: 'territory_endorsed',
+  TERRITORY_APPROVED: 'territory_approved',
+  TERRITORY_REJECTED: 'territory_rejected',
+  SHARE_REQUEST: 'share_request',
+  SHARE_ACCEPTED: 'share_accepted',
+  SHARE_DECLINED: 'share_declined',
 } as const;
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

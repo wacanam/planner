@@ -2,12 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Footer } from '@/components/footer';
 import { Header } from '@/components/header';
-import { StandaloneAuthHeader } from '@/components/standalone-auth-header';
+import { OfflineIndicator } from '@/components/offline-indicator';
+import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { Providers } from './providers';
-import { OfflineIndicator } from '@/components/offline-indicator';
 import { ServiceWorkerCleanup } from './ServiceWorkerCleanup';
-import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
   title: 'Ministry Planner',
@@ -55,7 +54,6 @@ export default function RootLayout({
           <Providers>
             <OfflineIndicator />
             <Header />
-            <StandaloneAuthHeader />
             <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
             <Toaster richColors />

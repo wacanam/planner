@@ -1,9 +1,6 @@
-import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Records | Ministry Planner' };
-
-// Redirect /records → /records/households
-export default function RecordsPage() {
-  redirect('/records/households');
+export default async function RecordsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/congregation/${id}/records/households`);
 }

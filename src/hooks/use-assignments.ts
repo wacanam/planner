@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
@@ -10,8 +9,10 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
+import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { AssignmentStatus, EndorsementStatus } from '@/lib/roles';
 import type { Assignment } from '@/types/api';
 
 function assignmentCollection() {
@@ -29,7 +30,13 @@ function assignmentFromData(id: string, data: Partial<Assignment>): Assignment {
     territoryId: data.territoryId ?? '',
     userId: data.userId ?? null,
     serviceGroupId: data.serviceGroupId ?? null,
-    status: data.status ?? 'assigned',
+    status: data.status ?? AssignmentStatus.ACTIVE,
+    endorsementStatus: data.endorsementStatus ?? 'approved',
+    endorsedBy: data.endorsedBy ?? null,
+    endorsedAt: data.endorsedAt ?? null,
+    approvedBy: data.approvedBy ?? null,
+    approvedAt: data.approvedAt ?? null,
+    rejectionReason: data.rejectionReason ?? null,
     assignedAt: data.assignedAt ?? null,
     dueAt: data.dueAt ?? null,
     returnedAt: data.returnedAt ?? null,
@@ -39,6 +46,8 @@ function assignmentFromData(id: string, data: Partial<Assignment>): Assignment {
     assigneeName: data.assigneeName ?? null,
     assigneeEmail: data.assigneeEmail ?? null,
     groupName: data.groupName ?? null,
+    territoryName: data.territoryName ?? null,
+    territoryNumber: data.territoryNumber ?? null,
   };
 }
 
@@ -62,7 +71,9 @@ export function useTerritoryAssignments(territoryId: string | null | undefined) 
       (snapshot) => {
         setAssignments(
           snapshot.docs
-            .map((document) => assignmentFromData(document.id, document.data() as Partial<Assignment>))
+            .map((document) =>
+              assignmentFromData(document.id, document.data() as Partial<Assignment>)
+            )
             .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''))
         );
         setError(null);
@@ -78,48 +89,217 @@ export function useTerritoryAssignments(territoryId: string | null | undefined) 
   return { assignments, data: assignments, isLoading, error };
 }
 
+export function useMyAssignments(_congregationId?: string) {
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(assignmentCollection());
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        setAssignments(
+          snapshot.docs
+            .map((document) =>
+              assignmentFromData(document.id, document.data() as Partial<Assignment>)
+            )
+            .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''))
+        );
+        setIsLoading(false);
+      },
+      () => {
+        setIsLoading(false);
+      }
+    );
+  }, []);
+
+  return { assignments, data: assignments, isLoading };
+}
+
+export function usePendingEndorsements(_congregationId?: string) {
+  const [pending, setPending] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(
+      assignmentCollection(),
+      where('endorsementStatus', '==', EndorsementStatus.PENDING_APPROVAL)
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        setPending(
+          snapshot.docs.map((d) => assignmentFromData(d.id, d.data() as Partial<Assignment>))
+        );
+        setIsLoading(false);
+      },
+      (err) => {
+        console.error('Error fetching pending endorsements:', err);
+        setIsLoading(false);
+      }
+    );
+  }, []);
+
+  return { pending, endorsements: pending, count: pending.length, isLoading };
+}
+
 export function useCreateAssignment() {
   const [isCreating, setIsCreating] = useState(false);
 
-  const create = useCallback(async (arg: Record<string, unknown>) => {
-    setIsCreating(true);
+  /**
+   * Territory Servant assigns and endorses territory -> status becomes pending_approval.
+   */
+  const endorse = useCallback(
+    async (arg: {
+      territoryId: string;
+      userId?: string | null;
+      serviceGroupId?: string | null;
+      assigneeName?: string | null;
+      assigneeEmail?: string | null;
+      groupName?: string | null;
+      assignedAt?: string | null;
+      dueAt?: string | null;
+      notes?: string | null;
+      endorsedByUserId?: string | null;
+      endorsedByUserName?: string | null;
+    }) => {
+      setIsCreating(true);
+      try {
+        const now = nowIso();
+        const id = createClientId();
+        const territoryId = arg.territoryId;
+
+        const assignmentDoc: Assignment = {
+          id,
+          territoryId,
+          userId: arg.userId ?? null,
+          serviceGroupId: arg.serviceGroupId ?? null,
+          status: AssignmentStatus.PENDING_APPROVAL,
+          endorsementStatus: EndorsementStatus.PENDING_APPROVAL,
+          endorsedBy: arg.endorsedByUserId ?? null,
+          endorsedAt: now,
+          approvedBy: null,
+          approvedAt: null,
+          assignedAt: arg.assignedAt ?? now,
+          dueAt: arg.dueAt ?? null,
+          returnedAt: null,
+          notes: arg.notes ?? null,
+          coverageAtAssignment: '0',
+          createdAt: now,
+          assigneeName: arg.assigneeName ?? null,
+          assigneeEmail: arg.assigneeEmail ?? null,
+          groupName: arg.groupName ?? null,
+        };
+
+        await setDoc(assignmentDocument(id), assignmentDoc);
+
+        // Also mark territory as pending
+        await updateDoc(
+          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId),
+          {
+            status: 'pending',
+            publisherId: arg.userId ?? null,
+            publisherName: arg.assigneeName ?? null,
+            groupId: arg.serviceGroupId ?? null,
+            groupName: arg.groupName ?? null,
+            updatedAt: now,
+          }
+        );
+
+        return { id };
+      } finally {
+        setIsCreating(false);
+      }
+    },
+    []
+  );
+
+  return { create: endorse, endorse, isCreating, isPending: isCreating };
+}
+
+export function useApproveAssignment(_congregationId?: string) {
+  const [isApproving, setIsApproving] = useState(false);
+
+  const approve = useCallback(
+    async (
+      arg: string | { assignmentId: string; approved?: boolean },
+      approvedByUserId?: string,
+      _approvedByUserName?: string
+    ) => {
+      const assignmentId = typeof arg === 'string' ? arg : arg.assignmentId;
+      const isApproved = typeof arg === 'string' ? true : (arg.approved ?? true);
+      setIsApproving(true);
+      try {
+        const now = nowIso();
+        const snap = await getDoc(assignmentDocument(assignmentId));
+        if (!snap.exists()) throw new Error('Assignment not found');
+        const assignment = snap.data() as Assignment;
+
+        if (isApproved) {
+          await updateDoc(assignmentDocument(assignmentId), {
+            status: AssignmentStatus.ACTIVE,
+            endorsementStatus: EndorsementStatus.APPROVED,
+            approvedBy: approvedByUserId ?? 'Overseer',
+            approvedAt: now,
+            updatedAt: now,
+          });
+
+          if (assignment.territoryId) {
+            await updateDoc(
+              doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
+              {
+                status: 'assigned',
+                publisherId: assignment.userId,
+                publisherName: assignment.assigneeName,
+                groupId: assignment.serviceGroupId,
+                groupName: assignment.groupName,
+                updatedAt: now,
+              }
+            );
+          }
+        }
+      } finally {
+        setIsApproving(false);
+      }
+    },
+    []
+  );
+
+  const reject = useCallback(async (assignmentId: string, reason?: string) => {
+    setIsApproving(true);
     try {
       const now = nowIso();
-      const id = createClientId();
-      const territoryId = String(arg.territoryId ?? '');
-      await setDoc(assignmentDocument(id), {
-        id,
-        territoryId,
-        userId: arg.userId ? String(arg.userId) : null,
-        serviceGroupId: arg.serviceGroupId ? String(arg.serviceGroupId) : null,
-        status: String(arg.status ?? 'assigned'),
-        assignedAt: (arg.assignedAt as string | null | undefined) ?? now,
-        dueAt: (arg.dueAt as string | null | undefined) ?? null,
-        returnedAt: null,
-        notes: (arg.notes as string | null | undefined) ?? null,
-        coverageAtAssignment: String(arg.coverageAtAssignment ?? '0'),
-        createdAt: now,
-        assigneeName: (arg.assigneeName as string | null | undefined) ?? null,
-        assigneeEmail: (arg.assigneeEmail as string | null | undefined) ?? null,
-        groupName: (arg.groupName as string | null | undefined) ?? null,
-      } satisfies Assignment);
-      if (territoryId) {
-        await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, territoryId), {
-          status: 'assigned',
-          publisherId: arg.userId ? String(arg.userId) : null,
-          publisherName: (arg.assigneeName as string | null | undefined) ?? null,
-          groupId: arg.serviceGroupId ? String(arg.serviceGroupId) : null,
-          groupName: (arg.groupName as string | null | undefined) ?? null,
-          updatedAt: now,
-        });
+      const snap = await getDoc(assignmentDocument(assignmentId));
+      if (!snap.exists()) throw new Error('Assignment not found');
+      const assignment = snap.data() as Assignment;
+
+      await updateDoc(assignmentDocument(assignmentId), {
+        status: AssignmentStatus.REJECTED,
+        endorsementStatus: EndorsementStatus.REJECTED,
+        rejectionReason: reason ?? null,
+        updatedAt: now,
+      });
+
+      if (assignment.territoryId) {
+        await updateDoc(
+          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
+          {
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+            updatedAt: now,
+          }
+        );
       }
-      return { id };
     } finally {
-      setIsCreating(false);
+      setIsApproving(false);
     }
   }, []);
 
-  return { create, isCreating };
+  return { approve, reject, isApproving, isPending: isApproving };
 }
 
 export function useUpdateAssignment() {
@@ -148,14 +328,17 @@ export function useDeleteAssignment() {
       const assignment = snapshot.exists() ? (snapshot.data() as Partial<Assignment>) : null;
       await deleteDoc(assignmentDocument(id));
       if (assignment?.territoryId) {
-        await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId), {
-          status: 'available',
-          publisherId: null,
-          publisherName: null,
-          groupId: null,
-          groupName: null,
-          updatedAt: nowIso(),
-        });
+        await updateDoc(
+          doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories, assignment.territoryId),
+          {
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+            updatedAt: nowIso(),
+          }
+        );
       }
     } finally {
       setIsDeleting(false);

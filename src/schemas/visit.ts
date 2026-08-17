@@ -33,6 +33,17 @@ export const logVisitSchema = z.object({
     'moved',
     'other',
   ] as const),
+  status: z
+    .enum([
+      'new',
+      'active',
+      'not_home',
+      'return_visit',
+      'do_not_visit',
+      'moved',
+      'inactive',
+    ] as const)
+    .optional(),
   householdStatusAfter: z
     .enum([
       'new',
@@ -46,8 +57,10 @@ export const logVisitSchema = z.object({
     .optional(),
   duration: z.number().int().min(1).max(300).optional(),
   literatureLeft: z.string().max(500).optional(),
+  literaturePlaced: z.string().max(500).optional(),
   bibleTopicDiscussed: z.string().max(255).optional(),
   returnVisitPlanned: z.boolean().optional(),
+  returnVisitDate: z.string().optional(),
   nextVisitDate: z.string().optional(),
   nextVisitTime: z.string().optional(),
   nextVisitNotes: z.string().max(500).optional(),
@@ -61,6 +74,8 @@ export const logVisitSchema = z.object({
   encounterReturnVisitRequested: z.boolean().optional(),
   encounterNotes: z.string().max(1000).optional(),
   notes: z.string().max(1000).optional(),
+  householdId: z.string().optional(),
+  assignmentId: z.string().optional(),
 });
 export type LogVisitFormData = z.infer<typeof logVisitSchema>;
 

@@ -1,101 +1,73 @@
-'use client';
-
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface StatCardProps {
   title: string;
-  value: number | string;
-  subtitle?: string;
+  value: string | number;
+  description?: string;
   icon?: LucideIcon;
-  color?: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'default';
+  color?: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'gray';
   loading?: boolean;
 }
 
-const colorMap = {
+const colorStyles: Record<string, { bg: string; text: string }> = {
   blue: {
-    card: 'border-blue-100 dark:border-blue-900/40',
-    bg: 'bg-blue-50 dark:bg-blue-900/20',
-    icon: 'text-blue-500',
-    value: 'text-blue-700 dark:text-blue-400',
-    label: 'text-blue-600 dark:text-blue-500',
+    bg: 'bg-primary/10 text-primary',
+    text: 'text-primary',
   },
   green: {
-    card: 'border-green-100 dark:border-green-900/40',
-    bg: 'bg-green-50 dark:bg-green-900/20',
-    icon: 'text-green-500',
-    value: 'text-green-700 dark:text-green-400',
-    label: 'text-green-600 dark:text-green-500',
+    bg: 'bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400',
+    text: 'text-green-700 dark:text-green-400',
   },
   purple: {
-    card: 'border-purple-100 dark:border-purple-900/40',
-    bg: 'bg-purple-50 dark:bg-purple-900/20',
-    icon: 'text-purple-500',
-    value: 'text-purple-700 dark:text-purple-400',
-    label: 'text-purple-600 dark:text-purple-500',
+    bg: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400',
+    text: 'text-purple-700 dark:text-purple-400',
   },
   orange: {
-    card: 'border-orange-100 dark:border-orange-900/40',
-    bg: 'bg-orange-50 dark:bg-orange-900/20',
-    icon: 'text-orange-500',
-    value: 'text-orange-700 dark:text-orange-400',
-    label: 'text-orange-600 dark:text-orange-500',
+    bg: 'bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400',
+    text: 'text-orange-700 dark:text-orange-400',
   },
   red: {
-    card: 'border-red-100 dark:border-red-900/40',
-    bg: 'bg-red-50 dark:bg-red-900/20',
-    icon: 'text-red-500',
-    value: 'text-red-700 dark:text-red-400',
-    label: 'text-red-600 dark:text-red-500',
+    bg: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400',
+    text: 'text-red-700 dark:text-red-400',
   },
-  default: {
-    card: 'border-border',
-    bg: 'bg-muted/30',
-    icon: 'text-muted-foreground',
-    value: 'text-foreground',
-    label: 'text-muted-foreground',
+  gray: {
+    bg: 'bg-muted text-muted-foreground',
+    text: 'text-muted-foreground',
   },
 };
 
 export function StatCard({
   title,
   value,
-  subtitle,
+  description,
   icon: Icon,
-  color = 'default',
-  loading,
+  color = 'blue',
+  loading = false,
 }: StatCardProps) {
-  const colors = colorMap[color];
-
-  if (loading) {
-    return (
-      <Card className={cn('border', colors.card)}>
-        <CardContent className="p-4">
-          <div className="h-4 w-20 bg-muted animate-pulse rounded mb-2" />
-          <div className="h-8 w-16 bg-muted animate-pulse rounded mb-1" />
-          <div className="h-3 w-24 bg-muted animate-pulse rounded" />
-        </CardContent>
-      </Card>
-    );
-  }
+  const currentStyle = colorStyles[color] ?? colorStyles.blue;
 
   return (
-    <Card className={cn('border', colors.card)}>
-      <CardContent className={cn('p-4', colors.bg, 'rounded-2xl')}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className={cn('text-xs font-medium uppercase tracking-wide', colors.label)}>
-              {title}
-            </p>
-            <p className={cn('text-2xl font-bold mt-1', colors.value)}>{value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-          </div>
+    <Card className="bg-card border-border shadow-xs hover:border-border/80 transition-colors">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {title}
+          </p>
           {Icon && (
-            <div className={cn('p-2 rounded-xl bg-white/60 dark:bg-black/20', colors.icon)}>
-              <Icon size={18} />
+            <div className={`p-2 rounded-xl ${currentStyle.bg}`}>
+              <Icon size={16} />
             </div>
           )}
+        </div>
+        <div className="mt-2">
+          {loading ? (
+            <Skeleton className="h-8 w-20" />
+          ) : (
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{value}</p>
+          )}
+          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
         </div>
       </CardContent>
     </Card>

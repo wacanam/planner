@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import LoginClient from './_components/LoginClient';
+import LoginPage from './_components/LoginClient';
 
-export const metadata: Metadata = {
-  title: 'Sign In | Ministry Planner',
-};
+export const metadata: Metadata = { title: 'Sign In | Ministry Planner' };
 
 export default function Page() {
-  return <LoginClient />;
+  return <LoginPage />;
 }

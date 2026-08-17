@@ -1,379 +1,231 @@
 'use client';
 
-import { Pencil, Trash2, Plus, Users } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Plus, Search, Trash2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import {
   AddEncounterForm,
   type AddEncounterFormValues,
 } from '@/components/households/add-encounter-form';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useHouseholds, useMyEncounters } from '@/hooks';
-import {
-  deleteEncounterRecord,
-  saveEncounterRecord,
-  updateEncounterRecord,
-} from '@/lib/record-writes';
-import type { Encounter, Household } from '@/types/api';
+import { deleteEncounterRecord, saveEncounterRecord } from '@/lib/record-writes';
 
 const responseColors: Record<string, string> = {
-  receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20',
-  neutral: 'text-blue-700 border-blue-200 bg-blue-50',
-  not_interested: 'text-yellow-700 border-yellow-200 bg-yellow-50',
-  hostile: 'text-red-700 border-red-200 bg-red-50',
-  do_not_visit: 'text-red-700 border-red-200 bg-red-50',
+  receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  neutral: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  not_interested:
+    'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
+  hostile: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
+  do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
 };
 
-const responseLabels: Record<string, string> = {
-  receptive: 'Receptive',
-  neutral: 'Neutral',
-  not_interested: 'Not Interested',
-  hostile: 'Hostile',
-  do_not_visit: 'Do Not Visit',
-  moved: 'Moved',
-};
-const DIALOG_CONTENT_OFFSET_PX = 200;
+export default function EncountersClient() {
+  const { encounters = [], isLoading } = useMyEncounters();
+  const { households = [] } = useHouseholds();
 
-function householdLabel(household: Household) {
-  const address =
-    household.address || [household.houseNumber, household.streetName].filter(Boolean).join(' ');
-  return `${address || 'Unnamed household'}${household.city ? `, ${household.city}` : ''}`;
-}
+  const [search, setSearch] = useState('');
+  const [responseFilter, setResponseFilter] = useState<string>('all');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-function getEncounterDateISO(encounter?: Encounter | null) {
-  if (!encounter) return new Date().toISOString();
-  const source = encounter.visitDate ?? encounter.createdAt;
-  const parsed = new Date(source);
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
-}
+  const filtered = useMemo(() => {
+    let list = encounters;
+    if (responseFilter !== 'all') {
+      list = list.filter((e) => e.response === responseFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (e) =>
+          (e.name && e.name.toLowerCase().includes(q)) ||
+          (e.notes && e.notes.toLowerCase().includes(q)) ||
+          (e.topicDiscussed && e.topicDiscussed.toLowerCase().includes(q)) ||
+          (e.topicsDiscussed && e.topicsDiscussed.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [encounters, responseFilter, search]);
 
-interface LogEncounterDialogProps {
-  households: Household[];
-  encounter?: Encounter | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSaved: () => void;
-}
-
-function LogEncounterDialog({
-  households,
-  encounter,
-  open,
-  onOpenChange,
-  onSaved,
-}: LogEncounterDialogProps) {
-  const [submitting, setSubmitting] = useState(false);
-  const [householdId, setHouseholdId] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setHouseholdId(encounter?.householdId ?? '');
-  }, [encounter, open]);
-
-  const onSubmit = async (values: AddEncounterFormValues) => {
-    const payload = {
-      householdId: householdId || null,
-      encounterDate: getEncounterDateISO(encounter),
+  const handleSaveEncounter = async (values: AddEncounterFormValues) => {
+    await saveEncounterRecord({
+      householdId: values.householdId,
       name: values.name,
       response: values.response,
-      topicDiscussed: values.topicDiscussed,
-      literatureAccepted: values.literatureAccepted,
-      returnVisitRequested: values.returnVisitRequested,
-      notes: values.notes,
-    };
-
-    setSubmitting(true);
-    try {
-      if (encounter) {
-        await updateEncounterRecord(encounter.id, payload);
-      } else {
-        await saveEncounterRecord(payload);
-      }
-      onSaved();
-      onOpenChange(false);
-    } finally {
-      setSubmitting(false);
-    }
+      gender: values.gender,
+      ageGroup: values.ageGroup,
+      language: values.language,
+      notes: values.notes || undefined,
+      topicsDiscussed: values.topicsDiscussed || undefined,
+      literatureOffered: values.literatureOffered || undefined,
+      visitDate: new Date().toISOString(),
+    });
+    setAddDialogOpen(false);
   };
-
-  return (
-    <ResponsiveDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={encounter ? 'Edit Encounter' : 'Add Encounter'}
-      description="Record conversation details and optionally link to a household."
-      contentClassName="sm:max-w-lg"
-    >
-      <div
-        style={{ maxHeight: `calc(90vh - ${DIALOG_CONTENT_OFFSET_PX}px)` }}
-        className="space-y-4 overflow-y-auto pr-4"
-      >
-        <div className="space-y-1.5">
-          <span className="text-sm font-medium">Linked Household</span>
-          <Select
-            value={householdId || 'none'}
-            onValueChange={(value) => setHouseholdId(value === 'none' ? '' : value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="No linked household" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No linked household</SelectItem>
-              {households.map((household) => (
-                <SelectItem key={household.id} value={household.id}>
-                  {householdLabel(household)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <AddEncounterForm
-          submitting={submitting}
-          isEditing={!!encounter}
-          submitLabel={encounter ? 'Save Changes' : 'Add Encounter'}
-          initialValues={
-            encounter
-              ? {
-                  name: encounter.name ?? undefined,
-                  response: encounter.response as AddEncounterFormValues['response'],
-                  topicDiscussed: encounter.topicDiscussed ?? undefined,
-                  literatureAccepted: encounter.literatureAccepted ?? undefined,
-                  returnVisitRequested: encounter.returnVisitRequested,
-                  notes: encounter.notes ?? undefined,
-                }
-              : undefined
-          }
-          onSubmit={onSubmit}
-        />
-      </div>
-    </ResponsiveDialog>
-  );
-}
-
-// ─── Swipe Card for Encounter ─────────────────────────────────────────────────
-
-interface EncounterSwipeCardProps {
-  isRevealed: boolean;
-  onSwipe: (revealed: boolean) => void;
-  onDelete: () => void;
-  deleting: boolean;
-  children: React.ReactNode;
-}
-
-function EncounterSwipeCard({
-  isRevealed,
-  onSwipe,
-  onDelete,
-  deleting,
-  children,
-}: EncounterSwipeCardProps) {
-  const startXRef = useRef<number>(0);
-  const draggingRef = useRef(false);
-  const [offset, setOffset] = useState(0);
-  const ACTION_WIDTH = 72;
-  const THRESHOLD = 40;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    startXRef.current = e.touches[0].clientX;
-    draggingRef.current = true;
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!draggingRef.current) return;
-    const dx = startXRef.current - e.touches[0].clientX;
-    if (isRevealed) {
-      setOffset(Math.max(0, Math.min(ACTION_WIDTH, ACTION_WIDTH + dx)));
-    } else {
-      setOffset(Math.max(0, Math.min(ACTION_WIDTH, dx)));
-    }
-  };
-
-  const onTouchEnd = () => {
-    draggingRef.current = false;
-    if (offset > THRESHOLD) {
-      setOffset(ACTION_WIDTH);
-      onSwipe(true);
-    } else {
-      setOffset(0);
-      if (isRevealed) onSwipe(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isRevealed) setOffset(0);
-    else setOffset(ACTION_WIDTH);
-  }, [isRevealed]);
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl">
-      <div
-        className="absolute right-0 top-0 bottom-0 flex items-stretch"
-        style={{ width: ACTION_WIDTH }}
-      >
-        <button
-          type="button"
-          disabled={deleting}
-          onClick={onDelete}
-          className="flex flex-col items-center justify-center w-full bg-destructive text-destructive-foreground rounded-r-2xl text-xs font-medium gap-1 disabled:opacity-50"
-        >
-          {deleting ? (
-            <span>…</span>
-          ) : (
-            <>
-              <Trash2 size={16} />
-              <span>Delete</span>
-            </>
-          )}
-        </button>
-      </div>
-      <div
-        className="border border-border bg-card p-4 flex items-start justify-between gap-3"
-        style={{
-          transform: `translateX(-${offset}px)`,
-          transition: draggingRef.current ? 'none' : 'transform 0.2s ease',
-        }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export default function EncountersClient() {
-  const { encounters, isLoading, error } = useMyEncounters();
-  const { households } = useHouseholds();
-  const [showLogDialog, setShowLogDialog] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const [swipedId, setSwipedId] = useState<string | null>(null);
-  const [editingEncounter, setEditingEncounter] = useState<Encounter | null>(null);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
       await deleteEncounterRecord(id);
-      setDeletedIds((prev) => new Set(prev).add(id));
-      setSwipedId(null);
+      setDeleteConfirmId(null);
     } finally {
       setDeletingId(null);
     }
   };
 
-  const visibleEncounters = encounters.filter((e) => !deletedIds.has(e.id));
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4 min-w-0 w-full">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-foreground">My Encounters</h1>
-        <Button size="sm" onClick={() => setShowLogDialog(true)} className="gap-1.5 shrink-0">
-          <Plus className="h-3.5 w-3.5" />
-          Log Encounter
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Person & Street Encounters</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Log conversations met during field work, cart witnessing, and informal ministry
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setAddDialogOpen(true)}
+          className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
+        >
+          <Plus size={14} />
+          <span>New Encounter</span>
         </Button>
       </div>
 
-      {error && (
-        <div className="rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-sm">
-          {error}
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search person or topic…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-9 rounded-xl text-xs"
+          />
         </div>
-      )}
 
+        <select
+          value={responseFilter}
+          onChange={(e) => setResponseFilter(e.target.value)}
+          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+        >
+          <option value="all">All responses</option>
+          <option value="receptive">Receptive</option>
+          <option value="neutral">Neutral</option>
+          <option value="not_interested">Not Interested</option>
+          <option value="hostile">Hostile</option>
+          <option value="do_not_visit">Do Not Visit</option>
+        </select>
+      </div>
+
+      {/* Encounters List */}
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />
           ))}
         </div>
-      ) : visibleEncounters.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-card border border-border rounded-3xl p-6">
           <Users size={40} className="text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No encounters logged yet.</p>
+          <p className="text-sm font-semibold text-foreground">No encounters logged</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Use Log Encounter for conversations inside or outside your assignment.
+            Record people met in your ministry to track interest.
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleEncounters.map((encounter) => (
-            <EncounterSwipeCard
-              key={encounter.id}
-              isRevealed={swipedId === encounter.id}
-              onSwipe={(revealed) => setSwipedId(revealed ? encounter.id : null)}
-              onDelete={() => void handleDelete(encounter.id)}
-              deleting={deletingId === encounter.id}
+          {filtered.map((e) => (
+            <Card
+              key={e.id}
+              className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
-                  {encounter.name ?? 'Unknown person'}
-                  {encounter.householdAddress ? (
-                    <span className="text-muted-foreground font-normal">
-                      {' '}
-                      · {encounter.householdAddress}
-                      {encounter.householdCity ? `, ${encounter.householdCity}` : ''}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground font-normal">
-                      {' '}
-                      · Standalone encounter
-                    </span>
-                  )}
-                </p>
-                {(encounter.topicDiscussed || encounter.notes) && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                    {encounter.topicDiscussed ?? encounter.notes}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm text-foreground">{e.name}</p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-bold capitalize py-0 ${responseColors[e.response] ?? ''}`}
+                    >
+                      {e.response.replace(/_/g, ' ')}
+                    </Badge>
+                    {(e.language || e.languageSpoken) && (
+                      <Badge variant="outline" className="text-[10px] py-0">
+                        {e.language || e.languageSpoken}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {encounter.visitDate
-                      ? new Date(encounter.visitDate).toLocaleDateString()
-                      : new Date(encounter.createdAt).toLocaleDateString()}
+                    {new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}
                   </p>
+                  {(e.topicsDiscussed || e.topicDiscussed) && (
+                    <p className="text-xs text-foreground font-medium">
+                      Topic: {e.topicsDiscussed || e.topicDiscussed}
+                    </p>
+                  )}
+                  {(e.literatureOffered || e.literatureAccepted) && (
+                    <p className="text-xs text-primary">Literature: {e.literatureOffered || e.literatureAccepted}</p>
+                  )}
+                  {e.notes && (
+                    <p className="text-xs text-muted-foreground italic line-clamp-2">
+                      &ldquo;{e.notes}&rdquo;
+                    </p>
+                  )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setEditingEncounter(encounter)}
-                  aria-label="Edit encounter"
-                >
-                  <Pencil size={13} />
-                </Button>
-                <Badge variant="outline" className={responseColors[encounter.response] ?? ''}>
-                  {responseLabels[encounter.response] ?? encounter.response}
-                </Badge>
-              </div>
-            </EncounterSwipeCard>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteConfirmId(e.id)}
+                    title="Delete encounter"
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
 
-      <LogEncounterDialog
-        households={households}
-        open={showLogDialog}
-        onOpenChange={setShowLogDialog}
-        onSaved={() => undefined}
-      />
-      <LogEncounterDialog
-        households={households}
-        encounter={editingEncounter}
-        open={!!editingEncounter}
-        onOpenChange={(open) => {
-          if (!open) setEditingEncounter(null);
+      {/* Add Encounter Dialog */}
+      <ResponsiveDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        title="Record Person Encounter"
+        description="Save details of receptive people met in field work"
+      >
+        <AddEncounterForm
+          households={households}
+          onSubmit={handleSaveEncounter}
+          onCancel={() => setAddDialogOpen(false)}
+        />
+      </ResponsiveDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => !op && setDeleteConfirmId(null)}
+        title="Delete Encounter Record"
+        description="Are you sure you want to delete this encounter? This action cannot be undone."
+        confirmLabel="Delete Encounter"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteConfirmId) void handleDelete(deleteConfirmId);
         }}
-        onSaved={() => setEditingEncounter(null)}
+        loading={!!deletingId}
       />
     </div>
   );

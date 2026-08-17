@@ -1,1458 +1,510 @@
 'use client';
 
-import {
-  CheckCircle,
-  Clock,
-  MapPin,
-  Pencil,
-  Plus,
-  Search,
-  UserPlus,
-  RotateCcw,
-  Trash2,
-} from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuthSession as useSession } from '@/lib/firebase/auth';
+import { MapPin, Plus, Search, UserCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
-import { StatCard } from '@/components/stat-card';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { Territory, TerritoryRequest } from '@/types/api';
 import {
-  useCongregationTerritories,
-  useCongregationTerritoryRequests,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  useCongregation,
   useCongregationMembers,
-  useCongregationGroups,
-  useCreateTerritory,
-  useCreateTerritoryRequest,
+  useCongregationTerritories,
   useCreateAssignment,
-  useReviewTerritoryRequest,
-  useUpdateTerritory,
-  useDeleteTerritory,
-  useDeleteTerritoryRequest,
+  useCreateTerritory,
+  useCurrentUser,
+  useUpdateCongregation,
 } from '@/hooks';
-import {
-  createTerritorySchema,
-  type CreateTerritoryFormData,
-  assignTerritorySchema,
-  type AssignTerritoryFormData,
-  returnTerritorySchema,
-  type ReturnTerritoryFormData,
-  requestTerritorySchema,
-  type RequestTerritoryFormData,
-  reviewTerritoryRequestSchema,
-  type ReviewTerritoryRequestFormData,
-} from '@/schemas';
+import { isTerritoryServant } from '@/lib/permissions';
+import { type CreateTerritoryFormData, createTerritorySchema } from '@/schemas';
+import type { Territory } from '@/types/api';
+import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
-  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
-  assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
+  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  assigned: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   completed:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:text-purple-400',
-  archived: 'text-muted-foreground border-border bg-muted/30',
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+  archived: 'text-muted-foreground border-border bg-muted/40',
 };
 
-export default function CongregationTerritoriesPage() {
+export default function TerritoriesClient() {
   const params = useParams();
-  const congregationId = params?.id as string;
-  const { data: session } = useSession();
+  const _router = useRouter();
+  const congregationId = (params?.id as string) || '';
+  const { user } = useCurrentUser();
+  const isServant = isTerritoryServant(user.role);
 
-  const sessionUser = session?.user as
-    | { id?: string; role?: string; congregationId?: string }
-    | undefined;
+  const { congregation } = useCongregation(congregationId);
+  const { update: updateCongregation, isUpdating: updatingCenter } =
+    useUpdateCongregation(congregationId);
 
-  const { data: territoriesData, isLoading: territoriesLoading } =
-    useCongregationTerritories(congregationId);
-  const territories = territoriesData;
-
-  const { data: requestsData, isLoading: requestsLoading } = useCongregationTerritoryRequests(
-    congregationId,
-    'pending'
-  );
-  const requests = requestsData;
-
-  const { data: membersRaw } = useCongregationMembers(congregationId);
-  const members = membersRaw;
-
-  const { groups: groupsRaw } = useCongregationGroups(congregationId);
-  const groups = groupsRaw;
-
-  const loading = territoriesLoading || requestsLoading;
+  const { data: territories = [], isLoading } = useCongregationTerritories(congregationId);
+  const { data: members = [] } = useCongregationMembers(congregationId);
+  const { create: createTerritory, isPending: creatingTerritory } =
+    useCreateTerritory(congregationId);
+  const { create: createAssignment, isPending: assigningTerritory } = useCreateAssignment();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [tab, setTab] = useState<'territories' | 'requests'>('territories');
-
-  const { create: createTerritory } = useCreateTerritory(congregationId);
-  const { request: createTerritoryRequest } = useCreateTerritoryRequest(congregationId);
-  const { reviewRequest } = useReviewTerritoryRequest(congregationId);
-  const { create: createAssignment } = useCreateAssignment();
-  const { update: updateTerritory } = useUpdateTerritory();
-  const { remove: deleteTerritory } = useDeleteTerritory();
-  const { remove: deleteTerritoryRequest } = useDeleteTerritoryRequest();
-
-  const myRole = (() => {
-    if (!sessionUser?.id) return '';
-    const me = members.find((m) => m.userId === sessionUser.id || m.user?.id === sessionUser.id);
-    return me?.congregationRole ?? '';
-  })();
-
-  const isOverseer =
-    myRole === 'service_overseer' ||
-    myRole === 'territory_servant' ||
-    ['SUPER_ADMIN', 'ADMIN', 'SERVICE_OVERSEER', 'TERRITORY_SERVANT'].includes(
-      sessionUser?.role ?? ''
-    );
-
-  // Create territory dialog
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createError, setCreateError] = useState('');
-  const createForm = useForm<CreateTerritoryFormData>({
-    resolver: zodResolver(createTerritorySchema),
-    defaultValues: { name: '', number: '', notes: '' },
-  });
-
-  const [editOpen, setEditOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Territory | null>(null);
-  const [editError, setEditError] = useState('');
-  const editForm = useForm<CreateTerritoryFormData>({
-    resolver: zodResolver(createTerritorySchema),
-    defaultValues: { name: '', number: '', notes: '' },
-  });
-
-  // Assign dialog
-  const [assignOpen, setAssignOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
-  const [assignError, setAssignError] = useState('');
-  const [assignSuccess, setAssignSuccess] = useState('');
-  const [memberSearch, setMemberSearch] = useState('');
-  const [comboboxOpen, setComboboxOpen] = useState(false);
-  const [debouncedMemberSearch, setDebouncedMemberSearch] = useState('');
-  const comboboxRef = useRef<HTMLDivElement>(null);
-  const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
-  const [assignGroupId, setAssignGroupId] = useState('');
-  const [groupSearch, setGroupSearch] = useState('');
-  const [debouncedGroupSearch, setDebouncedGroupSearch] = useState('');
-  const [groupComboboxOpen, setGroupComboboxOpen] = useState(false);
-  const groupComboboxRef = useRef<HTMLDivElement>(null);
-  const assignForm = useForm<AssignTerritoryFormData>({
-    resolver: zodResolver(assignTerritorySchema),
-    defaultValues: { userId: '', dueAt: '', notes: '' },
-  });
+  const [assignUserId, setAssignUserId] = useState('');
 
-  // Return dialog
-  const [returnOpen, setReturnOpen] = useState(false);
-  const [returnTerritory, setReturnTerritory] = useState<Territory | null>(null);
-  const [returnError, setReturnError] = useState('');
-  const returnForm = useForm<ReturnTerritoryFormData>({
-    resolver: zodResolver(returnTerritorySchema),
-    defaultValues: { notes: '' },
-  });
+  const [mapCenterOpen, setMapCenterOpen] = useState(false);
+  const [centerLat, setCenterLat] = useState('');
+  const [centerLng, setCenterLng] = useState('');
 
-  // Request dialog
-  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
-  const [requestTargetTerritory, setRequestTargetTerritory] = useState<Territory | null>(null);
-  const [requestError, setRequestError] = useState('');
-  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
-  const requestForm = useForm<RequestTerritoryFormData>({
-    resolver: zodResolver(requestTerritorySchema),
-    defaultValues: { message: '' },
+  const createForm = useForm<CreateTerritoryFormData>({
+    resolver: zodResolver(createTerritorySchema) as any,
+    defaultValues: {
+      number: '',
+      name: '',
+      type: 'regular',
+      city: '',
+    },
   });
-
-  // Approve/Reject confirmation dialog
-  const [confirmRequest, setConfirmRequest] = useState<TerritoryRequest | null>(null);
-  const [confirmAction, setConfirmAction] = useState<'approve' | 'reject' | null>(null);
-  const [confirmError, setConfirmError] = useState('');
-  const [confirmTerritoryId, setConfirmTerritoryId] = useState('');
-  const reviewRequestForm = useForm<ReviewTerritoryRequestFormData>({
-    resolver: zodResolver(reviewTerritoryRequestSchema),
-    defaultValues: { responseMessage: '' },
-  });
-
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Territory | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [requestDeletingId, setRequestDeletingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let list = territories;
     if (statusFilter !== 'all') {
       list = list.filter((t) => t.status === statusFilter);
     }
-    if (search) {
-      const s = search.toLowerCase();
+    if (search.trim()) {
+      const q = search.toLowerCase();
       list = list.filter(
         (t) =>
-          t.name.toLowerCase().includes(s) ||
-          t.number.toLowerCase().includes(s) ||
-          t.publisherName?.toLowerCase().includes(s) ||
-          t.groupName?.toLowerCase().includes(s)
+          t.name.toLowerCase().includes(q) ||
+          t.number.toLowerCase().includes(q) ||
+          t.city?.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [search, statusFilter, territories]);
+  }, [territories, statusFilter, search]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedMemberSearch(memberSearch), 400);
-    return () => clearTimeout(timer);
-  }, [memberSearch]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedGroupSearch(groupSearch), 400);
-    return () => clearTimeout(timer);
-  }, [groupSearch]);
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
-        setComboboxOpen(false);
-      }
-      if (groupComboboxRef.current && !groupComboboxRef.current.contains(e.target as Node)) {
-        setGroupComboboxOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, []);
-
-  async function handleCreate(data: CreateTerritoryFormData) {
-    setCreateError('');
-    try {
-      await createTerritory({
-        name: data.name,
-        number: data.number || data.name,
-        notes: data.notes || undefined,
-      });
-      setCreateOpen(false);
-      createForm.reset();
-    } catch {
-      setCreateError('Network error');
-    }
-  }
-
-  function openEditDialog(territory: Territory) {
-    setEditTarget(territory);
-    setEditError('');
-    editForm.reset({
-      name: territory.name,
-      number: territory.number,
-      notes: territory.notes ?? '',
+  const handleCreateSubmit = async (data: CreateTerritoryFormData) => {
+    await createTerritory({
+      ...data,
+      congregationId,
     });
-    setEditOpen(true);
-  }
+    setCreateDialogOpen(false);
+    createForm.reset();
+  };
 
-  async function handleEdit(data: CreateTerritoryFormData) {
-    if (!editTarget) return;
-    setEditError('');
-    try {
-      await updateTerritory(editTarget.id, {
-        name: data.name,
-        number: data.number || data.name,
-        notes: data.notes || null,
-      });
-      setEditOpen(false);
-      setEditTarget(null);
-      editForm.reset();
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Failed to update territory');
-    }
-  }
+  const handleAssignSubmit = async () => {
+    if (!assignTerritory || !assignUserId) return;
+    await createAssignment({
+      territoryId: assignTerritory.id,
+      userId: assignUserId,
+      assignedAt: new Date().toISOString(),
+    });
+    setAssignTerritory(null);
+    setAssignUserId('');
+  };
 
-  async function handleDeleteRequest(requestId: string) {
-    setRequestDeletingId(requestId);
-    try {
-      await deleteTerritoryRequest(requestId);
-    } finally {
-      setRequestDeletingId(null);
-    }
-  }
-
-  function openConfirmDialog(request: TerritoryRequest, action: 'approve' | 'reject') {
-    setConfirmRequest(request);
-    setConfirmAction(action);
-    setConfirmError('');
-    setConfirmTerritoryId('');
-    reviewRequestForm.reset({ responseMessage: '' });
-  }
-
-  function closeConfirmDialog() {
-    setConfirmRequest(null);
-    setConfirmAction(null);
-    setConfirmError('');
-    setConfirmTerritoryId('');
-    reviewRequestForm.reset();
-  }
-
-  async function handleConfirmAction(data: ReviewTerritoryRequestFormData) {
-    if (!confirmRequest || !confirmAction) return;
-    if (confirmAction === 'reject' && !data.responseMessage?.trim()) {
-      setConfirmError('A reason is required when rejecting a request.');
+  const handleSaveMapCenter = async () => {
+    const lat = parseFloat(centerLat);
+    const lng = parseFloat(centerLng);
+    if (isNaN(lat) || isNaN(lng)) {
+      toast.error('Please enter valid numeric latitude and longitude coordinates.');
       return;
     }
-    if (confirmAction === 'approve' && !confirmRequest.territoryId && !confirmTerritoryId) {
-      setConfirmError('Please select a territory to assign to the publisher.');
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      toast.error('Latitude must be between -90 and 90, and longitude between -180 and 180.');
       return;
     }
-    setConfirmError('');
     try {
-      await reviewRequest({
-        requestId: confirmRequest.id,
-        status: confirmAction === 'approve' ? 'approved' : 'rejected',
-        responseMessage: data.responseMessage?.trim() || null,
-        publisherId: confirmRequest.publisherId,
-        publisherName: confirmRequest.publisherName ?? confirmRequest.publisher?.name ?? null,
-        ...(confirmAction === 'approve' && !confirmRequest.territoryId && confirmTerritoryId
-          ? { territoryId: confirmTerritoryId }
-          : confirmAction === 'approve' && confirmRequest.territoryId
-            ? { territoryId: confirmRequest.territoryId }
-            : {}),
+      await updateCongregation({
+        defaultLatitude: lat,
+        defaultLongitude: lng,
       });
-      closeConfirmDialog();
+      toast.success('Congregation default map center updated!');
+      setMapCenterOpen(false);
     } catch {
-      setConfirmError('Failed to process request. Please try again.');
+      toast.error('Failed to update map center.');
     }
-  }
+  };
 
-  function openAssignDialog(territory: Territory) {
-    setAssignTerritory(territory);
-    setAssignType('publisher');
-    setAssignGroupId('');
-    setAssignError('');
-    setAssignSuccess('');
-    setMemberSearch('');
-    setDebouncedMemberSearch('');
-    setGroupSearch('');
-    setDebouncedGroupSearch('');
-    setComboboxOpen(false);
-    setGroupComboboxOpen(false);
-    assignForm.reset({ userId: '', dueAt: '', notes: '' });
-    setAssignOpen(true);
-  }
-
-  async function handleAssign(data: AssignTerritoryFormData) {
-    if (!assignTerritory) return;
-    if (assignType === 'publisher' && !data.userId) {
-      setAssignError('Please select a publisher');
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser.');
       return;
     }
-    if (assignType === 'group' && !assignGroupId) {
-      setAssignError('Please select a group');
-      return;
-    }
-    setAssignError('');
-    try {
-      const selectedMember = members.find((member) => member.userId === data.userId);
-      const selectedGroup = groups.find((group) => group.id === assignGroupId);
-      await createAssignment({
-        territoryId: assignTerritory.id,
-        ...(assignType === 'publisher'
-          ? { userId: data.userId }
-          : { serviceGroupId: assignGroupId }),
-        assigneeName: assignType === 'publisher' ? (selectedMember?.user?.name ?? null) : null,
-        assigneeEmail: assignType === 'publisher' ? (selectedMember?.user?.email ?? null) : null,
-        groupName: assignType === 'group' ? (selectedGroup?.name ?? null) : null,
-        dueAt: data.dueAt || undefined,
-        notes: data.notes || undefined,
-      });
-      setAssignSuccess('Territory assigned successfully!');
-      setTimeout(() => {
-        handleAssignOpenChange(false);
-      }, 1200);
-    } catch (err) {
-      setAssignError(err instanceof Error ? err.message : 'Failed to assign territory');
-    }
-  }
-
-  function handleAssignOpenChange(open: boolean) {
-    setAssignOpen(open);
-    if (!open) {
-      assignForm.reset();
-      setAssignSuccess('');
-      setAssignError('');
-      setAssignTerritory(null);
-      setAssignType('publisher');
-      setAssignGroupId('');
-      setMemberSearch('');
-      setGroupSearch('');
-      setComboboxOpen(false);
-      setGroupComboboxOpen(false);
-    }
-  }
-
-  const selectedMember = members.find((member) => member.userId === assignForm.watch('userId'));
-  const selectedGroup = groups.find((group) => group.id === assignGroupId);
-
-  function openReturnDialog(territory: Territory) {
-    setReturnTerritory(territory);
-    setReturnError('');
-    returnForm.reset({ notes: '' });
-    setReturnOpen(true);
-  }
-
-  async function handleReturn(data: ReturnTerritoryFormData) {
-    if (!returnTerritory) return;
-    setReturnError('');
-    try {
-      await updateTerritory(returnTerritory.id, {
-        status: 'available',
-        publisherId: null,
-        publisherName: null,
-        groupId: null,
-        groupName: null,
-        notes: data.notes || returnTerritory.notes || null,
-      });
-      setReturnOpen(false);
-      returnForm.reset();
-    } catch {
-      setReturnError('Failed to return territory');
-    }
-  }
-
-  function openRequestDialog(territory: Territory) {
-    setRequestTargetTerritory(territory);
-    setRequestError('');
-    requestForm.reset({ message: '' });
-    setRequestDialogOpen(true);
-  }
-
-  async function handleRequest(data: RequestTerritoryFormData) {
-    if (!requestTargetTerritory) return;
-    if (!data.message?.trim()) {
-      setRequestError('A message to the overseer is required.');
-      return;
-    }
-    setRequestError('');
-    try {
-      await createTerritoryRequest({
-        territoryId: requestTargetTerritory.id,
-        message: data.message.trim(),
-        publisherId: sessionUser?.id ?? '',
-        publisherName: session?.user?.name ?? null,
-      });
-      setRequestDialogOpen(false);
-      setRequestSuccess(requestTargetTerritory.id);
-      setRequestTargetTerritory(null);
-      requestForm.reset();
-      setTimeout(() => setRequestSuccess(null), 4000);
-    } catch (err) {
-      setRequestError(
-        err instanceof Error ? err.message : 'Failed to send request. Please try again.'
-      );
-    }
-  }
-
-  async function handleDeleteTerritory() {
-    if (!deleteTarget) return;
-    setDeleteLoading(true);
-    try {
-      await deleteTerritory(deleteTarget.id);
-      setDeleteOpen(false);
-      setDeleteTarget(null);
-    } finally {
-      setDeleteLoading(false);
-    }
-  }
-
-  const availableCount = territories.filter((t) => t.status === 'available').length;
-  const assignedCount = territories.filter((t) => t.status === 'assigned').length;
-  const completedCount = territories.filter((t) => t.status === 'completed').length;
-
-  const activeMembers = members.filter((m) => m.status === 'active');
-  const filteredMembers = debouncedMemberSearch
-    ? activeMembers.filter(
-        (m) =>
-          m.user?.name?.toLowerCase().includes(debouncedMemberSearch.toLowerCase()) ||
-          m.user?.email?.toLowerCase().includes(debouncedMemberSearch.toLowerCase())
-      )
-    : activeMembers;
-
-  const filteredGroups = debouncedGroupSearch
-    ? groups.filter((g) => g.name.toLowerCase().includes(debouncedGroupSearch.toLowerCase()))
-    : groups;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCenterLat(pos.coords.latitude.toFixed(6));
+        setCenterLng(pos.coords.longitude.toFixed(6));
+        toast.success('Detected current GPS location');
+      },
+      () => {
+        toast.error('Unable to retrieve your current location.');
+      }
+    );
+  };
 
   return (
     <ProtectedPage congregationId={congregationId}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+      <DashboardHeader />
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Territories</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage territories and assignment requests
+            <h1 className="text-2xl font-bold text-foreground">Territory Directory</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Congregation territory cards, boundaries, and publisher assignments
             </p>
           </div>
-          {loading ? (
-            <Skeleton className="h-9 w-32 rounded-md" />
-          ) : isOverseer ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={14} />
-              Add Territory
-            </Button>
-          ) : null}
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard title="Total" value={territories.length} color="blue" loading={loading} />
-          <StatCard title="Available" value={availableCount} color="green" loading={loading} />
-          <StatCard title="Assigned" value={assignedCount} color="purple" loading={loading} />
-          <StatCard title="Completed" value={completedCount} color="default" loading={loading} />
-          <StatCard
-            title="Pending Requests"
-            value={requests.length}
-            color={requests.length > 0 ? 'orange' : 'default'}
-            loading={loading}
-          />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button
-            type="button"
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'territories'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => setTab('territories')}
-          >
-            Territories ({territories.length})
-          </button>
-          {loading ? (
-            <Skeleton className="h-9 w-24 rounded-t-md mx-2" />
-          ) : isOverseer ? (
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-                tab === 'requests'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setTab('requests')}
-            >
-              Requests
-              {requests.length > 0 && (
-                <span className="bg-orange-500 text-white rounded-full text-[10px] w-4 h-4 flex items-center justify-center">
-                  {requests.length}
-                </span>
-              )}
-            </button>
-          ) : null}
-        </div>
-
-        {tab === 'territories' && (
-          <>
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-48">
-                <Search
-                  size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  placeholder="Search territories…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="flex gap-1">
-                {['all', 'available', 'assigned', 'completed'].map((s) => (
-                  <button
-                    type="button"
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 text-xs rounded-xl border transition-colors capitalize ${
-                      statusFilter === s
-                        ? 'bg-primary text-white border-primary'
-                        : 'border-border text-muted-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
-              {loading ? (
-                <div className="p-6 space-y-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-14 bg-muted animate-pulse rounded-xl" />
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="text-center py-16">
-                  <MapPin size={40} className="mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    {search || statusFilter !== 'all'
-                      ? 'No territories match your filter'
-                      : 'No territories yet'}
-                  </p>
-                  {!search && statusFilter === 'all' && isOverseer && (
-                    <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-                      <Plus size={14} />
-                      Add Territory
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <table className="w-full text-sm min-w-150">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Territory
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Status
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Assigned To
-                      </th>
-                      <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filtered.map((t) => (
-                      <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                              <MapPin size={14} className="text-green-600 dark:text-green-400" />
-                            </div>
-                            <div>
-                              <Link
-                                href={`/congregation/${congregationId}/territories/${t.id}`}
-                                className="font-medium text-foreground hover:text-primary hover:underline"
-                              >
-                                #{t.number} {t.name}
-                              </Link>
-                              {t.notes && (
-                                <p className="text-xs text-muted-foreground">{t.notes}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant="outline" className={statusColors[t.status] ?? ''}>
-                            {t.status}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground text-xs">
-                          {t.publisherName ?? t.groupName ?? '—'}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {isOverseer && t.status === 'available' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                onClick={() => openAssignDialog(t)}
-                              >
-                                <UserPlus size={12} className="mr-1" />
-                                Assign
-                              </Button>
-                            )}
-                            {isOverseer && t.status === 'assigned' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                                onClick={() => openReturnDialog(t)}
-                              >
-                                <RotateCcw size={12} className="mr-1" />
-                                Return
-                              </Button>
-                            )}
-                            {!isOverseer &&
-                              t.status === 'available' &&
-                              (() => {
-                                const pendingRequest = requests.find(
-                                  (r) => r.territoryId === t.id && r.publisherId === sessionUser?.id
-                                );
-                                if (requestSuccess === t.id) {
-                                  return (
-                                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                                      ✓ Request sent!
-                                    </span>
-                                  );
-                                }
-                                if (pendingRequest) {
-                                  return (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={requestDeletingId === pendingRequest.id}
-                                      onClick={() => void handleDeleteRequest(pendingRequest.id)}
-                                    >
-                                      {requestDeletingId === pendingRequest.id
-                                        ? 'Canceling…'
-                                        : 'Cancel'}
-                                    </Button>
-                                  );
-                                }
-                                return (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openRequestDialog(t)}
-                                  >
-                                    Request
-                                  </Button>
-                                );
-                              })()}
-                            {isOverseer && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openEditDialog(t)}
-                                  aria-label="Edit territory"
-                                >
-                                  <Pencil size={12} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                  onClick={() => {
-                                    setDeleteTarget(t);
-                                    setDeleteOpen(true);
-                                  }}
-                                  aria-label="Delete territory"
-                                >
-                                  <Trash2 size={12} />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
-        )}
-
-        {tab === 'requests' && isOverseer && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock size={16} className="text-orange-500" />
-                Pending Territory Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded-xl" />
-                  ))}
-                </div>
-              ) : requests.length === 0 ? (
-                <div className="text-center py-12">
-                  <CheckCircle size={36} className="mx-auto text-green-400 mb-3" />
-                  <p className="text-sm text-muted-foreground">No pending requests</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {requests.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-start justify-between p-4 rounded-xl border border-orange-100 dark:border-orange-900/20 bg-orange-50/50 dark:bg-orange-900/10 gap-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold">
-                          {r.publisher?.name ?? 'Unknown Publisher'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {r.territoryId
-                            ? (() => {
-                                const t = territories.find((t) => t.id === r.territoryId);
-                                return t
-                                  ? `requested #${t.number} ${t.name}`
-                                  : 'requested a specific territory';
-                              })()
-                            : 'requested any available territory'}
-                        </p>
-                        {r.message && (
-                          <p className="text-xs text-foreground mt-1 italic">
-                            &quot;{r.message}&quot;
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {new Date(r.requestedAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-500 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          onClick={() => openConfirmDialog(r, 'reject')}
-                        >
-                          Reject
-                        </Button>
-                        <Button size="sm" onClick={() => openConfirmDialog(r, 'approve')}>
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={requestDeletingId === r.id}
-                          onClick={() => void handleDeleteRequest(r.id)}
-                          aria-label="Delete request"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Create territory dialog */}
-      <Dialog
-        open={createOpen}
-        onOpenChange={(open) => {
-          setCreateOpen(open);
-          if (!open) createForm.reset();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Territory</DialogTitle>
-            <DialogDescription>Create a new territory for this congregation.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4 mt-2">
-            {createError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {createError}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="t-number">Number</Label>
-                <Input
-                  id="t-number"
-                  {...createForm.register('number')}
-                  placeholder="e.g. T-01"
-                  disabled={createForm.formState.isSubmitting}
-                  aria-invalid={!!createForm.formState.errors.number}
-                  className={
-                    createForm.formState.errors.number
-                      ? 'border-destructive focus-visible:ring-destructive'
-                      : ''
-                  }
-                />
-                {createForm.formState.errors.number && (
-                  <p className="text-xs text-destructive mt-1">
-                    {createForm.formState.errors.number.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="t-name">Name *</Label>
-                <Input
-                  id="t-name"
-                  {...createForm.register('name')}
-                  placeholder="e.g. North District"
-                  disabled={createForm.formState.isSubmitting}
-                  aria-invalid={!!createForm.formState.errors.name}
-                  className={
-                    createForm.formState.errors.name
-                      ? 'border-destructive focus-visible:ring-destructive'
-                      : ''
-                  }
-                />
-                {createForm.formState.errors.name && (
-                  <p className="text-xs text-destructive mt-1">
-                    {createForm.formState.errors.name.message}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="t-notes">Notes</Label>
-              <Input
-                id="t-notes"
-                {...createForm.register('notes')}
-                placeholder="Optional notes…"
-                disabled={createForm.formState.isSubmitting}
-              />
-            </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createForm.formState.isSubmitting}>
-                {createForm.formState.isSubmitting ? 'Creating…' : 'Add Territory'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit territory dialog */}
-      <Dialog
-        open={editOpen}
-        onOpenChange={(open) => {
-          setEditOpen(open);
-          if (!open) {
-            setEditTarget(null);
-            editForm.reset();
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Territory</DialogTitle>
-            <DialogDescription>Update this territory&apos;s label and notes.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={editForm.handleSubmit(handleEdit)} className="space-y-4 mt-2">
-            {editError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {editError}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-t-number">Number</Label>
-                <Input
-                  id="edit-t-number"
-                  {...editForm.register('number')}
-                  disabled={editForm.formState.isSubmitting}
-                  aria-invalid={!!editForm.formState.errors.number}
-                />
-                {editForm.formState.errors.number && (
-                  <p className="text-xs text-destructive mt-1">
-                    {editForm.formState.errors.number.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-t-name">Name *</Label>
-                <Input
-                  id="edit-t-name"
-                  {...editForm.register('name')}
-                  disabled={editForm.formState.isSubmitting}
-                  aria-invalid={!!editForm.formState.errors.name}
-                />
-                {editForm.formState.errors.name && (
-                  <p className="text-xs text-destructive mt-1">
-                    {editForm.formState.errors.name.message}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-t-notes">Notes</Label>
-              <Input
-                id="edit-t-notes"
-                {...editForm.register('notes')}
-                disabled={editForm.formState.isSubmitting}
-              />
-            </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={editForm.formState.isSubmitting}>
-                {editForm.formState.isSubmitting ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Assign Territory dialog */}
-      <Dialog open={assignOpen} onOpenChange={handleAssignOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Territory</DialogTitle>
-            <DialogDescription>
-              Assign{' '}
-              <strong>
-                #{assignTerritory?.number} {assignTerritory?.name}
-              </strong>{' '}
-              to a publisher or group.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={assignForm.handleSubmit(handleAssign)} className="space-y-4 mt-2">
-            {assignError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {assignError}
-              </p>
-            )}
-            {assignSuccess && (
-              <p className="text-sm text-green-600 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded-xl">
-                {assignSuccess}
-              </p>
-            )}
-            {/* Assign type toggle */}
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  setAssignType('publisher');
-                  setAssignGroupId('');
-                  setGroupSearch('');
-                  setGroupComboboxOpen(false);
-                  assignForm.setValue('userId', '');
-                }}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'publisher' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
-              >
-                Publisher
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAssignType('group');
-                  setMemberSearch('');
-                  setComboboxOpen(false);
-                  assignForm.setValue('userId', '');
-                }}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${assignType === 'group' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted/50'}`}
-              >
-                Group
-              </button>
-            </div>
-            {assignType === 'publisher' ? (
-              <div className="space-y-1.5">
-                <Label>Publisher *</Label>
-                <div ref={comboboxRef} className="relative">
-                  <Input
-                    placeholder="Search publishers…"
-                    value={memberSearch}
-                    onFocus={() => setComboboxOpen(true)}
-                    onChange={(e) => {
-                      setMemberSearch(e.target.value);
-                      assignForm.setValue('userId', '');
-                      setComboboxOpen(true);
-                    }}
-                    autoComplete="off"
-                  />
-                  {selectedMember && !comboboxOpen && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Selected {selectedMember.user?.name ?? 'publisher'}
-                    </p>
-                  )}
-                  {comboboxOpen && (
-                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
-                        {filteredMembers.length === 0 ? (
-                          <p className="text-xs text-muted-foreground p-3 text-center">
-                            {debouncedMemberSearch
-                              ? 'No publishers match your search'
-                              : 'No active publishers'}
-                          </p>
-                        ) : (
-                          filteredMembers.map((m) => (
-                            <button
-                              type="button"
-                              key={m.id}
-                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors flex items-center justify-between gap-3 ${
-                                assignForm.watch('userId') === m.userId
-                                  ? 'bg-primary/10 text-primary'
-                                  : ''
-                              }`}
-                              onClick={() => {
-                                assignForm.setValue('userId', m.userId);
-                                setMemberSearch(m.user?.name ?? '');
-                                setComboboxOpen(false);
-                              }}
-                            >
-                              <span className="font-medium truncate">{m.user?.name}</span>
-                              <span className="text-xs text-muted-foreground shrink-0">
-                                {m.user?.email}
-                              </span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {assignForm.formState.errors.userId && (
-                  <p className="text-xs text-destructive mt-1">
-                    {assignForm.formState.errors.userId.message}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label>Group *</Label>
-                <div ref={groupComboboxRef} className="relative">
-                  <Input
-                    placeholder="Search groups…"
-                    value={groupSearch}
-                    onFocus={() => setGroupComboboxOpen(true)}
-                    onChange={(e) => {
-                      setGroupSearch(e.target.value);
-                      setAssignGroupId('');
-                      setGroupComboboxOpen(true);
-                    }}
-                    autoComplete="off"
-                  />
-                  {selectedGroup && !groupComboboxOpen && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Selected {selectedGroup.name}
-                    </p>
-                  )}
-                  {groupComboboxOpen && (
-                    <div className="mt-2 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-                      <div className="max-h-56 overflow-y-auto divide-y divide-border">
-                        {filteredGroups.length === 0 ? (
-                          <p className="text-xs text-muted-foreground p-3 text-center">
-                            {debouncedGroupSearch
-                              ? 'No groups match your search'
-                              : 'No groups found'}
-                          </p>
-                        ) : (
-                          filteredGroups.map((g) => (
-                            <button
-                              type="button"
-                              key={g.id}
-                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${
-                                assignGroupId === g.id ? 'bg-primary/10 text-primary' : ''
-                              }`}
-                              onClick={() => {
-                                setAssignGroupId(g.id);
-                                setGroupSearch(g.name);
-                                setGroupComboboxOpen(false);
-                              }}
-                            >
-                              <span className="font-medium">{g.name}</span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="assign-due">Due Date (optional)</Label>
-              <Input
-                id="assign-due"
-                type="date"
-                {...assignForm.register('dueAt')}
-                disabled={assignForm.formState.isSubmitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="assign-notes">Notes (optional)</Label>
-              <textarea
-                id="assign-notes"
-                rows={3}
-                {...assignForm.register('notes')}
-                placeholder="Optional notes…"
-                disabled={assignForm.formState.isSubmitting}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-              />
-            </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => handleAssignOpenChange(false)}>
-                Cancel
-              </Button>
+          {isServant && (
+            <div className="flex items-center gap-2">
               <Button
-                type="submit"
-                disabled={
-                  assignForm.formState.isSubmitting ||
-                  (assignType === 'publisher' ? !assignForm.watch('userId') : !assignGroupId)
-                }
-              >
-                {assignForm.formState.isSubmitting ? 'Assigning…' : 'Assign Territory'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Return Territory dialog */}
-      <Dialog
-        open={returnOpen}
-        onOpenChange={(open) => {
-          setReturnOpen(open);
-          if (!open) {
-            returnForm.reset();
-            setReturnError('');
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Return Territory</DialogTitle>
-            <DialogDescription>
-              Mark{' '}
-              <strong>
-                #{returnTerritory?.number} {returnTerritory?.name}
-              </strong>{' '}
-              as returned?
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={returnForm.handleSubmit(handleReturn)} className="space-y-4 mt-2">
-            {returnError && (
-              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
-                {returnError}
-              </p>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="return-notes">Notes (optional)</Label>
-              <textarea
-                id="return-notes"
-                rows={3}
-                {...returnForm.register('notes')}
-                placeholder="Optional notes on return…"
-                disabled={returnForm.formState.isSubmitting}
-                aria-invalid={!!returnForm.formState.errors.notes}
-                className={`w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none${returnForm.formState.errors.notes ? ' border-destructive focus-visible:ring-destructive' : ' border-input focus-visible:ring-ring'}`}
-              />
-            </div>
-            <DialogFooter className="gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => setReturnOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={returnForm.formState.isSubmitting}
                 variant="outline"
-                className="text-orange-600 border-orange-300"
+                onClick={() => {
+                  setCenterLat(
+                    typeof congregation?.defaultLatitude === 'number'
+                      ? String(congregation.defaultLatitude)
+                      : '8.3683'
+                  );
+                  setCenterLng(
+                    typeof congregation?.defaultLongitude === 'number'
+                      ? String(congregation.defaultLongitude)
+                      : '124.8644'
+                  );
+                  setMapCenterOpen(true);
+                }}
+                className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5"
               >
-                {returnForm.formState.isSubmitting ? 'Processing…' : 'Mark as Returned'}
+                <MapPin size={14} />
+                <span>Map Center</span>
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Request Territory Dialog */}
-      <Dialog
-        open={requestDialogOpen}
-        onOpenChange={(open) => {
-          setRequestDialogOpen(open);
-          if (!open) {
-            requestForm.reset();
-            setRequestError('');
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Territory</DialogTitle>
-            <DialogDescription>
-              Request{' '}
-              <span className="font-semibold">
-                {requestTargetTerritory?.number} — {requestTargetTerritory?.name}
-              </span>
-              . The service overseer will review your request.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={requestForm.handleSubmit(handleRequest)} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="request-message" className="text-sm font-medium text-foreground">
-                Message to overseer <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                id="request-message"
-                {...requestForm.register('message')}
-                placeholder="e.g. I&apos;d like to work this territory this week…"
-                rows={3}
-                disabled={requestForm.formState.isSubmitting}
-                aria-invalid={!!requestForm.formState.errors.message}
-                className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${requestForm.formState.errors.message ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
-              />
-              {requestForm.formState.errors.message && (
-                <p className="text-xs text-destructive mt-1">
-                  {requestForm.formState.errors.message.message}
-                </p>
-              )}
-            </div>
-            {requestError && <p className="text-sm text-destructive">{requestError}</p>}
-            <DialogFooter>
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRequestDialogOpen(false)}
-                disabled={requestForm.formState.isSubmitting}
+                onClick={() => setCreateDialogOpen(true)}
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
               >
-                Cancel
+                <Plus size={15} />
+                <span>Create Territory</span>
               </Button>
-              <Button type="submit" disabled={requestForm.formState.isSubmitting}>
-                {requestForm.formState.isSubmitting ? 'Sending…' : 'Send Request'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Approve / Reject Confirmation Dialog */}
-      <Dialog
-        open={!!confirmRequest}
-        onOpenChange={(o) => {
-          if (!o) closeConfirmDialog();
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {confirmAction === 'approve' ? 'Approve Request' : 'Reject Request'}
-            </DialogTitle>
-            <DialogDescription>
-              {confirmAction === 'approve'
-                ? confirmRequest?.territoryId
-                  ? 'Approve this territory request and assign the territory to the publisher?'
-                  : 'Select a territory to assign to the publisher and approve the request.'
-                : 'Reject this territory request?'}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-1">
-            <p className="text-sm font-semibold">
-              {confirmRequest?.publisher?.name ?? 'Unknown Publisher'}
-            </p>
-            {confirmRequest?.message && (
-              <p className="text-xs text-foreground italic">&quot;{confirmRequest.message}&quot;</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Requested on{' '}
-              {confirmRequest ? new Date(confirmRequest.requestedAt).toLocaleString() : ''}
-            </p>
-          </div>
-
-          {confirmAction === 'approve' && !confirmRequest?.territoryId && (
-            <div className="space-y-1.5">
-              <label
-                htmlFor="confirm-territory-select"
-                className="text-sm font-medium text-foreground"
-              >
-                Assign territory <span className="text-destructive">*</span>
-              </label>
-              <select
-                id="confirm-territory-select"
-                value={confirmTerritoryId}
-                onChange={(e) => setConfirmTerritoryId(e.target.value)}
-                disabled={reviewRequestForm.formState.isSubmitting}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              >
-                <option value="">Select an available territory…</option>
-                {territories
-                  .filter((t) => t.status === 'available')
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      #{t.number} {t.name}
-                    </option>
-                  ))}
-              </select>
             </div>
           )}
+        </div>
 
-          <div className="space-y-1.5">
-            <label
-              htmlFor="confirm-response-message"
-              className="text-sm font-medium text-foreground"
-            >
-              {confirmAction === 'reject' ? (
-                <>
-                  Response message <span className="text-destructive">*</span>
-                </>
-              ) : (
-                <>
-                  Response message <span className="text-muted-foreground text-xs">(optional)</span>
-                </>
-              )}
-            </label>
-            <textarea
-              id="confirm-response-message"
-              rows={3}
-              {...reviewRequestForm.register('responseMessage')}
-              aria-invalid={!!reviewRequestForm.formState.errors.responseMessage}
-              placeholder={
-                confirmAction === 'reject'
-                  ? 'Reason for rejection…'
-                  : 'Optional note to the publisher…'
-              }
-              disabled={reviewRequestForm.formState.isSubmitting}
-              className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 resize-none disabled:opacity-50${reviewRequestForm.formState.errors.responseMessage ? ' border-destructive focus:ring-destructive' : ' border-input focus:ring-ring'}`}
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
-            {reviewRequestForm.formState.errors.responseMessage && (
-              <p className="text-xs text-destructive mt-1">
-                {reviewRequestForm.formState.errors.responseMessage.message}
-              </p>
-            )}
+            <Input
+              placeholder="Search by territory # or name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-10 rounded-xl text-xs"
+            />
           </div>
 
-          {confirmError && <p className="text-sm text-destructive">{confirmError}</p>}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40 h-10 rounded-xl text-xs">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="assigned">Assigned</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <DialogFooter>
+        {/* Territory Cards Grid */}
+        {isLoading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-44 bg-muted animate-pulse rounded-2xl" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20 bg-card rounded-3xl border border-border">
+            <MapPin size={40} className="text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground">No territories found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Try adjusting your search or create a new territory card.
+            </p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((t) => (
+              <Card
+                key={t.id}
+                className="bg-card border-border shadow-xs hover:border-primary/50 transition-all group flex flex-col justify-between"
+              >
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-primary">#{t.number}</span>
+                        <h2 className="font-bold text-sm text-foreground truncate">{t.name}</h2>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t.city || 'Congregation Area'}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] uppercase font-bold py-0.5 px-2 ${statusColors[t.status] ?? ''}`}
+                    >
+                      {t.status}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">Doors</p>
+                      <p className="font-bold text-foreground">{t.householdsCount ?? 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase">
+                        Coverage
+                      </p>
+                      <p className="font-bold text-foreground">
+                        {Math.round(parseFloat(t.coveragePercent || '0'))}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      asChild
+                      size="sm"
+                      className="flex-1 rounded-xl text-xs font-semibold gap-1.5 shadow-sm"
+                    >
+                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
+                        <MapPin size={13} />
+                        <span>Studio Map</span>
+                      </Link>
+                    </Button>
+
+                    {isServant && t.status === 'available' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs gap-1"
+                        onClick={() => setAssignTerritory(t)}
+                      >
+                        <UserCheck size={13} />
+                        <span>Assign</span>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Create Territory Dialog */}
+        <ResponsiveDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          title="Create Territory Card"
+          description="Define territory number, name, and area"
+        >
+          <form onSubmit={createForm.handleSubmit(handleCreateSubmit)} className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1 col-span-1">
+                <Label htmlFor="number" className="text-xs font-semibold">
+                  Number *
+                </Label>
+                <Input
+                  id="number"
+                  placeholder="e.g. 101"
+                  className="h-9 rounded-xl text-xs"
+                  {...createForm.register('number')}
+                />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label htmlFor="name" className="text-xs font-semibold">
+                  Territory Name *
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="e.g. Downtown West"
+                  className="h-9 rounded-xl text-xs"
+                  {...createForm.register('name')}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="city" className="text-xs font-semibold">
+                City / District
+              </Label>
+              <Input
+                id="city"
+                placeholder="e.g. Manila"
+                className="h-9 rounded-xl text-xs"
+                {...createForm.register('city')}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setCreateDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-xl text-xs font-semibold"
+                disabled={creatingTerritory}
+              >
+                {creatingTerritory ? 'Creating…' : 'Create Territory'}
+              </Button>
+            </div>
+          </form>
+        </ResponsiveDialog>
+
+        {/* Assign Territory Dialog */}
+        <ResponsiveDialog
+          open={!!assignTerritory}
+          onOpenChange={(op) => !op && setAssignTerritory(null)}
+          title="Assign Territory Card"
+          description={
+            assignTerritory ? `Assign #${assignTerritory.number} — ${assignTerritory.name}` : ''
+          }
+        >
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Select Publisher *</Label>
+              <Select value={assignUserId} onValueChange={setAssignUserId}>
+                <SelectTrigger className="h-9 rounded-xl text-xs">
+                  <SelectValue placeholder="Choose a member…" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border max-h-48">
+                  {members
+                    .filter((m) => m.status === 'active')
+                    .map((m) => (
+                      <SelectItem key={m.userId} value={m.userId}>
+                        {m.user?.name || m.user?.email || m.userId}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setAssignTerritory(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleAssignSubmit}
+                disabled={!assignUserId || assigningTerritory}
+              >
+                {assigningTerritory ? 'Assigning…' : 'Confirm Assignment'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
+
+        {/* Congregation Default Map Center Dialog */}
+        <ResponsiveDialog
+          open={mapCenterOpen}
+          onOpenChange={setMapCenterOpen}
+          title="Congregation Map Center"
+          description={`Set the default map coordinates for ${congregation?.name ?? 'your congregation'}`}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              These coordinates will be used as the default starting center in Territory Studio for territories without drawn boundary coordinates.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="centerLat" className="text-xs font-semibold">
+                  Default Latitude
+                </Label>
+                <Input
+                  id="centerLat"
+                  value={centerLat}
+                  onChange={(e) => setCenterLat(e.target.value)}
+                  placeholder="e.g. 8.3683"
+                  className="h-9 rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="centerLng" className="text-xs font-semibold">
+                  Default Longitude
+                </Label>
+                <Input
+                  id="centerLng"
+                  value={centerLng}
+                  onChange={(e) => setCenterLng(e.target.value)}
+                  placeholder="e.g. 124.8644"
+                  className="h-9 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
             <Button
+              type="button"
               variant="outline"
-              onClick={closeConfirmDialog}
-              disabled={reviewRequestForm.formState.isSubmitting}
+              size="sm"
+              onClick={handleUseCurrentLocation}
+              className="w-full rounded-xl text-xs gap-1.5"
             >
-              Cancel
+              <MapPin size={13} />
+              <span>Detect My Current GPS Location</span>
             </Button>
-            <Button
-              variant={confirmAction === 'reject' ? 'destructive' : 'default'}
-              onClick={reviewRequestForm.handleSubmit(handleConfirmAction)}
-              disabled={reviewRequestForm.formState.isSubmitting}
-            >
-              {reviewRequestForm.formState.isSubmitting
-                ? 'Processing…'
-                : confirmAction === 'approve'
-                  ? 'Approve'
-                  : 'Reject'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Territory?</DialogTitle>
-            <DialogDescription>
-              Delete{' '}
-              <strong>{deleteTarget ? `#${deleteTarget.number} ${deleteTarget.name}` : ''}</strong>?
-              Related assignments and requests for this territory will also be removed.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteLoading}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteTerritory} disabled={deleteLoading}>
-              {deleteLoading ? 'Deleting…' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setMapCenterOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleSaveMapCenter}
+                disabled={updatingCenter || !centerLat || !centerLng}
+              >
+                {updatingCenter ? 'Saving…' : 'Save Default Coordinates'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
+      </main>
+      <BottomTabBar />
     </ProtectedPage>
   );
 }

@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+'use client';
+
 import { doc, onSnapshot } from 'firebase/firestore';
-import { getPlannerFirestore } from '@/lib/firebase/client';
-import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import { useCallback, useEffect, useState } from 'react';
 import {
   changeUserPassword,
   fileToDataUrl,
   updateUserProfile,
   useAuthSession,
 } from '@/lib/firebase/auth';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import type { User } from '@/types/api';
 
 function userDocument(userId: string) {
@@ -48,7 +50,9 @@ export function useProfile() {
       userDocument(userId),
       { includeMetadataChanges: true },
       (snapshot) => {
-        setProfile(snapshot.exists() ? userFromData(snapshot.id, snapshot.data() as Partial<User>) : null);
+        setProfile(
+          snapshot.exists() ? userFromData(snapshot.id, snapshot.data() as Partial<User>) : null
+        );
         setError(null);
         setIsLoading(false);
       },
@@ -59,7 +63,7 @@ export function useProfile() {
     );
   }, [session?.user.id, status]);
 
-  return { profile, isLoading, error };
+  return { profile, data: profile, isLoading, error };
 }
 
 export function useUpdateProfile() {
@@ -72,7 +76,7 @@ export function useUpdateProfile() {
       setIsUpdating(false);
     }
   }, []);
-  return { update, isUpdating };
+  return { update, mutateAsync: update, isUpdating, isPending: isUpdating };
 }
 
 export function useChangePassword() {
@@ -88,20 +92,21 @@ export function useChangePassword() {
     },
     []
   );
-  return { changePassword, isChanging };
+  return { changePassword, mutateAsync: changePassword, isChanging, isPending: isChanging };
 }
 
 export function useUpdateAvatar() {
   const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
-  const updateAvatar = useCallback(async (arg: { file: File }) => {
+  const updateAvatar = useCallback(async (file: File | { file: File }) => {
     setIsUpdatingAvatar(true);
     try {
-      const avatarUrl = await fileToDataUrl(arg.file);
+      const targetFile = file instanceof File ? file : file.file;
+      const avatarUrl = await fileToDataUrl(targetFile);
       await updateUserProfile({ avatarUrl });
       return { avatarUrl };
     } finally {
       setIsUpdatingAvatar(false);
     }
   }, []);
-  return { updateAvatar, isUpdatingAvatar };
+  return { updateAvatar, mutateAsync: updateAvatar, isUpdatingAvatar, isPending: isUpdatingAvatar };
 }
