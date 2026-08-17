@@ -61,6 +61,7 @@ interface StudioLayoutProps {
   congregationId: string;
   households: Household[];
   activeAssignmentId?: string | null;
+  isReadOnly?: boolean;
   onAddHousehold?: () => void;
   onEditHousehold?: (household: Household) => void;
   onDeleteHousehold?: (householdId: string) => void;

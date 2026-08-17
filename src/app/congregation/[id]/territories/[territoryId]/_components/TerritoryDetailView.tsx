@@ -1,16 +1,20 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { StudioLayout } from '@/components/studio/StudioLayout';
 import {
   useCongregation,
+  useCongregationGroups,
   useCongregationTerritories,
+  useCurrentUser,
   useHouseholds,
   useTerritoryAssignments,
   useTerritoryDetail,
 } from '@/hooks';
+import { canEditTerritoryInStudio } from '@/lib/permissions';
 
 export default function TerritoryDetailView() {
   const params = useParams();
@@ -21,13 +25,39 @@ export default function TerritoryDetailView() {
   const territoryId = (params?.territoryId as string) || '';
   const pinHouseholdId = searchParams.get('pinHouseholdId');
 
+  const { user } = useCurrentUser();
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { congregation } = useCongregation(congregationId);
   const { data: allTerritories = [] } = useCongregationTerritories(congregationId);
+  const { groups = [] } = useCongregationGroups(congregationId);
   const { households = [] } = useHouseholds();
   const { assignments = [] } = useTerritoryAssignments(territoryId);
 
-  const activeAssignment = assignments.find((a) => a.status === 'assigned');
+  const activeAssignment = assignments.find(
+    (a) => a.status === 'assigned' || a.status === 'active'
+  );
+
+  // Find all service groups that the current user belongs to
+  const userGroupIds = useMemo(() => {
+    if (!user?.id) return new Set<string>();
+    const ids = new Set<string>();
+    for (const g of groups) {
+      if (
+        g.members?.some(
+          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
+        )
+      ) {
+        ids.add(g.id);
+      }
+    }
+    return ids;
+  }, [groups, user]);
+
+  const canEdit = useMemo(() => {
+    return canEditTerritoryInStudio(user, assignments, userGroupIds);
+  }, [user, assignments, userGroupIds]);
+
+  const isReadOnly = !canEdit;
 
   // Filter households: show territory households + household currently being pinned
   const territoryHouseholds = households.filter(
@@ -77,7 +107,8 @@ export default function TerritoryDetailView() {
         congregationId={congregationId}
         households={territoryHouseholds}
         activeAssignmentId={activeAssignment?.id}
-        pinHouseholdId={pinHouseholdId}
+        isReadOnly={isReadOnly}
+        pinHouseholdId={isReadOnly ? null : pinHouseholdId}
         onClearPinHouseholdId={() => {
           router.replace(`/congregation/${congregationId}/territories/${territoryId}`);
         }}

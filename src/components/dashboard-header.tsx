@@ -27,7 +27,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCongregation, useCurrentUser, usePendingEndorsements } from '@/hooks';
+import {
+  useCongregation,
+  useCurrentUser,
+  usePendingEndorsements,
+  usePendingSharesCount,
+} from '@/hooks';
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
 import {
   canViewReports,
@@ -45,6 +50,7 @@ export function DashboardHeader() {
   const { user } = useCurrentUser();
   const { congregation } = useCongregation(id);
   const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
+  const { count: pendingSharesCount } = usePendingSharesCount();
 
   if (!session?.user) return null;
 
@@ -59,7 +65,12 @@ export function DashboardHeader() {
         { href: `/congregation/${id}/dashboard`, label: 'Dashboard', icon: Layers },
         { href: `/congregation/${id}/territories`, label: 'Territories', icon: MapPin },
         { href: `/congregation/${id}/my-assignments`, label: 'My Assignments', icon: Compass },
-        { href: `/congregation/${id}/records/households`, label: 'Records', icon: FileText },
+        {
+          href: `/congregation/${id}/records/households`,
+          label: 'Records',
+          icon: FileText,
+          badgeCount: pendingSharesCount,
+        },
         ...(isServiceOverseer(user.role)
           ? [
               {

@@ -67,6 +67,7 @@ interface StudioGoogleMapProps {
     timestamp: number;
   } | null;
   isPrintViewportActive?: boolean;
+  isReadOnly?: boolean;
 }
 
 // Fallback default coordinates if not configured on congregation
@@ -299,6 +300,7 @@ export function StudioGoogleMap({
   userHeading,
   fitPrintViewportPadding,
   isPrintViewportActive = false,
+  isReadOnly = false,
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -316,6 +318,9 @@ export function StudioGoogleMap({
 
   const isPrintViewportActiveRef = useRef(isPrintViewportActive);
   isPrintViewportActiveRef.current = isPrintViewportActive;
+
+  const isReadOnlyRef = useRef(isReadOnly);
+  isReadOnlyRef.current = isReadOnly;
 
   // Stable Marker & Polyline element references for zero-flicker selection updates
   const householdMarkersDataRef = useRef<
@@ -537,6 +542,10 @@ export function StudioGoogleMap({
         // Add single stable click listener for tool actions
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
+          if (isReadOnlyRef.current) {
+            handleDeselectAllRef.current?.();
+            return;
+          }
           if (!e.latLng) return;
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();

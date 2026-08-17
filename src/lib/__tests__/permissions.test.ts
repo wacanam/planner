@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
+  canEditTerritoryInStudio,
   canReturnAssignment,
   canViewReports,
   hasPermission,
@@ -10,6 +11,7 @@ import {
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
+  isUserAssignedToTerritory,
 } from '../permissions';
 
 describe('hasPermission', () => {
@@ -145,3 +147,149 @@ describe('Group Roles and Territory Return Permissions', () => {
     ).toBe(true);
   });
 });
+
+describe('Territory Studio Permissions & Read-Only Access', () => {
+  const assignments = [
+    {
+      id: 'a-1',
+      territoryId: 't-1',
+      userId: 'user-publisher-1',
+      assigneeEmail: 'pub1@example.com',
+      serviceGroupId: null,
+      status: 'assigned',
+    },
+    {
+      id: 'a-2',
+      territoryId: 't-2',
+      userId: null,
+      assigneeEmail: null,
+      serviceGroupId: 'group-north',
+      status: 'assigned',
+    },
+    {
+      id: 'a-3',
+      territoryId: 't-3',
+      userId: 'user-publisher-2',
+      assigneeEmail: 'pub2@example.com',
+      serviceGroupId: null,
+      status: 'completed', // Inactive assignment
+    },
+  ];
+
+  it('correctly checks if user is assigned to territory', () => {
+    // Direct personal assignment matching userId
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-publisher-1', email: 'pub1@example.com' },
+        [assignments[0]]
+      )
+    ).toBe(true);
+
+    // Direct personal assignment matching assigneeEmail
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-diff-id', email: 'pub1@example.com' },
+        [assignments[0]]
+      )
+    ).toBe(true);
+
+    // Service group assignment when user belongs to that group
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-group-member', email: 'member@example.com' },
+        [assignments[1]],
+        new Set(['group-north', 'group-south'])
+      )
+    ).toBe(true);
+
+    // Service group assignment when user does NOT belong to group
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-other', email: 'other@example.com' },
+        [assignments[1]],
+        new Set(['group-south'])
+      )
+    ).toBe(false);
+
+    // Inactive assignment (completed/returned) does NOT count as assigned
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-publisher-2', email: 'pub2@example.com' },
+        [assignments[2]]
+      )
+    ).toBe(false);
+
+    // Empty assignments
+    expect(
+      isUserAssignedToTerritory(
+        { id: 'user-publisher-1', email: 'pub1@example.com' },
+        []
+      )
+    ).toBe(false);
+  });
+
+  it('evaluates canEditTerritoryInStudio correctly for servants vs assigned/unassigned publishers', () => {
+    // Territory Servants / Admins can ALWAYS edit any territory
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-ts', role: UserRole.TERRITORY_SERVANT },
+        [] // No assignments
+      )
+    ).toBe(true);
+
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-so', role: UserRole.SERVICE_OVERSEER },
+        [] // No assignments
+      )
+    ).toBe(true);
+
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-admin', role: UserRole.ADMIN },
+        [] // No assignments
+      )
+    ).toBe(true);
+
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-super', role: UserRole.SUPER_ADMIN },
+        [] // No assignments
+      )
+    ).toBe(true);
+
+    // Assigned publisher CAN edit their assigned territory
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-publisher-1', role: UserRole.USER, email: 'pub1@example.com' },
+        [assignments[0]]
+      )
+    ).toBe(true);
+
+    // Group assigned publisher CAN edit their group territory
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-group-member', role: UserRole.USER, email: 'member@example.com' },
+        [assignments[1]],
+        ['group-north']
+      )
+    ).toBe(true);
+
+    // Unassigned publisher CANNOT edit (read-only)
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-unassigned-pub', role: UserRole.USER, email: 'unassigned@example.com' },
+        [assignments[0]] // Assigned to user-publisher-1, not this user
+      )
+    ).toBe(false);
+
+    // Unassigned publisher with no assignments (available territory) -> read-only
+    expect(
+      canEditTerritoryInStudio(
+        { id: 'user-pub', role: UserRole.USER, email: 'pub@example.com' },
+        []
+      )
+    ).toBe(false);
+  });
+});
+

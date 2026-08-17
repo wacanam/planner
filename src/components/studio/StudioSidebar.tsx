@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronLeft, MapPin, Plus, Printer } from 'lucide-react';
+import { Check, ChevronLeft, Eye, MapPin, Plus, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ interface StudioSidebarProps {
   onChangeCardSettings: (settings: CardDimensionSettings) => void;
   onPrintCard: () => void;
   onOpenAddHousehold: () => void;
+  isReadOnly?: boolean;
 }
 
 export function StudioSidebar({
@@ -57,6 +58,7 @@ export function StudioSidebar({
   onChangeCardSettings,
   onPrintCard,
   onOpenAddHousehold,
+  isReadOnly = false,
 }: StudioSidebarProps) {
   const { user } = useCurrentUser();
   const isServant = isTerritoryServant(user.role);
@@ -158,16 +160,28 @@ export function StudioSidebar({
               </div>
             </div>
 
-            {/* Quick Add Household Button */}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-9 rounded-xl gap-2 font-semibold shrink-0 hover:border-primary/50 hover:bg-primary/5"
-              onClick={onOpenAddHousehold}
-            >
-              <Plus size={14} className="text-primary" />
-              <span>Add Household</span>
-            </Button>
+            {/* Read-Only Informational Banner or Quick Add Household Button */}
+            {isReadOnly ? (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 shrink-0">
+                <Eye size={15} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-foreground">Read-Only View</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    You are viewing this territory in read-only mode because you are not currently assigned to it.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-9 rounded-xl gap-2 font-semibold shrink-0 hover:border-primary/50 hover:bg-primary/5"
+                onClick={onOpenAddHousehold}
+              >
+                <Plus size={14} className="text-primary" />
+                <span>Add Household</span>
+              </Button>
+            )}
 
             {/* Territory Households List: Flex-1 and min-h-0 to occupy full vertical height to bottom */}
             <div className="flex-1 min-h-0 flex flex-col pt-2 border-t border-border space-y-2">

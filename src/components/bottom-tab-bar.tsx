@@ -26,7 +26,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useCurrentUser, usePendingEndorsements } from '@/hooks';
+import { useCurrentUser, usePendingEndorsements, usePendingSharesCount } from '@/hooks';
 import {
   canViewReports,
   isServiceOverseer,
@@ -41,6 +41,7 @@ export function BottomTabBar() {
   const id = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
+  const { count: pendingSharesCount } = usePendingSharesCount();
   const [sheetOpen, setSheetOpen] = useState(false);
 
   if (!id) return null;
@@ -70,6 +71,7 @@ export function BottomTabBar() {
       href: `/congregation/${id}/records/households`,
       label: 'Records',
       icon: FileText,
+      badgeCount: pendingSharesCount,
     },
   ];
 
@@ -120,7 +122,7 @@ export function BottomTabBar() {
         className="flex lg:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border shadow-lg"
         style={{ zIndex: 900, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {mainTabs.map(({ href, label, icon: Icon }) => {
+        {mainTabs.map(({ href, label, icon: Icon, badgeCount }) => {
           const isActive =
             pathname === href ||
             (href.includes('/records/') && pathname.includes('/records/')) ||
@@ -137,6 +139,11 @@ export function BottomTabBar() {
             >
               <div className="relative mb-0.5">
                 <Icon size={18} />
+                {Boolean(badgeCount) && (
+                  <span className="absolute -top-1 -right-2 inline-flex items-center justify-center h-3.5 min-w-3.5 px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                    {badgeCount}
+                  </span>
+                )}
               </div>
               <span className="truncate max-w-[64px]">{label}</span>
             </Link>

@@ -151,6 +151,69 @@ export function canReturnAssignment(
 }
 
 /**
+ * Checks if a user is actively assigned to a territory:
+ * - Direct personal assignment (matching userId or assigneeEmail)
+ * - Service group assignment (where user is part of the assigned service group)
+ */
+export function isUserAssignedToTerritory(
+  user: { id?: string | null; email?: string | null } | null | undefined,
+  assignments: Array<{
+    userId?: string | null;
+    assigneeEmail?: string | null;
+    serviceGroupId?: string | null;
+    status?: string | null;
+  }> = [],
+  userGroupIds: Set<string> | string[] = []
+): boolean {
+  if (!user?.id) return false;
+  const groupSet = userGroupIds instanceof Set ? userGroupIds : new Set(userGroupIds);
+
+  return assignments.some((a) => {
+    const isActive = a.status === 'assigned' || a.status === 'active' || !a.status;
+    if (!isActive) return false;
+
+    // 1. Direct personal assignment
+    if (a.userId && a.userId === user.id) return true;
+    if (
+      a.assigneeEmail &&
+      user.email &&
+      a.assigneeEmail.toLowerCase() === user.email.toLowerCase()
+    ) {
+      return true;
+    }
+
+    // 2. Service group assignment
+    if (a.serviceGroupId && groupSet.has(a.serviceGroupId)) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+/**
+ * Checks if a user has edit permissions in Territory Studio:
+ * - Territory Servants, Service Overseers, Admins, Super Admins can always edit any territory.
+ * - Publishers (USER) can only edit if they are actively assigned to the territory.
+ * - If not assigned, publishers view the territory in read-only mode.
+ */
+export function canEditTerritoryInStudio(
+  user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
+  assignments: Array<{
+    userId?: string | null;
+    assigneeEmail?: string | null;
+    serviceGroupId?: string | null;
+    status?: string | null;
+  }> = [],
+  userGroupIds: Set<string> | string[] = []
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role)) return true;
+  return isUserAssignedToTerritory(user, assignments, userGroupIds);
+}
+
+
+/**
  * Checks if the current user has full detail access (contact info, private notes) to a household.
  * Owners, accepted collaborators, read-only viewers, and Territory Servants+ have access.
  */

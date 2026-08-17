@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Eye,
   Flag,
   Home,
   MapPin,
@@ -41,6 +42,7 @@ interface StudioTopBarProps {
   onSelectHousehold?: (household: Household) => void;
   onSelectLandmark?: (landmark: MapLandmark) => void;
   onSelectRoad?: (road: MapRoad) => void;
+  isReadOnly?: boolean;
 }
 
 const getLandmarkEmoji = (type?: string) => {
@@ -98,6 +100,7 @@ export function StudioTopBar({
   onSelectHousehold,
   onSelectLandmark,
   onSelectRoad,
+  isReadOnly = false,
 }: StudioTopBarProps) {
   const { user } = useCurrentUser();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -251,12 +254,27 @@ export function StudioTopBar({
           </div>
         )}
 
+        {/* Read-Only Status Indicator */}
+        {isReadOnly && (
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-700 dark:text-amber-300 text-xs font-semibold shrink-0"
+            title="Viewing territory in read-only mode (not assigned to you)"
+          >
+            <Eye size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="hidden sm:inline">Read-Only</span>
+          </div>
+        )}
+
         <div className="hidden sm:block h-5 w-px bg-border mx-1 shrink-0" />
 
         {/* Tool selector buttons */}
         <div className="flex items-center gap-1 shrink-0">
           {tools
-            .filter((t) => !t.servantOnly || canDrawBoundary)
+            .filter((t) => {
+              if (isReadOnly) return t.id === 'pointer';
+              if (t.servantOnly) return canDrawBoundary;
+              return true;
+            })
             .map((t) => {
               const Icon = t.icon;
               const isActive = activeTool === t.id;
@@ -351,7 +369,7 @@ export function StudioTopBar({
           type="button"
           variant="ghost"
           size="icon"
-          disabled={!canUndo}
+          disabled={isReadOnly || !canUndo}
           onClick={onUndo}
           className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground disabled:opacity-30 shrink-0"
           title="Undo"
@@ -362,7 +380,7 @@ export function StudioTopBar({
           type="button"
           variant="ghost"
           size="icon"
-          disabled={!canRedo}
+          disabled={isReadOnly || !canRedo}
           onClick={onRedo}
           className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground disabled:opacity-30 shrink-0"
           title="Redo"

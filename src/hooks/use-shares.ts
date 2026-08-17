@@ -367,11 +367,49 @@ export function useShares() {
     error,
     sendShareRequest,
     respondToShare,
+    pendingIncomingCount: incomingShares.filter(
+      (s) => s.status === ShareStatus.PENDING
+    ).length,
     revokeShareAccess,
     updateSharePermission,
     cancelOutgoingShare,
     deleteShareRecord,
   };
+}
+
+export function usePendingSharesCount() {
+  const { data: session } = useAuthSession();
+  const userId = session?.user?.id;
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) {
+      setCount(0);
+      return;
+    }
+
+    const db = getPlannerFirestore();
+    const sharesRef = collection(db, FIRESTORE_COLLECTIONS.shares);
+    const incomingQ = query(
+      sharesRef,
+      where('toUserId', '==', userId),
+      where('status', '==', ShareStatus.PENDING)
+    );
+
+    const unsubscribe = onSnapshot(
+      incomingQ,
+      (snap) => {
+        setCount(snap.docs.length);
+      },
+      (err) => {
+        console.error('Error listening to pending shares count:', err);
+      }
+    );
+
+    return unsubscribe;
+  }, [userId]);
+
+  return { count };
 }
 
 export function useCreateShare(householdId: string, householdAddress?: string | null) {
