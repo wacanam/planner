@@ -278,6 +278,13 @@ export function StudioSidebar({
               <Select
                 value={cardSettings.preset}
                 onValueChange={(val: any) => {
+                  if (val === 'custom') {
+                    onChangeCardSettings({
+                      ...cardSettings,
+                      preset: 'custom',
+                    });
+                    return;
+                  }
                   let w = 4;
                   let h = 6;
                   if (val === '5x7') {
@@ -306,9 +313,54 @@ export function StudioSidebar({
                   <SelectItem value="5x7">5″ × 7″ (Standard 5x7 Card)</SelectItem>
                   <SelectItem value="8.5x11">8.5″ × 11″ (Full Letter Sheet)</SelectItem>
                   <SelectItem value="a5">A5 Sheet (5.8″ × 8.3″)</SelectItem>
+                  <SelectItem value="custom">Custom Dimensions…</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {cardSettings.preset === 'custom' && (
+              <div className="space-y-1.5 p-2.5 rounded-xl bg-muted/40 border border-border">
+                <Label className="text-[11px] font-semibold">Custom Size (Inches)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">Width (in)</span>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="1.5"
+                      max="30"
+                      value={cardSettings.widthInches}
+                      onChange={(e) =>
+                        onChangeCardSettings({
+                          ...cardSettings,
+                          preset: 'custom',
+                          widthInches: Math.max(1.5, Math.min(30, parseFloat(e.target.value) || 4)),
+                        })
+                      }
+                      className="h-8 w-full px-2 text-xs font-bold bg-background border border-input rounded-lg outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground">Height (in)</span>
+                    <input
+                      type="number"
+                      step="0.25"
+                      min="1.5"
+                      max="30"
+                      value={cardSettings.heightInches}
+                      onChange={(e) =>
+                        onChangeCardSettings({
+                          ...cardSettings,
+                          preset: 'custom',
+                          heightInches: Math.max(1.5, Math.min(30, parseFloat(e.target.value) || 6)),
+                        })
+                      }
+                      className="h-8 w-full px-2 text-xs font-bold bg-background border border-input rounded-lg outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs">Orientation</Label>

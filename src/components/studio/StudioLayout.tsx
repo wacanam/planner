@@ -47,7 +47,6 @@ import { StudioCameraControls } from './StudioCameraControls';
 import { StudioContextActionCard } from './StudioContextActionCard';
 import { getTerritoryBoundaries, normalizePolygons, StudioGoogleMap } from './StudioGoogleMap';
 import { StudioLandmarkDialog } from './StudioLandmarkDialog';
-import { StudioPrintModal } from './StudioPrintModal';
 import { StudioPrintViewport } from './StudioPrintViewport';
 import { StudioRoadDialog } from './StudioRoadDialog';
 import { type CardDimensionSettings, StudioSidebar } from './StudioSidebar';
@@ -96,9 +95,8 @@ export function StudioLayout({
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
 
-  // Print Viewport & Formatted Physical Card States
+  // Print Viewport & Card Download Framing States
   const [isPrintViewportActive, setIsPrintViewportActive] = useState(false);
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [fitPrintViewportPadding, setFitPrintViewportPadding] = useState<{
     top: number;
     right: number;
@@ -764,13 +762,14 @@ export function StudioLayout({
           fitPrintViewportPadding={fitPrintViewportPadding}
         />
 
-        {/* Interactive Print Viewport Framing Overlay */}
+        {/* Interactive Print & Download Viewport Framing Overlay */}
         <StudioPrintViewport
           active={isPrintViewportActive}
           onClose={() => setIsPrintViewportActive(false)}
           cardSettings={cardSettings}
           onChangeCardSettings={setCardSettings}
           territory={territory}
+          congregation={congregation}
           households={households}
           onFitTerritoryToFrame={(padding) => {
             setFitPrintViewportPadding({
@@ -779,7 +778,6 @@ export function StudioLayout({
             });
             toast.success('Fitted territory to card frame');
           }}
-          onOpenPrintModal={() => setIsPrintModalOpen(true)}
         />
       </div>
 
@@ -840,21 +838,6 @@ export function StudioLayout({
           setSidebarOpen(false);
           toast.info('Tap anywhere on the map to place a new household pin');
         }}
-      />
-
-      {/* Formatted Territory Card Print Preview Modal */}
-      <StudioPrintModal
-        open={isPrintModalOpen}
-        onClose={() => setIsPrintModalOpen(false)}
-        onBackToViewport={() => {
-          setIsPrintModalOpen(false);
-          setIsPrintViewportActive(true);
-        }}
-        territory={territory}
-        congregation={congregation ?? null}
-        households={households}
-        cardSettings={cardSettings}
-        onChangeCardSettings={setCardSettings}
       />
 
       {/* Dialog: Add Household */}
