@@ -100,10 +100,38 @@ export function StudioPrintViewport({
   }, [active]);
 
   // Compute card dimensions and aspect ratio
-  const { widthInches, heightInches, orientation, side } = cardSettings;
-  const isLandscape = orientation === 'landscape';
-  const effectiveW = isLandscape ? Math.max(widthInches, heightInches) : Math.min(widthInches, heightInches);
-  const effectiveH = isLandscape ? Math.min(widthInches, heightInches) : Math.max(widthInches, heightInches);
+  const { widthInches, heightInches, preset, orientation, side } = cardSettings;
+
+  // Determine effective dimensions & orientation
+  let effectiveW: number;
+  let effectiveH: number;
+  let effectiveOrientation: 'portrait' | 'landscape';
+
+  if (preset === 'custom') {
+    // In custom mode, widthInches is exact horizontal width, heightInches is exact vertical height
+    effectiveW = Math.max(1, widthInches || 4);
+    effectiveH = Math.max(1, heightInches || 6);
+    effectiveOrientation = effectiveW >= effectiveH ? 'landscape' : 'portrait';
+  } else {
+    // In preset mode, base dimensions adjust to chosen orientation
+    let baseW = 4;
+    let baseH = 6;
+    if (preset === '5x7') {
+      baseW = 5;
+      baseH = 7;
+    } else if (preset === '8.5x11') {
+      baseW = 8.5;
+      baseH = 11;
+    } else if (preset === 'a5') {
+      baseW = 5.83;
+      baseH = 8.27;
+    }
+    const isLandscape = orientation === 'landscape';
+    effectiveW = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+    effectiveH = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
+    effectiveOrientation = orientation;
+  }
+
   const aspectRatio = effectiveW / effectiveH;
 
   // Frame calculation within container
@@ -148,57 +176,95 @@ export function StudioPrintViewport({
     onFitTerritoryToFrame(frameMetrics.padding);
   };
 
-  const handlePresetSelect = (preset: '4x6' | '5x7' | '8.5x11' | 'a5' | 'custom') => {
-    if (preset === 'custom') {
+  const handlePresetSelect = (newPreset: '4x6' | '5x7' | '8.5x11' | 'a5' | 'custom') => {
+    if (newPreset === 'custom') {
       onChangeCardSettings({
         ...cardSettings,
         preset: 'custom',
+        widthInches: effectiveW,
+        heightInches: effectiveH,
+        orientation: effectiveOrientation,
       });
       return;
     }
-    let w = 4;
-    let h = 6;
-    if (preset === '5x7') {
-      w = 5;
-      h = 7;
-    } else if (preset === '8.5x11') {
-      w = 8.5;
-      h = 11;
-    } else if (preset === 'a5') {
-      w = 5.83;
-      h = 8.27;
+    let baseW = 4;
+    let baseH = 6;
+    if (newPreset === '5x7') {
+      baseW = 5;
+      baseH = 7;
+    } else if (newPreset === '8.5x11') {
+      baseW = 8.5;
+      baseH = 11;
+    } else if (newPreset === 'a5') {
+      baseW = 5.83;
+      baseH = 8.27;
     }
+    const isLandscape = orientation === 'landscape';
+    const w = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+    const h = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
     onChangeCardSettings({
       ...cardSettings,
-      preset,
+      preset: newPreset,
       widthInches: w,
       heightInches: h,
     });
   };
 
   const handleCustomWidthChange = (val: number) => {
-    const w = Math.max(1.5, Math.min(30, val || 4));
+    if (Number.isNaN(val) || val <= 0) return;
+    const w = Math.max(1, Math.min(40, val));
     onChangeCardSettings({
       ...cardSettings,
       preset: 'custom',
       widthInches: w,
+      heightInches: effectiveH,
+      orientation: w >= effectiveH ? 'landscape' : 'portrait',
     });
   };
 
   const handleCustomHeightChange = (val: number) => {
-    const h = Math.max(1.5, Math.min(30, val || 6));
+    if (Number.isNaN(val) || val <= 0) return;
+    const h = Math.max(1, Math.min(40, val));
     onChangeCardSettings({
       ...cardSettings,
       preset: 'custom',
+      widthInches: effectiveW,
       heightInches: h,
+      orientation: effectiveW >= h ? 'landscape' : 'portrait',
     });
   };
 
   const handleToggleOrientation = () => {
-    onChangeCardSettings({
-      ...cardSettings,
-      orientation: orientation === 'portrait' ? 'landscape' : 'portrait',
-    });
+    if (cardSettings.preset === 'custom') {
+      // Swapping width & height seamlessly changes orientation
+      onChangeCardSettings({
+        ...cardSettings,
+        widthInches: effectiveH,
+        heightInches: effectiveW,
+        orientation: effectiveH >= effectiveW ? 'landscape' : 'portrait',
+      });
+    } else {
+      const nextOrientation = orientation === 'portrait' ? 'landscape' : 'portrait';
+      let baseW = 4;
+      let baseH = 6;
+      if (preset === '5x7') {
+        baseW = 5;
+        baseH = 7;
+      } else if (preset === '8.5x11') {
+        baseW = 8.5;
+        baseH = 11;
+      } else if (preset === 'a5') {
+        baseW = 5.83;
+        baseH = 8.27;
+      }
+      const isLandscape = nextOrientation === 'landscape';
+      onChangeCardSettings({
+        ...cardSettings,
+        orientation: nextOrientation,
+        widthInches: isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH),
+        heightInches: isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH),
+      });
+    }
   };
 
   const handleSelectSide = (s: 'front' | 'back' | 'both') => {
@@ -342,7 +408,7 @@ export function StudioPrintViewport({
                 {territory ? `Territory #${territory.number}` : 'Territory'}
               </span>
               <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5 whitespace-nowrap">
-                {effectiveW}″ × {effectiveH}″ ({orientation === 'portrait' ? 'Port' : 'Land'})
+                {effectiveW}″ × {effectiveH}″ ({effectiveOrientation === 'portrait' ? 'Port' : 'Land'})
               </Badge>
             </div>
           </div>
@@ -416,23 +482,23 @@ export function StudioPrintViewport({
                 <input
                   type="number"
                   step="0.25"
-                  min="1.5"
-                  max="30"
-                  value={cardSettings.widthInches}
+                  min="1"
+                  max="40"
+                  value={effectiveW}
                   onChange={(e) => handleCustomWidthChange(parseFloat(e.target.value))}
-                  className="w-8 text-center font-bold bg-transparent outline-none text-foreground"
-                  title="Card width in inches"
+                  className="w-9 text-center font-bold bg-transparent outline-none text-foreground"
+                  title="Card width (horizontal) in inches"
                 />
                 <span className="text-muted-foreground text-[10px]">×</span>
                 <input
                   type="number"
                   step="0.25"
-                  min="1.5"
-                  max="30"
-                  value={cardSettings.heightInches}
+                  min="1"
+                  max="40"
+                  value={effectiveH}
                   onChange={(e) => handleCustomHeightChange(parseFloat(e.target.value))}
-                  className="w-8 text-center font-bold bg-transparent outline-none text-foreground"
-                  title="Card height in inches"
+                  className="w-9 text-center font-bold bg-transparent outline-none text-foreground"
+                  title="Card height (vertical) in inches"
                 />
                 <span className="text-[9px] text-muted-foreground font-semibold">in</span>
               </div>
@@ -445,10 +511,10 @@ export function StudioPrintViewport({
               size="sm"
               onClick={handleToggleOrientation}
               className="h-7 rounded-xl text-xs gap-1 font-semibold px-2"
-              title={`Switch to ${orientation === 'portrait' ? 'Landscape' : 'Portrait'}`}
+              title={`Switch orientation (Current: ${effectiveOrientation})`}
             >
               <RotateCw size={12} className="text-primary" />
-              <span className="capitalize">{orientation === 'portrait' ? 'Port' : 'Land'}</span>
+              <span className="capitalize">{effectiveOrientation === 'portrait' ? 'Port' : 'Land'}</span>
             </Button>
 
             {/* Fit Territory to Frame */}

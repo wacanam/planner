@@ -327,16 +327,20 @@ export function StudioSidebar({
                     <input
                       type="number"
                       step="0.25"
-                      min="1.5"
-                      max="30"
+                      min="1"
+                      max="40"
                       value={cardSettings.widthInches}
-                      onChange={(e) =>
-                        onChangeCardSettings({
-                          ...cardSettings,
-                          preset: 'custom',
-                          widthInches: Math.max(1.5, Math.min(30, parseFloat(e.target.value) || 4)),
-                        })
-                      }
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!Number.isNaN(val) && val > 0) {
+                          onChangeCardSettings({
+                            ...cardSettings,
+                            preset: 'custom',
+                            widthInches: val,
+                            orientation: val >= cardSettings.heightInches ? 'landscape' : 'portrait',
+                          });
+                        }
+                      }}
                       className="h-8 w-full px-2 text-xs font-bold bg-background border border-input rounded-lg outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
@@ -345,16 +349,20 @@ export function StudioSidebar({
                     <input
                       type="number"
                       step="0.25"
-                      min="1.5"
-                      max="30"
+                      min="1"
+                      max="40"
                       value={cardSettings.heightInches}
-                      onChange={(e) =>
-                        onChangeCardSettings({
-                          ...cardSettings,
-                          preset: 'custom',
-                          heightInches: Math.max(1.5, Math.min(30, parseFloat(e.target.value) || 6)),
-                        })
-                      }
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!Number.isNaN(val) && val > 0) {
+                          onChangeCardSettings({
+                            ...cardSettings,
+                            preset: 'custom',
+                            heightInches: val,
+                            orientation: cardSettings.widthInches >= val ? 'landscape' : 'portrait',
+                          });
+                        }
+                      }}
                       className="h-8 w-full px-2 text-xs font-bold bg-background border border-input rounded-lg outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
@@ -367,9 +375,20 @@ export function StudioSidebar({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    onChangeCardSettings({ ...cardSettings, orientation: 'portrait' })
-                  }
+                  onClick={() => {
+                    if (cardSettings.preset === 'custom') {
+                      const minVal = Math.min(cardSettings.widthInches, cardSettings.heightInches);
+                      const maxVal = Math.max(cardSettings.widthInches, cardSettings.heightInches);
+                      onChangeCardSettings({
+                        ...cardSettings,
+                        widthInches: minVal,
+                        heightInches: maxVal,
+                        orientation: 'portrait',
+                      });
+                    } else {
+                      onChangeCardSettings({ ...cardSettings, orientation: 'portrait' });
+                    }
+                  }}
                   className={`py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                     cardSettings.orientation === 'portrait'
                       ? 'border-primary bg-primary/10 text-primary'
@@ -380,9 +399,20 @@ export function StudioSidebar({
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    onChangeCardSettings({ ...cardSettings, orientation: 'landscape' })
-                  }
+                  onClick={() => {
+                    if (cardSettings.preset === 'custom') {
+                      const minVal = Math.min(cardSettings.widthInches, cardSettings.heightInches);
+                      const maxVal = Math.max(cardSettings.widthInches, cardSettings.heightInches);
+                      onChangeCardSettings({
+                        ...cardSettings,
+                        widthInches: maxVal,
+                        heightInches: minVal,
+                        orientation: 'landscape',
+                      });
+                    } else {
+                      onChangeCardSettings({ ...cardSettings, orientation: 'landscape' });
+                    }
+                  }}
                   className={`py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                     cardSettings.orientation === 'landscape'
                       ? 'border-primary bg-primary/10 text-primary'

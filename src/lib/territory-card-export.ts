@@ -90,12 +90,12 @@ export async function exportCardToPdf(options: ExportPdfOptions): Promise<void> 
     side,
   } = options;
 
-  const isLandscape = orientation === 'landscape';
-  const effectiveW = isLandscape ? Math.max(widthInches, heightInches) : Math.min(widthInches, heightInches);
-  const effectiveH = isLandscape ? Math.min(widthInches, heightInches) : Math.max(widthInches, heightInches);
+  const effectiveW = widthInches;
+  const effectiveH = heightInches;
+  const effectiveOrientation = orientation || (widthInches >= heightInches ? 'landscape' : 'portrait');
 
   const doc = new jsPDF({
-    orientation,
+    orientation: effectiveOrientation,
     unit: 'in',
     format: [effectiveW, effectiveH],
   });
@@ -107,7 +107,7 @@ export async function exportCardToPdf(options: ExportPdfOptions): Promise<void> 
       cacheBust: true,
     });
     if (!isFirstPage) {
-      doc.addPage([effectiveW, effectiveH], orientation);
+      doc.addPage([effectiveW, effectiveH], effectiveOrientation);
     }
     doc.addImage(dataUrl, 'PNG', 0, 0, effectiveW, effectiveH, undefined, 'FAST');
   };
