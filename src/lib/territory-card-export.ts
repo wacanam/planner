@@ -1,10 +1,66 @@
-import { toPng } from 'html-to-image';
+import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+
+export async function captureMapViewportSnapshot({
+  mapContainer,
+  frameX,
+  frameY,
+  frameW,
+  frameH,
+}: {
+  mapContainer: HTMLElement;
+  frameX: number;
+  frameY: number;
+  frameW: number;
+  frameH: number;
+}): Promise<string> {
+  const fullCanvas = await toCanvas(mapContainer, {
+    pixelRatio: 2.5, // Crisp 300dpi-equivalent resolution
+    cacheBust: true,
+    filter: (node) => {
+      if (node instanceof HTMLElement) {
+        if (
+          node.id === 'studio-print-viewport-overlay' ||
+          node.classList.contains('no-capture') ||
+          node.classList.contains('studio-print-overlay') ||
+          node.classList.contains('gm-control-active') ||
+          node.classList.contains('gmnoprint')
+        ) {
+          return false;
+        }
+      }
+      return true;
+    },
+  });
+
+  const containerW = mapContainer.clientWidth || window.innerWidth;
+  const scale = fullCanvas.width / containerW;
+
+  const croppedCanvas = document.createElement('canvas');
+  croppedCanvas.width = Math.max(1, Math.round(frameW * scale));
+  croppedCanvas.height = Math.max(1, Math.round(frameH * scale));
+  const ctx = croppedCanvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2D rendering context for snapshot');
+
+  ctx.drawImage(
+    fullCanvas,
+    Math.round(frameX * scale),
+    Math.round(frameY * scale),
+    Math.round(frameW * scale),
+    Math.round(frameH * scale),
+    0,
+    0,
+    croppedCanvas.width,
+    croppedCanvas.height
+  );
+
+  return croppedCanvas.toDataURL('image/png', 0.98);
+}
 
 export async function exportElementToPng(element: HTMLElement, filename: string): Promise<void> {
   const dataUrl = await toPng(element, {
     quality: 0.98,
-    pixelRatio: 2.5, // Crisp high-DPI output
+    pixelRatio: 2.5,
     cacheBust: true,
   });
   const link = document.createElement('a');

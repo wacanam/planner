@@ -1958,7 +1958,7 @@ export function StudioGoogleMap({
         </div>
       )}
 
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} id="studio-google-map-element" className="w-full h-full" />
     </div>
   );
 }

@@ -1,19 +1,13 @@
 'use client';
 
 import {
-  Check,
-  Compass,
-  Download,
   Expand,
   FileDown,
   FileText,
   Image as ImageIcon,
-  Layers,
   Loader2,
   Maximize2,
-  Minimize2,
   Move,
-  Printer,
   QrCode,
   RotateCw,
   X,
@@ -21,10 +15,13 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { exportCardToPdf, exportElementToPng } from '@/lib/territory-card-export';
+import {
+  captureMapViewportSnapshot,
+  exportCardToPdf,
+  exportElementToPng,
+} from '@/lib/territory-card-export';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Congregation, Household, Territory } from '@/types/api';
-import { getTerritoryBoundaries } from './StudioGoogleMap';
 import type { CardDimensionSettings } from './StudioSidebar';
 import { toast } from 'sonner';
 
@@ -37,209 +34,6 @@ export interface StudioPrintViewportProps {
   congregation?: Congregation | null;
   households: Household[];
   onFitTerritoryToFrame: (padding: { top: number; right: number; bottom: number; left: number }) => void;
-}
-
-function TerritoryCardVectorMap({
-  territory,
-  households,
-}: {
-  territory: Territory | null;
-  households: Household[];
-}) {
-  const boundaries = getTerritoryBoundaries(territory);
-  const roads = territory?.annotations?.roads || [];
-  const landmarks = territory?.annotations?.landmarks || [];
-  const startFlag = territory?.annotations?.startFlag;
-
-  const bounds = useMemo(() => {
-    let minLat = 90;
-    let maxLat = -90;
-    let minLng = 180;
-    let maxLng = -180;
-    let count = 0;
-
-    boundaries.forEach((b) =>
-      b.points.forEach((p) => {
-        minLat = Math.min(minLat, p.lat);
-        maxLat = Math.max(maxLat, p.lat);
-        minLng = Math.min(minLng, p.lng);
-        maxLng = Math.max(maxLng, p.lng);
-        count++;
-      })
-    );
-
-    households.forEach((h) => {
-      const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-      const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-      if (!Number.isNaN(lat) && !Number.isNaN(lng) && lat !== 0 && lng !== 0) {
-        minLat = Math.min(minLat, lat);
-        maxLat = Math.max(maxLat, lat);
-        minLng = Math.min(minLng, lng);
-        maxLng = Math.max(maxLng, lng);
-        count++;
-      }
-    });
-
-    if (count === 0) {
-      return { minLat: 8.35, maxLat: 8.38, minLng: 124.85, maxLng: 124.88 };
-    }
-
-    const latSpan = Math.max(0.0015, maxLat - minLat);
-    const lngSpan = Math.max(0.0015, maxLng - minLng);
-    const padLat = latSpan * 0.14;
-    const padLng = lngSpan * 0.14;
-
-    return {
-      minLat: minLat - padLat,
-      maxLat: maxLat + padLat,
-      minLng: minLng - padLng,
-      maxLng: maxLng + padLng,
-    };
-  }, [boundaries, households]);
-
-  const svgW = 500;
-  const svgH = 340;
-
-  const mapToSvg = (lat: number, lng: number) => {
-    const x = ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * svgW;
-    const y = svgH - ((lat - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * svgH;
-    return { x: Math.max(10, Math.min(svgW - 10, x)), y: Math.max(10, Math.min(svgH - 10, y)) };
-  };
-
-  return (
-    <svg
-      viewBox={`0 0 ${svgW} ${svgH}`}
-      className="w-full h-full bg-slate-50 rounded-lg overflow-hidden border border-slate-300"
-    >
-      <defs>
-        <pattern id="card-map-grid-vp" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#E2E8F0" strokeWidth="0.75" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#card-map-grid-vp)" />
-
-      {/* Boundaries */}
-      {boundaries.map((b) => {
-        const pts = b.points
-          .map((p) => {
-            const { x, y } = mapToSvg(p.lat, p.lng);
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-          })
-          .join(' ');
-        return (
-          <g key={b.id}>
-            <polygon
-              points={pts}
-              fill="#3B82F6"
-              fillOpacity="0.12"
-              stroke="#2563EB"
-              strokeWidth="2.5"
-              strokeDasharray="6,3"
-            />
-          </g>
-        );
-      })}
-
-      {/* Roads */}
-      {roads.map((r) => {
-        if (!r.points || r.points.length < 2) return null;
-        const pts = r.points
-          .map((p) => {
-            const { x, y } = mapToSvg(p.lat, p.lng);
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-          })
-          .join(' ');
-        return (
-          <g key={r.id}>
-            <polyline
-              points={pts}
-              fill="none"
-              stroke="#334155"
-              strokeWidth="5.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <polyline
-              points={pts}
-              fill="none"
-              stroke="#FEF9C3"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </g>
-        );
-      })}
-
-      {/* Landmarks */}
-      {landmarks.map((lm) => {
-        if (typeof lm.lat !== 'number' || typeof lm.lng !== 'number') return null;
-        const { x, y } = mapToSvg(lm.lat, lm.lng);
-        return (
-          <g key={lm.id} transform={`translate(${x}, ${y})`}>
-            <circle r="6" fill="#8B5CF6" stroke="#FFFFFF" strokeWidth="1.5" />
-            {lm.label && (
-              <text
-                x="9"
-                y="3"
-                fontSize="8"
-                fontWeight="700"
-                fill="#4C1D95"
-                paintOrder="stroke fill"
-                stroke="#FFFFFF"
-                strokeWidth="2"
-              >
-                {lm.label}
-              </text>
-            )}
-          </g>
-        );
-      })}
-
-      {/* Household Pins */}
-      {households.map((h) => {
-        const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-        const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-        if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return null;
-        const { x, y } = mapToSvg(lat, lng);
-        const pinColor =
-          h.status === 'active'
-            ? '#16A34A'
-            : h.status === 'return_visit'
-              ? '#2563EB'
-              : h.status === 'not_home'
-                ? '#D97706'
-                : h.status === 'do_not_visit'
-                  ? '#DC2626'
-                  : '#64748B';
-        return (
-          <g key={h.id} transform={`translate(${x}, ${y})`}>
-            <circle r="4.5" fill={pinColor} stroke="#FFFFFF" strokeWidth="1.5" />
-          </g>
-        );
-      })}
-
-      {/* Start Flag */}
-      {startFlag && typeof startFlag.lat === 'number' && typeof startFlag.lng === 'number' && (
-        <g
-          transform={`translate(${mapToSvg(startFlag.lat, startFlag.lng).x}, ${mapToSvg(startFlag.lat, startFlag.lng).y})`}
-        >
-          <circle r="6" fill="#059669" stroke="#FFFFFF" strokeWidth="2" />
-          <path d="M 0 -4 L 4 -2 L 0 0 Z" fill="#FFFFFF" />
-        </g>
-      )}
-
-      {/* North Arrow */}
-      <g transform="translate(24, 28)">
-        <circle r="12" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
-        <path d="M 0 -8 L 3 3 L -3 3 Z" fill="#DC2626" />
-        <path d="M 0 8 L 3 3 L -3 3 Z" fill="#64748B" />
-        <text x="0" y="-9" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#DC2626">
-          N
-        </text>
-      </g>
-    </svg>
-  );
 }
 
 export function StudioPrintViewport({
@@ -256,13 +50,14 @@ export function StudioPrintViewport({
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [mapSnapshotUrl, setMapSnapshotUrl] = useState<string | null>(null);
 
   const hiddenFrontRef = useRef<HTMLDivElement>(null);
   const hiddenBackRef = useRef<HTMLDivElement>(null);
 
   const coverageStats = useMemo(() => calculateTerritoryCoverage(households), [households]);
 
-  // Group households by street name
+  // Group households by street name for street directory on back
   const streetsSummary = useMemo(() => {
     const map = new Map<string, Household[]>();
     for (const h of households) {
@@ -415,9 +210,38 @@ export function StudioPrintViewport({
 
   const territoryFilePrefix = `Territory-${territory?.number ? territory.number.padStart(2, '0') : 'Card'}`;
 
+  // Helper to capture the exact live map viewport
+  const acquireViewportSnapshot = async (): Promise<string> => {
+    const mapElement =
+      document.getElementById('studio-google-map-element') ||
+      document.getElementById('studio-google-map-canvas-container') ||
+      document.querySelector('[data-map-container="true"]') ||
+      document.querySelector('.gm-style');
+
+    if (!mapElement) {
+      throw new Error('Google Map element not found for snapshot capture.');
+    }
+
+    return await captureMapViewportSnapshot({
+      mapContainer: mapElement as HTMLElement,
+      frameX: frameMetrics.frameX,
+      frameY: frameMetrics.frameY,
+      frameW: frameMetrics.frameW,
+      frameH: frameMetrics.frameH,
+    });
+  };
+
   const handleDownloadPng = async () => {
     setIsExportingPng(true);
     try {
+      // 1. Capture exact live viewport snapshot
+      const snapshot = await acquireViewportSnapshot();
+      setMapSnapshotUrl(snapshot);
+
+      // Wait a moment for image to render in hidden DOM
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      // 2. Export requested side(s)
       if (side === 'front' && hiddenFrontRef.current) {
         const filename = `${territoryFilePrefix}-Front.png`;
         await exportElementToPng(hiddenFrontRef.current, filename);
@@ -433,11 +257,11 @@ export function StudioPrintViewport({
         if (hiddenBackRef.current) {
           await exportElementToPng(hiddenBackRef.current, `${territoryFilePrefix}-Back.png`);
         }
-        toast.success(`Downloaded Front and Back PNG images`);
+        toast.success('Downloaded Front and Back PNG cards');
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to export PNG. Please try again.');
+      console.error('Error exporting PNG snapshot:', err);
+      toast.error('Failed to export PNG snapshot. Please try again.');
     } finally {
       setIsExportingPng(false);
     }
@@ -446,6 +270,14 @@ export function StudioPrintViewport({
   const handleDownloadPdf = async () => {
     setIsExportingPdf(true);
     try {
+      // 1. Capture exact live viewport snapshot
+      const snapshot = await acquireViewportSnapshot();
+      setMapSnapshotUrl(snapshot);
+
+      // Wait a moment for image to render in hidden DOM
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
+      // 2. Export PDF
       const filename = `${territoryFilePrefix}-PrintCard.pdf`;
       await exportCardToPdf({
         frontElement: hiddenFrontRef.current,
@@ -458,7 +290,7 @@ export function StudioPrintViewport({
       });
       toast.success(`Downloaded ${filename}`);
     } catch (err) {
-      console.error(err);
+      console.error('Error exporting PDF:', err);
       toast.error('Failed to export PDF. Please try again.');
     } finally {
       setIsExportingPdf(false);
@@ -468,6 +300,7 @@ export function StudioPrintViewport({
   return (
     <div
       ref={containerRef}
+      id="studio-print-viewport-overlay"
       className="absolute inset-0 z-30 pointer-events-none select-none overflow-hidden flex flex-col justify-between"
     >
       {/* SVG Vignette Mask with Transparent Cutout Window */}
@@ -497,15 +330,15 @@ export function StudioPrintViewport({
       </svg>
 
       {/* Top Floating Viewport Control Bar replacing StudioTopBar */}
-      <div className="absolute top-4 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
-        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-6xl w-full">
+      <div className="absolute top-3 inset-x-0 z-40 flex flex-col items-center px-3 pointer-events-none">
+        <div className="pointer-events-auto flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-5xl w-full">
           {/* Left: Territory & Dimensions Pill */}
-          <div className="flex items-center gap-2 px-2 py-1">
+          <div className="flex items-center gap-2 px-2 py-1 shrink-0">
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <Maximize2 size={15} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-foreground">
                   {territory ? `Territory #${territory.number}` : 'Print Viewport'}
                 </span>
@@ -513,185 +346,174 @@ export function StudioPrintViewport({
                   {effectiveW}″ × {effectiveH}″ ({orientation})
                 </Badge>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground hidden sm:block">
                 Pan & zoom map to frame desired portion
               </p>
             </div>
           </div>
 
-        {/* Center: Presets & Custom Dimensions */}
-        <div className="flex items-center gap-1.5 bg-card/95 backdrop-blur-md border border-border/80 p-1.5 rounded-2xl shadow-xl">
-          {/* Preset Buttons */}
-          <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl">
-            <button
+          {/* Center: Presets & Custom Dimensions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Preset Buttons */}
+            <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-xl">
+              <button
+                type="button"
+                onClick={() => handlePresetSelect('4x6')}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                  cardSettings.preset === '4x6'
+                    ? 'bg-card text-primary shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                4″ × 6″
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetSelect('5x7')}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                  cardSettings.preset === '5x7'
+                    ? 'bg-card text-primary shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                5″ × 7″
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetSelect('8.5x11')}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                  cardSettings.preset === '8.5x11'
+                    ? 'bg-card text-primary shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Letter
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetSelect('a5')}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                  cardSettings.preset === 'a5'
+                    ? 'bg-card text-primary shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                A5
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePresetSelect('custom')}
+                className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                  cardSettings.preset === 'custom'
+                    ? 'bg-card text-primary shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+
+            {/* Custom Dimension Number Inputs */}
+            {cardSettings.preset === 'custom' && (
+              <div className="flex items-center gap-1 bg-background border border-input rounded-xl px-2 py-0.5 text-xs">
+                <input
+                  type="number"
+                  step="0.25"
+                  min="1.5"
+                  max="30"
+                  value={cardSettings.widthInches}
+                  onChange={(e) => handleCustomWidthChange(parseFloat(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
+                  title="Card width in inches"
+                />
+                <span className="text-muted-foreground">×</span>
+                <input
+                  type="number"
+                  step="0.25"
+                  min="1.5"
+                  max="30"
+                  value={cardSettings.heightInches}
+                  onChange={(e) => handleCustomHeightChange(parseFloat(e.target.value))}
+                  className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
+                  title="Card height in inches"
+                />
+                <span className="text-[10px] text-muted-foreground font-semibold">in</span>
+              </div>
+            )}
+
+            {/* Orientation Toggle */}
+            <Button
               type="button"
-              onClick={() => handlePresetSelect('4x6')}
-              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                cardSettings.preset === '4x6'
-                  ? 'bg-card text-primary shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              variant="outline"
+              size="sm"
+              onClick={handleToggleOrientation}
+              className="h-8 rounded-xl text-xs gap-1 font-semibold px-2.5"
+              title={`Switch to ${orientation === 'portrait' ? 'Landscape' : 'Portrait'}`}
             >
-              4″ × 6″
-            </button>
-            <button
+              <RotateCw size={13} className="text-primary" />
+              <span className="capitalize hidden md:inline">{orientation}</span>
+            </Button>
+
+            {/* Fit Territory to Frame */}
+            <Button
               type="button"
-              onClick={() => handlePresetSelect('5x7')}
-              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                cardSettings.preset === '5x7'
-                  ? 'bg-card text-primary shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              variant="secondary"
+              size="sm"
+              onClick={handleFitClick}
+              className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary/10 text-primary hover:bg-primary/20 px-2.5"
+              title="Fit territory boundaries into the card frame"
             >
-              5″ × 7″
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('8.5x11')}
-              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                cardSettings.preset === '8.5x11'
-                  ? 'bg-card text-primary shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Letter
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('a5')}
-              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                cardSettings.preset === 'a5'
-                  ? 'bg-card text-primary shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              A5
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('custom')}
-              className={`px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-                cardSettings.preset === 'custom'
-                  ? 'bg-card text-primary shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Custom
-            </button>
+              <Expand size={13} />
+              <span>Fit</span>
+            </Button>
           </div>
 
-          {/* Custom Dimension Number Inputs */}
-          {cardSettings.preset === 'custom' && (
-            <div className="flex items-center gap-1 bg-background border border-input rounded-xl px-2 py-0.5 text-xs">
-              <input
-                type="number"
-                step="0.25"
-                min="1.5"
-                max="30"
-                value={cardSettings.widthInches}
-                onChange={(e) => handleCustomWidthChange(parseFloat(e.target.value))}
-                className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
-                title="Card width in inches"
-              />
-              <span className="text-muted-foreground">×</span>
-              <input
-                type="number"
-                step="0.25"
-                min="1.5"
-                max="30"
-                value={cardSettings.heightInches}
-                onChange={(e) => handleCustomHeightChange(parseFloat(e.target.value))}
-                className="w-10 text-center font-bold bg-transparent outline-none text-foreground"
-                title="Card height in inches"
-              />
-              <span className="text-[10px] text-muted-foreground font-semibold">in</span>
-            </div>
-          )}
+          {/* Right: Direct Download Buttons & Close */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPng}
+              disabled={isExportingPng}
+              className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-xs hover:border-primary/50"
+            >
+              {isExportingPng ? (
+                <Loader2 size={13} className="animate-spin text-primary" />
+              ) : (
+                <ImageIcon size={13} className="text-primary" />
+              )}
+              <span>Download .PNG</span>
+            </Button>
 
-          {/* Orientation Toggle */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleToggleOrientation}
-            className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
-            title={`Switch to ${orientation === 'portrait' ? 'Landscape' : 'Portrait'}`}
-          >
-            <RotateCw size={13} className="text-primary" />
-            <span className="capitalize">{orientation}</span>
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-md bg-primary text-primary-foreground"
+            >
+              {isExportingPdf ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <FileDown size={13} />
+              )}
+              <span>Download .PDF</span>
+            </Button>
 
-          {/* Fit Territory to Frame */}
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleFitClick}
-            className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary/10 text-primary hover:bg-primary/20"
-            title="Fit territory boundaries into the card frame"
-          >
-            <Expand size={13} />
-            <span>Fit Territory</span>
-          </Button>
-        </div>
-
-        {/* Right: Direct Download & Print Actions */}
-        <div className="flex items-center gap-1.5 bg-card/95 backdrop-blur-md border border-border/80 p-1.5 rounded-2xl shadow-xl">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadPng}
-            disabled={isExportingPng}
-            className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-xs hover:border-primary/50"
-          >
-            {isExportingPng ? (
-              <Loader2 size={13} className="animate-spin text-primary" />
-            ) : (
-              <ImageIcon size={13} className="text-primary" />
-            )}
-            <span>Download .PNG</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleDownloadPdf}
-            disabled={isExportingPdf}
-            className="h-8 rounded-xl text-xs gap-1.5 font-bold shadow-md bg-primary text-primary-foreground"
-          >
-            {isExportingPdf ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <FileDown size={13} />
-            )}
-            <span>Download .PDF</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => window.print()}
-            className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
-            title="Quick print"
-          >
-            <Printer size={15} />
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
-            title="Exit print viewport"
-          >
-            <X size={16} />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+              title="Exit print viewport"
+            >
+              <X size={16} />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Center Framing Viewport Overlay Details */}
       <div
@@ -796,7 +618,7 @@ export function StudioPrintViewport({
           zIndex: -1,
         }}
       >
-        {/* Front Side Card Render */}
+        {/* Front Side Card Render (with real captured map snapshot) */}
         <div
           ref={hiddenFrontRef}
           className="w-full h-full flex flex-col p-4 bg-white text-slate-900 select-none"
@@ -824,9 +646,18 @@ export function StudioPrintViewport({
             </div>
           </div>
 
-          {/* Vector Map */}
-          <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden">
-            <TerritoryCardVectorMap territory={territory} households={households} />
+          {/* Actual Live Map Snapshot */}
+          <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100">
+            {mapSnapshotUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mapSnapshotUrl}
+                alt="Territory Map Viewport Snapshot"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-slate-400 text-xs">Capturing map snapshot…</div>
+            )}
           </div>
 
           {/* Footer */}
