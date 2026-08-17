@@ -185,6 +185,22 @@ export function StudioLayout({
     }
   }, [userLocation, isTrackingLocation]);
 
+  const handleLocationButtonClick = () => {
+    if (!isTrackingLocation) {
+      toggleUserLocation();
+    } else if (userLocation) {
+      setSearchedLocation({
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        zoom: 18,
+        timestamp: Date.now(),
+      });
+      toast.info('Centered to current GPS location');
+    } else {
+      toggleUserLocation();
+    }
+  };
+
   const dismissAllFloatingCards = () => {
     setSelectedHousehold(null);
     setSelectedBoundary(null);
@@ -734,7 +750,7 @@ export function StudioLayout({
         onSetHeading={handleSetHeading}
         onSetTilt={handleSetTilt}
         isTrackingLocation={isTrackingLocation}
-        onToggleLocation={toggleUserLocation}
+        onToggleLocation={handleLocationButtonClick}
       />
 
       {/* Basemap & Layer Popup Switcher */}

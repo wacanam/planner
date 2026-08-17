@@ -560,12 +560,85 @@ export function StudioGoogleMap({
     }
   }, [mapReady, territory?.id]);
 
-  // Smoothly pan & zoom to searched location
+  // Smooth cinematic fly-in animation to target location (user GPS or search)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !searchedLocation) return;
-    map.panTo({ lat: searchedLocation.lat, lng: searchedLocation.lng });
-    map.setZoom(searchedLocation.zoom || 18);
+
+    const currentCenter = map.getCenter();
+    if (!currentCenter) {
+      map.panTo({ lat: searchedLocation.lat, lng: searchedLocation.lng });
+      map.setZoom(searchedLocation.zoom || 18);
+      return;
+    }
+
+    const startLat = currentCenter.lat();
+    const startLng = currentCenter.lng();
+    const targetLat = searchedLocation.lat;
+    const targetLng = searchedLocation.lng;
+    const startZoom = map.getZoom() || 16;
+    const targetZoom = searchedLocation.zoom || 18;
+    const currentHeading = map.getHeading() || 0;
+    const currentTilt = map.getTilt() || 0;
+
+    const deltaLat = targetLat - startLat;
+    const deltaLng = targetLng - startLng;
+    const deltaZoom = targetZoom - startZoom;
+
+    // If virtually at target, no animation needed
+    if (Math.abs(deltaLat) < 0.00001 && Math.abs(deltaLng) < 0.00001 && Math.abs(deltaZoom) < 0.1) {
+      return;
+    }
+
+    isProgrammaticCameraUpdateRef.current = true;
+    let animationFrameId: number;
+    const startTime = performance.now();
+    const duration = 650; // ms for silky cinematic glide
+
+    // Smooth cubic bezier ease-out
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutCubic(progress);
+
+      const lat = startLat + deltaLat * eased;
+      const lng = startLng + deltaLng * eased;
+      const zoom = startZoom + deltaZoom * eased;
+
+      if (typeof map.moveCamera === 'function') {
+        try {
+          map.moveCamera({
+            center: { lat, lng },
+            zoom,
+            heading: currentHeading,
+            tilt: currentTilt,
+          });
+        } catch {
+          map.setCenter({ lat, lng });
+          map.setZoom(Math.round(zoom));
+        }
+      } else {
+        map.setCenter({ lat, lng });
+        map.setZoom(Math.round(zoom));
+      }
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        setTimeout(() => {
+          isProgrammaticCameraUpdateRef.current = false;
+        }, 50);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      isProgrammaticCameraUpdateRef.current = false;
+    };
   }, [mapReady, searchedLocation]);
 
   // Update camera heading and tilt (pitch) natively on Google Maps instance
