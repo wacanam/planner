@@ -556,17 +556,44 @@ export default function GroupsClient() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                          {isOverseer ? (
-                            <Badge className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold gap-0.5">
-                              <Crown size={9} /> Overseer
-                            </Badge>
-                          ) : isAssistant ? (
-                            <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 font-bold gap-0.5">
-                              <Shield size={9} /> Assistant
-                            </Badge>
+                          {isSelected ? (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'}
+                                onValueChange={(val) => {
+                                  if (val === 'overseer') {
+                                    setOverseerId(uid);
+                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                  } else if (val === 'assistant') {
+                                    setAssistantOverseerId(uid);
+                                    if (overseerId === uid) setOverseerId('none');
+                                  } else {
+                                    if (overseerId === uid) setOverseerId('none');
+                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                  }
+                                }}
+                              >
+                                <SelectTrigger
+                                  className={`h-7 text-[10px] w-32 rounded-lg py-0 px-2 font-semibold ${
+                                    isOverseer
+                                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                      : isAssistant
+                                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                      : 'bg-muted/80 text-foreground border-border'
+                                  }`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent side="top" className="text-xs">
+                                  <SelectItem value="overseer">👑 Group Overseer</SelectItem>
+                                  <SelectItem value="assistant">🛡️ Assistant</SelectItem>
+                                  <SelectItem value="member">👤 Publisher</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           ) : (
                             <Badge variant="outline" className="text-[9px] text-muted-foreground">
-                              Publisher
+                              Unassigned
                             </Badge>
                           )}
                         </div>
@@ -738,18 +765,41 @@ export default function GroupsClient() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                          {isOverseer ? (
-                            <Badge className="text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 font-bold gap-0.5">
-                              <Crown size={9} /> Overseer
-                            </Badge>
-                          ) : isAssistant ? (
-                            <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30 font-bold gap-0.5">
-                              <Shield size={9} /> Assistant
-                            </Badge>
-                          ) : isSelected ? (
-                            <Badge variant="secondary" className="text-[9px] bg-primary/15 text-primary">
-                              In Group
-                            </Badge>
+                          {isSelected ? (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Select
+                                value={isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'}
+                                onValueChange={(val) => {
+                                  if (val === 'overseer') {
+                                    setOverseerId(uid);
+                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                  } else if (val === 'assistant') {
+                                    setAssistantOverseerId(uid);
+                                    if (overseerId === uid) setOverseerId('none');
+                                  } else {
+                                    if (overseerId === uid) setOverseerId('none');
+                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                  }
+                                }}
+                              >
+                                <SelectTrigger
+                                  className={`h-7 text-[10px] w-32 rounded-lg py-0 px-2 font-semibold ${
+                                    isOverseer
+                                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                      : isAssistant
+                                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                      : 'bg-muted/80 text-foreground border-border'
+                                  }`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent side="top" className="text-xs">
+                                  <SelectItem value="overseer">👑 Group Overseer</SelectItem>
+                                  <SelectItem value="assistant">🛡️ Assistant</SelectItem>
+                                  <SelectItem value="member">👤 Publisher</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           ) : (
                             <Badge variant="outline" className="text-[9px] text-muted-foreground">
                               Unassigned
