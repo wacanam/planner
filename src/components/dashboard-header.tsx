@@ -92,20 +92,20 @@ export function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background shadow-xs">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Brand Logo & Congregation */}
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0 flex-1">
             <Link href={homeHref} className="flex items-center gap-2.5 shrink-0 group">
               <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors shrink-0">
                 <MapPin size={16} className="text-primary" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="font-bold text-sm text-foreground tracking-tight leading-tight group-hover:text-primary transition-colors">
+                <span className="font-bold text-sm text-foreground tracking-tight leading-tight group-hover:text-primary transition-colors whitespace-nowrap">
                   Ministry Planner
                 </span>
                 {congregation && (
-                  <span className="text-[11px] font-medium text-muted-foreground truncate leading-tight flex items-center gap-1 mt-0.5">
+                  <span className="text-[11px] font-medium text-muted-foreground truncate leading-tight flex items-center gap-1 mt-0.5 max-w-[130px] sm:max-w-[180px]">
                     <Building2 size={10} className="shrink-0 text-primary" />
                     <span className="truncate">{congregation.name}</span>
                   </span>
@@ -115,7 +115,7 @@ export function DashboardHeader() {
 
             {/* Desktop Navigation Tabs */}
             {navLinks.length > 0 && (
-              <nav className="hidden lg:flex items-center gap-1 min-w-0 ml-1">
+              <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 min-w-0 flex-1 overflow-x-auto scrollbar-none py-1">
                 {navLinks.map(({ href, label, icon: Icon, badgeCount }) => {
                   const isActive =
                     pathname === href ||
@@ -127,16 +127,16 @@ export function DashboardHeader() {
                     <Link
                       key={href}
                       href={href}
-                      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                      className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all duration-150 ${
                         isActive
-                          ? 'bg-primary/15 text-primary'
+                          ? 'bg-primary/15 text-primary shadow-2xs font-bold'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                       }`}
                     >
-                      <Icon size={14} />
-                      <span>{label}</span>
+                      <Icon size={14} className="shrink-0" />
+                      <span className="whitespace-nowrap">{label}</span>
                       {Boolean(badgeCount) && (
-                        <span className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                        <span className="ml-0.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                           {badgeCount}
                         </span>
                       )}
@@ -148,7 +148,7 @@ export function DashboardHeader() {
           </div>
 
           {/* Right Action Icons & Profile Dropdown */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
             {isSystemAdmin(user.role) && (
               <Button
                 asChild
