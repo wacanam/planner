@@ -13,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -71,9 +71,18 @@ export default function OnboardingPage() {
   const userId = session?.user?.id;
   const userEmail = session?.user?.email ?? null;
 
+  useEffect(() => {
+    if (user?.congregationId) {
+      router.replace(`/congregation/${user.congregationId}/dashboard`);
+    }
+  }, [user?.congregationId, router]);
+
   if (user?.congregationId) {
-    router.replace(`/congregation/${user.congregationId}/dashboard`);
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
   }
 
   // ── Create congregation ───────────────────────────────────────────────────
