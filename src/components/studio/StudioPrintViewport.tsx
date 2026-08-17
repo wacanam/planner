@@ -496,27 +496,28 @@ export function StudioPrintViewport({
         />
       </svg>
 
-      {/* Top Floating Viewport Control Bar */}
-      <div className="relative z-10 p-3 flex flex-wrap items-center justify-between gap-2.5 pointer-events-auto max-w-6xl mx-auto w-full">
-        {/* Left: Territory & Dimensions Pill */}
-        <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md border border-border/80 px-3.5 py-1.5 rounded-2xl shadow-xl">
-          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-            <Maximize2 size={15} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-foreground">
-                {territory ? `Territory #${territory.number}` : 'Print Viewport'}
-              </span>
-              <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5">
-                {effectiveW}″ × {effectiveH}″ ({orientation})
-              </Badge>
+      {/* Top Floating Viewport Control Bar replacing StudioTopBar */}
+      <div className="absolute top-4 inset-x-0 z-40 flex flex-col items-center px-4 pointer-events-none">
+        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-6xl w-full">
+          {/* Left: Territory & Dimensions Pill */}
+          <div className="flex items-center gap-2 px-2 py-1">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Maximize2 size={15} />
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              Pan & zoom map to frame desired portion
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground">
+                  {territory ? `Territory #${territory.number}` : 'Print Viewport'}
+                </span>
+                <Badge variant="outline" className="text-[10px] font-semibold uppercase py-0 px-1.5">
+                  {effectiveW}″ × {effectiveH}″ ({orientation})
+                </Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Pan & zoom map to frame desired portion
+              </p>
+            </div>
           </div>
-        </div>
 
         {/* Center: Presets & Custom Dimensions */}
         <div className="flex items-center gap-1.5 bg-card/95 backdrop-blur-md border border-border/80 p-1.5 rounded-2xl shadow-xl">
@@ -690,6 +691,7 @@ export function StudioPrintViewport({
           </Button>
         </div>
       </div>
+    </div>
 
       {/* Center Framing Viewport Overlay Details */}
       <div

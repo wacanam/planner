@@ -519,71 +519,73 @@ export function StudioLayout({
         </div>
       )}
 
-      {/* Studio Top Toolbar */}
-      <StudioTopBar
-        territoryNumber={territory?.number}
-        territoryName={territory?.name}
-        activeTool={activeTool}
-        onSelectTool={(tool) => {
-          dismissAllFloatingCards();
-          setActiveTool(tool);
-          setDrawnPoints([]);
-          setHistory([]);
-          setHistoryIndex(-1);
-          if (tool === 'pin') {
-            toast.info('Tap anywhere on the map to place a house pin');
-          } else if (tool === 'landmark') {
-            toast.info('Tap on the map to place a landmark');
-          } else if (tool === 'start') {
-            toast.info('Tap on the map to place the start meeting flag');
-          }
-        }}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-        sidebarOpen={sidebarOpen}
-        onUndo={handleUndoPoint}
-        canUndo={drawnPoints.length > 0}
-        canRedo={false}
-        onSearchLocation={handleSearchLocation}
-        onOpenPrintViewport={() => {
-          setSidebarOpen(false);
-          setIsPrintViewportActive(true);
-          toast.info('Adjust map camera framing to fit your territory card');
-        }}
-        households={households}
-        landmarks={territory?.annotations?.landmarks}
-        roads={territory?.annotations?.roads}
-        onSelectHousehold={(h) => {
-          dismissAllFloatingCards();
-          setSelectedHousehold(h);
-          const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
-          const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-          if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-            setSearchedLocation({ lat, lng, zoom: 19, timestamp: Date.now() });
-          }
-          toast.success(`Found ${h.address}`);
-        }}
-        onSelectLandmark={(lm) => {
-          dismissAllFloatingCards();
-          setSelectedLandmark(lm);
-          if (typeof lm.lat === 'number' && typeof lm.lng === 'number') {
-            setSearchedLocation({ lat: lm.lat, lng: lm.lng, zoom: 19, timestamp: Date.now() });
-          }
-          toast.success(`Found landmark: ${lm.label || lm.type}`);
-        }}
-        onSelectRoad={(road) => {
-          dismissAllFloatingCards();
-          setSelectedRoad(road);
-          if (road.points && road.points.length > 0) {
-            setSearchedLocation({
-              lat: road.points[0].lat,
-              lng: road.points[0].lng,
-              zoom: 18,
-              timestamp: Date.now(),
-            });
-          }
-          toast.success(`Found road: ${road.name || 'Road Corridor'}`);
-        }}
-      />
+      {/* Studio Top Toolbar (hidden during print viewport mode to make room for viewport tools) */}
+      {!isPrintViewportActive && (
+        <StudioTopBar
+          territoryNumber={territory?.number}
+          territoryName={territory?.name}
+          activeTool={activeTool}
+          onSelectTool={(tool) => {
+            dismissAllFloatingCards();
+            setActiveTool(tool);
+            setDrawnPoints([]);
+            setHistory([]);
+            setHistoryIndex(-1);
+            if (tool === 'pin') {
+              toast.info('Tap anywhere on the map to place a house pin');
+            } else if (tool === 'landmark') {
+              toast.info('Tap on the map to place a landmark');
+            } else if (tool === 'start') {
+              toast.info('Tap on the map to place the start meeting flag');
+            }
+          }}
+          onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
+          sidebarOpen={sidebarOpen}
+          onUndo={handleUndoPoint}
+          canUndo={drawnPoints.length > 0}
+          canRedo={false}
+          onSearchLocation={handleSearchLocation}
+          onOpenPrintViewport={() => {
+            setSidebarOpen(false);
+            setIsPrintViewportActive(true);
+            toast.info('Adjust map camera framing to fit your territory card');
+          }}
+          households={households}
+          landmarks={territory?.annotations?.landmarks}
+          roads={territory?.annotations?.roads}
+          onSelectHousehold={(h) => {
+            dismissAllFloatingCards();
+            setSelectedHousehold(h);
+            const lat = typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+            const lng = typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+            if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+              setSearchedLocation({ lat, lng, zoom: 19, timestamp: Date.now() });
+            }
+            toast.success(`Found ${h.address}`);
+          }}
+          onSelectLandmark={(lm) => {
+            dismissAllFloatingCards();
+            setSelectedLandmark(lm);
+            if (typeof lm.lat === 'number' && typeof lm.lng === 'number') {
+              setSearchedLocation({ lat: lm.lat, lng: lm.lng, zoom: 19, timestamp: Date.now() });
+            }
+            toast.success(`Found landmark: ${lm.label || lm.type}`);
+          }}
+          onSelectRoad={(road) => {
+            dismissAllFloatingCards();
+            setSelectedRoad(road);
+            if (road.points && road.points.length > 0) {
+              setSearchedLocation({
+                lat: road.points[0].lat,
+                lng: road.points[0].lng,
+                zoom: 18,
+                timestamp: Date.now(),
+              });
+            }
+            toast.success(`Found road: ${road.name || 'Road Corridor'}`);
+          }}
+        />
+      )}
 
       {/* Floating Context Action Card */}
       <StudioContextActionCard
