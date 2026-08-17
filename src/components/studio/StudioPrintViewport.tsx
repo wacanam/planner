@@ -156,14 +156,13 @@ export function StudioPrintViewport({
     const frameY = Math.round((availH - frameH) / 2) + 16;
 
     // Scale proportional sub-elements for WYSIWYG parity
-    const cardPadding = Math.max(10, Math.round(frameW * 0.024));
-    const headerH = Math.max(50, Math.round(frameH * 0.135));
+    const headerH = Math.max(52, Math.round(frameH * 0.135));
     const footerH = Math.max(24, Math.round(frameH * 0.055));
 
-    const mapWindowX = frameX + cardPadding;
-    const mapWindowY = frameY + cardPadding + headerH;
-    const mapWindowW = Math.max(40, frameW - 2 * cardPadding);
-    const mapWindowH = Math.max(40, frameH - 2 * cardPadding - headerH - footerH);
+    const mapWindowX = frameX;
+    const mapWindowY = frameY + headerH;
+    const mapWindowW = frameW;
+    const mapWindowH = Math.max(40, frameH - headerH - footerH);
 
     // Padding to center territory polygon directly into the inner map window
     const padding = {
@@ -178,7 +177,6 @@ export function StudioPrintViewport({
       frameH: Math.round(frameH),
       frameX,
       frameY,
-      cardPadding,
       headerH,
       footerH,
       mapWindowX,
@@ -664,7 +662,7 @@ export function StudioPrintViewport({
                 <span className="text-[9px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
                   {congregation?.name || 'CONGREGATION TERRITORY'}
                 </span>
-                <h2 className="text-sm font-black tracking-tight text-slate-950 leading-tight truncate">
+                <h2 className="text-sm font-black tracking-tight text-slate-950 leading-tight">
                   TERRITORY #{territory?.number || ''}
                 </h2>
                 <p className="text-[10.5px] font-semibold text-slate-700 truncate">
@@ -859,36 +857,36 @@ export function StudioPrintViewport({
           zIndex: -1,
         }}
       >
-        {/* Front Side Card Render (WYSIWYG layout with captured map snapshot) */}
+        {/* Front Side Card Render (100% WYSIWYG layout with captured map snapshot) */}
         <div
           ref={hiddenFrontRef}
-          className="w-full h-full flex flex-col p-4 bg-white text-slate-900 select-none"
+          className="w-full h-full flex flex-col justify-between bg-white text-slate-900 border-2 border-slate-800 rounded-2xl overflow-hidden select-none"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-slate-800 pb-2 mb-2 shrink-0">
-            <div>
-              <span className="text-[10px] font-extrabold tracking-widest text-slate-500 uppercase">
+          <div className="w-full bg-white border-b-2 border-slate-800 p-2.5 px-3.5 flex items-center justify-between shrink-0 text-slate-900 shadow-xs">
+            <div className="min-w-0 pr-2">
+              <span className="text-[9.5px] font-extrabold tracking-widest text-slate-500 uppercase block leading-tight">
                 {congregation?.name || 'CONGREGATION TERRITORY'}
               </span>
-              <h2 className="text-base font-black tracking-tight text-slate-950 leading-tight">
+              <h2 className="text-sm font-black tracking-tight text-slate-950 leading-tight">
                 TERRITORY #{territory?.number || ''}
               </h2>
-              <p className="text-[11px] font-semibold text-slate-700">
+              <p className="text-[10.5px] font-semibold text-slate-700 truncate">
                 {territory?.name || 'Assigned Territory'}
               </p>
             </div>
             <div className="text-right shrink-0">
-              <Badge variant="outline" className="text-[10px] font-bold border-slate-400 text-slate-800 uppercase">
+              <Badge variant="outline" className="text-[9px] font-bold border-slate-400 text-slate-800 uppercase py-0.5 px-1.5">
                 {territory?.city || congregation?.city || 'Local Area'}
               </Badge>
-              <p className="text-[10px] font-bold text-slate-600 mt-1">
+              <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
                 {coverageStats.totalDoors} Doors ({coverageStats.coveragePercent}% worked)
               </p>
             </div>
           </div>
 
           {/* Actual Live Map Snapshot placed in the exact map window */}
-          <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100">
+          <div className="flex-1 min-h-0 w-full relative bg-slate-100 overflow-hidden">
             {mapSnapshotUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -897,12 +895,14 @@ export function StudioPrintViewport({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="text-slate-400 text-xs">Capturing map snapshot…</div>
+              <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">
+                Capturing map snapshot…
+              </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="pt-2 border-t border-slate-200 mt-2 flex items-center justify-between text-[9px] text-slate-500 shrink-0 font-medium">
+          <div className="w-full bg-white border-t border-slate-200 py-1.5 px-3.5 flex items-center justify-between text-[8.5px] text-slate-500 shrink-0 font-medium shadow-xs">
             <span>Please do not mark directly on this card.</span>
             <span>Return promptly when territory is covered.</span>
           </div>
@@ -911,7 +911,7 @@ export function StudioPrintViewport({
         {/* Back Side Card Render */}
         <div
           ref={hiddenBackRef}
-          className="w-full h-full flex flex-col p-4 bg-white text-slate-900 select-none overflow-y-auto"
+          className="w-full h-full flex flex-col justify-between p-3.5 bg-white text-slate-900 border-2 border-slate-800 rounded-2xl select-none overflow-y-auto"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1.5 mb-2 shrink-0">
