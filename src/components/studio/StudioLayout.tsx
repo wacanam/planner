@@ -72,7 +72,8 @@ export function StudioLayout({
   const [layers, setLayers] = useState<StudioLayerSettings>({
     showBuildings: true,
     showHouseLabels: true,
-    showStores: true,
+    showGooglePOIs: false,
+    showStores: false,
     showSchools: true,
     showChurches: true,
     showHospitals: true,

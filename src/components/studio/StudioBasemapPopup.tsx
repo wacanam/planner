@@ -12,6 +12,7 @@ export type BasemapMode = 'satellite' | 'street';
 export interface StudioLayerSettings {
   showBuildings: boolean;
   showHouseLabels: boolean;
+  showGooglePOIs: boolean;
   showStores: boolean;
   showSchools: boolean;
   showChurches: boolean;
@@ -273,6 +274,19 @@ export function StudioBasemapPopup({
                 type="checkbox"
                 checked={layers.showHouseLabels}
                 onChange={() => toggleLayer('showHouseLabels')}
+                className="h-4 w-4 rounded accent-primary cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="layer-google-pois" className="text-xs cursor-pointer">
+                Google Business & Place Icons
+              </Label>
+              <input
+                id="layer-google-pois"
+                type="checkbox"
+                checked={layers.showGooglePOIs}
+                onChange={() => toggleLayer('showGooglePOIs')}
                 className="h-4 w-4 rounded accent-primary cursor-pointer"
               />
             </div>

@@ -175,38 +175,63 @@ export function buildGoogleMapStyles(layers: StudioLayerSettings): google.maps.M
 
   const styles: google.maps.MapTypeStyle[] = [];
 
-  // 1. 3D Building Outlines / Man-made structures
+  // 1. Clean Google Map Base Markers / Commercial Place Icons
+  if (!layers.showGooglePOIs) {
+    styles.push({
+      featureType: 'poi',
+      elementType: 'labels.icon',
+      stylers: [{ visibility: 'off' }],
+    });
+    styles.push({
+      featureType: 'poi.business',
+      stylers: [{ visibility: 'off' }],
+    });
+    styles.push({
+      featureType: 'poi.attraction',
+      stylers: [{ visibility: 'off' }],
+    });
+  } else {
+    styles.push({
+      featureType: 'poi',
+      elementType: 'labels.icon',
+      stylers: [{ visibility: 'on' }],
+    });
+  }
+
+  // 2. 3D Building Outlines / Man-made structures
   styles.push({
     featureType: 'landscape.man_made',
     elementType: 'geometry',
     stylers: [{ visibility: layers.showBuildings ? 'on' : 'off' }],
   });
 
-  // 2. Schools & Colleges
+  // 3. Schools & Colleges
   styles.push({
     featureType: 'poi.school',
     stylers: [{ visibility: layers.showSchools ? 'on' : 'off' }],
   });
 
-  // 3. Churches & Temples (Places of Worship)
+  // 4. Churches & Temples (Places of Worship)
   styles.push({
     featureType: 'poi.place_of_worship',
     stylers: [{ visibility: layers.showChurches ? 'on' : 'off' }],
   });
 
-  // 4. Hospitals & Medical Facilities
+  // 5. Hospitals & Medical Facilities
   styles.push({
     featureType: 'poi.medical',
     stylers: [{ visibility: layers.showHospitals ? 'on' : 'off' }],
   });
 
-  // 5. Stores / Businesses
-  styles.push({
-    featureType: 'poi.business',
-    stylers: [{ visibility: layers.showStores ? 'on' : 'off' }],
-  });
+  // 6. Stores / Businesses
+  if (layers.showStores) {
+    styles.push({
+      featureType: 'poi.business',
+      stylers: [{ visibility: 'on' }],
+    });
+  }
 
-  // 6. House numbers / Land parcels
+  // 7. House numbers / Land parcels
   styles.push({
     featureType: 'administrative.land_parcel',
     elementType: 'labels',
@@ -749,6 +774,7 @@ export function StudioGoogleMap({
     mapReady,
     layerSettings.showBuildings,
     layerSettings.showHouseLabels,
+    layerSettings.showGooglePOIs,
     layerSettings.showSchools,
     layerSettings.showChurches,
     layerSettings.showHospitals,
