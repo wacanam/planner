@@ -546,6 +546,7 @@ export function StudioLayout({
           canRedo={false}
           onSearchLocation={handleSearchLocation}
           onOpenPrintViewport={() => {
+            dismissAllFloatingCards();
             setSidebarOpen(false);
             setIsPrintViewportActive(true);
             toast.info('Adjust map camera framing to fit your territory card');
@@ -587,20 +588,22 @@ export function StudioLayout({
         />
       )}
 
-      {/* Floating Context Action Card */}
-      <StudioContextActionCard
-        activeTool={activeTool}
-        pointCount={drawnPoints.length}
-        onUndoPoint={handleUndoPoint}
-        onDone={handleDoneTool}
-        onCancel={() => {
-          dismissAllFloatingCards();
-          setDrawnPoints([]);
-          setActiveTool('pointer');
-          if (householdToPin) onClearPinHouseholdId?.();
-        }}
-        isSaving={isSavingBoundary || isSavingAnnotations}
-      />
+      {/* Floating Context Action Card (hidden during print viewport mode) */}
+      {!isPrintViewportActive && (
+        <StudioContextActionCard
+          activeTool={activeTool}
+          pointCount={drawnPoints.length}
+          onUndoPoint={handleUndoPoint}
+          onDone={handleDoneTool}
+          onCancel={() => {
+            dismissAllFloatingCards();
+            setDrawnPoints([]);
+            setActiveTool('pointer');
+            if (householdToPin) onClearPinHouseholdId?.();
+          }}
+          isSaving={isSavingBoundary || isSavingAnnotations}
+        />
+      )}
 
       {/* Google Maps Base Map Canvas */}
       <div className="w-full h-full relative">
@@ -762,6 +765,7 @@ export function StudioLayout({
           userLocation={userLocation}
           userHeading={userHeading}
           fitPrintViewportPadding={fitPrintViewportPadding}
+          isPrintViewportActive={isPrintViewportActive}
         />
 
         {/* Interactive Print & Download Viewport Framing Overlay */}

@@ -50,6 +50,7 @@ interface StudioGoogleMapProps {
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   userHeading?: number | null;
   fitPrintViewportPadding?: { top: number; right: number; bottom: number; left: number; timestamp: number } | null;
+  isPrintViewportActive?: boolean;
 }
 
 // Fallback default coordinates if not configured on congregation
@@ -280,6 +281,7 @@ export function StudioGoogleMap({
   userLocation,
   userHeading,
   fitPrintViewportPadding,
+  isPrintViewportActive = false,
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -294,6 +296,9 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  const isPrintViewportActiveRef = useRef(isPrintViewportActive);
+  isPrintViewportActiveRef.current = isPrintViewportActive;
 
   // Stable Marker & Polyline element references for zero-flicker selection updates
   const householdMarkersDataRef = useRef<
@@ -513,6 +518,7 @@ export function StudioGoogleMap({
 
         // Add single stable click listener for tool actions
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          if (isPrintViewportActiveRef.current) return;
           if (!e.latLng) return;
           const lat = e.latLng.lat();
           const lng = e.latLng.lng();
@@ -882,7 +888,7 @@ export function StudioGoogleMap({
     }
 
     const boundaries = getTerritoryBoundaries(territory);
-    const isEditable = activeTool === 'pointer' || activeTool === 'boundary';
+    const isEditable = !isPrintViewportActive && (activeTool === 'pointer' || activeTool === 'boundary');
     const effectiveDisplay = resolveBoundaryDisplay(boundaryDisplay);
 
     // Render outside dimming mask with cutouts for territory boundaries
@@ -919,12 +925,13 @@ export function StudioGoogleMap({
           editable: isEditable,
           draggable: false,
           map,
-          clickable: true,
+          clickable: !isPrintViewportActive,
           zIndex: 2,
         });
 
         // Handle right-click to delete vertex
         polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
+          if (isPrintViewportActiveRef.current) return;
           if (e.vertex != null) {
             polygon.getPath().removeAt(e.vertex);
           }
@@ -932,6 +939,7 @@ export function StudioGoogleMap({
 
         // Click to select boundary in pointer mode, OR pass click to map active tool
         polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
+          if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             e.stop();
             handleSelectBoundaryRef.current?.(boundary);
@@ -956,6 +964,7 @@ export function StudioGoogleMap({
         // Handle vertex edits / insertions / deletions for this specific boundary
         const path = polygon.getPath();
         const handleBoundaryPathChange = () => {
+          if (isPrintViewportActiveRef.current) return;
           const updatedPoints = path.getArray().map((pt) => ({
             lat: pt.lat(),
             lng: pt.lng(),
@@ -973,7 +982,7 @@ export function StudioGoogleMap({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, boundariesKey, activeTool, layerSettings.showBoundaries]);
+  }, [mapReady, boundariesKey, activeTool, layerSettings.showBoundaries, isPrintViewportActive]);
 
   // 5b. Live Dynamic Boundary Style & Mask Updates (No marker flicker or object recreation)
   useEffect(() => {
@@ -1044,7 +1053,7 @@ export function StudioGoogleMap({
       }
     };
 
-    const isPointerMode = activeTool === 'pointer';
+    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
 
     const filteredHouseholds = households.filter((h) => {
       if (!layerSettings.householdFilter || layerSettings.householdFilter === 'all') return true;
@@ -1067,8 +1076,8 @@ export function StudioGoogleMap({
       wrapper.style.position = 'relative';
       wrapper.style.width = '0px';
       wrapper.style.height = '0px';
-      wrapper.style.cursor = isPointerMode ? 'grab' : 'pointer';
-      wrapper.style.pointerEvents = 'auto';
+      wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+      wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
       wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
 
       const isSelected = selectedHouseholdId === h.id;
@@ -1163,6 +1172,7 @@ export function StudioGoogleMap({
       // Native DOM click handler for instant reliable selection
       wrapper.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (isPrintViewportActiveRef.current) return;
         if (activeToolRef.current === 'pointer') {
           handleSelectHouseholdRef.current(h);
         }
@@ -1170,6 +1180,7 @@ export function StudioGoogleMap({
 
       // Drag event to move household location
       marker.addListener('dragend', () => {
+        if (isPrintViewportActiveRef.current) return;
         const newPos = marker.position;
         if (newPos) {
           const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
@@ -1190,7 +1201,7 @@ export function StudioGoogleMap({
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool]);
+  }, [mapReady, householdsKey, layerSettings.showHouses, layerSettings.showHouseLabels, layerSettings.householdFilter, activeTool, isPrintViewportActive]);
 
   // 6b. Zero-Flicker Household Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
@@ -1327,7 +1338,7 @@ export function StudioGoogleMap({
     if (!annotations) return;
 
     const { AdvancedMarkerElement } = google.maps.marker;
-    const isPointerMode = activeTool === 'pointer';
+    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
 
     // 8a. Roads: Cartographic road corridor with editable vertices, casing, pavement, center markings, and pointing callout badge
     if (layerSettings.showRoads !== false && annotations.roads && annotations.roads.length > 0) {
@@ -1383,6 +1394,7 @@ export function StudioGoogleMap({
           strokeWeight: isSelected ? casingWeight + 1 : casingWeight,
           strokeOpacity: 0.95,
           zIndex: isSelected ? 14 : 10,
+          clickable: !isPrintViewportActive,
           map,
         });
 
@@ -1393,7 +1405,8 @@ export function StudioGoogleMap({
           strokeWeight: surfaceWeight,
           strokeOpacity: 1.0,
           zIndex: isSelected ? 15 : 11,
-          editable: isPointerMode || activeTool === 'road',
+          editable: !isPrintViewportActive && (isPointerMode || activeTool === 'road'),
+          clickable: !isPrintViewportActive,
           map,
         });
 
@@ -1421,6 +1434,7 @@ export function StudioGoogleMap({
 
         // Right-click vertex deletion on road
         pavement.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
+          if (isPrintViewportActiveRef.current) return;
           if (e.vertex != null) {
             pavement.getPath().removeAt(e.vertex);
           }
@@ -1429,6 +1443,7 @@ export function StudioGoogleMap({
         // Sync vertex modifications across all 3 layers and propagate to database
         const roadPath = pavement.getPath();
         const handleRoadPathChange = () => {
+          if (isPrintViewportActiveRef.current) return;
           casing.setPath(roadPath);
           centerline.setPath(roadPath);
           highlightAura.setPath(roadPath);
@@ -1448,11 +1463,13 @@ export function StudioGoogleMap({
 
         // Click listeners on road polylines for selection & editing
         casing.addListener('click', () => {
+          if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             handleSelectRoadRef.current?.(road);
           }
         });
         pavement.addListener('click', () => {
+          if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             handleSelectRoadRef.current?.(road);
           }
@@ -1476,52 +1493,58 @@ export function StudioGoogleMap({
           roadCallout.style.width = '0px';
           roadCallout.style.height = '0px';
           roadCallout.style.cursor = isPointerMode ? 'pointer' : 'default';
-          roadCallout.style.pointerEvents = 'auto';
+          roadCallout.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
 
           labelDot = document.createElement('div');
           labelDot.style.position = 'absolute';
           labelDot.style.left = '-3px';
-          labelDot.style.bottom = '-3px';
+          labelDot.style.top = '-3px';
           labelDot.style.width = '6px';
           labelDot.style.height = '6px';
           labelDot.style.borderRadius = '50%';
-          labelDot.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
-          labelDot.style.border = '1.5px solid #FFFFFF';
-          labelDot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+          labelDot.style.backgroundColor = isSelected ? '#2563EB' : casingColor;
+          labelDot.style.border = '1px solid #FFFFFF';
+          labelDot.style.boxShadow = '0 1px 2px rgba(0,0,0,0.3)';
+          labelDot.style.zIndex = '2';
           labelDot.style.transition = 'background-color 0.15s ease-out';
+          roadCallout.appendChild(labelDot);
 
           labelStem = document.createElement('div');
           labelStem.style.position = 'absolute';
-          labelStem.style.left = '-1px';
+          labelStem.style.left = '-0.5px';
           labelStem.style.bottom = '3px';
-          labelStem.style.width = '2px';
-          labelStem.style.height = '10px';
-          labelStem.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+          labelStem.style.width = '1px';
+          labelStem.style.height = '12px';
+          labelStem.style.backgroundColor = isSelected ? '#2563EB' : casingColor;
+          labelStem.style.opacity = '0.7';
+          labelStem.style.zIndex = '1';
           labelStem.style.transition = 'background-color 0.15s ease-out';
+          roadCallout.appendChild(labelStem);
 
           labelText = document.createElement('div');
           labelText.style.position = 'absolute';
-          labelText.style.left = '0';
-          labelText.style.bottom = '13px';
+          labelText.style.left = '50%';
+          labelText.style.bottom = '15px';
           labelText.style.transform = 'translateX(-50%)';
           labelText.style.whiteSpace = 'nowrap';
-          labelText.style.fontSize = '11px';
-          labelText.style.fontWeight = '800';
-          labelText.style.color = isSelected ? '#1D4ED8' : '#1E293B';
-          labelText.style.paintOrder = 'stroke fill';
-          labelText.style.webkitTextStroke = '3px #FFFFFF';
-          labelText.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
+          labelText.style.fontSize = '9.5px';
+          labelText.style.fontWeight = '700';
+          labelText.style.color = isSelected ? '#1E3A8A' : '#1E293B';
+          labelText.style.backgroundColor = isSelected ? '#EFF6FF' : '#FFFFFF';
+          labelText.style.padding = '1px 5px';
+          labelText.style.borderRadius = '4px';
+          labelText.style.border = isSelected ? '1.5px solid #3B82F6' : '1px solid #CBD5E1';
+          labelText.style.boxShadow = isSelected
+            ? '0 2px 6px rgba(37,99,235,0.35)'
+            : '0 1px 3px rgba(0,0,0,0.18)';
           labelText.style.letterSpacing = '-0.01em';
-          labelText.style.lineHeight = '1.15';
-          labelText.style.transition = 'color 0.15s ease-out';
+          labelText.style.transition = 'all 0.15s ease-out';
           labelText.textContent = road.name;
-
-          roadCallout.appendChild(labelDot);
-          roadCallout.appendChild(labelStem);
           roadCallout.appendChild(labelText);
 
           roadCallout.addEventListener('click', (e) => {
             e.stopPropagation();
+            if (isPrintViewportActiveRef.current) return;
             if (activeToolRef.current === 'pointer') {
               handleSelectRoadRef.current?.(road);
             }
@@ -1529,9 +1552,10 @@ export function StudioGoogleMap({
 
           labelMarker = new AdvancedMarkerElement({
             map,
-            position: midPt,
+            position: { lat: midPt.lat, lng: midPt.lng },
+            title: road.name,
             content: roadCallout,
-            zIndex: isSelected ? 20 : 15,
+            zIndex: isSelected ? 30 : 18,
           });
           roadLabelMarkersRef.current.push(labelMarker);
         }
@@ -1566,8 +1590,8 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode ? 'grab' : 'pointer';
-        wrapper.style.pointerEvents = 'auto';
+        wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+        wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = landmark.label || 'Landmark';
 
         const isSelected = selectedLandmarkId === landmark.id;
@@ -1645,6 +1669,7 @@ export function StudioGoogleMap({
 
         wrapper.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             handleSelectLandmarkRef.current?.(landmark);
           }
@@ -1660,6 +1685,7 @@ export function StudioGoogleMap({
         });
 
         marker.addListener('dragend', () => {
+          if (isPrintViewportActiveRef.current) return;
           const newPos = marker.position;
           if (newPos) {
             const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
@@ -1690,8 +1716,8 @@ export function StudioGoogleMap({
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
-        wrapper.style.cursor = isPointerMode ? 'grab' : 'pointer';
-        wrapper.style.pointerEvents = 'auto';
+        wrapper.style.cursor = isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+        wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 
         // Pin Element: 24px wide, positioned left: -12px and bottom: 0px -> tip is PRECISELY at (0, 0)
@@ -1741,6 +1767,7 @@ export function StudioGoogleMap({
 
         wrapper.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             handleSelectStartFlagRef.current?.();
           }
@@ -1756,6 +1783,7 @@ export function StudioGoogleMap({
         });
 
         marker.addListener('dragend', () => {
+          if (isPrintViewportActiveRef.current) return;
           const newPos = marker.position;
           if (newPos) {
             const newLat = typeof newPos.lat === 'function' ? (newPos.lat as unknown as () => number)() : Number(newPos.lat);
@@ -1770,7 +1798,7 @@ export function StudioGoogleMap({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool]);
+  }, [mapReady, roadsAndLandmarksKey, layerSettings.showRoads, layerSettings.showLandmarks, layerSettings.showStartFlag, activeTool, isPrintViewportActive]);
 
   // 8b. Zero-Flicker Landmark & Road Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
