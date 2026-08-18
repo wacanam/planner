@@ -8,6 +8,7 @@ import {
   FileText,
   Home,
   MapPin,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +28,7 @@ import {
   useCongregationMembers,
   useCongregationTerritories,
   useCurrentUser,
+  useDashboardTour,
   useHouseholds,
   useMyAssignments,
 } from '@/hooks';
@@ -37,7 +40,7 @@ import {
   resolveUserAssignments,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import type { Assignment, Household } from '@/types/api';
+import type { Household } from '@/types/api';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
@@ -49,16 +52,21 @@ export default function CongregationDashboardClient() {
   const { data: territories = [], isLoading: territoriesLoading } =
     useCongregationTerritories(congregationId);
   const { assignments = [], isLoading: assignmentsLoading } = useMyAssignments(congregationId);
-  const { groups = [], isLoading: groupsLoading } = useCongregationGroups(congregationId);
+  const { groups = [] } = useCongregationGroups(congregationId);
   const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
+
+  const tour = useDashboardTour({
+    userId: user.id,
+    autoStart: true,
+  });
 
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
   }, [territories]);
 
   // Real-time door counts and coverage calculation per territory
-  const coverageByTerritoryId = useMemo(() => {
+  const _coverageByTerritoryId = useMemo(() => {
     const map = new Map<
       string,
       { totalDoors: number; workedDoors: number; coveragePercent: number }
@@ -67,7 +75,7 @@ export default function CongregationDashboardClient() {
     for (const h of households) {
       if (h.territoryId) {
         if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
-        byTerritory.get(h.territoryId)!.push(h);
+        byTerritory.get(h.territoryId)?.push(h);
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
@@ -112,7 +120,10 @@ export default function CongregationDashboardClient() {
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
         {/* Welcome & Quick Studio Trigger */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 rounded-3xl border border-primary/20">
+        <div
+          data-tour="welcome-banner"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 rounded-3xl border border-primary/20"
+        >
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
@@ -136,11 +147,23 @@ export default function CongregationDashboardClient() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => tour.startTour()}
+              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5 bg-card/80 hover:bg-muted border-primary/20 hover:border-primary/40 transition-all cursor-pointer shrink-0"
+              title="Start guided tour of Kanataran"
+            >
+              <Sparkles size={14} className="text-amber-500" />
+              <span>Tour Guide</span>
+            </Button>
+
             {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
               <Button
                 asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 shrink-0"
               >
                 <Link
                   href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
@@ -153,7 +176,7 @@ export default function CongregationDashboardClient() {
               <Button
                 asChild
                 variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
               >
                 <Link href={`/congregation/${congregationId}/territories`}>
                   <MapPin size={15} />
@@ -164,7 +187,7 @@ export default function CongregationDashboardClient() {
               <Button
                 asChild
                 variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
               >
                 <Link href={`/congregation/${congregationId}/territories`}>
                   <Compass size={15} />
@@ -176,7 +199,7 @@ export default function CongregationDashboardClient() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-tour="stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Territories"
             value={territoriesLoading ? '—' : territories.length}
@@ -215,7 +238,7 @@ export default function CongregationDashboardClient() {
         {/* Action Sections */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* My Active Working Territories */}
-          <Card className="lg:col-span-2 bg-card border-border shadow-xs">
+          <Card data-tour="active-assignments" className="lg:col-span-2 bg-card border-border shadow-xs">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Compass size={16} className="text-primary" />
@@ -254,21 +277,21 @@ export default function CongregationDashboardClient() {
                     return (
                       <div
                         key={assignment.id}
-                        className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all"
+                        className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all min-w-0"
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-bold text-sm text-foreground">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="font-bold text-sm text-foreground truncate min-w-0" title={`#${number} — ${name}`}>
                               #{number} — {name}
                             </p>
                             <Badge
                               variant="outline"
-                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40"
+                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0"
                             >
                               Working
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             Assigned on{' '}
                             {assignment.assignedAt
                               ? new Date(assignment.assignedAt).toLocaleDateString()
@@ -293,7 +316,7 @@ export default function CongregationDashboardClient() {
           </Card>
 
           {/* Quick Hub Navigator */}
-          <Card className="bg-card border-border shadow-xs">
+          <Card data-tour="records-hub" className="bg-card border-border shadow-xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <FileText size={16} className="text-primary" />
@@ -355,6 +378,21 @@ export default function CongregationDashboardClient() {
         </div>
       </main>
       <BottomTabBar />
+      <DashboardTourGuide
+        isOpen={tour.isOpen}
+        currentStepIndex={tour.currentStepIndex}
+        totalSteps={tour.totalSteps}
+        activeStep={tour.activeStep}
+        isFirstStep={tour.isFirstStep}
+        isLastStep={tour.isLastStep}
+        progressPercent={tour.progressPercent}
+        steps={tour.steps}
+        onNext={tour.nextStep}
+        onPrev={tour.prevStep}
+        onGoToStep={tour.goToStep}
+        onSkip={tour.skipTour}
+        onComplete={tour.completeTour}
+      />
     </ProtectedPage>
   );
 }

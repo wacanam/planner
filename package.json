@@ -7,6 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "mobile": "bun --cwd mobile start",
+    "mobile:typecheck": "bun --cwd mobile typecheck",
     "lint": "biome lint",
     "format": "biome format --write .",
     "test": "vitest run",

@@ -389,22 +389,22 @@ export default function TerritoriesClient() {
             {filtered.map((t) => (
               <Card
                 key={t.id}
-                className="bg-card border-border shadow-xs hover:border-primary/50 transition-all group flex flex-col justify-between"
+                className="bg-card border-border shadow-xs hover:border-primary/50 transition-all group flex flex-col justify-between min-w-0"
               >
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-sm text-primary">#{t.number}</span>
-                        <h2 className="font-bold text-sm text-foreground truncate">{t.name}</h2>
+                <CardContent className="p-5 space-y-4 min-w-0">
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-extrabold text-sm text-primary shrink-0">#{t.number}</span>
+                        <h2 className="font-bold text-sm text-foreground truncate min-w-0" title={t.name}>{t.name}</h2>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate" title={t.city || 'Congregation Area'}>
                         {t.city || 'Congregation Area'}
                       </p>
                     </div>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] uppercase font-bold py-0.5 px-2 ${statusColors[t.status] ?? ''}`}
+                      className={`text-[10px] uppercase font-bold py-0.5 px-2 shrink-0 ${statusColors[t.status] ?? ''}`}
                     >
                       {t.status}
                     </Badge>
@@ -431,19 +431,19 @@ export default function TerritoriesClient() {
 
                   {/* Assigned Info if assigned or pending */}
                   {(t.groupName || t.publisherName) && (
-                    <div className="pt-1 text-xs text-muted-foreground">
+                    <div className="pt-1 text-xs text-muted-foreground min-w-0">
                       {t.groupName ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <Users size={12} className="text-primary shrink-0" />
-                          <span className="truncate">
+                          <span className="truncate min-w-0" title={t.groupName}>
                             Group:{' '}
                             <strong className="text-foreground font-semibold">{t.groupName}</strong>
                           </span>
                         </div>
                       ) : t.publisherName ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           <User size={12} className="text-primary shrink-0" />
-                          <span className="truncate">
+                          <span className="truncate min-w-0" title={t.publisherName}>
                             Publisher:{' '}
                             <strong className="text-foreground font-semibold">
                               {t.publisherName}
@@ -454,15 +454,15 @@ export default function TerritoriesClient() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex items-center gap-2 pt-2 min-w-0">
                     <Button
                       asChild
                       size="sm"
-                      className="flex-1 rounded-xl text-xs font-semibold gap-1.5 shadow-sm"
+                      className="flex-1 rounded-xl text-xs font-semibold gap-1.5 shadow-sm min-w-0"
                     >
-                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
-                        <MapPin size={13} />
-                        <span>Studio Map</span>
+                      <Link href={`/congregation/${congregationId}/territories/${t.id}`} className="truncate min-w-0">
+                        <MapPin size={13} className="shrink-0" />
+                        <span className="truncate">Studio Map</span>
                       </Link>
                     </Button>
 
@@ -470,11 +470,11 @@ export default function TerritoriesClient() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl text-xs gap-1 hover:border-primary/50 hover:bg-primary/5"
+                        className="rounded-xl text-xs gap-1 hover:border-primary/50 hover:bg-primary/5 shrink-0"
                         onClick={() => handleOpenEdit(t)}
                         title="Edit territory details"
                       >
-                        <Pencil size={12} />
+                        <Pencil size={12} className="shrink-0" />
                         <span>Edit</span>
                       </Button>
                     )}
@@ -483,14 +483,14 @@ export default function TerritoriesClient() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2.5"
+                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2.5 shrink-0"
                         onClick={() => {
                           setDeleteConfirmTerritory(t);
                           setDeleteConfirmInput('');
                         }}
                         title="Permanently delete territory"
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={12} className="shrink-0" />
                         <span className="sr-only sm:not-sr-only">Delete</span>
                       </Button>
                     )}
@@ -499,7 +499,7 @@ export default function TerritoriesClient() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl text-xs gap-1"
+                        className="rounded-xl text-xs gap-1 shrink-0"
                         onClick={() => {
                           setAssignTerritory(t);
                           setAssignType('publisher');
@@ -507,7 +507,7 @@ export default function TerritoriesClient() {
                           setAssignGroupId('');
                         }}
                       >
-                        <UserCheck size={13} />
+                        <UserCheck size={13} className="shrink-0" />
                         <span>Assign</span>
                       </Button>
                     )}
@@ -516,11 +516,11 @@ export default function TerritoriesClient() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                         onClick={() => setRevokeConfirmTerritory(t)}
                         title="Revoke assignment and make territory available"
                       >
-                        <RotateCcw size={12} />
+                        <RotateCcw size={12} className="shrink-0" />
                         <span>Revoke</span>
                       </Button>
                     )}

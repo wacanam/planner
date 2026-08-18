@@ -161,18 +161,18 @@ export default function MyAssignmentsClient() {
                 return (
                   <Card
                     key={assignment.id}
-                    className="bg-card border-border shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between"
+                    className="bg-card border-border shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between min-w-0"
                   >
-                    <CardContent className="p-5 space-y-4 flex-1 flex flex-col justify-between">
-                      <div className="space-y-2.5">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <span className="font-extrabold text-sm text-primary">#{number}</span>
-                            <h3 className="font-bold text-base text-foreground truncate mt-0.5">
+                    <CardContent className="p-5 space-y-4 flex-1 flex flex-col justify-between min-w-0">
+                      <div className="space-y-2.5 min-w-0">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-extrabold text-sm text-primary shrink-0">#{number}</span>
+                            <h3 className="font-bold text-base text-foreground truncate mt-0.5 min-w-0" title={name}>
                               {name}
                             </h3>
                             {terr?.city && (
-                              <p className="text-[11px] text-muted-foreground">{terr.city}</p>
+                              <p className="text-[11px] text-muted-foreground truncate" title={terr.city}>{terr.city}</p>
                             )}
                           </div>
 

@@ -119,7 +119,10 @@ export function DashboardHeader() {
     .slice(0, 2);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background shadow-xs">
+    <header
+      data-tour="dashboard-header"
+      className="sticky top-0 z-40 w-full border-b border-border bg-background shadow-xs"
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
           {/* Brand Logo & Congregation */}
@@ -156,10 +159,13 @@ export function DashboardHeader() {
                     (href.includes('/territories') && pathname.includes('/territories')) ||
                     (href.includes('/my-assignments') && pathname.includes('/my-assignments'));
 
+                  const tourAttr = href.includes('/territories') ? 'nav-territories' : undefined;
+
                   return (
                     <Link
                       key={href}
                       href={href}
+                      data-tour={tourAttr}
                       className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all duration-150 ${
                         isActive
                           ? 'bg-primary/15 text-primary shadow-2xs font-bold'

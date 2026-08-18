@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Kanataran",
+    "slug": "kanataran",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "kanataran",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F3F0"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kanataran.planner",
+      "config": {
+        "googleMapsApiKey": "AIzaSyD0a4cvum24vx9xduk8kV7KHnUDQPIpsog"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Kanataran uses your location to show your position within assigned territories and navigate between households."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F3F0"
+      },
+      "package": "com.kanataran.planner",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD0a4cvum24vx9xduk8kV7KHnUDQPIpsog"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kanataran uses your location to show your position within assigned territories and navigate between households."
+        }
+      ],
+      "expo-sharing",
+      "expo-status-bar"
+    ]
+  }
+}
