@@ -31,7 +31,7 @@ import {
 } from '@/hooks';
 import { getUserGroupIds, isServiceOverseer, isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import type { Household } from '@/types/api';
+import type { Assignment, Household } from '@/types/api';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
