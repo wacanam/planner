@@ -51,15 +51,19 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Legal</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Legal & Support</h3>
             <ul className="space-y-2">
-              {['Privacy Policy', 'Terms of Service', 'Contact'].map((item) => (
-                <li key={item}>
+              {[
+                { label: 'Privacy Policy', href: '/privacy' },
+                { label: 'Terms of Service', href: '/terms' },
+                { label: 'Contact', href: '/contact' },
+              ].map((item) => (
+                <li key={item.label}>
                   <Link
-                    href="#"
+                    href={item.href}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {item}
+                    {item.label}
                   </Link>
                 </li>
               ))}

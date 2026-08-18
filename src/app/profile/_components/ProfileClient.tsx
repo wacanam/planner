@@ -373,13 +373,13 @@ export default function ProfilePage() {
         <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 sm:pb-12">
           {/* Profile Overview Hero Card */}
           <Card className="bg-card border-border shadow-xs overflow-hidden rounded-2xl sm:rounded-3xl">
-            <div className="h-16 sm:h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-b border-border/50 relative" />
+            <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 border-b border-border/40 relative" />
             <CardContent className="px-4 sm:px-6 pb-5 pt-0 relative">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-10 sm:-mt-12 mb-4">
-                {/* Avatar with Touch-friendly Upload Button */}
-                <div className="flex items-end gap-3 sm:gap-4">
-                  <div className="relative group shrink-0">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-background border-4 border-background shadow-md flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 -mt-10 sm:-mt-12 mb-4">
+                {/* Avatar with Touch-friendly Upload Button & User Details */}
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+                  <div className="relative group shrink-0 self-start">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-card border-4 border-card shadow-md flex items-center justify-center">
                       {avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -413,7 +413,7 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <div className="min-w-0 pb-1">
+                  <div className="min-w-0 pt-0 sm:pb-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg sm:text-xl font-extrabold text-foreground truncate">
                         {profile?.name || user.name || 'Publisher'}
@@ -426,14 +426,14 @@ export default function ProfilePage() {
                         {congregationRoleLabel.title}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
                       {profile?.email || user.email}
                     </p>
                   </div>
                 </div>
 
                 {/* Quick Photo Upload Action */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-1 sm:pt-0">
                   <Button
                     type="button"
                     variant="outline"

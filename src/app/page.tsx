@@ -1,7 +1,9 @@
 import {
   BarChart3,
+  BookOpen,
   ChevronRight,
   ClipboardCheck,
+  Layers,
   Map as MapIcon,
   MapPin,
   ShieldCheck,
@@ -47,7 +49,7 @@ const features = [
     icon: ShieldCheck,
     title: 'RBAC & Security',
     description:
-      'Role-based access for Service Overseers, Territory Servants, and Publishers. Secure by design.',
+      'Role-based access for Service Overseers, Territory Servants, Group Overseers, and Publishers. Secure by design.',
     color: 'bg-accent/30 text-accent-foreground',
   },
   {
@@ -90,22 +92,48 @@ const userTypes = [
     benefits: [
       'Full territory management dashboard',
       'Assign and track all congregation members',
-      'Coverage reports and analytics',
-      'User role management',
+      'Coverage reports and S-13 export analytics',
+      'User role and member permission management',
       'Territory history and audit logs',
     ],
   },
   {
-    icon: Users,
+    icon: Layers,
     title: 'Territory Servant',
     color: 'border-accent/40 bg-accent/5',
     iconColor: 'bg-accent/30 text-accent-foreground',
     benefits: [
-      'Manage assigned territory cards',
-      'Assign territories to publishers',
-      'Track returns and completion',
-      'View publisher activity',
-      'Mobile-optimized workflow',
+      'Manage assigned territory cards and inventory',
+      'Assign territories to publishers and groups',
+      'Track check-outs, returns, and completion',
+      'Print and export official territory cards',
+      'Mobile-optimized servant workflow',
+    ],
+  },
+  {
+    icon: Users,
+    title: 'Group Overseer',
+    color: 'border-secondary/40 bg-secondary/5',
+    iconColor: 'bg-secondary/30 text-secondary-foreground',
+    benefits: [
+      'Review and endorse territory requests for your group',
+      'Track group territory coverage and member activity',
+      'View active territory assignments within your group',
+      'Coordinate group field service arrangements',
+      'Direct collaboration with territory servants',
+    ],
+  },
+  {
+    icon: BookOpen,
+    title: 'Publisher',
+    color: 'border-primary/30 bg-primary/5',
+    iconColor: 'bg-primary/20 text-primary',
+    benefits: [
+      'Request territories directly from your phone or tablet',
+      'Interactive map navigation with street boundaries',
+      'Log door-to-door visits and notes completely offline',
+      'Track revisit notes, placements, and interest records',
+      'Share or transfer territory cards with ministry partners',
     ],
   },
 ];
@@ -255,7 +283,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {userTypes.map((type) => {
               const Icon = type.icon;
               return (
