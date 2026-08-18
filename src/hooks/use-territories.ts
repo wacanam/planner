@@ -416,8 +416,9 @@ export function useDeleteTerritory() {
   const remove = useCallback(async (id: string) => {
     setIsDeleting(true);
     try {
+      const now = nowIso();
       const firestore = getPlannerFirestore();
-      const [assignments, requests] = await Promise.all([
+      const [assignments, requests, households] = await Promise.all([
         getDocs(
           query(
             collection(firestore, FIRESTORE_COLLECTIONS.assignments),
@@ -425,18 +426,31 @@ export function useDeleteTerritory() {
           )
         ),
         getDocs(query(requestCollection(), where('territoryId', '==', id))),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.households),
+            where('territoryId', '==', id)
+          )
+        ),
       ]);
       const batch = writeBatch(firestore);
       batch.delete(territoryDocument(id));
       for (const assignment of assignments.docs) batch.delete(assignment.ref);
       for (const request of requests.docs) batch.delete(request.ref);
+      for (const household of households.docs) {
+        batch.update(household.ref, {
+          territoryId: null,
+          territoryNumber: null,
+          updatedAt: now,
+        });
+      }
       await batch.commit();
     } finally {
       setIsDeleting(false);
     }
   }, []);
 
-  return { remove, isDeleting };
+  return { remove, isDeleting, isPending: isDeleting };
 }
 
 export function useDeleteTerritoryRequest() {

@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
   canCreateTerritory,
+  canDeleteTerritory,
   canEditTerritory,
   canEditTerritoryInStudio,
   canReturnAssignment,
   canViewReports,
+  filterActiveAssignments,
+  getUserGroupIds,
   hasPermission,
   hasRole,
   isGroupOverseer,
@@ -15,7 +18,7 @@ import {
   isTerritoryServant,
   isUserAssignedToTerritory,
   isUserInGroup,
-  getUserGroupIds,
+  resolveUserAssignments,
 } from '../permissions';
 
 describe('hasPermission', () => {
@@ -99,6 +102,12 @@ describe('RBAC Matrix Helper Functions', () => {
     expect(canEditTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(canEditTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
     expect(canEditTerritory(UserRole.USER)).toBe(false);
+
+    expect(canDeleteTerritory(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canDeleteTerritory(UserRole.ADMIN)).toBe(true);
+    expect(canDeleteTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canDeleteTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canDeleteTerritory(UserRole.USER)).toBe(false);
   });
 });
 
@@ -177,24 +186,16 @@ describe('Group Roles and Territory Return Permissions', () => {
     };
 
     // Overseer is recognized as in group
-    expect(
-      isUserInGroup({ id: 'user-overseer-2' }, groupWithoutOverseerInMembers)
-    ).toBe(true);
+    expect(isUserInGroup({ id: 'user-overseer-2' }, groupWithoutOverseerInMembers)).toBe(true);
 
     // Assistant is recognized as in group
-    expect(
-      isUserInGroup({ id: 'user-assistant-2' }, groupWithoutOverseerInMembers)
-    ).toBe(true);
+    expect(isUserInGroup({ id: 'user-assistant-2' }, groupWithoutOverseerInMembers)).toBe(true);
 
     // Regular member in members array is in group
-    expect(
-      isUserInGroup({ id: 'user-pub-a' }, groupWithoutOverseerInMembers)
-    ).toBe(true);
+    expect(isUserInGroup({ id: 'user-pub-a' }, groupWithoutOverseerInMembers)).toBe(true);
 
     // Outsider is not in group
-    expect(
-      isUserInGroup({ id: 'user-outsider' }, groupWithoutOverseerInMembers)
-    ).toBe(false);
+    expect(isUserInGroup({ id: 'user-outsider' }, groupWithoutOverseerInMembers)).toBe(false);
 
     // getUserGroupIds returns the group for the overseer
     const groupsList = [groupWithoutOverseerInMembers];
@@ -341,5 +342,125 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
         []
       )
     ).toBe(false);
+  });
+
+  describe('resolveUserAssignments & filterActiveAssignments', () => {
+    const assignmentsList = [
+      {
+        id: 'a-1',
+        territoryId: 't-1',
+        congregationId: 'cong-1',
+        userId: 'user-wave',
+        assigneeEmail: 'wacanam20@gmail.com',
+        serviceGroupId: null,
+        status: 'pending_approval', // past / returned / pending
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-01',
+        assigneeName: 'Wave',
+        groupName: null,
+        assignedAt: '2026-08-01',
+        dueAt: null,
+        returnedAt: null,
+        notes: null,
+      },
+      {
+        id: 'a-2',
+        territoryId: 't-2',
+        congregationId: 'cong-1',
+        userId: 'user-other-1',
+        assigneeEmail: 'other1@gmail.com',
+        serviceGroupId: null,
+        status: 'assigned', // active assignment belonging to someone else
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-01',
+        assigneeName: 'Other 1',
+        groupName: null,
+        assignedAt: '2026-08-01',
+        dueAt: null,
+        returnedAt: null,
+        notes: null,
+      },
+      {
+        id: 'a-3',
+        territoryId: 't-3',
+        congregationId: 'cong-1',
+        userId: 'user-other-2',
+        assigneeEmail: 'other2@gmail.com',
+        serviceGroupId: null,
+        status: 'active', // active assignment belonging to someone else
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-01',
+        assigneeName: 'Other 2',
+        groupName: null,
+        assignedAt: '2026-08-01',
+        dueAt: null,
+        returnedAt: null,
+        notes: null,
+      },
+      {
+        id: 'a-4',
+        territoryId: 't-4',
+        congregationId: 'cong-1',
+        userId: null,
+        assigneeEmail: null,
+        serviceGroupId: 'group-1',
+        status: 'assigned', // group assignment for group-1
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-01',
+        assigneeName: null,
+        groupName: 'Group-1',
+        assignedAt: '2026-08-01',
+        dueAt: null,
+        returnedAt: null,
+        notes: null,
+      },
+    ];
+
+    it('correctly resolves 0 active assignments when user only has a pending/returned assignment', () => {
+      const user = { id: 'user-wave', email: 'wacanam20@gmail.com' };
+      const userGroupIds = new Set<string>(); // not in group-1
+
+      // 3 active assignments exist in congregation (a-2, a-3, a-4), but none belong to Wave
+      const userAssignments = resolveUserAssignments(user, assignmentsList, [], userGroupIds, 'cong-1');
+      expect(userAssignments).toHaveLength(1);
+      expect(userAssignments[0].id).toBe('a-1');
+
+      const active = filterActiveAssignments(userAssignments);
+      expect(active).toHaveLength(0);
+    });
+
+    it('resolves group-inherited assignments when user belongs to that group', () => {
+      const user = { id: 'user-wave', email: 'wacanam20@gmail.com' };
+      const userGroupIds = new Set(['group-1']);
+
+      const userAssignments = resolveUserAssignments(user, assignmentsList, [], userGroupIds, 'cong-1');
+      expect(userAssignments).toHaveLength(2); // a-1 (personal past) and a-4 (group active)
+
+      const active = filterActiveAssignments(userAssignments);
+      expect(active).toHaveLength(1);
+      expect(active[0].id).toBe('a-4');
+    });
+
+    it('falls back to territory document when assignment document is missing', () => {
+      const user = { id: 'user-wave', email: 'wacanam20@gmail.com' };
+      const territories = [
+        {
+          id: 't-5',
+          number: '5',
+          name: 'Territory 5',
+          status: 'assigned',
+          publisherId: 'user-wave',
+          publisherName: 'Wave',
+          congregationId: 'cong-1',
+        } as any,
+      ];
+
+      const userAssignments = resolveUserAssignments(user, [], territories, new Set(), 'cong-1');
+      expect(userAssignments).toHaveLength(1);
+      expect(userAssignments[0].territoryId).toBe('t-5');
+
+      const active = filterActiveAssignments(userAssignments);
+      expect(active).toHaveLength(1);
+    });
   });
 });

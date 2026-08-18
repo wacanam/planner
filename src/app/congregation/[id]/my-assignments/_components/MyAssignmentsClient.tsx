@@ -31,7 +31,12 @@ import {
   useMyAssignments,
   useReturnAssignment,
 } from '@/hooks';
-import { canReturnAssignment, getUserGroupIds } from '@/lib/permissions';
+import {
+  canReturnAssignment,
+  filterActiveAssignments,
+  getUserGroupIds,
+  resolveUserAssignments,
+} from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { toast } from 'sonner';
 import type { Assignment, Household } from '@/types/api';
@@ -79,83 +84,16 @@ export default function MyAssignmentsClient() {
 
   // Filter assignments: either directly assigned to user OR inherited from their service group
   const myAssignments = useMemo(() => {
-    if (!user?.id && !user?.email) return [];
-
-    const uid = user?.id?.trim();
-    const userEmail = user?.email?.toLowerCase().trim();
-    const results: Assignment[] = [];
-    const assignedTerritoryIds = new Set<string>();
-
-    // 1. Check explicit records in the assignments collection (matching by userId, email, or serviceGroupId)
-    for (const a of assignments) {
-      const aEmail = a.assigneeEmail?.toLowerCase().trim();
-      const aGroupId = a.serviceGroupId?.trim();
-
-      const isDirectPersonal =
-        Boolean(uid && a.userId === uid) ||
-        Boolean(userEmail && aEmail && aEmail === userEmail);
-
-      const isGroupInherited = Boolean(aGroupId && userGroupIds.has(aGroupId));
-
-      if (isDirectPersonal || isGroupInherited) {
-        results.push(a);
-        if (a.territoryId) {
-          assignedTerritoryIds.add(a.territoryId);
-        }
-      }
-    }
-
-    // 2. Fallback: Also check congregation territories directly for any assigned territories
-    // that may not have an explicit document in the assignments collection (matching strictly by publisherId, email, or groupId)
-    for (const t of territories) {
-      if (assignedTerritoryIds.has(t.id)) continue;
-
-      const tStatus = t.status?.toLowerCase().trim();
-      if (tStatus !== 'assigned' && tStatus !== 'active') continue;
-
-      const tPublisherId = t.publisherId?.trim();
-      const tGroupId = t.groupId?.trim();
-
-      const isDirectPersonal =
-        Boolean(uid && tPublisherId === uid) ||
-        Boolean(userEmail && tPublisherId?.toLowerCase() === userEmail);
-
-      const isGroupInherited = Boolean(tGroupId && userGroupIds.has(tGroupId));
-
-      if (isDirectPersonal || isGroupInherited) {
-        results.push({
-          id: `territory-${t.id}`,
-          territoryId: t.id,
-          congregationId: t.congregationId || congregationId,
-          userId: t.publisherId || null,
-          serviceGroupId: t.groupId || null,
-          groupName: t.groupName || (isGroupInherited ? 'Service Group' : null),
-          assigneeName: t.publisherName || null,
-          assigneeEmail: null,
-          status: 'assigned',
-          assignedAt: t.updatedAt || t.createdAt || new Date().toISOString(),
-          dueAt: null,
-          returnedAt: null,
-          notes: t.notes || null,
-          coverageAtAssignment: t.coveragePercent || '0',
-          createdAt: t.createdAt || new Date().toISOString(),
-          territoryNumber: t.number,
-          territoryName: t.name,
-        });
-      }
-    }
-
-    return results;
+    return resolveUserAssignments(user, assignments, territories, userGroupIds, congregationId);
   }, [assignments, territories, user, userGroupIds, congregationId]);
 
-  const active = myAssignments.filter((a) => {
-    const s = a.status?.toLowerCase().trim();
-    return s === 'assigned' || s === 'active';
-  });
-  const past = myAssignments.filter((a) => {
-    const s = a.status?.toLowerCase().trim();
-    return s !== 'assigned' && s !== 'active';
-  });
+  const active = useMemo(() => filterActiveAssignments(myAssignments), [myAssignments]);
+  const past = useMemo(() => {
+    return myAssignments.filter((a) => {
+      const s = a.status?.toLowerCase().trim();
+      return s !== 'assigned' && s !== 'active';
+    });
+  }, [myAssignments]);
   const isLoading = loadingAssignments || loadingTerritories || loadingGroups || loadingHouseholds;
 
   return (

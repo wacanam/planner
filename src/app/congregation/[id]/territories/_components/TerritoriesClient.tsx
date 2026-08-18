@@ -2,12 +2,14 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  AlertTriangle,
   FolderOpen,
   MapPin,
   Pencil,
   Plus,
   RotateCcw,
   Search,
+  Trash2,
   Undo2,
   User,
   UserCheck,
@@ -43,17 +45,18 @@ import {
   useCreateAssignment,
   useCreateTerritory,
   useCurrentUser,
+  useDeleteTerritory,
   useHouseholds,
   useRevokeTerritory,
   useUpdateCongregation,
   useUpdateTerritory,
 } from '@/hooks';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canDeleteTerritory, isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import {
   type CreateTerritoryFormData,
-  type UpdateTerritoryFormData,
   createTerritorySchema,
+  type UpdateTerritoryFormData,
   updateTerritorySchema,
 } from '@/schemas';
 import type { Household, Territory } from '@/types/api';
@@ -72,6 +75,7 @@ export default function TerritoriesClient() {
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const isServant = isTerritoryServant(user?.role);
+  const canDelete = canDeleteTerritory(user?.role);
 
   const { congregation } = useCongregation(congregationId);
   const { update: updateCongregation, isUpdating: updatingCenter } =
@@ -85,6 +89,7 @@ export default function TerritoriesClient() {
     useCreateTerritory(congregationId);
   const { create: createAssignment, isPending: assigningTerritory } = useCreateAssignment();
   const { revoke: revokeTerritory, isPending: revokingTerritory } = useRevokeTerritory();
+  const { remove: deleteTerritory, isDeleting: deletingTerritory } = useDeleteTerritory();
 
   const coverageByTerritoryId = useMemo(() => {
     const map = new Map<
@@ -110,6 +115,8 @@ export default function TerritoriesClient() {
   const [editTerritory, setEditTerritory] = useState<Territory | null>(null);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
   const [revokeConfirmTerritory, setRevokeConfirmTerritory] = useState<Territory | null>(null);
+  const [deleteConfirmTerritory, setDeleteConfirmTerritory] = useState<Territory | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
   const [assignUserId, setAssignUserId] = useState('');
   const [assignGroupId, setAssignGroupId] = useState('');
@@ -472,6 +479,22 @@ export default function TerritoriesClient() {
                       </Button>
                     )}
 
+                    {canDelete && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2.5"
+                        onClick={() => {
+                          setDeleteConfirmTerritory(t);
+                          setDeleteConfirmInput('');
+                        }}
+                        title="Permanently delete territory"
+                      >
+                        <Trash2 size={12} />
+                        <span className="sr-only sm:not-sr-only">Delete</span>
+                      </Button>
+                    )}
+
                     {isServant && t.status === 'available' && (
                       <Button
                         size="sm"
@@ -632,22 +655,43 @@ export default function TerritoriesClient() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl text-xs"
-                onClick={() => setEditTerritory(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="rounded-xl text-xs font-semibold"
-                disabled={updatingTerritory}
-              >
-                {updatingTerritory ? 'Saving…' : 'Save Changes'}
-              </Button>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/70 mt-2">
+              {canDelete && editTerritory ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-xl text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 px-2.5"
+                  onClick={() => {
+                    const target = editTerritory;
+                    setEditTerritory(null);
+                    setDeleteConfirmTerritory(target);
+                    setDeleteConfirmInput('');
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Territory</span>
+                </Button>
+              ) : (
+                <div />
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => setEditTerritory(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="rounded-xl text-xs font-semibold"
+                  disabled={updatingTerritory}
+                >
+                  {updatingTerritory ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
             </div>
           </form>
         </ResponsiveDialog>
@@ -863,6 +907,126 @@ export default function TerritoriesClient() {
           }}
           loading={revokingTerritory}
         />
+
+        {/* Delete Territory Strong Warning Dialog */}
+        <ResponsiveDialog
+          open={Boolean(deleteConfirmTerritory)}
+          onOpenChange={(open) => {
+            if (!open && !deletingTerritory) {
+              setDeleteConfirmTerritory(null);
+              setDeleteConfirmInput('');
+            }
+          }}
+          title={
+            deleteConfirmTerritory
+              ? `Delete Territory #${deleteConfirmTerritory.number}`
+              : 'Delete Territory'
+          }
+          description="Permanently delete this territory and related assignment records"
+        >
+          {deleteConfirmTerritory && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <AlertTriangle size={18} className="shrink-0 text-destructive" />
+                  <span>Irreversible Action — Strong Warning!</span>
+                </div>
+                <p className="leading-relaxed font-medium">
+                  You are about to permanently delete{' '}
+                  <strong className="underline font-bold">
+                    Territory #{deleteConfirmTerritory.number} — {deleteConfirmTerritory.name}
+                  </strong>
+                  .
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-muted-foreground dark:text-rose-300/80">
+                  <li>
+                    The territory boundary coordinates, drawn road overlays, and landmark pins will
+                    be permanently deleted.
+                  </li>
+                  <li>
+                    All active and past assignments, plus pending requests for this territory, will
+                    be permanently purged.
+                  </li>
+                  <li>
+                    Any household records in this territory will remain{' '}
+                    <strong>safely preserved</strong> in your congregation directory and simply
+                    unlinked from this territory.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="delete-confirm-input"
+                  className="text-xs font-semibold text-foreground"
+                >
+                  To confirm deletion, please type the territory number{' '}
+                  <span className="font-mono font-bold text-destructive underline">
+                    {deleteConfirmTerritory.number}
+                  </span>{' '}
+                  below:
+                </Label>
+                <Input
+                  id="delete-confirm-input"
+                  placeholder={`Type "${deleteConfirmTerritory.number}" to confirm`}
+                  value={deleteConfirmInput}
+                  onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                  disabled={deletingTerritory}
+                  className="h-9 rounded-xl text-xs border-destructive/40 focus-visible:ring-destructive"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs"
+                  onClick={() => {
+                    setDeleteConfirmTerritory(null);
+                    setDeleteConfirmInput('');
+                  }}
+                  disabled={deletingTerritory}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-sm"
+                  disabled={
+                    deleteConfirmInput.trim().toLowerCase() !==
+                      deleteConfirmTerritory.number.trim().toLowerCase() || deletingTerritory
+                  }
+                  onClick={async () => {
+                    if (
+                      deleteConfirmInput.trim().toLowerCase() !==
+                      deleteConfirmTerritory.number.trim().toLowerCase()
+                    ) {
+                      return;
+                    }
+                    try {
+                      const targetNumber = deleteConfirmTerritory.number;
+                      await deleteTerritory(deleteConfirmTerritory.id);
+                      toast.success(`Territory #${targetNumber} has been permanently deleted.`);
+                      setDeleteConfirmTerritory(null);
+                      setDeleteConfirmInput('');
+                    } catch (err: any) {
+                      toast.error(err?.message || 'Failed to delete territory');
+                    }
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>
+                    {deletingTerritory ? 'Deleting Territory…' : 'Permanently Delete Territory'}
+                  </span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </ResponsiveDialog>
       </main>
       <BottomTabBar />
     </ProtectedPage>

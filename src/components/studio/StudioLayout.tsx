@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Edit, Flag, Home, MapPin, Square, Trash2, X } from 'lucide-react';
+import { AlertCircle, Edit, Flag, Home, MapPin, Milestone, Square, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -392,7 +392,7 @@ export function StudioLayout({
     setTargetCamera({ tilt: t, immediate, timestamp: Date.now() });
   };
 
-  const handleRotateBy = (delta: number) => {
+  const _handleRotateBy = (delta: number) => {
     setCamera((prev) => {
       const nextHeading = (((prev.heading + delta) % 360) + 360) % 360;
       setTargetCamera({ heading: nextHeading, immediate: true, timestamp: Date.now() });
@@ -697,9 +697,6 @@ export function StudioLayout({
           onSelectRoad={(road) => {
             dismissAllFloatingCards();
             setSelectedRoad(road);
-            if (!isReadOnly) {
-              setRoadDialogOpen(true);
-            }
           }}
           onUpdateRoadPoints={async (roadId, points) => {
             if (!territory?.id || isReadOnly) return;
@@ -806,6 +803,7 @@ export function StudioLayout({
           onCameraChange={setCamera}
           currentCamera={camera}
           selectedHouseholdId={selectedHousehold?.id}
+          selectedBoundaryId={selectedBoundary?.id}
           selectedLandmarkId={selectedLandmark?.id}
           selectedRoadId={selectedRoad?.id}
           userLocation={userLocation}
@@ -1174,6 +1172,76 @@ export function StudioLayout({
                       });
                       toast.success('Landmark deleted');
                       setSelectedLandmark(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Selected Road Quick Info Card */}
+      {selectedRoad && (
+        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                  <Milestone size={16} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-foreground leading-snug">
+                    {selectedRoad.name || 'Road Corridor'}
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {selectedRoad.color || 'street'} • {selectedRoad.points?.length || 0} vertices
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground"
+                onClick={() => setSelectedRoad(null)}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+
+            {!isReadOnly && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                  onClick={() => setRoadDialogOpen(true)}
+                >
+                  <Edit size={13} />
+                  <span>Edit Road Details</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                  title="Delete Road"
+                  onClick={async () => {
+                    if (!territory?.id) return;
+                    if (
+                      window.confirm(
+                        `Delete road "${selectedRoad.name || 'this road'}" from territory?`
+                      )
+                    ) {
+                      const existingRoads = territory.annotations?.roads || [];
+                      const filtered = existingRoads.filter((r) => r.id !== selectedRoad.id);
+                      await saveAnnotations({
+                        ...territory.annotations,
+                        roads: filtered,
+                      });
+                      toast.success('Road deleted');
+                      setSelectedRoad(null);
                     }
                   }}
                 >

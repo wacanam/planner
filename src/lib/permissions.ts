@@ -1,5 +1,5 @@
 import { UserRole } from '@/lib/roles';
-import type { Household, HouseholdShare } from '@/types/api';
+import type { Assignment, Household, HouseholdShare, Territory } from '@/types/api';
 
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [
@@ -70,6 +70,10 @@ export function canCreateTerritory(role?: string | null): boolean {
 }
 
 export function canEditTerritory(role?: string | null): boolean {
+  return isTerritoryServant(role);
+}
+
+export function canDeleteTerritory(role?: string | null): boolean {
   return isTerritoryServant(role);
 }
 
@@ -367,6 +371,108 @@ export function canEditTerritoryInStudio(
   if (!user?.id) return false;
   if (isTerritoryServant(user.role)) return true;
   return isUserAssignedToTerritory(user, assignments, userGroupIds);
+}
+
+/**
+ * Resolves all assignments belonging to a user (direct personal or inherited through their service groups),
+ * with fallback support for territories that are marked assigned/active directly on the territory document.
+ */
+export function resolveUserAssignments(
+  user: { id?: string | null; email?: string | null } | null | undefined,
+  assignments: Assignment[] = [],
+  territories: Territory[] = [],
+  userGroupIds: Set<string> | string[] = [],
+  congregationId?: string | null
+): Assignment[] {
+  if (!user?.id && !user?.email) return [];
+
+  const uid = user?.id?.trim();
+  const userEmail = user?.email?.toLowerCase().trim();
+  const groupSet = userGroupIds instanceof Set ? userGroupIds : new Set(userGroupIds);
+  const results: Assignment[] = [];
+  const assignedTerritoryIds = new Set<string>();
+
+  // 1. Check explicit records in the assignments collection (matching by userId, email, or serviceGroupId)
+  for (const a of assignments) {
+    const aEmail = a.assigneeEmail?.toLowerCase().trim();
+    const aGroupId = a.serviceGroupId?.trim();
+
+    const isDirectPersonal =
+      Boolean(uid && a.userId === uid) ||
+      Boolean(userEmail && aEmail && aEmail === userEmail);
+
+    const isGroupInherited = Boolean(aGroupId && groupSet.has(aGroupId));
+
+    if (isDirectPersonal || isGroupInherited) {
+      results.push(a);
+      if (a.territoryId) {
+        assignedTerritoryIds.add(a.territoryId);
+      }
+    }
+  }
+
+  // 2. Fallback: Also check congregation territories directly for any assigned territories
+  // that may not have an explicit document in the assignments collection (matching strictly by publisherId, email, or groupId)
+  for (const t of territories) {
+    if (assignedTerritoryIds.has(t.id)) continue;
+
+    const tStatus = t.status?.toLowerCase().trim();
+    if (tStatus !== 'assigned' && tStatus !== 'active') continue;
+
+    const tPublisherId = t.publisherId?.trim();
+    const tGroupId = t.groupId?.trim();
+
+    const isDirectPersonal =
+      Boolean(uid && tPublisherId === uid) ||
+      Boolean(userEmail && tPublisherId?.toLowerCase() === userEmail);
+
+    const isGroupInherited = Boolean(tGroupId && groupSet.has(tGroupId));
+
+    if (isDirectPersonal || isGroupInherited) {
+      results.push({
+        id: `territory-${t.id}`,
+        territoryId: t.id,
+        congregationId: t.congregationId || congregationId || null,
+        userId: t.publisherId || null,
+        serviceGroupId: t.groupId || null,
+        groupName: t.groupName || (isGroupInherited ? 'Service Group' : null),
+        assigneeName: t.publisherName || null,
+        assigneeEmail: null,
+        status: 'assigned',
+        endorsementStatus: 'approved',
+        endorsedBy: null,
+        endorsedByName: null,
+        endorsedAt: null,
+        approvedBy: null,
+        approvedByName: null,
+        approvedAt: null,
+        rejectedBy: null,
+        rejectedByName: null,
+        rejectedAt: null,
+        rejectionReason: null,
+        assignedAt: t.updatedAt || t.createdAt || new Date().toISOString(),
+        dueAt: null,
+        returnedAt: null,
+        notes: t.notes || null,
+        coverageAtAssignment: t.coveragePercent || '0',
+        createdAt: t.createdAt || new Date().toISOString(),
+        territoryNumber: t.number,
+        territoryName: t.name,
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Filters an assignment list for active assignments (status === 'assigned' or 'active').
+ */
+export function filterActiveAssignments(assignments: Assignment[]): Assignment[] {
+  return assignments.filter((a) => {
+    const s = a.status?.toLowerCase().trim();
+    return s === 'assigned' || s === 'active';
+  });
 }
 
 /**

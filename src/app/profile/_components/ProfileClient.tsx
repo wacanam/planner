@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
@@ -53,6 +53,7 @@ import {
   useCongregation,
   useCongregationGroups,
   useCongregationMembers,
+  useCongregationTerritories,
   useCurrentUser,
   useMyAccountRequests,
   useMyAssignments,
@@ -62,7 +63,13 @@ import {
   useUpdateProfile,
 } from '@/hooks';
 import { signOut } from '@/lib/firebase/auth';
-import { isSystemAdmin, isUserInGroup } from '@/lib/permissions';
+import {
+  filterActiveAssignments,
+  getUserGroupIds,
+  isSystemAdmin,
+  isUserInGroup,
+  resolveUserAssignments,
+} from '@/lib/permissions';
 import type { NotificationSoundStyle } from '@/types/api';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
@@ -75,6 +82,7 @@ export default function ProfilePage() {
   const { congregation } = useCongregation(congregationId);
   const { data: groups = [] } = useCongregationGroups(congregationId);
   const { data: members = [] } = useCongregationMembers(congregationId);
+  const { data: territories = [] } = useCongregationTerritories(congregationId);
   const { data: assignments = [] } = useMyAssignments(congregationId);
 
   const updateProfile = useUpdateProfile();
@@ -249,8 +257,18 @@ export default function ProfilePage() {
     };
   })();
 
-  // Active assignments
-  const activeAssignments = assignments.filter((a) => a.status === 'active');
+  // Active assignments for current user
+  const userGroupIds = useMemo(() => getUserGroupIds(user, groups), [groups, user]);
+  const activeAssignments = useMemo(() => {
+    const userAssignments = resolveUserAssignments(
+      user,
+      assignments,
+      territories,
+      userGroupIds,
+      congregationId
+    );
+    return filterActiveAssignments(userAssignments);
+  }, [user, assignments, territories, userGroupIds, congregationId]);
 
   const {
     pendingLeaveRequest,

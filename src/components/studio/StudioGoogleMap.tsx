@@ -55,6 +55,7 @@ interface StudioGoogleMapProps {
   onCameraChange?: (camera: { heading: number; tilt: number }) => void;
   currentCamera?: { heading: number; tilt: number };
   selectedHouseholdId?: string | null;
+  selectedBoundaryId?: string | null;
   selectedLandmarkId?: string | null;
   selectedRoadId?: string | null;
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
@@ -265,6 +266,215 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
   }
 }
 
+interface AttachLongPressDragOptions {
+  wrapper: HTMLElement;
+  pinContainer: HTMLElement;
+  marker: google.maps.marker.AdvancedMarkerElement;
+  mapInstanceRef: React.MutableRefObject<google.maps.Map | null>;
+  mapContainerRef: React.MutableRefObject<HTMLDivElement | null>;
+  overlayRef: React.MutableRefObject<google.maps.OverlayView | null>;
+  isReadOnlyRef: React.MutableRefObject<boolean>;
+  isPrintViewportActiveRef: React.MutableRefObject<boolean>;
+  activeToolRef: React.MutableRefObject<StudioTool>;
+  onSelect: () => void;
+  onMove?: (lat: number, lng: number) => void;
+  getIsSelected?: () => boolean;
+}
+
+function attachLongPressDrag({
+  wrapper,
+  pinContainer,
+  marker,
+  mapInstanceRef,
+  mapContainerRef,
+  overlayRef,
+  isReadOnlyRef,
+  isPrintViewportActiveRef,
+  activeToolRef,
+  onSelect,
+  onMove,
+  getIsSelected,
+}: AttachLongPressDragOptions) {
+  let pressTimer: NodeJS.Timeout | null = null;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let pointerMoved = false;
+  let suppressClickUntil = 0;
+
+  const cleanupListeners = () => {
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+    window.removeEventListener('pointercancel', handlePointerCancel);
+  };
+
+  const handlePointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    if (
+      isReadOnlyRef.current ||
+      isPrintViewportActiveRef.current ||
+      activeToolRef.current !== 'pointer'
+    ) {
+      return;
+    }
+
+    startX = e.clientX;
+    startY = e.clientY;
+    pointerMoved = false;
+    isDragging = false;
+
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+    }
+
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      if (
+        isReadOnlyRef.current ||
+        isPrintViewportActiveRef.current ||
+        activeToolRef.current !== 'pointer'
+      ) {
+        return;
+      }
+
+      isDragging = true;
+      suppressClickUntil = Date.now() + 600;
+
+      // 1. Tactile haptic feedback
+      try {
+        if (
+          typeof navigator !== 'undefined' &&
+          'vibrate' in navigator &&
+          typeof navigator.vibrate === 'function'
+        ) {
+          navigator.vibrate([45, 30, 45]);
+        }
+      } catch {
+        // Haptic feedback not supported on this browser/environment
+      }
+
+      // 2. Visual feedback: lift marker up, intensify shadow, change cursor
+      pinContainer.style.transition =
+        'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease-out';
+      pinContainer.style.transform = 'scale(1.28) translateY(-10px)';
+      pinContainer.style.filter = 'drop-shadow(0 14px 20px rgba(0,0,0,0.45))';
+      wrapper.style.cursor = 'grabbing';
+
+      // 3. Temporarily disable map panning during marker drag
+      mapInstanceRef.current?.setOptions({ gestureHandling: 'none' });
+    }, 500);
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!isDragging) {
+      // If pointer moved more than 7px before 500ms, cancel long-press timer (this is a pan gesture or quick click)
+      const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+      if (dist > 7) {
+        pointerMoved = true;
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      }
+      return;
+    }
+
+    // Is dragging!
+    e.preventDefault();
+    pointerMoved = true;
+
+    const proj = overlayRef.current?.getProjection();
+    const mapRect = mapContainerRef.current?.getBoundingClientRect();
+    if (proj && mapRect) {
+      const containerX = e.clientX - mapRect.left;
+      const containerY = e.clientY - mapRect.top;
+      const latLng = proj.fromContainerPixelToLatLng(new google.maps.Point(containerX, containerY));
+      if (latLng) {
+        marker.position = { lat: latLng.lat(), lng: latLng.lng() };
+      }
+    }
+  };
+
+  const handlePointerUp = (_e: PointerEvent) => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+    cleanupListeners();
+
+    if (isDragging) {
+      isDragging = false;
+      suppressClickUntil = Date.now() + 600;
+
+      // Re-enable map gestures
+      mapInstanceRef.current?.setOptions({ gestureHandling: 'greedy' });
+
+      // Reset visual transform back to normal / selected state
+      const isSelected = getIsSelected?.() ?? false;
+      pinContainer.style.transition = 'transform 0.15s ease-out, filter 0.15s ease-out';
+      pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
+      pinContainer.style.filter = isSelected
+        ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))'
+        : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
+      wrapper.style.cursor =
+        !isReadOnlyRef.current && activeToolRef.current === 'pointer' ? 'grab' : 'pointer';
+
+      if (pointerMoved) {
+        const finalPos = marker.position;
+        if (finalPos && onMove) {
+          const finalLat =
+            typeof finalPos.lat === 'function'
+              ? (finalPos.lat as () => number)()
+              : Number(finalPos.lat);
+          const finalLng =
+            typeof finalPos.lng === 'function'
+              ? (finalPos.lng as () => number)()
+              : Number(finalPos.lng);
+          if (!Number.isNaN(finalLat) && !Number.isNaN(finalLng)) {
+            onMove(finalLat, finalLng);
+          }
+        }
+      }
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+    cleanupListeners();
+
+    if (isDragging) {
+      isDragging = false;
+      mapInstanceRef.current?.setOptions({ gestureHandling: 'greedy' });
+      const isSelected = getIsSelected?.() ?? false;
+      pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
+      pinContainer.style.filter = isSelected
+        ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))'
+        : 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
+    }
+  };
+
+  const handleClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    if (Date.now() < suppressClickUntil) {
+      return;
+    }
+    if (isPrintViewportActiveRef.current) return;
+    if (activeToolRef.current === 'pointer') {
+      onSelect();
+    }
+  };
+
+  wrapper.addEventListener('pointerdown', handlePointerDown);
+  wrapper.addEventListener('click', handleClick);
+}
+
 export function StudioGoogleMap({
   territory,
   congregation,
@@ -294,6 +504,7 @@ export function StudioGoogleMap({
   targetCamera,
   onCameraChange,
   selectedHouseholdId,
+  selectedBoundaryId,
   selectedLandmarkId,
   selectedRoadId,
   userLocation,
@@ -304,7 +515,9 @@ export function StudioGoogleMap({
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const overlayRef = useRef<google.maps.OverlayView | null>(null);
   const polygonsRef = useRef<google.maps.Polygon[]>([]);
+  const polygonsDataRef = useRef<Array<{ id: string; polygon: google.maps.Polygon }>>([]);
   const maskPolygonRef = useRef<google.maps.Polygon | null>(null);
   const drawingPolysRef = useRef<(google.maps.Polyline | google.maps.Polygon)[]>([]);
   const drawingMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
@@ -495,6 +708,18 @@ export function StudioGoogleMap({
   const handleCameraChangeRef = useRef(onCameraChange);
   handleCameraChangeRef.current = onCameraChange;
 
+  const selectedHouseholdIdRef = useRef(selectedHouseholdId);
+  selectedHouseholdIdRef.current = selectedHouseholdId;
+
+  const selectedBoundaryIdRef = useRef(selectedBoundaryId);
+  selectedBoundaryIdRef.current = selectedBoundaryId;
+
+  const selectedLandmarkIdRef = useRef(selectedLandmarkId);
+  selectedLandmarkIdRef.current = selectedLandmarkId;
+
+  const selectedRoadIdRef = useRef(selectedRoadId);
+  selectedRoadIdRef.current = selectedRoadId;
+
   // 1. Initialize Google Map ONCE on mount
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -510,7 +735,9 @@ export function StudioGoogleMap({
 
     async function initMap() {
       try {
-        const { Map, RenderingType } = (await importLibrary('maps')) as google.maps.MapsLibrary & {
+        const { Map: GoogleMap, RenderingType } = (await importLibrary(
+          'maps'
+        )) as google.maps.MapsLibrary & {
           RenderingType?: { VECTOR: google.maps.RenderingType; RASTER: google.maps.RenderingType };
         };
         await importLibrary('geometry');
@@ -523,7 +750,7 @@ export function StudioGoogleMap({
 
         const boundaries = getTerritoryBoundaries(territory);
         const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';
-        const map = new Map(mapContainerRef.current, {
+        const map = new GoogleMap(mapContainerRef.current, {
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
           mapId,
@@ -581,6 +808,12 @@ export function StudioGoogleMap({
         map.addListener('tilt_changed', syncCameraState);
         map.addListener('camera_changed', syncCameraState);
 
+        // Attach OverlayView for accurate Container Pixel <-> LatLng coordinate projection calculations
+        const overlay = new google.maps.OverlayView();
+        overlay.draw = () => {};
+        overlay.setMap(map);
+        overlayRef.current = overlay;
+
         mapInstanceRef.current = map;
         setMapReady(true);
       } catch (err: unknown) {
@@ -599,6 +832,10 @@ export function StudioGoogleMap({
 
     return () => {
       isMounted = false;
+      if (overlayRef.current) {
+        overlayRef.current.setMap(null);
+        overlayRef.current = null;
+      }
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
@@ -919,8 +1156,11 @@ export function StudioGoogleMap({
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined') return;
 
-    polygonsRef.current.forEach((p) => p.setMap(null));
+    polygonsRef.current.forEach((p) => {
+      p.setMap(null);
+    });
     polygonsRef.current = [];
+    polygonsDataRef.current = [];
 
     if (maskPolygonRef.current) {
       maskPolygonRef.current.setMap(null);
@@ -928,10 +1168,6 @@ export function StudioGoogleMap({
     }
 
     const boundaries = getTerritoryBoundaries(territory);
-    const isEditable =
-      !isReadOnly &&
-      !isPrintViewportActive &&
-      (activeTool === 'pointer' || activeTool === 'boundary');
     const effectiveDisplay = resolveBoundaryDisplay(boundaryDisplay);
 
     // Render outside dimming mask with cutouts for territory boundaries
@@ -958,18 +1194,25 @@ export function StudioGoogleMap({
       boundaries.forEach((boundary) => {
         if (!boundary.points || boundary.points.length < 3) return;
 
+        const isSelected = selectedBoundaryId === boundary.id;
+        const isEditable =
+          !isReadOnly &&
+          !isPrintViewportActive &&
+          isSelected &&
+          activeTool === 'pointer';
+
         const polygon = new google.maps.Polygon({
           paths: boundary.points,
           strokeColor: boundary.color || effectiveDisplay.strokeColor || effectiveDisplay.fillColor,
           strokeOpacity: 0.9,
-          strokeWeight: 3,
+          strokeWeight: isSelected ? 4 : 3,
           fillColor: boundary.color || effectiveDisplay.fillColor,
           fillOpacity: effectiveDisplay.fillOpacity,
           editable: isEditable,
           draggable: false,
           map,
           clickable: !isPrintViewportActive,
-          zIndex: 2,
+          zIndex: isSelected ? 5 : 2,
         });
 
         // Handle right-click to delete vertex
@@ -1022,6 +1265,7 @@ export function StudioGoogleMap({
         path.addListener('remove_at', handleBoundaryPathChange);
 
         polygonsRef.current.push(polygon);
+        polygonsDataRef.current.push({ id: boundary.id, polygon });
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1059,6 +1303,19 @@ export function StudioGoogleMap({
     boundaryDisplay?.maskOpacity,
     boundaryDisplay?.strokeColor,
   ]);
+
+  // 5c. Zero-Flicker Boundary Selection Synchronizer (In-place editable toggling with 0 polygon rebuilds)
+  useEffect(() => {
+    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
+    polygonsDataRef.current.forEach(({ id, polygon }) => {
+      const isSelected = selectedBoundaryId === id;
+      polygon.setEditable(isSelected && !isReadOnly && isPointerMode);
+      polygon.setOptions({
+        strokeWeight: isSelected ? 4 : 3,
+        zIndex: isSelected ? 5 : 2,
+      });
+    });
+  }, [selectedBoundaryId, activeTool, isReadOnly, isPrintViewportActive]);
 
   // 6. Render Household Markers with Teardrop Pin Shape & Anchor Point at Tip
   useEffect(() => {
@@ -1213,36 +1470,23 @@ export function StudioGoogleMap({
         position: { lat, lng },
         title: h.address,
         content: wrapper,
-        gmpDraggable: !isReadOnly && isPointerMode,
+        gmpDraggable: false,
         zIndex: isSelected ? 50 : 35,
       });
 
-      // Native DOM click handler for instant reliable selection
-      wrapper.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isPrintViewportActiveRef.current) return;
-        if (activeToolRef.current === 'pointer') {
-          handleSelectHouseholdRef.current(h);
-        }
-      });
-
-      // Drag event to move household location
-      marker.addListener('dragend', () => {
-        if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
-        const newPos = marker.position;
-        if (newPos) {
-          const newLat =
-            typeof newPos.lat === 'function'
-              ? (newPos.lat as unknown as () => number)()
-              : Number(newPos.lat);
-          const newLng =
-            typeof newPos.lng === 'function'
-              ? (newPos.lng as unknown as () => number)()
-              : Number(newPos.lng);
-          if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
-            handleMoveHouseholdRef.current?.(h.id, newLat, newLng);
-          }
-        }
+      attachLongPressDrag({
+        wrapper,
+        pinContainer,
+        marker,
+        mapInstanceRef,
+        mapContainerRef,
+        overlayRef,
+        isReadOnlyRef,
+        isPrintViewportActiveRef,
+        activeToolRef,
+        onSelect: () => handleSelectHouseholdRef.current(h),
+        onMove: (newLat, newLng) => handleMoveHouseholdRef.current?.(h.id, newLat, newLng),
+        getIsSelected: () => selectedHouseholdIdRef.current === h.id,
       });
 
       householdMarkersRef.current.push(marker);
@@ -1288,7 +1532,9 @@ export function StudioGoogleMap({
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
 
-    drawingPolysRef.current.forEach((p) => p.setMap(null));
+    drawingPolysRef.current.forEach((p) => {
+      p.setMap(null);
+    });
     drawingPolysRef.current = [];
 
     drawingMarkersRef.current.forEach((m) => {
@@ -1376,7 +1622,9 @@ export function StudioGoogleMap({
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
 
-    roadPolylinesRef.current.forEach((r) => r.setMap(null));
+    roadPolylinesRef.current.forEach((r) => {
+      r.setMap(null);
+    });
     roadPolylinesRef.current = [];
     roadPolylinesDataRef.current = [];
 
@@ -1460,15 +1708,15 @@ export function StudioGoogleMap({
           map,
         });
 
-        // Inner clean road surface (pavement) - editable in pointer mode!
+        // Inner clean road surface (pavement) - editable ONLY when selected in pointer mode!
+        const isEditable = !isReadOnly && !isPrintViewportActive && isSelected && isPointerMode;
         const pavement = new google.maps.Polyline({
           path: road.points,
           strokeColor: surfaceColor,
           strokeWeight: surfaceWeight,
           strokeOpacity: 1.0,
           zIndex: isSelected ? 15 : 11,
-          editable:
-            !isReadOnly && !isPrintViewportActive && (isPointerMode || activeTool === 'road'),
+          editable: isEditable,
           clickable: !isPrintViewportActive,
           map,
         });
@@ -1736,39 +1984,29 @@ export function StudioGoogleMap({
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);
 
-        wrapper.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (isPrintViewportActiveRef.current) return;
-          if (activeToolRef.current === 'pointer') {
-            handleSelectLandmarkRef.current?.(landmark);
-          }
-        });
-
         const marker = new AdvancedMarkerElement({
           map,
           position: { lat: landmark.lat, lng: landmark.lng },
           title: landmark.label || 'Landmark',
           content: wrapper,
-          gmpDraggable: !isReadOnly && isPointerMode,
+          gmpDraggable: false,
           zIndex: isSelected ? 50 : 30,
         });
 
-        marker.addListener('dragend', () => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
-          const newPos = marker.position;
-          if (newPos) {
-            const newLat =
-              typeof newPos.lat === 'function'
-                ? (newPos.lat as unknown as () => number)()
-                : Number(newPos.lat);
-            const newLng =
-              typeof newPos.lng === 'function'
-                ? (newPos.lng as unknown as () => number)()
-                : Number(newPos.lng);
-            if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
-              handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng);
-            }
-          }
+        attachLongPressDrag({
+          wrapper,
+          pinContainer,
+          marker,
+          mapInstanceRef,
+          mapContainerRef,
+          overlayRef,
+          isReadOnlyRef,
+          isPrintViewportActiveRef,
+          activeToolRef,
+          onSelect: () => handleSelectLandmarkRef.current?.(landmark),
+          onMove: (newLat, newLng) =>
+            handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng),
+          getIsSelected: () => selectedLandmarkIdRef.current === landmark.id,
         });
 
         landmarkMarkersRef.current.push(marker);
@@ -1841,39 +2079,27 @@ export function StudioGoogleMap({
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);
 
-        wrapper.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (isPrintViewportActiveRef.current) return;
-          if (activeToolRef.current === 'pointer') {
-            handleSelectStartFlagRef.current?.();
-          }
-        });
-
         const marker = new AdvancedMarkerElement({
           map,
           position: { lat: sf.lat, lng: sf.lng },
           title: sf.label || 'Territory Start Meeting Point',
           content: wrapper,
-          gmpDraggable: !isReadOnly && isPointerMode,
+          gmpDraggable: false,
           zIndex: 40,
         });
 
-        marker.addListener('dragend', () => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
-          const newPos = marker.position;
-          if (newPos) {
-            const newLat =
-              typeof newPos.lat === 'function'
-                ? (newPos.lat as unknown as () => number)()
-                : Number(newPos.lat);
-            const newLng =
-              typeof newPos.lng === 'function'
-                ? (newPos.lng as unknown as () => number)()
-                : Number(newPos.lng);
-            if (!Number.isNaN(newLat) && !Number.isNaN(newLng)) {
-              handleMoveStartFlagRef.current?.(newLat, newLng);
-            }
-          }
+        attachLongPressDrag({
+          wrapper,
+          pinContainer,
+          marker,
+          mapInstanceRef,
+          mapContainerRef,
+          overlayRef,
+          isReadOnlyRef,
+          isPrintViewportActiveRef,
+          activeToolRef,
+          onSelect: () => handleSelectStartFlagRef.current?.(),
+          onMove: (newLat, newLng) => handleMoveStartFlagRef.current?.(newLat, newLng),
         });
 
         startFlagMarkerRef.current = marker;
@@ -1909,8 +2135,10 @@ export function StudioGoogleMap({
     });
 
     // Sync Roads
+    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
     roadPolylinesDataRef.current.forEach((item) => {
       const isSelected = selectedRoadId === item.id;
+      item.pavement.setEditable(isSelected && !isReadOnly && isPointerMode);
       if (item.highlightAura) {
         item.highlightAura.setVisible(isSelected);
       }
@@ -1929,16 +2157,16 @@ export function StudioGoogleMap({
         item.labelMarker.zIndex = isSelected ? 20 : 15;
       }
       if (item.labelDot) {
-        item.labelDot.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+        item.labelDot.style.backgroundColor = isSelected ? '#2563EB' : item.casingColor;
       }
       if (item.labelStem) {
-        item.labelStem.style.backgroundColor = isSelected ? '#2563EB' : '#334155';
+        item.labelStem.style.backgroundColor = isSelected ? '#2563EB' : item.casingColor;
       }
       if (item.labelText) {
         item.labelText.style.color = isSelected ? '#1D4ED8' : '#1E293B';
       }
     });
-  }, [selectedLandmarkId, selectedRoadId]);
+  }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
 
   // 9. Render User Live GPS Location Dot with Compass Heading Flashlight Beam
   useEffect(() => {
