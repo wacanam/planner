@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { notificationFromData } from '@/hooks/use-notifications';
 import {
   formatNotificationTime,
   getNotificationRoute,
@@ -6,7 +7,6 @@ import {
   parseNotificationData,
 } from '@/lib/notifications';
 import { NotificationType } from '@/lib/roles';
-import { notificationFromData } from '@/hooks/use-notifications';
 import type { Notification } from '@/types/api';
 
 describe('Notification Utilities', () => {
@@ -82,12 +82,14 @@ describe('Notification Utilities', () => {
       expect(getNotificationRoute(notif)).toBe('/congregation/cong-100/my-assignments');
     });
 
-    it('routes territory endorsed and returned to territories list', () => {
+    it('routes territory endorsed to members endorsements tab and returned to territories list', () => {
       const endorsed: Partial<Notification> = {
         type: NotificationType.TERRITORY_ENDORSED,
         data: JSON.stringify({ congregationId: 'cong-100' }),
       };
-      expect(getNotificationRoute(endorsed)).toBe('/congregation/cong-100/territories');
+      expect(getNotificationRoute(endorsed)).toBe(
+        '/congregation/cong-100/members?tab=endorsements'
+      );
 
       const returned: Partial<Notification> = {
         type: NotificationType.TERRITORY_RETURNED,

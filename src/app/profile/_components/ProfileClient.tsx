@@ -3,9 +3,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
+  ArrowLeft,
   Bell,
   Building2,
-  Calendar,
   Camera,
   CheckCircle2,
   ChevronRight,
@@ -18,20 +18,21 @@ import {
   MapPin,
   Share2,
   Shield,
-  Sparkles,
   Trash2,
   User,
   Users,
   Volume2,
-  VolumeX,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { AvatarCropDialog } from '@/components/avatar-crop-dialog';
+import { BottomTabBar } from '@/components/bottom-tab-bar';
+import { ProtectedPage } from '@/components/protected-page';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useChangePassword,
@@ -59,11 +61,14 @@ import {
   useUpdateAvatar,
   useUpdateProfile,
 } from '@/hooks';
+import { signOut } from '@/lib/firebase/auth';
+import { isSystemAdmin } from '@/lib/permissions';
 import type { NotificationSoundStyle } from '@/types/api';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { data: profile } = useProfile();
   const { user } = useCurrentUser();
   const congregationId = profile?.congregationId || user.congregationId || '';
@@ -92,6 +97,19 @@ export default function ProfilePage() {
 
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      console.error('Sign out error:', err);
+      setIsSigningOut(false);
+    }
+  };
 
   const profileForm = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema) as any,
@@ -297,822 +315,1077 @@ export default function ProfilePage() {
     }
   };
 
-  return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-            Profile & Settings
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manage your account credentials, congregation role, and ministry profile
-          </p>
-        </div>
-      </div>
+  const backHref = isSystemAdmin(user.role)
+    ? '/admin/dashboard'
+    : congregationId
+      ? `/congregation/${congregationId}/dashboard`
+      : '/';
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Profile & Ministry Overview Card */}
-        <Card className="md:col-span-1 bg-card border-border shadow-xs">
-          <CardContent className="p-6 flex flex-col items-center text-center">
-            {/* Avatar with Camera Overlay & Click to Upload */}
-            <div className="relative group mb-3">
-              <div className="w-24 h-24 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/30 flex items-center justify-center shadow-xs">
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt={profile?.name || user.name || 'Avatar'}
-                    className="w-full h-full object-cover"
-                  />
+  return (
+    <ProtectedPage>
+      <div className="min-h-screen bg-background">
+        {/* Top Sticky Header */}
+        <header className="sticky top-0 z-30 w-full border-b border-border bg-background/95 backdrop-blur-md">
+          <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                title="Go back"
+              >
+                <Link href={backHref} aria-label="Go back">
+                  <ArrowLeft size={18} />
+                </Link>
+              </Button>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-foreground tracking-tight leading-tight truncate">
+                  Profile & Settings
+                </h1>
+                <p className="text-[11px] text-muted-foreground truncate hidden sm:block">
+                  Manage your account, congregation role, and preferences
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <ThemeToggle />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 cursor-pointer"
+                title="Sign out"
+              >
+                <LogOut size={13} className="sm:mr-1.5 shrink-0" />
+                <span className="hidden sm:inline">
+                  {isSigningOut ? 'Signing out…' : 'Sign Out'}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Container */}
+        <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 sm:pb-12">
+          {/* Profile Overview Hero Card */}
+          <Card className="bg-card border-border shadow-xs overflow-hidden rounded-2xl sm:rounded-3xl">
+            <div className="h-16 sm:h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent border-b border-border/50 relative" />
+            <CardContent className="px-4 sm:px-6 pb-5 pt-0 relative">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-10 sm:-mt-12 mb-4">
+                {/* Avatar with Touch-friendly Upload Button */}
+                <div className="flex items-end gap-3 sm:gap-4">
+                  <div className="relative group shrink-0">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-background border-4 border-background shadow-md flex items-center justify-center">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={avatarUrl}
+                          alt={profile?.name || user.name || 'Avatar'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xl sm:text-2xl font-bold text-primary">
+                            {userInitials}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 p-1.5 sm:p-2 rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+                      title="Change photo"
+                      aria-label="Change photo"
+                    >
+                      <Camera size={14} />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onSelectFile}
+                    />
+                  </div>
+
+                  <div className="min-w-0 pb-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl font-extrabold text-foreground truncate">
+                        {profile?.name || user.name || 'Publisher'}
+                      </h2>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider ${congregationRoleLabel.badgeColor}`}
+                      >
+                        <span className="mr-1">{congregationRoleLabel.icon}</span>
+                        {congregationRoleLabel.title}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {profile?.email || user.email}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Photo Upload Action */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 text-xs px-3 rounded-xl gap-1.5 text-muted-foreground hover:text-foreground active:scale-[0.98] w-full sm:w-auto cursor-pointer"
+                  >
+                    <Camera size={13} />
+                    <span>Change Photo</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Congregation & Ministry Quick Status Badges */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 border-t border-border">
+                {/* Congregation Tile */}
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-border/80 flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Building2 size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                      Congregation
+                    </p>
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {congregation?.name || 'No congregation'}
+                    </p>
+                  </div>
+                  {congregation && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5 shrink-0">
+                      <CheckCircle2 size={11} />
+                    </span>
+                  )}
+                </div>
+
+                {/* Service Group Tile */}
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-border/80 flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Users size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                      Service Group
+                    </p>
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {userGroup?.name || 'Unassigned'}
+                    </p>
+                  </div>
+                  {groupRoleLabel && (
+                    <span className="text-xs shrink-0" title={groupRoleLabel.title}>
+                      {groupRoleLabel.icon}
+                    </span>
+                  )}
+                </div>
+
+                {/* Active Assignments Tile */}
+                {congregationId ? (
+                  <Link
+                    href={`/congregation/${congregationId}/my-assignments`}
+                    className="p-2.5 sm:p-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/15 flex items-center gap-2.5 min-w-0 transition-colors group active:scale-[0.98]"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                      <Layers size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-primary">
+                        Territories
+                      </p>
+                      <p className="text-xs font-semibold text-foreground truncate">
+                        {activeAssignments.length} Active Assigned
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      className="text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0"
+                    />
+                  </Link>
                 ) : (
-                  <span className="text-2xl font-bold text-primary">{userInitials}</span>
+                  <div className="p-2.5 sm:p-3 rounded-xl bg-muted/30 border border-border flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                      <Layers size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                        Territories
+                      </p>
+                      <p className="text-xs font-semibold text-muted-foreground">None active</p>
+                    </div>
+                  </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="absolute inset-0 rounded-full bg-black/50 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px] font-semibold"
-                title="Change profile picture"
-              >
-                <Camera size={22} className="mb-0.5" />
-                <span>Edit Photo</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onSelectFile}
-              />
+            </CardContent>
+          </Card>
+
+          {/* Responsive Segmented Tabs */}
+          <Tabs defaultValue="profile" className="w-full space-y-4">
+            <div className="overflow-x-auto scrollbar-none -mx-3 px-3 sm:mx-0 sm:px-0">
+              <TabsList className="h-auto p-1 bg-muted/60 border border-border/60 rounded-2xl grid grid-cols-4 sm:flex sm:w-auto w-full min-w-[320px] gap-1">
+                <TabsTrigger
+                  value="profile"
+                  className="flex items-center justify-center gap-1.5 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs font-semibold transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs cursor-pointer"
+                >
+                  <User size={14} className="shrink-0" />
+                  <span className="truncate">Profile</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="security"
+                  className="flex items-center justify-center gap-1.5 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs font-semibold transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs cursor-pointer"
+                >
+                  <KeyRound size={14} className="shrink-0" />
+                  <span className="truncate">Security</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="notifications"
+                  className="flex items-center justify-center gap-1.5 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs font-semibold transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs cursor-pointer"
+                >
+                  <Bell size={14} className="shrink-0" />
+                  <span className="truncate">Alerts</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="account"
+                  className="flex items-center justify-center gap-1.5 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs font-semibold transition-all data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs cursor-pointer"
+                >
+                  <Shield size={14} className="shrink-0" />
+                  <span className="truncate">Account</span>
+                </TabsTrigger>
+              </TabsList>
             </div>
 
-            {/* Change Photo Button */}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="h-7 text-[11px] px-2.5 rounded-lg mb-3 gap-1 text-muted-foreground hover:text-foreground"
-            >
-              <Camera size={12} />
-              <span>Change Photo</span>
-            </Button>
-
-            {/* Name & Email */}
-            <h2 className="text-base font-bold text-foreground truncate max-w-full">
-              {profile?.name || user.name || 'Publisher'}
-            </h2>
-            <p className="text-xs text-muted-foreground truncate max-w-full">
-              {profile?.email || user.email}
-            </p>
-
-            {/* Congregation Role Badge */}
-            <div className="mt-3">
-              <Badge
-                variant="outline"
-                className={`text-xs font-bold px-3 py-1 rounded-xl uppercase tracking-wider ${congregationRoleLabel.badgeColor}`}
-              >
-                <span className="mr-1">{congregationRoleLabel.icon}</span>
-                {congregationRoleLabel.title}
-              </Badge>
-            </div>
-
-            {/* Congregation Affiliation Details */}
-            <div className="mt-5 pt-4 border-t border-border w-full text-left space-y-3">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center justify-between">
-                  <span>Congregation</span>
-                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
-                    <CheckCircle2 size={10} /> Active
-                  </span>
-                </p>
-                {congregation ? (
-                  <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                      <Building2 size={14} className="text-primary shrink-0" />
-                      <span className="truncate">{congregation.name}</span>
+            {/* TAB 1: Profile & Affiliation Details */}
+            <TabsContent value="profile" className="space-y-4 outline-none">
+              {/* Account Information Form */}
+              <Card className="bg-card border-border shadow-xs rounded-2xl">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
+                  <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <User size={16} className="text-primary" />
+                    <span>Account Information</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Update your public display name across congregation directories and records
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                  <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name" className="text-xs font-semibold">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="name"
+                        placeholder="Your full name"
+                        autoComplete="name"
+                        className="h-11 sm:h-10 rounded-xl text-sm sm:text-xs"
+                        {...profileForm.register('name')}
+                      />
+                      {profileForm.formState.errors.name && (
+                        <p className="text-[11px] text-destructive">
+                          {profileForm.formState.errors.name.message}
+                        </p>
+                      )}
                     </div>
-                    {congregation.city && (
-                      <p className="text-[11px] text-muted-foreground pl-5 flex items-center gap-1">
-                        <MapPin size={10} className="shrink-0" />
-                        <span>{congregation.city}</span>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email" className="text-xs font-semibold">
+                        Email Address
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profile?.email || user.email || ''}
+                        disabled
+                        className="h-11 sm:h-10 rounded-xl text-sm sm:text-xs opacity-75 bg-muted/50"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Email address is tied to your authentication credentials and cannot be
+                        changed here.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        type="submit"
+                        className="rounded-xl text-xs font-semibold h-11 sm:h-9 w-full sm:w-auto active:scale-[0.98] cursor-pointer"
+                        disabled={updateProfile.isPending}
+                      >
+                        {updateProfile.isPending ? 'Saving Changes…' : 'Save Changes'}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Congregation & Ministry Affiliation Details */}
+              <Card className="bg-card border-border shadow-xs rounded-2xl">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
+                  <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <Building2 size={16} className="text-primary" />
+                    <span>Congregation & Ministry Details</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Your current assignment group, service role, and active territory records
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                  {/* Congregation Detailed Row */}
+                  <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                        Congregation
+                      </p>
+                      {congregation && (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                        >
+                          Active Member
+                        </Badge>
+                      )}
+                    </div>
+                    {congregation ? (
+                      <div>
+                        <p className="text-sm font-bold text-foreground flex items-center gap-1.5 mt-0.5">
+                          <Building2 size={15} className="text-primary shrink-0" />
+                          <span>{congregation.name}</span>
+                        </p>
+                        {congregation.city && (
+                          <p className="text-xs text-muted-foreground pl-5 flex items-center gap-1 mt-0.5">
+                            <MapPin size={11} className="shrink-0" />
+                            <span>{congregation.city}</span>
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic mt-1">
+                        No congregation assigned
                       </p>
                     )}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">No congregation assigned</p>
-                )}
-              </div>
 
-              {/* Service Group Affiliation */}
-              {congregation && (
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Service Group
-                  </p>
-                  {userGroup ? (
-                    <div className="p-3 rounded-2xl bg-muted/40 border border-border space-y-1.5">
+                  {/* Service Group Detailed Row */}
+                  {congregation && (
+                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                          <Users size={14} className="text-primary shrink-0" />
-                          <span className="truncate">{userGroup.name}</span>
-                        </div>
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                          Field Service Group
+                        </p>
                         {groupRoleLabel && (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20"
+                            className="text-[9px] font-semibold bg-primary/10 text-primary border-primary/20"
                           >
                             {groupRoleLabel.icon} {groupRoleLabel.title}
                           </Badge>
                         )}
                       </div>
-                      {userGroup.overseerName && (
-                        <p className="text-[11px] text-muted-foreground pl-5 truncate">
-                          Overseer:{' '}
-                          <span className="text-foreground font-medium">
-                            {userGroup.overseerName}
-                          </span>
+                      {userGroup ? (
+                        <div>
+                          <p className="text-sm font-bold text-foreground flex items-center gap-1.5 mt-0.5">
+                            <Users size={15} className="text-primary shrink-0" />
+                            <span>{userGroup.name}</span>
+                          </p>
+                          {userGroup.overseerName && (
+                            <p className="text-xs text-muted-foreground pl-5 mt-0.5 truncate">
+                              Overseer:{' '}
+                              <span className="text-foreground font-medium">
+                                {userGroup.overseerName}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic mt-1">
+                          Not assigned to a service group
                         </p>
                       )}
                     </div>
-                  ) : (
-                    <div className="p-2.5 rounded-xl bg-muted/30 border border-dashed border-border text-center">
-                      <p className="text-[11px] text-muted-foreground">
-                        Not assigned to a service group
+                  )}
+
+                  {/* Territory Shortcut */}
+                  {congregationId && (
+                    <Link
+                      href={`/congregation/${congregationId}/my-assignments`}
+                      className="flex items-center justify-between p-3.5 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/15 transition-all text-xs font-medium text-foreground group active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                          <Layers size={14} />
+                        </div>
+                        <div>
+                          <span className="font-bold text-sm block">My Territories</span>
+                          <span className="text-[11px] text-muted-foreground block">
+                            View active assignments & map households
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary text-primary-foreground text-[10px] font-bold px-2 h-5">
+                          {activeAssignments.length}
+                        </Badge>
+                        <ChevronRight
+                          size={16}
+                          className="text-muted-foreground group-hover:translate-x-0.5 transition-transform"
+                        />
+                      </div>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 2: Security & Password */}
+            <TabsContent value="security" className="space-y-4 outline-none">
+              <Card className="bg-card border-border shadow-xs rounded-2xl">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
+                  <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <KeyRound size={16} className="text-primary" />
+                    <span>Security & Password</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Ensure your account is using a secure, strong password
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <form
+                    onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5">
+                      <Label htmlFor="currentPassword" className="text-xs font-semibold">
+                        Current Password
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPw ? 'text' : 'password'}
+                          autoComplete="current-password"
+                          className="h-11 sm:h-10 rounded-xl text-sm sm:text-xs pr-11"
+                          {...passwordForm.register('currentPassword')}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPw(!showCurrentPw)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                          aria-label={showCurrentPw ? 'Hide password' : 'Show password'}
+                        >
+                          {showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      {passwordForm.formState.errors.currentPassword && (
+                        <p className="text-[11px] text-destructive">
+                          {passwordForm.formState.errors.currentPassword.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="newPassword" className="text-xs font-semibold">
+                          New Password
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="newPassword"
+                            type={showNewPw ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            className="h-11 sm:h-10 rounded-xl text-sm sm:text-xs pr-11"
+                            {...passwordForm.register('newPassword')}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPw(!showNewPw)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                            aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                          >
+                            {showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                        {passwordForm.formState.errors.newPassword && (
+                          <p className="text-[11px] text-destructive">
+                            {passwordForm.formState.errors.newPassword.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="confirmPassword" className="text-xs font-semibold">
+                          Confirm New Password
+                        </Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          autoComplete="new-password"
+                          className="h-11 sm:h-10 rounded-xl text-sm sm:text-xs"
+                          {...passwordForm.register('confirmNewPassword')}
+                        />
+                        {passwordForm.formState.errors.confirmNewPassword && (
+                          <p className="text-[11px] text-destructive">
+                            {passwordForm.formState.errors.confirmNewPassword.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-muted/40 border border-border text-[11px] text-muted-foreground space-y-1">
+                      <p className="font-semibold text-foreground">Password Recommendation:</p>
+                      <p>
+                        Use at least 8 characters with a combination of uppercase letters, numbers,
+                        and symbols.
                       </p>
                     </div>
-                  )}
-                </div>
-              )}
 
-              {/* Active Territory Assignments Snapshot */}
-              {congregationId && (
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Ministry Activity
-                  </p>
-                  <Link
-                    href={`/congregation/${congregationId}/my-assignments`}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/15 transition-all text-xs font-medium text-foreground group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Layers size={14} className="text-primary" />
-                      <span>Territory Assignments</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Badge className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 h-4">
-                        {activeAssignments.length}
-                      </Badge>
-                      <ChevronRight
-                        size={14}
-                        className="text-muted-foreground group-hover:translate-x-0.5 transition-transform"
-                      />
-                    </div>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Forms & Account Details */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Account Information Form */}
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <User size={16} className="text-primary" />
-                <span>Account Information</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-xs font-semibold">
-                    Full Name
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="Your full name"
-                    className="h-10 rounded-xl text-xs"
-                    {...profileForm.register('name')}
-                  />
-                  {profileForm.formState.errors.name && (
-                    <p className="text-[11px] text-destructive">
-                      {profileForm.formState.errors.name.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold">
-                    Email Address
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profile?.email || user.email || ''}
-                    disabled
-                    className="h-10 rounded-xl text-xs opacity-70 bg-muted/50"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Email address is managed through your authentication credentials.
-                  </p>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button
-                    type="submit"
-                    className="rounded-xl text-xs font-semibold"
-                    disabled={updateProfile.isPending}
-                  >
-                    {updateProfile.isPending ? 'Saving…' : 'Save Changes'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Change Password Form */}
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <KeyRound size={16} className="text-primary" />
-                <span>Security & Password</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="currentPassword" className="text-xs font-semibold">
-                    Current Password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPassword"
-                      type={showCurrentPw ? 'text' : 'password'}
-                      className="h-10 rounded-xl text-xs pr-10"
-                      {...passwordForm.register('currentPassword')}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPw(!showCurrentPw)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showCurrentPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                  {passwordForm.formState.errors.currentPassword && (
-                    <p className="text-[11px] text-destructive">
-                      {passwordForm.formState.errors.currentPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="newPassword" className="text-xs font-semibold">
-                      New Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="newPassword"
-                        type={showNewPw ? 'text' : 'password'}
-                        className="h-10 rounded-xl text-xs pr-10"
-                        {...passwordForm.register('newPassword')}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPw(!showNewPw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        type="submit"
+                        className="rounded-xl text-xs font-semibold h-11 sm:h-9 w-full sm:w-auto active:scale-[0.98] cursor-pointer"
+                        disabled={changePassword.isPending}
                       >
-                        {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
+                        {changePassword.isPending ? 'Updating Password…' : 'Update Password'}
+                      </Button>
                     </div>
-                    {passwordForm.formState.errors.newPassword && (
-                      <p className="text-[11px] text-destructive">
-                        {passwordForm.formState.errors.newPassword.message}
-                      </p>
-                    )}
-                  </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="confirmPassword" className="text-xs font-semibold">
-                      Confirm New Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      className="h-10 rounded-xl text-xs"
-                      {...passwordForm.register('confirmNewPassword')}
-                    />
-                    {passwordForm.formState.errors.confirmNewPassword && (
-                      <p className="text-[11px] text-destructive">
-                        {passwordForm.formState.errors.confirmNewPassword.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="rounded-xl text-xs font-semibold"
-                    disabled={changePassword.isPending}
-                  >
-                    {changePassword.isPending ? 'Updating…' : 'Update Password'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Notification Preferences Form */}
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Bell size={16} className="text-primary" />
-                  <span>Notification Preferences</span>
-                </CardTitle>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] py-0 h-4 border-primary/30 text-primary"
-                >
-                  <Cloud size={11} className="mr-1" />
-                  Firebase Cloud Sync
-                </Badge>
-              </div>
-              <CardDescription className="text-xs text-muted-foreground">
-                Manage real-time in-app alerts and audio chimes stored in your Firebase account
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Audio Sound Settings */}
-              <div className="p-3.5 rounded-2xl border border-border bg-muted/20 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor="profile-sound-switch"
-                      className="font-semibold text-xs text-foreground cursor-pointer"
+            {/* TAB 3: Notification Preferences */}
+            <TabsContent value="notifications" className="space-y-4 outline-none">
+              <Card className="bg-card border-border shadow-xs rounded-2xl">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+                      <Bell size={16} className="text-primary" />
+                      <span>Notification Preferences</span>
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] py-0.5 px-2 border-primary/30 text-primary"
                     >
-                      Notification Audio Sound
-                    </Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      Play a gentle chime when new notifications arrive in real-time.
-                    </p>
+                      <Cloud size={11} className="mr-1" />
+                      Firebase Cloud Sync
+                    </Badge>
                   </div>
-                  <Switch
-                    id="profile-sound-switch"
-                    checked={notifSoundEnabled}
-                    onCheckedChange={toggleNotifSound}
-                    disabled={isUpdatingNotif}
-                  />
-                </div>
-
-                {notifSoundEnabled && (
-                  <div className="pt-2.5 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-semibold text-foreground">Chime Style</span>
-                      <p className="text-[11px] text-muted-foreground">
-                        Choose synthesizer tone profile.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={notifSoundStyle}
-                        onValueChange={(style) =>
-                          setNotifSoundStyle(style as NotificationSoundStyle)
-                        }
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Manage real-time in-app alerts and audio chimes stored in your account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                  {/* Audio Sound Settings */}
+                  <div className="p-3.5 sm:p-4 rounded-2xl border border-border bg-muted/20 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                        <Label
+                          htmlFor="profile-sound-switch"
+                          className="font-semibold text-xs text-foreground cursor-pointer block"
+                        >
+                          Notification Audio Sound
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Play a gentle chime when new notifications arrive in real-time.
+                        </p>
+                      </div>
+                      <Switch
+                        id="profile-sound-switch"
+                        checked={notifSoundEnabled}
+                        onCheckedChange={toggleNotifSound}
                         disabled={isUpdatingNotif}
-                      >
-                        <SelectTrigger className="h-8 w-[135px] rounded-xl text-xs">
-                          <SelectValue placeholder="Style" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="chime" className="text-xs">
-                            Chime (Modern)
-                          </SelectItem>
-                          <SelectItem value="ding" className="text-xs">
-                            Ding (Bell)
-                          </SelectItem>
-                          <SelectItem value="pop" className="text-xs">
-                            Pop (Crisp)
-                          </SelectItem>
-                          <SelectItem value="subtle" className="text-xs">
-                            Subtle (Warm)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        className="shrink-0"
+                      />
+                    </div>
 
+                    {notifSoundEnabled && (
+                      <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="space-y-0.5">
+                          <span className="text-xs font-semibold text-foreground">Chime Style</span>
+                          <p className="text-[11px] text-muted-foreground">
+                            Choose synthesizer tone profile
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={notifSoundStyle}
+                            onValueChange={(style) =>
+                              setNotifSoundStyle(style as NotificationSoundStyle)
+                            }
+                            disabled={isUpdatingNotif}
+                          >
+                            <SelectTrigger className="h-9 sm:h-8 flex-1 sm:w-[140px] rounded-xl text-xs">
+                              <SelectValue placeholder="Style" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="chime" className="text-xs">
+                                Chime (Modern)
+                              </SelectItem>
+                              <SelectItem value="ding" className="text-xs">
+                                Ding (Bell)
+                              </SelectItem>
+                              <SelectItem value="pop" className="text-xs">
+                                Pop (Crisp)
+                              </SelectItem>
+                              <SelectItem value="subtle" className="text-xs">
+                                Subtle (Warm)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => playNotifPreview(notifSoundStyle)}
+                            className="h-9 sm:h-8 px-3 rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 active:scale-95 cursor-pointer shrink-0"
+                          >
+                            <Volume2 size={13} className="mr-1" />
+                            Test
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Categories */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
+                      Event Categories
+                    </p>
+
+                    <div className="space-y-2">
+                      <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 pr-1">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                            <MapPin size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <Label
+                              htmlFor="profile-cat-territory"
+                              className="text-xs font-semibold text-foreground block cursor-pointer truncate"
+                            >
+                              Territories & Assignments
+                            </Label>
+                            <span className="text-[11px] text-muted-foreground block truncate">
+                              Approvals, endorsements, rejections & returns
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          id="profile-cat-territory"
+                          checked={notifSettings.territoryUpdates}
+                          onCheckedChange={(checked) =>
+                            updateNotifSettings({ territoryUpdates: checked })
+                          }
+                          disabled={isUpdatingNotif}
+                          className="shrink-0"
+                        />
+                      </div>
+
+                      <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 pr-1">
+                          <div className="w-8 h-8 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                            <Share2 size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <Label
+                              htmlFor="profile-cat-share"
+                              className="text-xs font-semibold text-foreground block cursor-pointer truncate"
+                            >
+                              Record Sharing
+                            </Label>
+                            <span className="text-[11px] text-muted-foreground block truncate">
+                              Household share requests, acceptances & declines
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          id="profile-cat-share"
+                          checked={notifSettings.shareUpdates}
+                          onCheckedChange={(checked) =>
+                            updateNotifSettings({ shareUpdates: checked })
+                          }
+                          disabled={isUpdatingNotif}
+                          className="shrink-0"
+                        />
+                      </div>
+
+                      <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 pr-1">
+                          <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                            <Users size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <Label
+                              htmlFor="profile-cat-membership"
+                              className="text-xs font-semibold text-foreground block cursor-pointer truncate"
+                            >
+                              Membership & Access
+                            </Label>
+                            <span className="text-[11px] text-muted-foreground block truncate">
+                              Join requests, endorsements & role updates
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          id="profile-cat-membership"
+                          checked={notifSettings.membershipUpdates}
+                          onCheckedChange={(checked) =>
+                            updateNotifSettings({ membershipUpdates: checked })
+                          }
+                          disabled={isUpdatingNotif}
+                          className="shrink-0"
+                        />
+                      </div>
+
+                      <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 pr-1">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <Shield size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <Label
+                              htmlFor="profile-cat-account"
+                              className="text-xs font-semibold text-foreground block cursor-pointer truncate"
+                            >
+                              Account & Requests
+                            </Label>
+                            <span className="text-[11px] text-muted-foreground block truncate">
+                              Leave requests & account status updates
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          id="profile-cat-account"
+                          checked={notifSettings.accountUpdates}
+                          onCheckedChange={(checked) =>
+                            updateNotifSettings({ accountUpdates: checked })
+                          }
+                          disabled={isUpdatingNotif}
+                          className="shrink-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 4: Account Management (Danger Zone) */}
+            <TabsContent value="account" className="space-y-4 outline-none">
+              <Card className="border-destructive/30 bg-destructive/5 dark:bg-destructive/10 shadow-xs rounded-2xl">
+                <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-3">
+                  <CardTitle className="text-sm sm:text-base font-bold text-destructive flex items-center gap-2">
+                    <AlertTriangle size={16} />
+                    <span>Account & Congregation Management</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Request congregation departure or permanent account deletion with System Admin
+                    review
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+                  {/* Leave Congregation Option */}
+                  <div className="p-4 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-sm text-foreground">Leave Congregation</p>
+                        {pendingLeaveRequest && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                          >
+                            ⏳ Pending Admin Approval
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {congregation
+                          ? `Submit a request to leave ${congregation.name}. Upon System Admin approval, your assignments and group membership will be cleared.`
+                          : 'You are currently not assigned to a congregation.'}
+                      </p>
+                      {pendingLeaveRequest && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
+                          <p className="font-semibold">
+                            Request submitted on{' '}
+                            {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}
+                          </p>
+                          {pendingLeaveRequest.reason && (
+                            <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 pt-1 sm:pt-0">
+                      {pendingLeaveRequest ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                          onClick={() => handleCancelRequest(pendingLeaveRequest.id)}
+                          disabled={isSubmittingRequest}
+                        >
+                          Cancel Request
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                          onClick={() => setLeaveDialogOpen(true)}
+                          disabled={!congregation || isSubmittingRequest}
+                        >
+                          <LogOut size={13} className="mr-1.5" />
+                          Request to Leave
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Delete Account Option */}
+                  <div className="p-4 rounded-2xl border border-destructive/20 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-sm text-destructive">Delete Account</p>
+                        {pendingDeleteRequest && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-bold bg-destructive/15 text-destructive border-destructive/30"
+                          >
+                            ⏳ Pending Admin Review
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Permanently request account deactivation and removal. Requires System Admin
+                        review to ensure territories and group assignments are resolved.
+                      </p>
+                      {pendingDeleteRequest && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-0.5">
+                          <p className="font-semibold">
+                            Deletion request submitted on{' '}
+                            {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}
+                          </p>
+                          {pendingDeleteRequest.reason && (
+                            <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="shrink-0 pt-1 sm:pt-0">
+                      {pendingDeleteRequest ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                          onClick={() => handleCancelRequest(pendingDeleteRequest.id)}
+                          disabled={isSubmittingRequest}
+                        >
+                          Cancel Request
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="rounded-xl text-xs font-semibold h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                          onClick={() => setDeleteDialogOpen(true)}
+                          disabled={isSubmittingRequest}
+                        >
+                          <Trash2 size={13} className="mr-1.5" />
+                          Request Deletion
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sign Out Option */}
+                  <div className="p-4 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p className="font-bold text-sm text-foreground">Sign Out</p>
+                      <p className="text-xs text-muted-foreground">
+                        Log out of your current session on this device.
+                      </p>
+                    </div>
+                    <div className="shrink-0 pt-1 sm:pt-0">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => playNotifPreview(notifSoundStyle)}
-                        className="h-8 px-2.5 rounded-xl text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10 cursor-pointer"
+                        className="rounded-xl text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10 h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                        onClick={handleSignOut}
+                        disabled={isSigningOut}
                       >
-                        <Volume2 size={13} className="mr-1" />
-                        Test
+                        <LogOut size={13} className="mr-1.5" />
+                        {isSigningOut ? 'Signing out…' : 'Sign Out'}
                       </Button>
                     </div>
                   </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </main>
 
-              {/* Categories */}
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1">
-                  Event Categories
-                </p>
+        {/* Bottom Tab Bar for Mobile Users with Congregation */}
+        {congregationId && <BottomTabBar />}
 
-                <div className="space-y-2">
-                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                        <MapPin size={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <Label
-                          htmlFor="profile-cat-territory"
-                          className="text-xs font-semibold text-foreground block cursor-pointer"
-                        >
-                          Territories & Assignments
-                        </Label>
-                        <span className="text-[11px] text-muted-foreground block truncate">
-                          Approvals, endorsements, rejections & returns
-                        </span>
-                      </div>
-                    </div>
-                    <Switch
-                      id="profile-cat-territory"
-                      checked={notifSettings.territoryUpdates}
-                      onCheckedChange={(checked) =>
-                        updateNotifSettings({ territoryUpdates: checked })
-                      }
-                      disabled={isUpdatingNotif}
-                    />
-                  </div>
+        {/* Avatar Crop Dialog */}
+        {cropOpen && (
+          <AvatarCropDialog
+            open={cropOpen}
+            onOpenChange={setCropOpen}
+            imageSrc={cropSrc}
+            onCropComplete={handleCropComplete}
+            loading={updateAvatar.isPending}
+          />
+        )}
 
-                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                        <Share2 size={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <Label
-                          htmlFor="profile-cat-share"
-                          className="text-xs font-semibold text-foreground block cursor-pointer"
-                        >
-                          Record Sharing
-                        </Label>
-                        <span className="text-[11px] text-muted-foreground block truncate">
-                          Household share requests, acceptances & declines
-                        </span>
-                      </div>
-                    </div>
-                    <Switch
-                      id="profile-cat-share"
-                      checked={notifSettings.shareUpdates}
-                      onCheckedChange={(checked) => updateNotifSettings({ shareUpdates: checked })}
-                      disabled={isUpdatingNotif}
-                    />
-                  </div>
+        {/* Request Leave Congregation Dialog */}
+        <ResponsiveDialog
+          open={leaveDialogOpen}
+          onOpenChange={setLeaveDialogOpen}
+          title="Request to Leave Congregation"
+          description={`Submit a formal departure request for ${congregation?.name || 'your congregation'}.`}
+        >
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-bold flex items-center gap-1.5 mb-1">
+                <AlertTriangle size={14} className="shrink-0 text-amber-600" />
+                <span>System Admin Approval Required</span>
+              </p>
+              <p>
+                Once approved by a System Admin, your publisher record will be unlinked from{' '}
+                {congregation?.name}, any active territories will be returned, and group roles will
+                be released.
+              </p>
+            </div>
 
-                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                        <Users size={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <Label
-                          htmlFor="profile-cat-membership"
-                          className="text-xs font-semibold text-foreground block cursor-pointer"
-                        >
-                          Membership & Access
-                        </Label>
-                        <span className="text-[11px] text-muted-foreground block truncate">
-                          Join requests, endorsements & role updates
-                        </span>
-                      </div>
-                    </div>
-                    <Switch
-                      id="profile-cat-membership"
-                      checked={notifSettings.membershipUpdates}
-                      onCheckedChange={(checked) =>
-                        updateNotifSettings({ membershipUpdates: checked })
-                      }
-                      disabled={isUpdatingNotif}
-                    />
-                  </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="leaveReason" className="text-xs font-semibold">
+                Reason for Leaving (Optional)
+              </Label>
+              <Textarea
+                id="leaveReason"
+                placeholder="e.g. Relocating to a new territory, transfer to another congregation…"
+                value={leaveReason}
+                onChange={(e) => setLeaveReason(e.target.value)}
+                className="text-sm sm:text-xs rounded-xl min-h-[90px]"
+              />
+            </div>
 
-                  <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <Shield size={14} />
-                      </div>
-                      <div className="min-w-0">
-                        <Label
-                          htmlFor="profile-cat-account"
-                          className="text-xs font-semibold text-foreground block cursor-pointer"
-                        >
-                          Account & Requests
-                        </Label>
-                        <span className="text-[11px] text-muted-foreground block truncate">
-                          Leave requests & account status updates
-                        </span>
-                      </div>
-                    </div>
-                    <Switch
-                      id="profile-cat-account"
-                      checked={notifSettings.accountUpdates}
-                      onCheckedChange={(checked) =>
-                        updateNotifSettings({ accountUpdates: checked })
-                      }
-                      disabled={isUpdatingNotif}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                onClick={() => setLeaveDialogOpen(false)}
+                disabled={isSubmittingRequest}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="rounded-xl text-xs font-semibold h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                onClick={handleRequestLeave}
+                disabled={isSubmittingRequest}
+              >
+                {isSubmittingRequest ? 'Submitting…' : 'Submit Leave Request'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
 
-          {/* Account & Congregation Actions (Danger Zone) */}
-          <Card className="border-destructive/30 bg-destructive/5 dark:bg-destructive/10 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
-                <AlertTriangle size={16} />
-                <span>Account & Congregation Management</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Request congregation departure or permanent account deletion with System Admin
-                review
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Leave Congregation Option */}
-              <div className="p-4 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1 max-w-lg">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-foreground">Leave Congregation</p>
-                    {pendingLeaveRequest && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                      >
-                        ⏳ Pending Admin Approval
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {congregation
-                      ? `Submit a request to leave ${congregation.name}. Upon System Admin approval, your assignments and group membership will be cleared.`
-                      : 'You are currently not assigned to a congregation.'}
-                  </p>
-                  {pendingLeaveRequest && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
-                      <p className="font-semibold">
-                        Request submitted on{' '}
-                        {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}
-                      </p>
-                      {pendingLeaveRequest.reason && (
-                        <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="shrink-0">
-                  {pendingLeaveRequest ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
-                      onClick={() => handleCancelRequest(pendingLeaveRequest.id)}
-                      disabled={isSubmittingRequest}
-                    >
-                      Cancel Request
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl text-xs font-semibold border-destructive/30 text-destructive hover:bg-destructive/10"
-                      onClick={() => setLeaveDialogOpen(true)}
-                      disabled={!congregation || isSubmittingRequest}
-                    >
-                      <LogOut size={13} className="mr-1.5" />
-                      Request to Leave
-                    </Button>
-                  )}
-                </div>
-              </div>
+        {/* Request Delete Account Dialog */}
+        <ResponsiveDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Request Account Deletion"
+          description="Permanently submit your account for deactivation and deletion."
+        >
+          <div className="space-y-4">
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+              <p className="font-bold flex items-center gap-1.5 mb-1">
+                <AlertTriangle size={14} className="shrink-0" />
+                <span>Important Warning</span>
+              </p>
+              <p>
+                This action requires System Admin verification. Upon approval, all your ministry
+                assignments will be returned, your congregation membership removed, and your account
+                permanently deactivated.
+              </p>
+            </div>
 
-              {/* Delete Account Option */}
-              <div className="p-4 rounded-2xl border border-destructive/20 bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1 max-w-lg">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-destructive">Delete Account</p>
-                    {pendingDeleteRequest && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-bold bg-destructive/15 text-destructive border-destructive/30"
-                      >
-                        ⏳ Pending Admin Review
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Permanently request account deactivation and removal. Requires System Admin
-                    review to ensure territories and group assignments are resolved.
-                  </p>
-                  {pendingDeleteRequest && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-0.5">
-                      <p className="font-semibold">
-                        Deletion request submitted on{' '}
-                        {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}
-                      </p>
-                      {pendingDeleteRequest.reason && (
-                        <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="shrink-0">
-                  {pendingDeleteRequest ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
-                      onClick={() => handleCancelRequest(pendingDeleteRequest.id)}
-                      disabled={isSubmittingRequest}
-                    >
-                      Cancel Request
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="rounded-xl text-xs font-semibold"
-                      onClick={() => setDeleteDialogOpen(true)}
-                      disabled={isSubmittingRequest}
-                    >
-                      <Trash2 size={13} className="mr-1.5" />
-                      Request Deletion
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="deleteReason" className="text-xs font-semibold">
+                Reason for Deletion (Optional)
+              </Label>
+              <Textarea
+                id="deleteReason"
+                placeholder="Please let us know why you are deleting your account…"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="text-sm sm:text-xs rounded-xl min-h-[80px]"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="deleteConfirm" className="text-xs font-semibold">
+                Type <span className="font-bold text-destructive">DELETE</span> to confirm:
+              </Label>
+              <Input
+                id="deleteConfirm"
+                placeholder="DELETE"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="text-sm sm:text-xs rounded-xl h-10"
+              />
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={isSubmittingRequest}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="rounded-xl text-xs font-semibold h-10 sm:h-9 w-full sm:w-auto cursor-pointer"
+                onClick={handleRequestDelete}
+                disabled={
+                  deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isSubmittingRequest
+                }
+              >
+                {isSubmittingRequest ? 'Submitting…' : 'Submit Deletion Request'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
       </div>
-
-      {/* Avatar Crop Dialog */}
-      {cropOpen && (
-        <AvatarCropDialog
-          open={cropOpen}
-          onOpenChange={setCropOpen}
-          imageSrc={cropSrc}
-          onCropComplete={handleCropComplete}
-          loading={updateAvatar.isPending}
-        />
-      )}
-
-      {/* Request Leave Congregation Dialog */}
-      <ResponsiveDialog
-        open={leaveDialogOpen}
-        onOpenChange={setLeaveDialogOpen}
-        title="Request to Leave Congregation"
-        description={`Submit a formal departure request for ${congregation?.name || 'your congregation'}.`}
-      >
-        <div className="space-y-4">
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200">
-            <p className="font-bold flex items-center gap-1.5 mb-1">
-              <AlertTriangle size={14} className="shrink-0 text-amber-600" />
-              <span>System Admin Approval Required</span>
-            </p>
-            <p>
-              Once approved by a System Admin, your publisher record will be unlinked from{' '}
-              {congregation?.name}, any active territories will be returned, and group roles will be
-              released.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="leaveReason" className="text-xs font-semibold">
-              Reason for Leaving (Optional)
-            </Label>
-            <Textarea
-              id="leaveReason"
-              placeholder="e.g. Relocating to a new territory, transfer to another congregation…"
-              value={leaveReason}
-              onChange={(e) => setLeaveReason(e.target.value)}
-              className="text-xs rounded-xl min-h-[80px]"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs"
-              onClick={() => setLeaveDialogOpen(false)}
-              disabled={isSubmittingRequest}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="rounded-xl text-xs font-semibold"
-              onClick={handleRequestLeave}
-              disabled={isSubmittingRequest}
-            >
-              {isSubmittingRequest ? 'Submitting…' : 'Submit Leave Request'}
-            </Button>
-          </div>
-        </div>
-      </ResponsiveDialog>
-
-      {/* Request Delete Account Dialog */}
-      <ResponsiveDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Request Account Deletion"
-        description="Permanently submit your account for deactivation and deletion."
-      >
-        <div className="space-y-4">
-          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
-            <p className="font-bold flex items-center gap-1.5 mb-1">
-              <AlertTriangle size={14} className="shrink-0" />
-              <span>Important Warning</span>
-            </p>
-            <p>
-              This action requires System Admin verification. Upon approval, all your ministry
-              assignments will be returned, your congregation membership removed, and your account
-              permanently deactivated.
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="deleteReason" className="text-xs font-semibold">
-              Reason for Deletion (Optional)
-            </Label>
-            <Textarea
-              id="deleteReason"
-              placeholder="Please let us know why you are deleting your account…"
-              value={deleteReason}
-              onChange={(e) => setDeleteReason(e.target.value)}
-              className="text-xs rounded-xl min-h-[70px]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="deleteConfirm" className="text-xs font-semibold">
-              Type <span className="font-bold text-destructive">DELETE</span> to confirm:
-            </Label>
-            <Input
-              id="deleteConfirm"
-              placeholder="DELETE"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              className="text-xs rounded-xl h-9"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl text-xs"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isSubmittingRequest}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="rounded-xl text-xs font-semibold"
-              onClick={handleRequestDelete}
-              disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isSubmittingRequest}
-            >
-              {isSubmittingRequest ? 'Submitting…' : 'Submit Deletion Request'}
-            </Button>
-          </div>
-        </div>
-      </ResponsiveDialog>
-    </div>
+    </ProtectedPage>
   );
 }

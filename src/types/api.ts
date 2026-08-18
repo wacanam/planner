@@ -179,14 +179,20 @@ export interface Group {
 export interface Assignment {
   id: string;
   territoryId: string;
+  congregationId?: string | null;
   userId: string | null;
   serviceGroupId: string | null;
   status: string;
   endorsementStatus?: 'draft' | 'pending_approval' | 'approved' | 'rejected';
   endorsedBy?: string | null;
+  endorsedByName?: string | null;
   endorsedAt?: string | null;
   approvedBy?: string | null;
+  approvedByName?: string | null;
   approvedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedByName?: string | null;
+  rejectedAt?: string | null;
   rejectionReason?: string | null;
   assignedAt: string | null;
   dueAt: string | null;

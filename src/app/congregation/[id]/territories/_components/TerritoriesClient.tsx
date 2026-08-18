@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
@@ -49,7 +50,6 @@ import { isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { type CreateTerritoryFormData, createTerritorySchema } from '@/schemas';
 import type { Household, Territory } from '@/types/api';
-import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
   available:
@@ -148,21 +148,28 @@ export default function TerritoriesClient() {
 
   const handleAssignSubmit = async () => {
     if (!assignTerritory) return;
+    const endorserName = user.name || user.email || 'Territory Servant';
     if (assignType === 'publisher') {
       if (!assignUserId) {
         toast.error('Please select a publisher');
         return;
       }
       const selectedMember = members.find((m) => m.userId === assignUserId);
+      const targetName = selectedMember?.user?.name || selectedMember?.user?.email || 'publisher';
       await createAssignment({
         territoryId: assignTerritory.id,
+        congregationId,
+        territoryNumber: assignTerritory.number,
+        territoryName: assignTerritory.name,
         userId: assignUserId,
         assigneeName: selectedMember?.user?.name || selectedMember?.user?.email || null,
         assigneeEmail: selectedMember?.user?.email || null,
         assignedAt: new Date().toISOString(),
+        endorsedByUserId: user.id || null,
+        endorsedByUserName: endorserName,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${selectedMember?.user?.name || selectedMember?.user?.email || 'publisher'}`
+        `Territory #${assignTerritory.number} assigned to ${targetName} and submitted for endorsement`
       );
     } else {
       if (!assignGroupId) {
@@ -170,14 +177,20 @@ export default function TerritoriesClient() {
         return;
       }
       const selectedGroup = groups.find((g) => g.id === assignGroupId);
+      const groupName = selectedGroup?.name || 'group';
       await createAssignment({
         territoryId: assignTerritory.id,
+        congregationId,
+        territoryNumber: assignTerritory.number,
+        territoryName: assignTerritory.name,
         serviceGroupId: assignGroupId,
         groupName: selectedGroup?.name || null,
         assignedAt: new Date().toISOString(),
+        endorsedByUserId: user.id || null,
+        endorsedByUserName: endorserName,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${selectedGroup?.name || 'group'}`
+        `Territory #${assignTerritory.number} assigned to ${groupName} and submitted for endorsement`
       );
     }
 

@@ -6,6 +6,7 @@ import {
   Compass,
   FileText,
   FolderOpen,
+  Globe,
   Layers,
   LogOut,
   MapPin,
@@ -344,6 +345,13 @@ export function DashboardHeader() {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                  <Link href="/" className="flex items-center gap-2 px-3 py-2 text-xs">
+                    <Globe size={14} />
+                    <span>Landing Page</span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                   <Link href="/profile" className="flex items-center gap-2 px-3 py-2 text-xs">
                     <User size={14} />
                     <span>Profile & Settings</span>
@@ -354,10 +362,10 @@ export function DashboardHeader() {
                   <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                     <Link
                       href="/admin/dashboard"
-                      className="flex items-center gap-2 px-3 py-2 text-xs"
+                      className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-primary"
                     >
                       <Shield size={14} />
-                      <span>System Admin</span>
+                      <span>Admin Dashboard</span>
                     </Link>
                   </DropdownMenuItem>
                 )}

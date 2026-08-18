@@ -7,7 +7,9 @@ import {
   Compass,
   FileText,
   FolderOpen,
+  Globe,
   Layers,
+  LogOut,
   MapPin,
   Menu,
   Shield,
@@ -33,6 +35,7 @@ import {
   usePendingEndorsements,
   usePendingSharesCount,
 } from '@/hooks';
+import { signOut } from '@/lib/firebase/auth';
 import {
   canViewReports,
   isServiceOverseer,
@@ -287,6 +290,31 @@ export function BottomTabBar() {
 
                 <button
                   type="button"
+                  onClick={() => handleNavigate('/')}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                    pathname === '/'
+                      ? 'bg-primary/10 border-primary/30 text-primary'
+                      : 'bg-card border-border hover:bg-muted/60 text-foreground'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                      <Globe size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-xs text-foreground block">
+                        Landing Page
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate block">
+                        Public features & home page
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleNavigate('/profile')}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
                     pathname === '/profile'
@@ -339,17 +367,41 @@ export function BottomTabBar() {
                         <Shield size={16} />
                       </div>
                       <div className="min-w-0">
-                        <span className="font-semibold text-xs text-foreground block">
-                          System Admin Panel
+                        <span className="font-semibold text-xs text-primary font-bold block">
+                          Admin Dashboard
                         </span>
                         <span className="text-[11px] text-muted-foreground truncate block">
-                          Global congregation manager
+                          Global platform administration
                         </span>
                       </div>
                     </div>
                     <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSheetOpen(false);
+                    await signOut();
+                    router.push('/');
+                    router.refresh();
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl border border-destructive/20 bg-destructive/5 hover:bg-destructive/10 text-destructive transition-all text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+                      <LogOut size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-semibold text-xs block">Sign Out</span>
+                      <span className="text-[11px] text-muted-foreground truncate block">
+                        Log out of your account
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-destructive/60 shrink-0" />
+                </button>
               </div>
             </div>
           </SheetContent>

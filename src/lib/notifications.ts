@@ -8,7 +8,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { FIRESTORE_COLLECTIONS, createClientId, nowIso } from '@/lib/firebase/schema';
+import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { NotificationType } from '@/lib/roles';
 import type { Notification, NotificationDataPayload } from '@/types/api';
 
@@ -82,6 +82,8 @@ export function getNotificationRoute(
       return congregationId ? `/congregation/${congregationId}/my-assignments` : null;
 
     case NotificationType.TERRITORY_ENDORSED:
+      return congregationId ? `/congregation/${congregationId}/members?tab=endorsements` : null;
+
     case NotificationType.TERRITORY_RETURNED:
     case NotificationType.TERRITORY_REJECTED:
       return congregationId ? `/congregation/${congregationId}/territories` : null;

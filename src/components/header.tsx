@@ -1,13 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { Menu, X } from 'lucide-react';
+import { Menu, Shield, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
+import { isSystemAdmin } from '@/lib/permissions';
 
 const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth'];
 
@@ -21,11 +22,18 @@ export function Header() {
   const { data: session, status } = useSession();
   const sessionUser = session?.user as { role?: string; congregationId?: string } | undefined;
   const isAuthenticated = status === 'authenticated' || !!session;
+  const isAdmin = isSystemAdmin(sessionUser?.role);
   const isDashboardPage = DASHBOARD_PREFIXES.some((p) => pathname.startsWith(p));
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Hide on dashboard or auth app routes
   if (isDashboardPage) return null;
+
+  const appHref = isAdmin
+    ? '/admin/dashboard'
+    : sessionUser?.congregationId
+      ? `/congregation/${sessionUser.congregationId}/dashboard`
+      : '/onboarding';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background shadow-xs">
@@ -55,6 +63,15 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            {isAuthenticated && isAdmin && (
+              <Link
+                href="/admin/dashboard"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-primary hover:text-primary/80 rounded-lg hover:bg-primary/10 transition-all"
+              >
+                <Shield size={14} />
+                <span>Admin Dashboard</span>
+              </Link>
+            )}
           </nav>
 
           {/* Right actions */}
@@ -76,36 +93,24 @@ export function Header() {
               </>
             ) : (
               <Button size="sm" asChild className="text-xs font-semibold rounded-xl">
-                <Link
-                  href={
-                    sessionUser?.role === 'super_admin'
-                      ? '/admin/dashboard'
-                      : sessionUser?.congregationId
-                        ? `/congregation/${sessionUser.congregationId}/dashboard`
-                        : '/onboarding'
-                  }
-                >
-                  Go to App
-                </Link>
+                <Link href={appHref}>Go to App</Link>
               </Button>
             )}
 
             {/* Mobile menu toggle */}
-            {!isAuthenticated && (
-              <button
-                type="button"
-                className="md:hidden ml-1 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-all"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                aria-label="Toggle menu"
-              >
-                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
-            )}
+            <button
+              type="button"
+              className="md:hidden ml-1 p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-all"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
           </div>
         </div>
 
         {/* Mobile menu */}
-        {!isAuthenticated && mobileOpen && (
+        {mobileOpen && (
           <div className="md:hidden pb-4 space-y-1 border-t border-border/60 pt-3">
             {publicNavLinks.map((link) => (
               <Link
@@ -117,14 +122,34 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            <div className="flex gap-2 pt-2">
-              <Button variant="ghost" size="sm" asChild className="flex-1 text-xs">
-                <Link href="/auth/login">Sign In</Link>
-              </Button>
-              <Button size="sm" asChild className="flex-1 text-xs font-semibold rounded-xl">
-                <Link href="/auth/register">Get Started</Link>
-              </Button>
-            </div>
+
+            {isAuthenticated && isAdmin && (
+              <Link
+                href="/admin/dashboard"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/10 rounded-lg transition-all"
+              >
+                <Shield size={15} />
+                <span>Admin Dashboard</span>
+              </Link>
+            )}
+
+            {!isAuthenticated ? (
+              <div className="flex gap-2 pt-2">
+                <Button variant="ghost" size="sm" asChild className="flex-1 text-xs">
+                  <Link href="/auth/login">Sign In</Link>
+                </Button>
+                <Button size="sm" asChild className="flex-1 text-xs font-semibold rounded-xl">
+                  <Link href="/auth/register">Get Started</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="pt-2">
+                <Button size="sm" asChild className="w-full text-xs font-semibold rounded-xl">
+                  <Link href={appHref}>Go to App</Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

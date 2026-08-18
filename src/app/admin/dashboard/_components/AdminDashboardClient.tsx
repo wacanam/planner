@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AdminNav } from '@/components/admin-nav';
@@ -34,11 +35,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminAccountRequests, useAdminUsers, useCongregations } from '@/hooks';
+import { signOut } from '@/lib/firebase/auth';
 import { isSystemAdmin } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { AccountRequest } from '@/types/api';
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const { congregations = [], isLoading: loading } = useCongregations();
   const { users = [], isLoading: usersLoading } = useAdminUsers();
   const {
@@ -57,6 +60,19 @@ export default function AdminDashboardPage() {
   const [selectedReq, setSelectedReq] = useState<AccountRequest | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [reviewNote, setReviewNote] = useState('');
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      console.error('Sign out error:', err);
+      setIsSigningOut(false);
+    }
+  };
 
   const handleAction = async () => {
     if (!selectedReq || !actionType) return;
@@ -94,7 +110,18 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              asChild
+              size="sm"
+              variant="ghost"
+              className="rounded-xl text-xs gap-1.5 h-9 font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <Link href="/">
+                <Globe size={14} />
+                <span>Landing Page</span>
+              </Link>
+            </Button>
             <Button
               asChild
               size="sm"
@@ -115,6 +142,16 @@ export default function AdminDashboardPage() {
                 <Building2 size={14} />
                 <span>Congregations</span>
               </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="rounded-xl text-xs gap-1.5 h-9 font-semibold text-destructive hover:bg-destructive/10 border-destructive/30"
+            >
+              <LogOut size={14} />
+              <span>{isSigningOut ? 'Signing Out…' : 'Sign Out'}</span>
             </Button>
           </div>
         </div>

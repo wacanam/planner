@@ -31,14 +31,20 @@ function assignmentFromData(id: string, data: Partial<Assignment>): Assignment {
   return {
     id,
     territoryId: data.territoryId ?? '',
+    congregationId: data.congregationId ?? null,
     userId: data.userId ?? null,
     serviceGroupId: data.serviceGroupId ?? null,
     status: data.status ?? AssignmentStatus.ACTIVE,
     endorsementStatus: data.endorsementStatus ?? 'approved',
     endorsedBy: data.endorsedBy ?? null,
+    endorsedByName: data.endorsedByName ?? null,
     endorsedAt: data.endorsedAt ?? null,
     approvedBy: data.approvedBy ?? null,
+    approvedByName: data.approvedByName ?? null,
     approvedAt: data.approvedAt ?? null,
+    rejectedBy: data.rejectedBy ?? null,
+    rejectedByName: data.rejectedByName ?? null,
+    rejectedAt: data.rejectedAt ?? null,
     rejectionReason: data.rejectionReason ?? null,
     assignedAt: data.assignedAt ?? null,
     dueAt: data.dueAt ?? null,
@@ -92,12 +98,15 @@ export function useTerritoryAssignments(territoryId: string | null | undefined) 
   return { assignments, data: assignments, isLoading, error };
 }
 
-export function useMyAssignments(_congregationId?: string) {
+export function useMyAssignments(congregationId?: string | null) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(assignmentCollection());
+    const q = congregationId
+      ? query(assignmentCollection(), where('congregationId', '==', congregationId))
+      : query(assignmentCollection());
+
     return onSnapshot(
       q,
       (snapshot) => {
@@ -114,18 +123,25 @@ export function useMyAssignments(_congregationId?: string) {
         setIsLoading(false);
       }
     );
-  }, []);
+  }, [congregationId]);
 
   return { assignments, data: assignments, isLoading };
 }
 
-export function usePendingEndorsements(_congregationId?: string) {
+export function usePendingEndorsements(congregationId?: string | null) {
   const [pending, setPending] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!congregationId) {
+      setPending([]);
+      setIsLoading(false);
+      return;
+    }
+
     const q = query(
       assignmentCollection(),
+      where('congregationId', '==', congregationId),
       where('endorsementStatus', '==', EndorsementStatus.PENDING_APPROVAL)
     );
 
@@ -133,7 +149,11 @@ export function usePendingEndorsements(_congregationId?: string) {
       q,
       (snapshot) => {
         setPending(
-          snapshot.docs.map((d) => assignmentFromData(d.id, d.data() as Partial<Assignment>))
+          snapshot.docs
+            .map((d) => assignmentFromData(d.id, d.data() as Partial<Assignment>))
+            .sort((a, b) =>
+              (b.endorsedAt || b.createdAt || '').localeCompare(a.endorsedAt || a.createdAt || '')
+            )
         );
         setIsLoading(false);
       },
@@ -142,7 +162,7 @@ export function usePendingEndorsements(_congregationId?: string) {
         setIsLoading(false);
       }
     );
-  }, []);
+  }, [congregationId]);
 
   return { pending, endorsements: pending, count: pending.length, isLoading };
 }
@@ -156,6 +176,7 @@ export function useCreateAssignment() {
   const endorse = useCallback(
     async (arg: {
       territoryId: string;
+      congregationId?: string | null;
       userId?: string | null;
       serviceGroupId?: string | null;
       assigneeName?: string | null;
@@ -166,6 +187,8 @@ export function useCreateAssignment() {
       notes?: string | null;
       endorsedByUserId?: string | null;
       endorsedByUserName?: string | null;
+      territoryName?: string | null;
+      territoryNumber?: string | null;
     }) => {
       setIsCreating(true);
       try {
@@ -174,17 +197,32 @@ export function useCreateAssignment() {
         const territoryId = arg.territoryId;
         const firestore = getPlannerFirestore();
 
+        // Fetch territory info for notification context and update territory status
+        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId);
+        const territorySnap = await getDoc(territoryRef);
+        const territoryData = territorySnap.exists() ? territorySnap.data() : null;
+        const congId = arg.congregationId || territoryData?.congregationId || null;
+        const territoryNumber = arg.territoryNumber || territoryData?.number || territoryId;
+        const territoryName = arg.territoryName || territoryData?.name || '';
+
         const assignmentDoc: Assignment = {
           id,
           territoryId,
+          congregationId: congId,
           userId: arg.userId ?? null,
           serviceGroupId: arg.serviceGroupId ?? null,
           status: AssignmentStatus.PENDING_APPROVAL,
           endorsementStatus: EndorsementStatus.PENDING_APPROVAL,
           endorsedBy: arg.endorsedByUserId ?? null,
+          endorsedByName: arg.endorsedByUserName ?? null,
           endorsedAt: now,
           approvedBy: null,
+          approvedByName: null,
           approvedAt: null,
+          rejectedBy: null,
+          rejectedByName: null,
+          rejectedAt: null,
+          rejectionReason: null,
           assignedAt: arg.assignedAt ?? now,
           dueAt: arg.dueAt ?? null,
           returnedAt: null,
@@ -194,16 +232,11 @@ export function useCreateAssignment() {
           assigneeName: arg.assigneeName ?? null,
           assigneeEmail: arg.assigneeEmail ?? null,
           groupName: arg.groupName ?? null,
+          territoryName,
+          territoryNumber,
         };
 
         await setDoc(assignmentDocument(id), assignmentDoc);
-
-        // Fetch territory info for notification context and update territory status
-        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId);
-        const territorySnap = await getDoc(territoryRef);
-        const territoryData = territorySnap.exists() ? territorySnap.data() : null;
-        const congId = territoryData?.congregationId;
-        const territoryNumber = territoryData?.number || territoryId;
 
         // Also mark territory as pending
         await updateDoc(territoryRef, {
@@ -218,15 +251,22 @@ export function useCreateAssignment() {
         // Notify congregation service overseers
         if (congId) {
           try {
+            const endorserLabel = arg.endorsedByUserName ? ` by ${arg.endorsedByUserName}` : '';
+            const targetLabel = arg.assigneeName || arg.groupName || 'A publisher';
             await notifyCongregationOverseers(firestore, congId, {
               type: NotificationType.TERRITORY_ENDORSED,
               title: 'New Territory Endorsement',
-              body: `${arg.assigneeName || 'A publisher'} was endorsed for Territory #${territoryNumber}.`,
+              body: `${targetLabel} was endorsed for Territory #${territoryNumber}${endorserLabel}.`,
               data: {
                 congregationId: congId,
                 territoryId,
                 assignmentId: id,
                 territoryNumber,
+                territoryName,
+                endorsedByUserId: arg.endorsedByUserId,
+                endorsedByUserName: arg.endorsedByUserName,
+                assigneeName: arg.assigneeName,
+                groupName: arg.groupName,
               },
               excludeUserId: arg.endorsedByUserId,
             });
@@ -246,14 +286,14 @@ export function useCreateAssignment() {
   return { create: endorse, endorse, isCreating, isPending: isCreating };
 }
 
-export function useApproveAssignment(_congregationId?: string) {
+export function useApproveAssignment(congregationId?: string) {
   const [isApproving, setIsApproving] = useState(false);
 
   const approve = useCallback(
     async (
       arg: string | { assignmentId: string; approved?: boolean },
       approvedByUserId?: string,
-      _approvedByUserName?: string
+      approvedByUserName?: string
     ) => {
       const assignmentId = typeof arg === 'string' ? arg : arg.assignmentId;
       const isApproved = typeof arg === 'string' ? true : (arg.approved ?? true);
@@ -270,12 +310,13 @@ export function useApproveAssignment(_congregationId?: string) {
             status: AssignmentStatus.ACTIVE,
             endorsementStatus: EndorsementStatus.APPROVED,
             approvedBy: approvedByUserId ?? 'Overseer',
+            approvedByName: approvedByUserName ?? null,
             approvedAt: now,
             updatedAt: now,
           });
 
           let territoryNumber = assignment.territoryNumber || '';
-          let congId = _congregationId;
+          let congId = assignment.congregationId || congregationId;
 
           if (assignment.territoryId) {
             const territoryRef = doc(
@@ -307,16 +348,44 @@ export function useApproveAssignment(_congregationId?: string) {
                 userId: assignment.userId,
                 type: NotificationType.TERRITORY_APPROVED,
                 title: 'Territory Assignment Approved',
-                body: `Your assignment for Territory #${territoryNumber || ''} has been approved.`,
+                body: `Your assignment for Territory #${territoryNumber || ''} has been approved${approvedByUserName ? ` by ${approvedByUserName}` : ''}.`,
                 data: {
                   congregationId: congId,
                   territoryId: assignment.territoryId,
                   assignmentId,
                   territoryNumber,
+                  approvedBy: approvedByUserId,
+                  approvedByName: approvedByUserName,
                 },
               });
             } catch (notifErr) {
               console.error('Failed to notify publisher of approval:', notifErr);
+            }
+          }
+
+          // Also notify the endorser if different from the assigned publisher and overseer
+          if (
+            assignment.endorsedBy &&
+            assignment.endorsedBy !== assignment.userId &&
+            assignment.endorsedBy !== approvedByUserId
+          ) {
+            try {
+              await createInAppNotification(firestore, {
+                userId: assignment.endorsedBy,
+                type: NotificationType.TERRITORY_APPROVED,
+                title: 'Endorsement Approved',
+                body: `Your endorsement of Territory #${territoryNumber || ''} for ${assignment.assigneeName || assignment.groupName || 'publisher'} was approved${approvedByUserName ? ` by ${approvedByUserName}` : ''}.`,
+                data: {
+                  congregationId: congId,
+                  territoryId: assignment.territoryId,
+                  assignmentId,
+                  territoryNumber,
+                  approvedBy: approvedByUserId,
+                  approvedByName: approvedByUserName,
+                },
+              });
+            } catch (notifErr) {
+              console.error('Failed to notify endorser of approval:', notifErr);
             }
           }
         }
@@ -324,11 +393,16 @@ export function useApproveAssignment(_congregationId?: string) {
         setIsApproving(false);
       }
     },
-    [_congregationId]
+    [congregationId]
   );
 
   const reject = useCallback(
-    async (assignmentId: string, reason?: string) => {
+    async (
+      assignmentId: string,
+      reason?: string,
+      rejectedByUserId?: string,
+      rejectedByUserName?: string
+    ) => {
       setIsApproving(true);
       try {
         const now = nowIso();
@@ -337,15 +411,20 @@ export function useApproveAssignment(_congregationId?: string) {
         if (!snap.exists()) throw new Error('Assignment not found');
         const assignment = snap.data() as Assignment;
 
+        const trimmedReason = reason?.trim() || null;
+
         await updateDoc(assignmentDocument(assignmentId), {
           status: AssignmentStatus.REJECTED,
           endorsementStatus: EndorsementStatus.REJECTED,
-          rejectionReason: reason ?? null,
+          rejectionReason: trimmedReason,
+          rejectedBy: rejectedByUserId ?? null,
+          rejectedByName: rejectedByUserName ?? null,
+          rejectedAt: now,
           updatedAt: now,
         });
 
         let territoryNumber = assignment.territoryNumber || '';
-        let congId = _congregationId;
+        let congId = assignment.congregationId || congregationId;
 
         if (assignment.territoryId) {
           const territoryRef = doc(
@@ -371,19 +450,32 @@ export function useApproveAssignment(_congregationId?: string) {
         }
 
         // Notify the assigned publisher and/or the servant who endorsed
-        const recipientId = assignment.userId || assignment.endorsedBy;
-        if (recipientId) {
+        const declinerLabel = rejectedByUserName ? ` by ${rejectedByUserName}` : '';
+        const reasonText = trimmedReason ? ` Reason: "${trimmedReason}"` : '';
+
+        const recipientIds = new Set<string>();
+        if (assignment.userId && assignment.userId !== rejectedByUserId) {
+          recipientIds.add(assignment.userId);
+        }
+        if (assignment.endorsedBy && assignment.endorsedBy !== rejectedByUserId) {
+          recipientIds.add(assignment.endorsedBy);
+        }
+
+        for (const recipientId of recipientIds) {
           try {
             await createInAppNotification(firestore, {
               userId: recipientId,
               type: NotificationType.TERRITORY_REJECTED,
-              title: 'Territory Assignment Declined',
-              body: `Territory #${territoryNumber || ''} assignment was declined.${reason ? ` Reason: ${reason}` : ''}`,
+              title: 'Territory Endorsement Declined',
+              body: `Territory #${territoryNumber || ''} endorsement for ${assignment.assigneeName || assignment.groupName || 'publisher'} was declined${declinerLabel}.${reasonText}`,
               data: {
                 congregationId: congId,
                 territoryId: assignment.territoryId,
                 assignmentId,
                 territoryNumber,
+                rejectionReason: trimmedReason,
+                rejectedBy: rejectedByUserId,
+                rejectedByName: rejectedByUserName,
               },
             });
           } catch (notifErr) {
@@ -394,7 +486,7 @@ export function useApproveAssignment(_congregationId?: string) {
         setIsApproving(false);
       }
     },
-    [_congregationId]
+    [congregationId]
   );
 
   return { approve, reject, isApproving, isPending: isApproving };

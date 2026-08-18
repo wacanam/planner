@@ -61,8 +61,8 @@ export function AvatarCropDialog({
     >
       <div className="space-y-4">
         {/* Preview Circle */}
-        <div className="flex items-center justify-center py-4">
-          <div className="w-48 h-48 rounded-full overflow-hidden border-2 border-primary shadow-inner bg-muted relative flex items-center justify-center">
+        <div className="flex items-center justify-center py-2 sm:py-4">
+          <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full overflow-hidden border-2 border-primary shadow-inner bg-muted relative flex items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               ref={imgRef}
@@ -82,40 +82,43 @@ export function AvatarCropDialog({
             type="button"
             variant="outline"
             size="icon"
-            className="rounded-xl h-9 w-9"
+            className="rounded-xl h-10 w-10 sm:h-9 sm:w-9 active:scale-95"
             onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
             title="Zoom Out"
+            aria-label="Zoom out"
           >
-            <ZoomOut size={16} />
+            <ZoomOut size={18} />
           </Button>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="rounded-xl h-9 w-9"
+            className="rounded-xl h-10 w-10 sm:h-9 sm:w-9 active:scale-95"
             onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
             title="Zoom In"
+            aria-label="Zoom in"
           >
-            <ZoomIn size={16} />
+            <ZoomIn size={18} />
           </Button>
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="rounded-xl h-9 w-9"
+            className="rounded-xl h-10 w-10 sm:h-9 sm:w-9 active:scale-95"
             onClick={() => setRotation((r) => (r + 90) % 360)}
             title="Rotate"
+            aria-label="Rotate image"
           >
-            <RotateCw size={16} />
+            <RotateCw size={18} />
           </Button>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-border">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 border-t border-border">
           <Button
             type="button"
             variant="outline"
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs h-10 sm:h-9 w-full sm:w-auto"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
@@ -123,7 +126,7 @@ export function AvatarCropDialog({
           </Button>
           <Button
             type="button"
-            className="rounded-xl text-xs font-semibold"
+            className="rounded-xl text-xs font-semibold h-10 sm:h-9 w-full sm:w-auto"
             onClick={handleSave}
             disabled={loading}
           >
