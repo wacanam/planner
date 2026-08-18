@@ -221,16 +221,16 @@ export function StudioTopBar({
   return (
     <div
       ref={containerRef}
-      className="absolute top-4 inset-x-0 z-30 flex flex-col items-center px-4 pointer-events-none"
+      className="absolute top-3 sm:top-4 inset-x-0 z-30 flex flex-col items-center px-3 sm:px-4 pointer-events-none"
     >
-      <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-[width,max-width,padding,background-color] duration-300 ease-out">
+      <div className="pointer-events-auto min-w-0 max-w-full overflow-x-auto no-scrollbar scrollbar-none flex items-center gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-[width,max-width,padding,background-color] duration-300 ease-out touch-pan-x overscroll-x-contain">
         {/* Toggle Sidebar Menu Button */}
         {onToggleSidebar && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className={`h-9 w-9 rounded-xl transition-colors duration-150 ${
+            className={`h-9 w-9 rounded-xl transition-colors duration-150 shrink-0 ${
               sidebarOpen
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
@@ -244,7 +244,7 @@ export function StudioTopBar({
 
         {/* Territory identifier badge */}
         {(territoryNumber || territoryName) && (
-          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 rounded-xl text-primary text-xs font-bold transition-all">
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 rounded-xl text-primary text-xs font-bold transition-all shrink-0">
             <span>#{territoryNumber}</span>
             {territoryName && (
               <span className="font-medium text-foreground truncate max-w-[120px]">
@@ -284,7 +284,7 @@ export function StudioTopBar({
                   type="button"
                   onClick={() => onSelectTool(t.id)}
                   title={t.label}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-150 ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -301,7 +301,7 @@ export function StudioTopBar({
 
         {/* Animated Search input container */}
         <div
-          className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out ${
+          className={`flex items-center overflow-hidden transition-all duration-300 ease-in-out shrink-0 ${
             searchOpen ? 'w-48 sm:w-64 opacity-100 mr-0.5' : 'w-0 opacity-0 pointer-events-none'
           }`}
         >
@@ -391,7 +391,7 @@ export function StudioTopBar({
 
       {/* Live Search Results Dropdown */}
       {searchOpen && searchQuery.trim().length > 0 && (
-        <div className="pointer-events-auto mt-2 w-80 sm:w-96 max-h-96 overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl p-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="pointer-events-auto mt-2 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-2rem)] max-h-96 overflow-y-auto rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl p-2 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
           {/* Households Section */}
           {matchedHouseholds.length > 0 && (
             <div className="space-y-1">

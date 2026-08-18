@@ -14,6 +14,7 @@ export interface SessionUser {
   role: UserRole;
   congregationId?: string | null;
   congregationRole?: string | null;
+  groupId?: string | null;
   avatarUrl?: string | null;
   image?: string | null;
 }
@@ -28,12 +29,14 @@ export function useCurrentUser(): {
 
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
   const [membershipCongregationId, setMembershipCongregationId] = useState<string | null>(null);
+  const [membershipGroupId, setMembershipGroupId] = useState<string | null>(null);
   const [membershipLoading, setMembershipLoading] = useState<boolean>(true);
 
   useEffect(() => {
     if (!userId) {
       setMembershipRole(null);
       setMembershipCongregationId(null);
+      setMembershipGroupId(null);
       setMembershipLoading(false);
       return;
     }
@@ -53,6 +56,7 @@ export function useCurrentUser(): {
           const data = snapshot.data();
           if (data.congregationRole) setMembershipRole(String(data.congregationRole));
           if (data.congregationId) setMembershipCongregationId(String(data.congregationId));
+          if (data.groupId) setMembershipGroupId(String(data.groupId));
         }
         setMembershipLoading(false);
       },
@@ -75,6 +79,9 @@ export function useCurrentUser(): {
         }
         if (docData?.congregationId) {
           setMembershipCongregationId(String(docData.congregationId));
+        }
+        if (docData?.groupId) {
+          setMembershipGroupId(String(docData.groupId));
         }
         setMembershipLoading(false);
       },
@@ -106,6 +113,7 @@ export function useCurrentUser(): {
   })();
 
   const congregationId = session?.user?.congregationId || membershipCongregationId || null;
+  const groupId = (session?.user as any)?.groupId || membershipGroupId || null;
 
   const user = useMemo((): SessionUser => {
     return {
@@ -115,6 +123,7 @@ export function useCurrentUser(): {
       role: effectiveRole,
       congregationId,
       congregationRole: membershipRole,
+      groupId,
       avatarUrl: session?.user?.avatarUrl || null,
     };
   }, [
@@ -125,6 +134,7 @@ export function useCurrentUser(): {
     effectiveRole,
     congregationId,
     membershipRole,
+    groupId,
   ]);
 
   const loading = status === 'loading' || (Boolean(userId) && membershipLoading);

@@ -425,8 +425,8 @@ export function StudioPrintViewport({
       </svg>
 
       {/* Top Floating Viewport Control Bar replacing StudioTopBar */}
-      <div className="absolute top-3 inset-x-0 z-40 flex flex-col items-center px-2 pointer-events-none">
-        <div className="pointer-events-auto flex items-center justify-between gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 max-w-[98vw] overflow-x-auto scrollbar-none">
+      <div className="absolute top-3 sm:top-4 inset-x-0 z-40 flex flex-col items-center px-3 sm:px-4 pointer-events-none">
+        <div className="pointer-events-auto flex items-center justify-between gap-1.5 p-1.5 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl transition-all duration-200 min-w-0 max-w-full overflow-x-auto no-scrollbar scrollbar-none touch-pan-x overscroll-x-contain">
           {/* Left: Territory & Dimensions Pill */}
           <div className="flex items-center gap-1.5 px-1.5 shrink-0">
             <div className="p-1 rounded-lg bg-primary/10 text-primary">

@@ -178,6 +178,101 @@ export function isGroupOverseerOfUser(
 }
 
 /**
+ * Checks if a user belongs to a service group as overseer, assistant overseer, or group member.
+ * Strictly uses deterministic user identifiers (auth UID / userId, verified email, or explicit groupId).
+ */
+export function isUserInGroup(
+  user: { id?: string | null; email?: string | null; groupId?: string | null } | null | undefined,
+  group:
+    | {
+        id?: string;
+        overseerId?: string | null;
+        assistantOverseerId?: string | null;
+        members?: Array<{
+          userId?: string | null;
+          id?: string | null;
+          role?: string | null;
+          user?: { email?: string | null } | null;
+        }>;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!user || (!user.id && !user.email && !user.groupId) || !group) return false;
+  const uid = user.id?.trim();
+  const userEmail = user.email?.trim().toLowerCase();
+  const userGroupId = user.groupId?.trim();
+
+  // 1. Direct groupId linkage (from user profile or congregationMembers record)
+  if (userGroupId && group.id && userGroupId === group.id) {
+    return true;
+  }
+
+  // 2. Overseer or Assistant Overseer by UID
+  if (uid) {
+    if (group.overseerId === uid || group.assistantOverseerId === uid) {
+      return true;
+    }
+  }
+
+  // 3. Members check by UID
+  if (uid) {
+    const isMemberByUid = group.members?.some((m) => {
+      const memberId = (m.userId || m.id)?.trim();
+      return memberId === uid;
+    });
+    if (isMemberByUid) return true;
+  }
+
+  // 4. Secondary fallback: verified email if UID was not available
+  if (userEmail) {
+    const isMemberByEmail = group.members?.some((m) => {
+      return m.user?.email && m.user.email.trim().toLowerCase() === userEmail;
+    });
+    if (isMemberByEmail) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns a Set of group IDs that the user belongs to (as overseer, assistant overseer, or member).
+ * Strictly uses group IDs (group.id).
+ */
+export function getUserGroupIds(
+  user: { id?: string | null; email?: string | null; groupId?: string | null } | null | undefined,
+  groups: Array<{
+    id: string;
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{
+      userId?: string | null;
+      id?: string | null;
+      role?: string | null;
+      user?: { email?: string | null } | null;
+    }>;
+  }> = []
+): Set<string> {
+  const ids = new Set<string>();
+  if (!user || (!user.id && !user.email && !user.groupId) || !groups || groups.length === 0) {
+    if (user?.groupId) ids.add(user.groupId);
+    return ids;
+  }
+
+  if (user.groupId) {
+    ids.add(user.groupId);
+  }
+
+  for (const group of groups) {
+    if (group.id && isUserInGroup(user, group)) {
+      ids.add(group.id);
+    }
+  }
+
+  return ids;
+}
+
+/**
  * Checks if a user is authorized to return an assignment:
  * - Personal assignment: The assigned user can return it.
  * - Group assignment: Only the Group Overseer (or Service Overseer / Territory Servant) can return it.

@@ -31,7 +31,7 @@ import {
   useMyAssignments,
   useReturnAssignment,
 } from '@/hooks';
-import { canReturnAssignment } from '@/lib/permissions';
+import { canReturnAssignment, getUserGroupIds } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { toast } from 'sonner';
 import type { Assignment, Household } from '@/types/api';
@@ -72,36 +72,90 @@ export default function MyAssignmentsClient() {
     return map;
   }, [households]);
 
-  // Find all service groups that the current user belongs to
+  // Find all service groups that the current user belongs to (as overseer, assistant, or member)
   const userGroupIds = useMemo(() => {
-    if (!user?.id) return new Set<string>();
-    const ids = new Set<string>();
-    for (const g of groups) {
-      if (
-        g.members?.some(
-          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
-        )
-      ) {
-        ids.add(g.id);
-      }
-    }
-    return ids;
+    return getUserGroupIds(user, groups);
   }, [groups, user]);
 
   // Filter assignments: either directly assigned to user OR inherited from their service group
   const myAssignments = useMemo(() => {
-    if (!user?.id) return [];
-    return assignments.filter((a) => {
-      // 1. Direct personal assignment
-      if (a.userId === user.id || a.assigneeEmail === user.email) return true;
-      // 2. Inherited from a service group the user belongs to
-      if (a.serviceGroupId && userGroupIds.has(a.serviceGroupId)) return true;
-      return false;
-    });
-  }, [assignments, user, userGroupIds]);
+    if (!user?.id && !user?.email) return [];
 
-  const active = myAssignments.filter((a) => a.status === 'assigned' || a.status === 'active');
-  const past = myAssignments.filter((a) => a.status !== 'assigned' && a.status !== 'active');
+    const uid = user?.id?.trim();
+    const userEmail = user?.email?.toLowerCase().trim();
+    const results: Assignment[] = [];
+    const assignedTerritoryIds = new Set<string>();
+
+    // 1. Check explicit records in the assignments collection (matching by userId, email, or serviceGroupId)
+    for (const a of assignments) {
+      const aEmail = a.assigneeEmail?.toLowerCase().trim();
+      const aGroupId = a.serviceGroupId?.trim();
+
+      const isDirectPersonal =
+        Boolean(uid && a.userId === uid) ||
+        Boolean(userEmail && aEmail && aEmail === userEmail);
+
+      const isGroupInherited = Boolean(aGroupId && userGroupIds.has(aGroupId));
+
+      if (isDirectPersonal || isGroupInherited) {
+        results.push(a);
+        if (a.territoryId) {
+          assignedTerritoryIds.add(a.territoryId);
+        }
+      }
+    }
+
+    // 2. Fallback: Also check congregation territories directly for any assigned territories
+    // that may not have an explicit document in the assignments collection (matching strictly by publisherId, email, or groupId)
+    for (const t of territories) {
+      if (assignedTerritoryIds.has(t.id)) continue;
+
+      const tStatus = t.status?.toLowerCase().trim();
+      if (tStatus !== 'assigned' && tStatus !== 'active') continue;
+
+      const tPublisherId = t.publisherId?.trim();
+      const tGroupId = t.groupId?.trim();
+
+      const isDirectPersonal =
+        Boolean(uid && tPublisherId === uid) ||
+        Boolean(userEmail && tPublisherId?.toLowerCase() === userEmail);
+
+      const isGroupInherited = Boolean(tGroupId && userGroupIds.has(tGroupId));
+
+      if (isDirectPersonal || isGroupInherited) {
+        results.push({
+          id: `territory-${t.id}`,
+          territoryId: t.id,
+          congregationId: t.congregationId || congregationId,
+          userId: t.publisherId || null,
+          serviceGroupId: t.groupId || null,
+          groupName: t.groupName || (isGroupInherited ? 'Service Group' : null),
+          assigneeName: t.publisherName || null,
+          assigneeEmail: null,
+          status: 'assigned',
+          assignedAt: t.updatedAt || t.createdAt || new Date().toISOString(),
+          dueAt: null,
+          returnedAt: null,
+          notes: t.notes || null,
+          coverageAtAssignment: t.coveragePercent || '0',
+          createdAt: t.createdAt || new Date().toISOString(),
+          territoryNumber: t.number,
+          territoryName: t.name,
+        });
+      }
+    }
+
+    return results;
+  }, [assignments, territories, user, userGroupIds, congregationId]);
+
+  const active = myAssignments.filter((a) => {
+    const s = a.status?.toLowerCase().trim();
+    return s === 'assigned' || s === 'active';
+  });
+  const past = myAssignments.filter((a) => {
+    const s = a.status?.toLowerCase().trim();
+    return s !== 'assigned' && s !== 'active';
+  });
   const isLoading = loadingAssignments || loadingTerritories || loadingGroups || loadingHouseholds;
 
   return (

@@ -14,7 +14,7 @@ import {
   useTerritoryAssignments,
   useTerritoryDetail,
 } from '@/hooks';
-import { canEditTerritoryInStudio } from '@/lib/permissions';
+import { canEditTerritoryInStudio, getUserGroupIds } from '@/lib/permissions';
 
 export default function TerritoryDetailView() {
   const params = useParams();
@@ -37,20 +37,9 @@ export default function TerritoryDetailView() {
     (a) => a.status === 'assigned' || a.status === 'active'
   );
 
-  // Find all service groups that the current user belongs to
+  // Find all service groups that the current user belongs to (as overseer, assistant, or member)
   const userGroupIds = useMemo(() => {
-    if (!user?.id) return new Set<string>();
-    const ids = new Set<string>();
-    for (const g of groups) {
-      if (
-        g.members?.some(
-          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
-        )
-      ) {
-        ids.add(g.id);
-      }
-    }
-    return ids;
+    return getUserGroupIds(user, groups);
   }, [groups, user]);
 
   const canEdit = useMemo(() => {

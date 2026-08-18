@@ -29,7 +29,7 @@ import {
   useHouseholds,
   useMyAssignments,
 } from '@/hooks';
-import { isServiceOverseer, isTerritoryServant } from '@/lib/permissions';
+import { getUserGroupIds, isServiceOverseer, isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household } from '@/types/api';
 
@@ -70,20 +70,9 @@ export default function CongregationDashboardClient() {
     return map;
   }, [households]);
 
-  // Find all service groups that the current user belongs to
+  // Find all service groups that the current user belongs to (as overseer, assistant, or member)
   const userGroupIds = useMemo(() => {
-    if (!user?.id) return new Set<string>();
-    const ids = new Set<string>();
-    for (const g of groups) {
-      if (
-        g.members?.some(
-          (m) => m.userId === user.id || m.id === user.id || m.user?.email === user.email
-        )
-      ) {
-        ids.add(g.id);
-      }
-    }
-    return ids;
+    return getUserGroupIds(user, groups);
   }, [groups, user]);
 
   const displayRole = (() => {
@@ -100,18 +89,76 @@ export default function CongregationDashboardClient() {
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
   const activeAssignments = useMemo(() => {
-    if (!user?.id) return [];
-    return assignments.filter((a) => {
-      const isActive = a.status === 'assigned' || a.status === 'active';
-      if (!isActive) return false;
-      // Direct personal or inherited from group
-      return (
-        a.userId === user.id ||
-        a.assigneeEmail === user.email ||
-        (a.serviceGroupId && userGroupIds.has(a.serviceGroupId))
-      );
-    });
-  }, [assignments, user, userGroupIds]);
+    if (!user?.id && !user?.email) return [];
+
+    const uid = user?.id?.trim();
+    const userEmail = user?.email?.toLowerCase().trim();
+    const results: Assignment[] = [];
+    const assignedTerritoryIds = new Set<string>();
+
+    for (const a of assignments) {
+      const isActive =
+        a.status?.toLowerCase().trim() === 'assigned' || a.status?.toLowerCase().trim() === 'active';
+      if (!isActive) continue;
+
+      const aEmail = a.assigneeEmail?.toLowerCase().trim();
+      const aGroupId = a.serviceGroupId?.trim();
+
+      const isDirectPersonal =
+        Boolean(uid && a.userId === uid) ||
+        Boolean(userEmail && aEmail && aEmail === userEmail);
+
+      const isGroupInherited = Boolean(aGroupId && userGroupIds.has(aGroupId));
+
+      if (isDirectPersonal || isGroupInherited) {
+        results.push(a);
+        if (a.territoryId) {
+          assignedTerritoryIds.add(a.territoryId);
+        }
+      }
+    }
+
+    // Fallback from territories (matching strictly by publisherId, email, or groupId)
+    for (const t of territories) {
+      if (assignedTerritoryIds.has(t.id)) continue;
+
+      const tStatus = t.status?.toLowerCase().trim();
+      if (tStatus !== 'assigned' && tStatus !== 'active') continue;
+
+      const tPublisherId = t.publisherId?.trim();
+      const tGroupId = t.groupId?.trim();
+
+      const isDirectPersonal =
+        Boolean(uid && tPublisherId === uid) ||
+        Boolean(userEmail && tPublisherId?.toLowerCase() === userEmail);
+
+      const isGroupInherited = Boolean(tGroupId && userGroupIds.has(tGroupId));
+
+      if (isDirectPersonal || isGroupInherited) {
+        results.push({
+          id: `territory-${t.id}`,
+          territoryId: t.id,
+          congregationId: t.congregationId || congregationId,
+          userId: t.publisherId || null,
+          serviceGroupId: t.groupId || null,
+          groupName: t.groupName || (isGroupInherited ? 'Service Group' : null),
+          assigneeName: t.publisherName || null,
+          assigneeEmail: null,
+          status: 'assigned',
+          assignedAt: t.updatedAt || t.createdAt || new Date().toISOString(),
+          dueAt: null,
+          returnedAt: null,
+          notes: t.notes || null,
+          coverageAtAssignment: t.coveragePercent || '0',
+          createdAt: t.createdAt || new Date().toISOString(),
+          territoryNumber: t.number,
+          territoryName: t.name,
+        });
+      }
+    }
+
+    return results;
+  }, [assignments, territories, user, userGroupIds, congregationId]);
 
   const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
 

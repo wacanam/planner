@@ -12,6 +12,8 @@ import {
   isSystemAdmin,
   isTerritoryServant,
   isUserAssignedToTerritory,
+  isUserInGroup,
+  getUserGroupIds,
 } from '../permissions';
 
 describe('hasPermission', () => {
@@ -145,6 +147,47 @@ describe('Group Roles and Territory Return Permissions', () => {
     expect(
       canReturnAssignment({ id: 'user-ts', role: 'TERRITORY_SERVANT' }, groupAssignment, group)
     ).toBe(true);
+  });
+
+  it('correctly includes Group Overseer and Assistant in getUserGroupIds even if not in members array', () => {
+    const groupWithoutOverseerInMembers = {
+      id: 'g-2',
+      overseerId: 'user-overseer-2',
+      assistantOverseerId: 'user-assistant-2',
+      members: [
+        { userId: 'user-pub-a', role: 'member' },
+        { userId: 'user-pub-b', role: 'member' },
+      ],
+    };
+
+    // Overseer is recognized as in group
+    expect(
+      isUserInGroup({ id: 'user-overseer-2' }, groupWithoutOverseerInMembers)
+    ).toBe(true);
+
+    // Assistant is recognized as in group
+    expect(
+      isUserInGroup({ id: 'user-assistant-2' }, groupWithoutOverseerInMembers)
+    ).toBe(true);
+
+    // Regular member in members array is in group
+    expect(
+      isUserInGroup({ id: 'user-pub-a' }, groupWithoutOverseerInMembers)
+    ).toBe(true);
+
+    // Outsider is not in group
+    expect(
+      isUserInGroup({ id: 'user-outsider' }, groupWithoutOverseerInMembers)
+    ).toBe(false);
+
+    // getUserGroupIds returns the group for the overseer
+    const groupsList = [groupWithoutOverseerInMembers];
+    const overseerGroups = getUserGroupIds({ id: 'user-overseer-2' }, groupsList);
+    expect(overseerGroups.has('g-2')).toBe(true);
+
+    // getUserGroupIds returns empty set for outsider
+    const outsiderGroups = getUserGroupIds({ id: 'user-outsider' }, groupsList);
+    expect(outsiderGroups.has('g-2')).toBe(false);
   });
 });
 

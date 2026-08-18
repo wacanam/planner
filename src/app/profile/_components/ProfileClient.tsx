@@ -62,7 +62,7 @@ import {
   useUpdateProfile,
 } from '@/hooks';
 import { signOut } from '@/lib/firebase/auth';
-import { isSystemAdmin } from '@/lib/permissions';
+import { isSystemAdmin, isUserInGroup } from '@/lib/permissions';
 import type { NotificationSoundStyle } from '@/types/api';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
@@ -182,11 +182,8 @@ export default function ProfilePage() {
   const memberRecord = members.find((m) => m.userId === targetUserId || m.id === targetUserId);
 
   // User's group in congregation
-  const userGroup = groups.find(
-    (g) =>
-      g.overseerId === targetUserId ||
-      g.assistantOverseerId === targetUserId ||
-      g.members.some((m) => (m.userId || m.id) === targetUserId)
+  const userGroup = groups.find((g) =>
+    isUserInGroup({ id: targetUserId, email: profile?.email || user.email }, g)
   );
 
   const groupMember = userGroup?.members.find((m) => (m.userId || m.id) === targetUserId);
@@ -373,78 +370,77 @@ export default function ProfilePage() {
         <main className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-28 sm:pb-12">
           {/* Profile Overview Hero Card */}
           <Card className="bg-card border-border shadow-xs overflow-hidden rounded-2xl sm:rounded-3xl">
-            <div className="h-20 sm:h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-primary/5 border-b border-border/40 relative" />
+            <div className="h-24 sm:h-32 bg-gradient-to-r from-primary/25 via-primary/15 to-primary/5 relative" />
             <CardContent className="px-4 sm:px-6 pb-5 pt-0 relative">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 -mt-10 sm:-mt-12 mb-4">
-                {/* Avatar with Touch-friendly Upload Button & User Details */}
-                <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
-                  <div className="relative group shrink-0 self-start">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl overflow-hidden bg-card border-4 border-card shadow-md flex items-center justify-center">
-                      {avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={avatarUrl}
-                          alt={profile?.name || user.name || 'Avatar'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xl sm:text-2xl font-bold text-primary">
-                            {userInitials}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-0 right-0 p-1.5 sm:p-2 rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
-                      title="Change photo"
-                      aria-label="Change photo"
-                    >
-                      <Camera size={14} />
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onSelectFile}
-                    />
-                  </div>
-
-                  <div className="min-w-0 pt-0 sm:pb-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-lg sm:text-xl font-extrabold text-foreground truncate">
-                        {profile?.name || user.name || 'Publisher'}
-                      </h2>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider ${congregationRoleLabel.badgeColor}`}
-                      >
-                        <span className="mr-1">{congregationRoleLabel.icon}</span>
-                        {congregationRoleLabel.title}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {profile?.email || user.email}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quick Photo Upload Action */}
-                <div className="flex items-center gap-2 pt-1 sm:pt-0">
-                  <Button
+              {/* Avatar Row */}
+              <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-3">
+                {/* Avatar with Touch-friendly Upload Button */}
+                <div className="relative group shrink-0">
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-8 text-xs px-3 rounded-xl gap-1.5 text-muted-foreground hover:text-foreground active:scale-[0.98] w-full sm:w-auto cursor-pointer"
+                    className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl sm:rounded-3xl overflow-hidden bg-card ring-4 ring-card shadow-lg flex items-center justify-center cursor-pointer group-hover:opacity-90 active:scale-95 transition-all text-left relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    title="Change profile picture"
+                    aria-label="Change profile picture"
                   >
-                    <Camera size={13} />
-                    <span>Change Photo</span>
-                  </Button>
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarUrl}
+                        alt={profile?.name || user.name || 'Avatar'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xl sm:text-2xl font-bold text-primary">
+                          {userInitials}
+                        </span>
+                      </div>
+                    )}
+                    {/* Hover overlay on desktop */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex flex-col items-center justify-center text-white text-[10px] font-semibold">
+                      <Camera size={18} className="mb-0.5" />
+                      <span>Edit</span>
+                    </div>
+                  </button>
+
+                  {/* Camera Icon Badge for Mobile & Desktop */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute -bottom-1 -right-1 p-1.5 sm:p-2 rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary/90 active:scale-95 transition-all cursor-pointer ring-2 ring-card"
+                    title="Change photo"
+                    aria-label="Change photo"
+                  >
+                    <Camera size={14} />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onSelectFile}
+                  />
                 </div>
+              </div>
+
+              {/* User Credentials (Cleanly in card body, no line collision) */}
+              <div className="space-y-0.5 mb-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight truncate">
+                    {profile?.name || user.name || 'Publisher'}
+                  </h2>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider ${congregationRoleLabel.badgeColor}`}
+                  >
+                    <span className="mr-1">{congregationRoleLabel.icon}</span>
+                    {congregationRoleLabel.title}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  {profile?.email || user.email}
+                </p>
               </div>
 
               {/* Congregation & Ministry Quick Status Badges */}

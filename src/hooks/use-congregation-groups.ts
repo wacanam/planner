@@ -12,7 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import { getOverseenGroupMateIds } from '@/lib/permissions';
+import { getOverseenGroupMateIds, getUserGroupIds } from '@/lib/permissions';
 import type { Group, GroupMember } from '@/types/api';
 
 function groupCollection() {
@@ -101,6 +101,17 @@ export function useOverseenGroupMates(
 ): Set<string> {
   const { groups = [] } = useCongregationGroups(congregationId);
   return useMemo(() => getOverseenGroupMateIds(userId, groups), [userId, groups]);
+}
+
+/**
+ * Returns a Set of group IDs that the user belongs to (as overseer, assistant overseer, or member).
+ */
+export function useUserGroupIds(
+  congregationId: string | null | undefined,
+  user: { id?: string | null; email?: string | null } | null | undefined
+): Set<string> {
+  const { groups = [] } = useCongregationGroups(congregationId);
+  return useMemo(() => getUserGroupIds(user, groups), [user, groups]);
 }
 
 export function useCreateGroup(congregationId: string) {

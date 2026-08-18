@@ -103,20 +103,20 @@ export function useMyAssignments(congregationId?: string | null) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const q = congregationId
-      ? query(assignmentCollection(), where('congregationId', '==', congregationId))
-      : query(assignmentCollection());
+    const q = query(assignmentCollection());
 
     return onSnapshot(
       q,
       (snapshot) => {
-        setAssignments(
-          snapshot.docs
-            .map((document) =>
-              assignmentFromData(document.id, document.data() as Partial<Assignment>)
-            )
-            .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''))
-        );
+        const list = snapshot.docs
+          .map((document) =>
+            assignmentFromData(document.id, document.data() as Partial<Assignment>)
+          )
+          .filter(
+            (a) => !congregationId || !a.congregationId || a.congregationId === congregationId
+          )
+          .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''));
+        setAssignments(list);
         setIsLoading(false);
       },
       () => {
@@ -549,6 +549,42 @@ export function useReturnAssignment() {
     try {
       const now = nowIso();
       const firestore = getPlannerFirestore();
+
+      // Handle synthesized territory assignment (when assignment only exists on territory doc)
+      if (assignmentId.startsWith('territory-')) {
+        const territoryId = assignmentId.replace('territory-', '');
+        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId);
+        const territorySnap = await getDoc(territoryRef);
+        if (territorySnap.exists()) {
+          const tData = territorySnap.data();
+          await updateDoc(territoryRef, {
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+            updatedAt: now,
+          });
+          if (tData.congregationId) {
+            try {
+              await notifyCongregationOverseers(firestore, tData.congregationId, {
+                type: NotificationType.TERRITORY_RETURNED,
+                title: 'Territory Returned',
+                body: `Territory #${tData.number || ''} was returned.`,
+                data: {
+                  congregationId: tData.congregationId,
+                  territoryId,
+                  territoryNumber: tData.number,
+                },
+              });
+            } catch (notifErr) {
+              console.error('Failed to notify overseers:', notifErr);
+            }
+          }
+        }
+        return;
+      }
+
       const snap = await getDoc(assignmentDocument(assignmentId));
       if (!snap.exists()) throw new Error('Assignment not found');
       const assignment = snap.data() as Assignment;
