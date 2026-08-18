@@ -205,13 +205,35 @@ export function useUpdateTerritory() {
   const update = useCallback(async (id: string, body: Record<string, unknown>) => {
     setIsUpdating(true);
     try {
-      await updateDoc(territoryDocument(id), { ...body, updatedAt: nowIso() });
+      const now = nowIso();
+      const firestore = getPlannerFirestore();
+      await updateDoc(territoryDocument(id), { ...body, updatedAt: now });
+
+      // If territory name or number changed, update assignments referencing this territoryId
+      if (body.number !== undefined || body.name !== undefined) {
+        const assignmentsSnap = await getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+            where('territoryId', '==', id)
+          )
+        );
+        if (!assignmentsSnap.empty) {
+          const batch = writeBatch(firestore);
+          for (const docSnap of assignmentsSnap.docs) {
+            const updates: Record<string, unknown> = { updatedAt: now };
+            if (body.number !== undefined) updates.territoryNumber = String(body.number);
+            if (body.name !== undefined) updates.territoryName = String(body.name);
+            batch.update(docSnap.ref, updates);
+          }
+          await batch.commit();
+        }
+      }
     } finally {
       setIsUpdating(false);
     }
   }, []);
 
-  return { update, isUpdating };
+  return { update, isUpdating, isPending: isUpdating };
 }
 
 export function useCongregationTerritoryRequests(

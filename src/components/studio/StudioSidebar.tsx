@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronLeft, Eye, MapPin, Plus, Printer } from 'lucide-react';
+import { Check, ChevronLeft, Eye, MapPin, Pencil, Plus, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ interface StudioSidebarProps {
   onChangeCardSettings: (settings: CardDimensionSettings) => void;
   onPrintCard: () => void;
   onOpenAddHousehold: () => void;
+  onEditTerritory?: () => void;
   isReadOnly?: boolean;
 }
 
@@ -58,6 +59,7 @@ export function StudioSidebar({
   onChangeCardSettings,
   onPrintCard,
   onOpenAddHousehold,
+  onEditTerritory,
   isReadOnly = false,
 }: StudioSidebarProps) {
   const { user } = useCurrentUser();
@@ -72,14 +74,28 @@ export function StudioSidebar({
     <aside className="absolute top-0 left-0 bottom-0 z-40 w-80 bg-card border-r border-border shadow-2xl flex flex-col pointer-events-auto transition-transform duration-200">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
             <MapPin size={16} />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-sm font-bold text-foreground truncate">
-              {territory ? `Territory #${territory.number}` : 'Territory Studio'}
-            </h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-bold text-foreground truncate">
+                {territory ? `Territory #${territory.number}` : 'Territory Studio'}
+              </h2>
+              {isServant && onEditTerritory && territory && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                  onClick={onEditTerritory}
+                  title="Edit territory details"
+                >
+                  <Pencil size={12} />
+                </Button>
+              )}
+            </div>
             <p className="text-[11px] text-muted-foreground truncate">
               {territory?.name || 'Workspace'}
             </p>

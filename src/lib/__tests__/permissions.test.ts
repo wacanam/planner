@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
+  canCreateTerritory,
+  canEditTerritory,
   canEditTerritoryInStudio,
   canReturnAssignment,
   canViewReports,
@@ -83,6 +85,20 @@ describe('RBAC Matrix Helper Functions', () => {
     expect(canViewReports(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(canViewReports(UserRole.TERRITORY_SERVANT)).toBe(true);
     expect(canViewReports(UserRole.USER)).toBe(false);
+  });
+
+  it('allows service overseer and territory servant to create and edit territories', () => {
+    expect(canCreateTerritory(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canCreateTerritory(UserRole.ADMIN)).toBe(true);
+    expect(canCreateTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canCreateTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canCreateTerritory(UserRole.USER)).toBe(false);
+
+    expect(canEditTerritory(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canEditTerritory(UserRole.ADMIN)).toBe(true);
+    expect(canEditTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canEditTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canEditTerritory(UserRole.USER)).toBe(false);
   });
 });
 

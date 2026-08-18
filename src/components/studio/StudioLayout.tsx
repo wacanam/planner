@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { useSaveAnnotations } from '@/hooks/use-territories';
+import { useSaveAnnotations, useUpdateTerritory } from '@/hooks/use-territories';
 import { useSaveBoundary } from '@/hooks/use-territory-boundary';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { createClientId } from '@/lib/firebase/schema';
@@ -167,6 +167,23 @@ export function StudioLayout({
   // Start flag dialog
   const [startFlagDialogOpen, setStartFlagDialogOpen] = useState(false);
   const [startFlagLabel, setStartFlagLabel] = useState('');
+
+  // Edit Territory Details Dialog
+  const [editTerritoryOpen, setEditTerritoryOpen] = useState(false);
+  const [editNumber, setEditNumber] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const { update: updateTerritory, isPending: updatingTerritory } = useUpdateTerritory();
+
+  useEffect(() => {
+    if (territory) {
+      setEditNumber(territory.number || '');
+      setEditName(territory.name || '');
+      setEditCity(territory.city || '');
+      setEditNotes(territory.notes || '');
+    }
+  }, [territory]);
 
   const { saveBoundary: _saveBoundary, isPending: isSavingBoundary } = useSaveBoundary(
     territory?.id ?? ''
@@ -866,6 +883,7 @@ export function StudioLayout({
         }}
         cardSettings={cardSettings}
         onChangeCardSettings={setCardSettings}
+        onEditTerritory={() => setEditTerritoryOpen(true)}
         onPrintCard={() => {
           setSidebarOpen(false);
           setIsPrintViewportActive(true);
@@ -1418,6 +1436,111 @@ export function StudioLayout({
           setSelectedBoundary(null);
         }}
       />
+
+      {/* Dialog: Edit Territory Details */}
+      <ResponsiveDialog
+        open={editTerritoryOpen}
+        onOpenChange={setEditTerritoryOpen}
+        title={territory ? `Edit Territory #${territory.number}` : 'Edit Territory'}
+        description="Update territory number, name, district, or notes"
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!territory?.id) return;
+            if (!editNumber.trim() || !editName.trim()) {
+              toast.error('Number and name are required');
+              return;
+            }
+            try {
+              await updateTerritory(territory.id, {
+                number: editNumber.trim(),
+                name: editName.trim(),
+                city: editCity.trim() || null,
+                notes: editNotes.trim() || null,
+              });
+              toast.success(`Territory #${editNumber} updated successfully!`);
+              setEditTerritoryOpen(false);
+            } catch (err: any) {
+              toast.error(err?.message || 'Failed to update territory');
+            }
+          }}
+          className="space-y-4 pt-2"
+        >
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1 col-span-1">
+              <Label htmlFor="studio-edit-number" className="text-xs font-semibold">
+                Number *
+              </Label>
+              <Input
+                id="studio-edit-number"
+                value={editNumber}
+                onChange={(e) => setEditNumber(e.target.value)}
+                placeholder="e.g. 101"
+                className="h-9 rounded-xl text-xs"
+                required
+              />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label htmlFor="studio-edit-name" className="text-xs font-semibold">
+                Territory Name *
+              </Label>
+              <Input
+                id="studio-edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Downtown West"
+                className="h-9 rounded-xl text-xs"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="studio-edit-city" className="text-xs font-semibold">
+              City / District
+            </Label>
+            <Input
+              id="studio-edit-city"
+              value={editCity}
+              onChange={(e) => setEditCity(e.target.value)}
+              placeholder="e.g. Manila"
+              className="h-9 rounded-xl text-xs"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="studio-edit-notes" className="text-xs font-semibold">
+              Notes / Instructions
+            </Label>
+            <Input
+              id="studio-edit-notes"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Optional territory notes..."
+              className="h-9 rounded-xl text-xs"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl text-xs"
+              onClick={() => setEditTerritoryOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="rounded-xl text-xs font-semibold"
+              disabled={updatingTerritory}
+            >
+              {updatingTerritory ? 'Saving…' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </ResponsiveDialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   FolderOpen,
   MapPin,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
@@ -45,10 +46,16 @@ import {
   useHouseholds,
   useRevokeTerritory,
   useUpdateCongregation,
+  useUpdateTerritory,
 } from '@/hooks';
 import { isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import { type CreateTerritoryFormData, createTerritorySchema } from '@/schemas';
+import {
+  type CreateTerritoryFormData,
+  type UpdateTerritoryFormData,
+  createTerritorySchema,
+  updateTerritorySchema,
+} from '@/schemas';
 import type { Household, Territory } from '@/types/api';
 
 const statusColors: Record<string, string> = {
@@ -100,6 +107,7 @@ export default function TerritoriesClient() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editTerritory, setEditTerritory] = useState<Territory | null>(null);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
   const [revokeConfirmTerritory, setRevokeConfirmTerritory] = useState<Territory | null>(null);
   const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
@@ -110,6 +118,8 @@ export default function TerritoriesClient() {
   const [centerLat, setCenterLat] = useState('');
   const [centerLng, setCenterLng] = useState('');
 
+  const { update: updateTerritory, isPending: updatingTerritory } = useUpdateTerritory();
+
   const createForm = useForm<CreateTerritoryFormData>({
     resolver: zodResolver(createTerritorySchema) as any,
     defaultValues: {
@@ -117,6 +127,17 @@ export default function TerritoriesClient() {
       name: '',
       type: 'regular',
       city: '',
+    },
+  });
+
+  const editForm = useForm<UpdateTerritoryFormData>({
+    resolver: zodResolver(updateTerritorySchema) as any,
+    defaultValues: {
+      number: '',
+      name: '',
+      type: 'regular',
+      city: '',
+      notes: '',
     },
   });
 
@@ -144,6 +165,34 @@ export default function TerritoriesClient() {
     });
     setCreateDialogOpen(false);
     createForm.reset();
+  };
+
+  const handleOpenEdit = (t: Territory) => {
+    setEditTerritory(t);
+    editForm.reset({
+      number: t.number || '',
+      name: t.name || '',
+      type: t.type || 'regular',
+      city: t.city || '',
+      notes: t.notes || '',
+    });
+  };
+
+  const handleEditSubmit = async (data: UpdateTerritoryFormData) => {
+    if (!editTerritory) return;
+    try {
+      await updateTerritory(editTerritory.id, {
+        number: data.number.trim(),
+        name: data.name.trim(),
+        city: data.city?.trim() || null,
+        type: data.type || 'regular',
+        notes: data.notes?.trim() || null,
+      });
+      toast.success(`Territory #${data.number} updated successfully`);
+      setEditTerritory(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update territory');
+    }
   };
 
   const handleAssignSubmit = async () => {
@@ -410,6 +459,19 @@ export default function TerritoriesClient() {
                       </Link>
                     </Button>
 
+                    {isServant && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs gap-1 hover:border-primary/50 hover:bg-primary/5"
+                        onClick={() => handleOpenEdit(t)}
+                        title="Edit territory details"
+                      >
+                        <Pencil size={12} />
+                        <span>Edit</span>
+                      </Button>
+                    )}
+
                     {isServant && t.status === 'available' && (
                       <Button
                         size="sm"
@@ -506,6 +568,85 @@ export default function TerritoriesClient() {
                 disabled={creatingTerritory}
               >
                 {creatingTerritory ? 'Creating…' : 'Create Territory'}
+              </Button>
+            </div>
+          </form>
+        </ResponsiveDialog>
+
+        {/* Edit Territory Dialog */}
+        <ResponsiveDialog
+          open={!!editTerritory}
+          onOpenChange={(op) => {
+            if (!op) setEditTerritory(null);
+          }}
+          title={editTerritory ? `Edit Territory #${editTerritory.number}` : 'Edit Territory'}
+          description="Update territory number, name, district, or notes"
+        >
+          <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1 col-span-1">
+                <Label htmlFor="edit-number" className="text-xs font-semibold">
+                  Number *
+                </Label>
+                <Input
+                  id="edit-number"
+                  placeholder="e.g. 101"
+                  className="h-9 rounded-xl text-xs"
+                  {...editForm.register('number')}
+                />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label htmlFor="edit-name" className="text-xs font-semibold">
+                  Territory Name *
+                </Label>
+                <Input
+                  id="edit-name"
+                  placeholder="e.g. Downtown West"
+                  className="h-9 rounded-xl text-xs"
+                  {...editForm.register('name')}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="edit-city" className="text-xs font-semibold">
+                City / District
+              </Label>
+              <Input
+                id="edit-city"
+                placeholder="e.g. Manila"
+                className="h-9 rounded-xl text-xs"
+                {...editForm.register('city')}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="edit-notes" className="text-xs font-semibold">
+                Notes / Instructions
+              </Label>
+              <Input
+                id="edit-notes"
+                placeholder="Optional territory notes..."
+                className="h-9 rounded-xl text-xs"
+                {...editForm.register('notes')}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setEditTerritory(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="rounded-xl text-xs font-semibold"
+                disabled={updatingTerritory}
+              >
+                {updatingTerritory ? 'Saving…' : 'Save Changes'}
               </Button>
             </div>
           </form>

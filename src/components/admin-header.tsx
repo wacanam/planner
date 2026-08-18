@@ -287,19 +287,6 @@ export function AdminHeader() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Direct Sign Out Button for Desktop */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="hidden sm:inline-flex h-8 text-xs gap-1 rounded-xl text-destructive hover:bg-destructive/10 border-destructive/30"
-              title="Sign Out"
-            >
-              <LogOut size={13} />
-              <span className="hidden md:inline">{isSigningOut ? 'Signing out…' : 'Sign Out'}</span>
-            </Button>
-
             {/* Mobile Menu Toggle Button */}
             <button
               type="button"

@@ -111,6 +111,7 @@ export interface Territory {
   id: string;
   number: string;
   name: string;
+  type?: string | null;
   city?: string | null;
   notes: string | null;
   status: string;

@@ -69,6 +69,10 @@ export function canCreateTerritory(role?: string | null): boolean {
   return isTerritoryServant(role);
 }
 
+export function canEditTerritory(role?: string | null): boolean {
+  return isTerritoryServant(role);
+}
+
 export function canEndorseAssignment(role?: string | null): boolean {
   return isTerritoryServant(role);
 }
