@@ -159,10 +159,10 @@ export function ContactAutocompleteInput({
 
       {/* Autocomplete Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl bg-popover border border-border shadow-lg overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-56 overflow-y-auto">
+        <div className="absolute left-0 top-full mt-1.5 z-50 w-[calc(100vw-48px)] sm:w-[135%] min-w-[320px] max-w-sm sm:max-w-md rounded-2xl bg-popover border border-border shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-64 overflow-y-auto">
           {filteredContacts.length > 0 ? (
-            <div className="p-1 space-y-0.5">
-              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            <div className="p-1.5 space-y-0.5">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {value.trim()
                   ? `Matching Contacts (${filteredContacts.length})`
                   : `Known Residents (${contacts.length})`}
@@ -180,19 +180,21 @@ export function ContactAutocompleteInput({
                     type="button"
                     onClick={() => handleSelect(contact)}
                     onMouseEnter={() => setHighlightedIndex(index)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between gap-2 transition-colors ${
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between gap-3 transition-colors ${
                       isHighlighted || isSelected
                         ? 'bg-primary/10 text-primary font-semibold'
                         : 'text-foreground hover:bg-muted'
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
                         {contact.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="min-w-0">
-                        <span className="truncate block font-semibold">{contact.name}</span>
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate block font-semibold text-foreground">
+                          {contact.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
                           {contact.gender && contact.gender !== 'unknown' && (
                             <span className="capitalize">{contact.gender}</span>
                           )}
@@ -204,19 +206,19 @@ export function ContactAutocompleteInput({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                       {/* Match Scope / Location Badge */}
                       {'matchScope' in contact && contact.matchScope === 'household' ? (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 font-bold"
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 font-bold"
                         >
                           🏠 At this address
                         </Badge>
                       ) : 'matchScope' in contact && contact.matchScope === 'territory' ? (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-bold max-w-[140px] truncate"
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-bold max-w-[150px] truncate"
                           title={contact.householdAddress || undefined}
                         >
                           🗺️ {contact.householdAddress || 'Territory'}
@@ -224,7 +226,7 @@ export function ContactAutocompleteInput({
                       ) : 'matchScope' in contact && contact.matchScope === 'congregation' ? (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-bold max-w-[140px] truncate"
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-bold max-w-[150px] truncate"
                           title={contact.householdAddress || undefined}
                         >
                           🏛️ {contact.householdAddress || 'Congregation'}
@@ -234,7 +236,7 @@ export function ContactAutocompleteInput({
                       {visitCount !== undefined && visitCount > 0 && (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 font-bold border-border"
+                          className="text-[10px] px-1.5 py-0 h-4.5 font-bold border-border"
                         >
                           {visitCount}v
                         </Badge>
@@ -242,25 +244,25 @@ export function ContactAutocompleteInput({
                       {contact.bibleStudyInterest && (
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20 font-bold"
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20 font-bold"
                         >
                           Study
                         </Badge>
                       )}
-                      {isSelected && <Check size={12} className="text-primary ml-1" />}
+                      {isSelected && <Check size={13} className="text-primary ml-0.5" />}
                     </div>
                   </button>
                 );
               })}
             </div>
           ) : value.trim() ? (
-            <div className="p-2.5 text-center text-xs text-muted-foreground">
+            <div className="p-3 text-center text-xs text-muted-foreground">
               <div className="flex items-center justify-center gap-1.5 font-medium text-foreground">
-                <UserPlus size={13} className="text-primary" />
+                <UserPlus size={14} className="text-primary" />
                 <span>New Person: "{value.trim()}"</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                A new contact profile will be created automatically.
+              <p className="text-[11px] text-muted-foreground mt-1">
+                A new contact profile will be created at this address.
               </p>
             </div>
           ) : null}

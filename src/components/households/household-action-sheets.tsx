@@ -88,7 +88,8 @@ export function HouseholdLogVisitSheet({
   });
   const { encounters: allMyEncounters = [] } = useMyEncounters();
 
-  const knownContacts = useMemo(() => {
+  // 1. Household-only contacts (used for the quick-recommendation pills "Who did you meet?")
+  const householdContacts = useMemo(() => {
     const fromEncounters = extractHouseholdContacts(pastEncounters);
     const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
 
@@ -114,6 +115,13 @@ export function HouseholdLogVisitSheet({
         namesSet.add(normalized);
       }
     }
+    return combined;
+  }, [pastEncounters, firestoreContacts]);
+
+  // 2. Full autocomplete contacts (household + territory + congregation)
+  const autocompleteContacts = useMemo(() => {
+    const namesSet = new Set(householdContacts.map((c) => c.normalizedName));
+    const combined: HouseholdContactSummary[] = [...householdContacts];
 
     // Include territory and congregation contacts for smart autocomplete suggestions
     const otherEncounters = allMyEncounters.filter(
@@ -139,7 +147,7 @@ export function HouseholdLogVisitSheet({
     }
 
     return combined;
-  }, [pastEncounters, firestoreContacts, allMyEncounters, household]);
+  }, [householdContacts, allMyEncounters, household]);
 
   const form = useForm<LogVisitFormData>({
     resolver: zodResolver(logVisitSchema) as any,
@@ -182,7 +190,7 @@ export function HouseholdLogVisitSheet({
       defaultOutcome === 'return_visit' ||
       defaultOutcome === 'study_conducted';
 
-    setRecordEncounter(Boolean(initialContact || (isConversation && knownContacts.length > 0)));
+    setRecordEncounter(Boolean(initialContact || (isConversation && householdContacts.length > 0)));
     setEncounterReturnVisitRequested(
       defaultOutcome === 'return_visit' || defaultOutcome === 'study_conducted'
     );
@@ -482,9 +490,9 @@ export function HouseholdLogVisitSheet({
                 <span>Record conversation with a person at the door</span>
               </Label>
             </div>
-            {knownContacts.length > 0 && !recordEncounter && (
+            {householdContacts.length > 0 && !recordEncounter && (
               <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                {knownContacts.length} {knownContacts.length === 1 ? 'contact' : 'contacts'}
+                {householdContacts.length} {householdContacts.length === 1 ? 'contact' : 'contacts'}
               </Badge>
             )}
           </div>
@@ -492,13 +500,13 @@ export function HouseholdLogVisitSheet({
           {recordEncounter && (
             <div className="mt-3 p-3.5 rounded-2xl bg-muted/30 border border-border space-y-3 animate-in fade-in-50">
               {/* Quick-Picker: Known Contacts at this Address */}
-              {knownContacts.length > 0 && (
+              {householdContacts.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[11px] font-semibold text-muted-foreground block">
                     Who did you meet?
                   </span>
                   <div className="flex flex-wrap gap-1.5">
-                    {knownContacts.map((contact) => {
+                    {householdContacts.map((contact) => {
                       const isSelected = selectedContact?.normalizedName === contact.normalizedName;
                       return (
                         <button
@@ -603,7 +611,7 @@ export function HouseholdLogVisitSheet({
                     onChange={setEncounterName}
                     onSelectContact={handleSelectContact}
                     onClearSelection={handleClearContact}
-                    contacts={knownContacts}
+                    contacts={autocompleteContacts}
                     selectedContact={selectedContact}
                     placeholder="e.g. John Doe"
                   />

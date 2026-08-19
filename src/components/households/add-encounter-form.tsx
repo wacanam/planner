@@ -151,8 +151,8 @@ export function AddEncounterForm({
   });
   const { encounters: allMyEncounters = [] } = useMyEncounters();
 
-  // Extract unique contacts from household, territory, and congregation
-  const knownContacts = useMemo(() => {
+  // 1. Household-only contacts (used for the quick-recommendation pills "Who did you meet?")
+  const householdContacts = useMemo(() => {
     const fromEncounters = extractHouseholdContacts(pastEncounters);
     const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
 
@@ -178,6 +178,13 @@ export function AddEncounterForm({
         namesSet.add(normalized);
       }
     }
+    return combined;
+  }, [pastEncounters, firestoreContacts]);
+
+  // 2. Full autocomplete contacts (household + territory + congregation)
+  const autocompleteContacts = useMemo(() => {
+    const namesSet = new Set(householdContacts.map((c) => c.normalizedName));
+    const combined: HouseholdContactSummary[] = [...householdContacts];
 
     // Include territory and congregation contacts for smart autocomplete suggestions
     const otherEncounters = allMyEncounters.filter(
@@ -203,7 +210,7 @@ export function AddEncounterForm({
     }
 
     return combined;
-  }, [pastEncounters, firestoreContacts, allMyEncounters, activeHouseholdId, currentHousehold]);
+  }, [householdContacts, allMyEncounters, activeHouseholdId, currentHousehold]);
 
   // Sync selected contact when form name matches or on initial load
   const currentName = form.watch('name');
@@ -212,11 +219,11 @@ export function AddEncounterForm({
       setSelectedContact(null);
       return;
     }
-    const matched = knownContacts.find(
+    const matched = autocompleteContacts.find(
       (c) => c.normalizedName === currentName.trim().toLowerCase()
     );
     setSelectedContact(matched ?? null);
-  }, [currentName, knownContacts]);
+  }, [currentName, autocompleteContacts]);
 
   const handleSelectContact = (contact: HouseholdContactSummary | any) => {
     setSelectedContact(contact);
@@ -275,21 +282,21 @@ export function AddEncounterForm({
       )}
 
       {/* Quick-Picker: Known Contacts at this Address */}
-      {!isEditing && knownContacts.length > 0 && (
+      {!isEditing && householdContacts.length > 0 && (
         <div className="space-y-2 p-3 rounded-2xl bg-muted/40 border border-border">
           <div className="flex items-center justify-between gap-2">
-            <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
               <Users size={14} className="text-primary" />
-              <span>Who did you speak with?</span>
-            </Label>
-            <span className="text-[11px] text-muted-foreground">
-              {knownContacts.length} {knownContacts.length === 1 ? 'contact' : 'contacts'} at this
-              door
+              <span>Who did you meet?</span>
+            </span>
+            <span className="text-[10px] text-muted-foreground">
+              {householdContacts.length} {householdContacts.length === 1 ? 'contact' : 'contacts'}{' '}
+              at this address
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {knownContacts.map((contact) => {
+          <div className="flex flex-wrap gap-1.5">
+            {householdContacts.map((contact) => {
               const isSelected = selectedContact?.normalizedName === contact.normalizedName;
               return (
                 <button
@@ -455,7 +462,7 @@ export function AddEncounterForm({
             onChange={(name) => form.setValue('name', name, { shouldValidate: true })}
             onSelectContact={handleSelectContact}
             onClearSelection={handleClearContact}
-            contacts={knownContacts}
+            contacts={autocompleteContacts}
             selectedContact={selectedContact}
             placeholder="e.g. John Doe"
           />
