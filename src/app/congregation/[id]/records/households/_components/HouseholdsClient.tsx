@@ -1,6 +1,7 @@
 'use client';
 
-import { Home, MapPin, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
+import { ChevronRight, Home, MapPin, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import {
@@ -266,10 +267,19 @@ export default function HouseholdsClient() {
                 <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-bold text-sm text-foreground truncate">
-                        {h.houseNumber ? `${h.houseNumber} ` : ''}
-                        {h.address}
-                      </p>
+                      <Link
+                        href={`/congregation/${congregationId}/records/households/${h.id}`}
+                        className="font-bold text-sm text-foreground hover:text-primary hover:underline transition-colors truncate inline-flex items-center gap-1.5 group"
+                      >
+                        <span>
+                          {h.houseNumber ? `${h.houseNumber} ` : ''}
+                          {h.address}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          className="text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5"
+                        />
+                      </Link>
 
                       {/* Collaboration / Transfer / Read-Only / Group Record / Owner Badges */}
                       {isTransferred && (
@@ -400,25 +410,25 @@ export default function HouseholdsClient() {
                       </Button>
                     )}
 
-                    {canLog && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl text-xs h-8"
-                        onClick={() => setLogVisitHousehold(h)}
-                      >
-                        Log Visit
-                      </Button>
-                    )}
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-xl text-xs h-8 font-semibold"
+                    >
+                      <Link href={`/congregation/${congregationId}/records/households/${h.id}`}>
+                        View
+                      </Link>
+                    </Button>
 
                     {canLog && (
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl text-xs h-8"
-                        onClick={() => setEncounterHousehold(h)}
+                        className="rounded-xl text-xs h-8 font-semibold"
+                        onClick={() => setLogVisitHousehold(h)}
                       >
-                        Encounter
+                        Log Visit
                       </Button>
                     )}
 

@@ -279,7 +279,11 @@ export default function VisitsClient() {
                     {/* Household Details */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
-                        href={`/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.householdAddress || '')}`}
+                        href={
+                          v.householdId
+                            ? `/congregation/${congregationId}/records/households/${v.householdId}`
+                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.householdAddress || '')}`
+                        }
                         className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
                       >
                         <Home size={14} className="text-primary shrink-0" />

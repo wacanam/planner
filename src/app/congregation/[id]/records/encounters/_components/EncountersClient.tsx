@@ -1,6 +1,7 @@
 'use client';
 
 import { BookOpen, Calendar, Home, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -243,7 +244,14 @@ export default function EncountersClient() {
                   </div>
                   {/* Household / Location Indicator */}
                   {e.householdAddress ? (
-                    <div className="flex items-center gap-1.5 text-xs text-primary font-semibold flex-wrap">
+                    <Link
+                      href={
+                        e.householdId
+                          ? `/congregation/${congregationId}/records/households/${e.householdId}`
+                          : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(e.householdAddress || '')}`
+                      }
+                      className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold flex-wrap"
+                    >
                       <Home size={12} className="shrink-0" />
                       <span>
                         {e.houseNumber ? `${e.houseNumber} ` : ''}
@@ -251,7 +259,7 @@ export default function EncountersClient() {
                         {e.unitNumber ? ` (Unit ${e.unitNumber})` : ''}
                         {e.householdCity ? ` · ${e.householdCity}` : ''}
                       </span>
-                    </div>
+                    </Link>
                   ) : (
                     <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
                       <span>🚶 Street / Public Witnessing / Informal</span>
