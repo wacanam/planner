@@ -17,6 +17,9 @@ export interface HouseholdContactSummary {
   nextVisitDate?: string;
   notes?: string;
   bibleStudyInterest?: boolean;
+  householdAddress?: string;
+  territoryId?: string;
+  matchScope?: 'household' | 'territory' | 'congregation';
   allEncounters: Encounter[];
 }
 
@@ -94,6 +97,9 @@ export function extractHouseholdContacts(
       nextVisitDate: latest.nextVisitDate || undefined,
       notes: latest.notes || undefined,
       bibleStudyInterest: Boolean(latest.bibleStudyInterest),
+      householdAddress: latest.householdAddress || undefined,
+      territoryId: latest.territoryId || undefined,
+      matchScope: 'household',
       allEncounters: contactEncounters,
     });
   }

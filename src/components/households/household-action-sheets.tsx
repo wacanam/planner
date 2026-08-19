@@ -81,11 +81,12 @@ export function HouseholdLogVisitSheet({
   const [encounterBibleStudyInterest, setEncounterBibleStudyInterest] = useState(false);
   const [selectedContact, setSelectedContact] = useState<HouseholdContactSummary | null>(null);
 
-  // Query Firestore contacts & past encounters at this household for quick-picker and autocomplete
+  // Query Firestore contacts & past encounters at this household, plus all user encounters for territory/congregation matching
   const { contacts: firestoreContacts = [] } = useHouseholdContacts(household?.id);
   const { encounters: pastEncounters = [] } = useMyEncounters({
     householdId: household?.id,
   });
+  const { encounters: allMyEncounters = [] } = useMyEncounters();
 
   const knownContacts = useMemo(() => {
     const fromEncounters = extractHouseholdContacts(pastEncounters);
@@ -106,14 +107,39 @@ export function HouseholdLogVisitSheet({
           lastVisitDate: '',
           lastResponse: 'receptive',
           bibleStudyInterest: Boolean(fc.bibleStudyInterest),
+          matchScope: 'household',
           latestEncounter: {} as any,
           allEncounters: [],
         });
         namesSet.add(normalized);
       }
     }
+
+    // Include territory and congregation contacts for smart autocomplete suggestions
+    const otherEncounters = allMyEncounters.filter(
+      (e) => e.householdId !== household?.id && e.name && e.name.trim().length > 0
+    );
+    const otherContacts = extractHouseholdContacts(otherEncounters);
+
+    for (const oc of otherContacts) {
+      if (!namesSet.has(oc.normalizedName)) {
+        const isSameTerritory =
+          Boolean(household?.territoryId) &&
+          oc.latestEncounter?.territoryId === household?.territoryId;
+
+        combined.push({
+          ...oc,
+          matchScope: isSameTerritory ? 'territory' : 'congregation',
+          householdAddress:
+            oc.latestEncounter?.householdAddress ||
+            (oc.latestEncounter?.locationType ? 'Street / Informal' : undefined),
+        });
+        namesSet.add(oc.normalizedName);
+      }
+    }
+
     return combined;
-  }, [pastEncounters, firestoreContacts]);
+  }, [pastEncounters, firestoreContacts, allMyEncounters, household]);
 
   const form = useForm<LogVisitFormData>({
     resolver: zodResolver(logVisitSchema) as any,

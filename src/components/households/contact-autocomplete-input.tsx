@@ -39,13 +39,28 @@ export function ContactAutocompleteInput({
   const internalId = useId();
   const inputId = id || internalId;
 
-  // Filter contacts based on typed text
+  // Filter contacts based on typed text and prioritize household matches first, then territory, then congregation
   const filteredContacts = useMemo(() => {
     const query = (value || '').trim().toLowerCase();
-    if (!query) {
-      return contacts;
-    }
-    return contacts.filter((c) => c.name.toLowerCase().includes(query));
+    const list = query ? contacts.filter((c) => c.name.toLowerCase().includes(query)) : contacts;
+
+    return [...list].sort((a, b) => {
+      const scopeOrder: Record<string, number> = {
+        household: 1,
+        territory: 2,
+        congregation: 3,
+      };
+      const scopeA = 'matchScope' in a && a.matchScope ? (scopeOrder[a.matchScope] ?? 1) : 1;
+      const scopeB = 'matchScope' in b && b.matchScope ? (scopeOrder[b.matchScope] ?? 1) : 1;
+      if (scopeA !== scopeB) return scopeA - scopeB;
+
+      // Exact match first
+      const exactA = a.name.trim().toLowerCase() === query ? 0 : 1;
+      const exactB = b.name.trim().toLowerCase() === query ? 0 : 1;
+      if (exactA !== exactB) return exactA - exactB;
+
+      return a.name.localeCompare(b.name);
+    });
   }, [contacts, value]);
 
   // Check if current typed value is an exact match for an existing contact
@@ -189,7 +204,33 @@ export function ContactAutocompleteInput({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                      {/* Match Scope / Location Badge */}
+                      {'matchScope' in contact && contact.matchScope === 'household' ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1 py-0 h-4 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 font-bold"
+                        >
+                          🏠 At this address
+                        </Badge>
+                      ) : 'matchScope' in contact && contact.matchScope === 'territory' ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1 py-0 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-bold max-w-[140px] truncate"
+                          title={contact.householdAddress || undefined}
+                        >
+                          🗺️ {contact.householdAddress || 'Territory'}
+                        </Badge>
+                      ) : 'matchScope' in contact && contact.matchScope === 'congregation' ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1 py-0 h-4 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-bold max-w-[140px] truncate"
+                          title={contact.householdAddress || undefined}
+                        >
+                          🏛️ {contact.householdAddress || 'Congregation'}
+                        </Badge>
+                      ) : null}
+
                       {visitCount !== undefined && visitCount > 0 && (
                         <Badge
                           variant="outline"

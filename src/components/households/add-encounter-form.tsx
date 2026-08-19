@@ -137,13 +137,21 @@ export function AddEncounterForm({
 
   const activeHouseholdId = form.watch('householdId') || selectedHouseholdId || null;
 
-  // Fetch Firestore contacts and past encounters for the active household
+  const currentHousehold = useMemo(() => {
+    return (
+      household ||
+      (households && activeHouseholdId ? households.find((h) => h.id === activeHouseholdId) : null)
+    );
+  }, [household, households, activeHouseholdId]);
+
+  // Fetch Firestore contacts, household encounters, and all user encounters for cross-location matching
   const { contacts: firestoreContacts = [] } = useHouseholdContacts(activeHouseholdId);
   const { encounters: pastEncounters = [] } = useMyEncounters({
     householdId: activeHouseholdId,
   });
+  const { encounters: allMyEncounters = [] } = useMyEncounters();
 
-  // Extract unique contacts from past encounter history and merge with Firestore contacts
+  // Extract unique contacts from household, territory, and congregation
   const knownContacts = useMemo(() => {
     const fromEncounters = extractHouseholdContacts(pastEncounters);
     const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
@@ -163,14 +171,39 @@ export function AddEncounterForm({
           lastVisitDate: '',
           lastResponse: 'receptive',
           bibleStudyInterest: Boolean(fc.bibleStudyInterest),
+          matchScope: 'household',
           latestEncounter: {} as any,
           allEncounters: [],
         });
         namesSet.add(normalized);
       }
     }
+
+    // Include territory and congregation contacts for smart autocomplete suggestions
+    const otherEncounters = allMyEncounters.filter(
+      (e) => e.householdId !== activeHouseholdId && e.name && e.name.trim().length > 0
+    );
+    const otherContacts = extractHouseholdContacts(otherEncounters);
+
+    for (const oc of otherContacts) {
+      if (!namesSet.has(oc.normalizedName)) {
+        const isSameTerritory =
+          Boolean(currentHousehold?.territoryId) &&
+          oc.latestEncounter?.territoryId === currentHousehold?.territoryId;
+
+        combined.push({
+          ...oc,
+          matchScope: isSameTerritory ? 'territory' : 'congregation',
+          householdAddress:
+            oc.latestEncounter?.householdAddress ||
+            (oc.latestEncounter?.locationType ? 'Street / Informal' : undefined),
+        });
+        namesSet.add(oc.normalizedName);
+      }
+    }
+
     return combined;
-  }, [pastEncounters, firestoreContacts]);
+  }, [pastEncounters, firestoreContacts, allMyEncounters, activeHouseholdId, currentHousehold]);
 
   // Sync selected contact when form name matches or on initial load
   const currentName = form.watch('name');
