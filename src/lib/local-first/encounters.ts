@@ -24,6 +24,7 @@ export interface CreateEncounterInput {
   userId?: string | null;
   visitId?: string | null;
   householdId?: string | null;
+  contactId?: string | null;
   encounterDate?: string | null;
   name?: string | null;
   gender?: string | null;
@@ -129,6 +130,8 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
     visitServerId: encounter.visitId,
     householdId: encounter.householdId,
     householdServerId: encounter.householdId,
+    contactId: encounter.contactId ?? null,
+    contactServerId: encounter.contactId ?? null,
     encounterDate: isoDate(encounterDate, now),
     name: encounter.name ?? null,
     gender: encounter.gender ?? null,
@@ -165,6 +168,8 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     visitServerId: visit?.serverId ?? null,
     householdId,
     householdServerId: household?.serverId ?? null,
+    contactId: nullableString(input.contactId),
+    contactServerId: nullableString(input.contactId),
     encounterDate: nullableString(input.encounterDate) ?? now,
     name: nullableString(input.name),
     gender: nullableString(input.gender),

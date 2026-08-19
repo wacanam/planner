@@ -20,12 +20,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useMyEncounters } from '@/hooks/use-encounters';
+import { useHouseholdContacts } from '@/hooks/use-contacts';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
 import { AddEncounterForm, type AddEncounterFormValues } from './add-encounter-form';
+import { ContactAutocompleteInput } from './contact-autocomplete-input';
 
 const responseBadgeColors: Record<string, string> = {
   receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
@@ -79,12 +81,39 @@ export function HouseholdLogVisitSheet({
   const [encounterBibleStudyInterest, setEncounterBibleStudyInterest] = useState(false);
   const [selectedContact, setSelectedContact] = useState<HouseholdContactSummary | null>(null);
 
-  // Query past encounters at this household for quick-picker
+  // Query Firestore contacts & past encounters at this household for quick-picker and autocomplete
+  const { contacts: firestoreContacts = [] } = useHouseholdContacts(household?.id);
   const { encounters: pastEncounters = [] } = useMyEncounters({
     householdId: household?.id,
   });
 
-  const knownContacts = useMemo(() => extractHouseholdContacts(pastEncounters), [pastEncounters]);
+  const knownContacts = useMemo(() => {
+    const fromEncounters = extractHouseholdContacts(pastEncounters);
+    const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
+
+    const combined: HouseholdContactSummary[] = [...fromEncounters];
+    for (const fc of firestoreContacts) {
+      const normalized = fc.name.trim().toLowerCase();
+      if (!namesSet.has(normalized)) {
+        combined.push({
+          id: fc.id,
+          name: fc.name,
+          normalizedName: normalized,
+          encountersCount: 0,
+          gender: fc.gender || 'unknown',
+          ageGroup: fc.ageGroup || 'adult',
+          language: fc.language || undefined,
+          lastVisitDate: '',
+          lastResponse: 'receptive',
+          bibleStudyInterest: Boolean(fc.bibleStudyInterest),
+          latestEncounter: {} as any,
+          allEncounters: [],
+        });
+        namesSet.add(normalized);
+      }
+    }
+    return combined;
+  }, [pastEncounters, firestoreContacts]);
 
   const form = useForm<LogVisitFormData>({
     resolver: zodResolver(logVisitSchema) as any,
@@ -238,11 +267,11 @@ export function HouseholdLogVisitSheet({
     }
   };
 
-  const handleSelectContact = (contact: HouseholdContactSummary) => {
+  const handleSelectContact = (contact: HouseholdContactSummary | any) => {
     setSelectedContact(contact);
     setEncounterName(contact.name);
-    setEncounterGender(contact.gender);
-    setEncounterAgeGroup(contact.ageGroup);
+    setEncounterGender(contact.gender || 'unknown');
+    setEncounterAgeGroup(contact.ageGroup || 'adult');
     setEncounterLanguage(contact.language || '');
     if (contact.bibleStudyInterest) {
       setEncounterBibleStudyInterest(true);
@@ -542,12 +571,15 @@ export function HouseholdLogVisitSheet({
                   <Label htmlFor="encounterName" className="text-xs font-semibold">
                     Person Name *
                   </Label>
-                  <Input
+                  <ContactAutocompleteInput
                     id="encounterName"
                     value={encounterName}
-                    onChange={(e) => setEncounterName(e.target.value)}
+                    onChange={setEncounterName}
+                    onSelectContact={handleSelectContact}
+                    onClearSelection={handleClearContact}
+                    contacts={knownContacts}
+                    selectedContact={selectedContact}
                     placeholder="e.g. John Doe"
-                    className="h-9 rounded-xl text-xs bg-background"
                   />
                 </div>
 

@@ -1,6 +1,7 @@
 import type { Encounter } from '@/types/api';
 
 export interface HouseholdContactSummary {
+  id?: string;
   name: string;
   normalizedName: string;
   encountersCount: number;

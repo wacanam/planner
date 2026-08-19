@@ -512,6 +512,74 @@ export interface Household {
   updatedAt: string;
 }
 
+// ─── Contacts / Occupants ───────────────────────────────────────────────────
+
+export type ContactRole =
+  | 'head_of_household'
+  | 'spouse'
+  | 'resident'
+  | 'child'
+  | 'guest'
+  | 'other'
+  | 'unknown';
+
+export type ContactStatus = 'active' | 'moved' | 'do_not_visit' | 'inactive';
+
+export interface Contact {
+  id: string;
+  householdId: string;
+  congregationId?: string | null;
+  territoryId?: string | null;
+  name: string;
+  gender: 'male' | 'female' | 'unknown';
+  ageGroup: 'youth' | 'young_adult' | 'adult' | 'senior' | 'unknown';
+  language?: string | null;
+  role: ContactRole;
+  status: ContactStatus;
+  bestTimeToCall?: string | null;
+  bibleStudyInterest: boolean;
+  notes?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // Augmented View fields
+  householdAddress?: string | null;
+  householdCity?: string | null;
+  encountersCount?: number;
+  lastVisitDate?: string | null;
+  lastResponse?: string | null;
+}
+
+export interface CreateContactInput {
+  householdId: string;
+  congregationId?: string | null;
+  territoryId?: string | null;
+  name: string;
+  gender?: 'male' | 'female' | 'unknown';
+  ageGroup?: 'youth' | 'young_adult' | 'adult' | 'senior' | 'unknown';
+  language?: string | null;
+  role?: ContactRole;
+  status?: ContactStatus;
+  bestTimeToCall?: string | null;
+  bibleStudyInterest?: boolean;
+  notes?: string | null;
+  createdById?: string | null;
+}
+
+export interface UpdateContactInput {
+  name?: string;
+  gender?: 'male' | 'female' | 'unknown';
+  ageGroup?: 'youth' | 'young_adult' | 'adult' | 'senior' | 'unknown';
+  language?: string | null;
+  role?: ContactRole;
+  status?: ContactStatus;
+  bestTimeToCall?: string | null;
+  bibleStudyInterest?: boolean;
+  notes?: string | null;
+  householdId?: string;
+  updatedById?: string | null;
+}
+
 // ─── Encounters ────────────────────────────────────────────────────────────────
 
 export type EncounterLocationType = 'household' | 'street' | 'informal' | 'public_witnessing';
@@ -520,6 +588,7 @@ export interface Encounter {
   id: string;
   visitId: string | null;
   householdId: string | null;
+  contactId?: string | null;
   territoryId?: string | null;
   congregationId?: string | null;
   locationType?: EncounterLocationType;

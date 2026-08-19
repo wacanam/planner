@@ -30,9 +30,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useMyEncounters } from '@/hooks';
+import { useHouseholdContacts, useMyEncounters } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { timeAgo } from '@/lib/time-ago';
+import { ContactAutocompleteInput } from './contact-autocomplete-input';
 import type { Encounter, Household } from '@/types/api';
 
 const responseBadgeColors: Record<string, string> = {
@@ -136,13 +137,40 @@ export function AddEncounterForm({
 
   const activeHouseholdId = form.watch('householdId') || selectedHouseholdId || null;
 
-  // Fetch past encounters for the active household to extract known contacts
+  // Fetch Firestore contacts and past encounters for the active household
+  const { contacts: firestoreContacts = [] } = useHouseholdContacts(activeHouseholdId);
   const { encounters: pastEncounters = [] } = useMyEncounters({
     householdId: activeHouseholdId,
   });
 
-  // Extract unique contacts from past encounter history
-  const knownContacts = useMemo(() => extractHouseholdContacts(pastEncounters), [pastEncounters]);
+  // Extract unique contacts from past encounter history and merge with Firestore contacts
+  const knownContacts = useMemo(() => {
+    const fromEncounters = extractHouseholdContacts(pastEncounters);
+    const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
+
+    const combined: HouseholdContactSummary[] = [...fromEncounters];
+    for (const fc of firestoreContacts) {
+      const normalized = fc.name.trim().toLowerCase();
+      if (!namesSet.has(normalized)) {
+        combined.push({
+          id: fc.id,
+          name: fc.name,
+          normalizedName: normalized,
+          encountersCount: 0,
+          gender: fc.gender || 'unknown',
+          ageGroup: fc.ageGroup || 'adult',
+          language: fc.language || undefined,
+          lastVisitDate: '',
+          lastResponse: 'receptive',
+          bibleStudyInterest: Boolean(fc.bibleStudyInterest),
+          latestEncounter: {} as any,
+          allEncounters: [],
+        });
+        namesSet.add(normalized);
+      }
+    }
+    return combined;
+  }, [pastEncounters, firestoreContacts]);
 
   // Sync selected contact when form name matches or on initial load
   const currentName = form.watch('name');
@@ -157,11 +185,11 @@ export function AddEncounterForm({
     setSelectedContact(matched ?? null);
   }, [currentName, knownContacts]);
 
-  const handleSelectContact = (contact: HouseholdContactSummary) => {
+  const handleSelectContact = (contact: HouseholdContactSummary | any) => {
     setSelectedContact(contact);
     form.setValue('name', contact.name, { shouldValidate: true });
-    form.setValue('gender', contact.gender);
-    form.setValue('ageGroup', contact.ageGroup);
+    form.setValue('gender', contact.gender || 'unknown');
+    form.setValue('ageGroup', contact.ageGroup || 'adult');
     form.setValue('language', contact.language || '');
     if (contact.bibleStudyInterest) {
       form.setValue('bibleStudyInterest', true);
@@ -388,11 +416,15 @@ export function AddEncounterForm({
           <Label htmlFor="name" className="text-xs font-semibold">
             Person's Name *
           </Label>
-          <Input
+          <ContactAutocompleteInput
             id="name"
+            value={form.watch('name')}
+            onChange={(name) => form.setValue('name', name, { shouldValidate: true })}
+            onSelectContact={handleSelectContact}
+            onClearSelection={handleClearContact}
+            contacts={knownContacts}
+            selectedContact={selectedContact}
             placeholder="e.g. John Doe"
-            className="h-9 rounded-xl text-xs"
-            {...form.register('name')}
           />
           {form.formState.errors.name && (
             <p className="text-[10px] text-destructive">{form.formState.errors.name.message}</p>

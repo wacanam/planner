@@ -2,16 +2,21 @@ import {
   type CreateEncounterInput,
   type CreateHouseholdInput,
   type CreateVisitInput,
+  createContact,
   createEncounter,
   createHousehold,
   createVisit,
+  deleteContact,
   deleteEncounter,
   deleteHousehold,
   deleteVisit,
+  findContactByName,
+  updateContact,
   updateEncounter,
   updateHousehold,
   updateVisit,
 } from '@/lib/local-first';
+import type { CreateContactInput, UpdateContactInput } from '@/types/api';
 
 export async function saveVisitRecord(data: Record<string, unknown>): Promise<string> {
   const visit = await createVisit({
@@ -62,20 +67,89 @@ export async function saveHouseholdRecord(data: Record<string, unknown>): Promis
   return household.id;
 }
 
+export async function saveContactRecord(data: Record<string, unknown>): Promise<string> {
+  const contact = await createContact({
+    householdId: String(data.householdId ?? ''),
+    congregationId: (data.congregationId as string | null | undefined) ?? null,
+    territoryId: (data.territoryId as string | null | undefined) ?? null,
+    name: String(data.name ?? ''),
+    gender: (data.gender as CreateContactInput['gender']) || 'unknown',
+    ageGroup: (data.ageGroup as CreateContactInput['ageGroup']) || 'adult',
+    language: (data.language as string | null | undefined) ?? null,
+    role: (data.role as CreateContactInput['role']) || 'unknown',
+    status: (data.status as CreateContactInput['status']) || 'active',
+    bestTimeToCall: (data.bestTimeToCall as string | null | undefined) ?? null,
+    bibleStudyInterest: Boolean(data.bibleStudyInterest),
+    notes: (data.notes as string | null | undefined) ?? null,
+    createdById: (data.createdById as string | null | undefined) ?? null,
+  });
+  return contact.id;
+}
+
+export async function updateContactRecord(id: string, data: UpdateContactInput): Promise<string> {
+  await updateContact(id, data);
+  return id;
+}
+
+export async function deleteContactRecord(contactId: string): Promise<string> {
+  await deleteContact(contactId);
+  return contactId;
+}
+
 export async function saveEncounterRecord(data: Record<string, unknown>): Promise<string> {
+  const rawName = (data.name as string | null | undefined)?.trim();
+  const householdId = (data.householdId as string | null | undefined) ?? null;
+  let contactId = (data.contactId as string | null | undefined) ?? null;
+
+  // Auto-link or create contact in Firestore if linked to a household
+  if (householdId && rawName) {
+    try {
+      if (!contactId) {
+        const existing = await findContactByName(householdId, rawName);
+        if (existing) {
+          contactId = existing.id;
+          if (data.bibleStudyInterest && !existing.bibleStudyInterest) {
+            await updateContact(existing.id, { bibleStudyInterest: true });
+          }
+        } else {
+          const newContact = await createContact({
+            householdId,
+            name: rawName,
+            gender: (data.gender as CreateContactInput['gender']) || 'unknown',
+            ageGroup: (data.ageGroup as CreateContactInput['ageGroup']) || 'adult',
+            language: ((data.languageSpoken ?? data.language) as string | null | undefined) ?? null,
+            role: (data.role as CreateContactInput['role']) || 'unknown',
+            status: 'active',
+            bibleStudyInterest: Boolean(data.bibleStudyInterest),
+            createdById: (data.userId as string | null | undefined) ?? null,
+          });
+          contactId = newContact.id;
+        }
+      }
+    } catch (err) {
+      console.warn(
+        '[saveEncounterRecord] Contact auto-link failed, proceeding with encounter',
+        err
+      );
+    }
+  }
+
   const encounter = await createEncounter({
     userId: (data.userId as string | null | undefined) ?? null,
     visitId: (data.visitId as string | null | undefined) ?? null,
-    householdId: (data.householdId as string | null | undefined) ?? null,
+    householdId,
+    contactId,
     encounterDate: (data.encounterDate as string | null | undefined) ?? null,
-    name: (data.name as string | null | undefined) ?? null,
+    name: rawName || null,
     gender: (data.gender as string | null | undefined) ?? null,
     ageGroup: (data.ageGroup as string | null | undefined) ?? null,
     role: (data.role as string | null | undefined) ?? null,
     response: String(data.response ?? 'other'),
     languageSpoken: ((data.languageSpoken ?? data.language) as string | null | undefined) ?? null,
-    topicDiscussed: ((data.topicDiscussed ?? data.topicsDiscussed) as string | null | undefined) ?? null,
-    literatureAccepted: ((data.literatureAccepted ?? data.literatureOffered) as string | null | undefined) ?? null,
+    topicDiscussed:
+      ((data.topicDiscussed ?? data.topicsDiscussed) as string | null | undefined) ?? null,
+    literatureAccepted:
+      ((data.literatureAccepted ?? data.literatureOffered) as string | null | undefined) ?? null,
     bibleStudyInterest: Boolean(data.bibleStudyInterest),
     returnVisitRequested: Boolean(data.returnVisitRequested),
     nextVisitDate: (data.nextVisitDate as string | null | undefined) ?? null,

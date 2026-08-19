@@ -7,6 +7,7 @@ export const FIRESTORE_COLLECTIONS = {
   territoryRequests: 'territoryRequests',
   assignments: 'assignments',
   households: 'households',
+  contacts: 'contacts',
   visits: 'visits',
   encounters: 'encounters',
   notifications: 'notifications',

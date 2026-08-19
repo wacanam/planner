@@ -30,6 +30,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
+  getContactsByHousehold,
   getEncountersByHousehold,
   getHouseholdById,
   getVisitsByHousehold,
@@ -37,7 +38,12 @@ import {
   toHouseholdView,
   toVisitView,
 } from '@/lib/local-first';
-import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
+import type {
+  LocalContact,
+  LocalEncounter,
+  LocalHousehold,
+  LocalVisit,
+} from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household, Visit } from '@/types/api';
@@ -78,6 +84,7 @@ export default function HouseholdDetailPage() {
   const [rawHousehold, setRawHousehold] = useState<LocalHousehold | null>(null);
   const [rawVisits, setRawVisits] = useState<LocalVisit[]>([]);
   const [rawEncounters, setRawEncounters] = useState<LocalEncounter[]>([]);
+  const [rawContacts, setRawContacts] = useState<LocalContact[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Dialog states
@@ -94,14 +101,16 @@ export default function HouseholdDetailPage() {
     if (!householdId) return;
     setLoading(true);
     try {
-      const [hResult, vResult, eResult] = await Promise.all([
+      const [hResult, vResult, eResult, cResult] = await Promise.all([
         getHouseholdById(householdId),
         getVisitsByHousehold(householdId),
         getEncountersByHousehold(householdId),
+        getContactsByHousehold(householdId),
       ]);
       setRawHousehold(hResult ?? null);
       setRawVisits(vResult);
       setRawEncounters(eResult);
+      setRawContacts(cResult);
     } finally {
       setLoading(false);
     }
@@ -124,10 +133,34 @@ export default function HouseholdDetailPage() {
     return rawEncounters.map((e) => toEncounterView(e, rawHousehold, null));
   }, [rawEncounters, rawHousehold]);
 
-  // Group encounters by person
+  // Group encounters by person, merged with Firestore contacts
   const contacts: HouseholdContactSummary[] = useMemo(() => {
-    return extractHouseholdContacts(encountersView);
-  }, [encountersView]);
+    const fromEncounters = extractHouseholdContacts(encountersView);
+    const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
+
+    const combined: HouseholdContactSummary[] = [...fromEncounters];
+    for (const fc of rawContacts) {
+      const normalized = fc.name.trim().toLowerCase();
+      if (!namesSet.has(normalized)) {
+        combined.push({
+          id: fc.id,
+          name: fc.name,
+          normalizedName: normalized,
+          encountersCount: 0,
+          gender: (fc.gender as any) || 'unknown',
+          ageGroup: (fc.ageGroup as any) || 'adult',
+          language: fc.language || undefined,
+          lastVisitDate: '',
+          lastResponse: 'receptive',
+          bibleStudyInterest: Boolean(fc.bibleStudyInterest),
+          latestEncounter: {} as any,
+          allEncounters: [],
+        });
+        namesSet.add(normalized);
+      }
+    }
+    return combined;
+  }, [encountersView, rawContacts]);
 
   const canLog = canLogVisitOrEncounter(user, householdView);
   const canShare = canShareHousehold(user, householdView);
@@ -458,11 +491,12 @@ export default function HouseholdDetailPage() {
                             )}
                           </div>
 
-                          <div className="relative pl-4 sm:pl-5 before:absolute before:left-1.5 sm:before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border space-y-2.5">
+                          <div className="space-y-2.5">
                             {(isExpanded || contact.allEncounters.length <= 3
                               ? contact.allEncounters
                               : contact.allEncounters.slice(0, 3)
-                            ).map((encounter, idx) => {
+                            ).map((encounter, idx, arr) => {
+                              const isLast = idx === arr.length - 1;
                               const visitNumber = contact.allEncounters.length - idx;
                               const dateFormatted = encounter.visitDate
                                 ? new Date(encounter.visitDate).toLocaleDateString('en-US', {
@@ -475,54 +509,70 @@ export default function HouseholdDetailPage() {
                               return (
                                 <div
                                   key={encounter.id || idx}
-                                  className="relative p-3 rounded-xl bg-muted/30 border border-border/70 text-xs space-y-1.5 hover:border-primary/40 transition-colors"
+                                  className="relative flex gap-3 items-stretch"
                                 >
-                                  {/* Timeline bullet dot */}
-                                  <div className="absolute -left-[19px] sm:-left-[23px] top-3.5 h-2 w-2 rounded-full bg-primary ring-4 ring-background" />
-
-                                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <span className="font-bold text-foreground flex items-center gap-1.5">
-                                      <span>
-                                        Visit {visitNumber} ({dateFormatted})
-                                      </span>
-                                    </span>
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-[9px] font-bold capitalize py-0 ${
-                                        responseBadgeColors[encounter.response] ?? ''
-                                      }`}
-                                    >
-                                      {encounter.response.replace(/_/g, ' ')}
-                                    </Badge>
+                                  {/* Timeline Node Column */}
+                                  <div className="relative flex flex-col items-center shrink-0 w-3 self-stretch">
+                                    {/* Timeline bullet dot */}
+                                    <div
+                                      className="h-2 w-2 rounded-full bg-primary ring-4 ring-card shrink-0 mt-3.5 z-10"
+                                      aria-hidden="true"
+                                    />
+                                    {/* Connecting line to next visit dot */}
+                                    {!isLast && (
+                                      <div
+                                        className="absolute top-3.5 -bottom-6 w-0.5 bg-border pointer-events-none -translate-x-1/2 left-1/2"
+                                        aria-hidden="true"
+                                      />
+                                    )}
                                   </div>
 
-                                  {(encounter.topicDiscussed || encounter.topicsDiscussed) && (
-                                    <p className="text-muted-foreground">
-                                      <strong className="text-foreground">Topic:</strong>{' '}
-                                      {encounter.topicDiscussed || encounter.topicsDiscussed}
-                                    </p>
-                                  )}
+                                  {/* Content Card */}
+                                  <div className="flex-1 min-w-0 p-3 rounded-xl bg-muted/30 border border-border/70 text-xs space-y-1.5 hover:border-primary/40 transition-colors">
+                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                      <span className="font-bold text-foreground flex items-center gap-1.5">
+                                        <span>
+                                          Visit {visitNumber} ({dateFormatted})
+                                        </span>
+                                      </span>
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-[9px] font-bold capitalize py-0 ${
+                                          responseBadgeColors[encounter.response] ?? ''
+                                        }`}
+                                      >
+                                        {encounter.response.replace(/_/g, ' ')}
+                                      </Badge>
+                                    </div>
 
-                                  {(encounter.literatureAccepted ||
-                                    encounter.literatureOffered) && (
-                                    <p className="text-muted-foreground">
-                                      <strong className="text-foreground">Literature:</strong>{' '}
-                                      {encounter.literatureAccepted || encounter.literatureOffered}
-                                    </p>
-                                  )}
+                                    {(encounter.topicDiscussed || encounter.topicsDiscussed) && (
+                                      <p className="text-muted-foreground">
+                                        <strong className="text-foreground">Topic:</strong>{' '}
+                                        {encounter.topicDiscussed || encounter.topicsDiscussed}
+                                      </p>
+                                    )}
 
-                                  {encounter.nextVisitNotes && (
-                                    <p className="text-primary font-medium bg-primary/5 p-1.5 rounded-lg border border-primary/20">
-                                      <strong className="text-primary">Next Plan:</strong> "
-                                      {encounter.nextVisitNotes}"
-                                    </p>
-                                  )}
+                                    {(encounter.literatureAccepted ||
+                                      encounter.literatureOffered) && (
+                                      <p className="text-muted-foreground">
+                                        <strong className="text-foreground">Literature:</strong>{' '}
+                                        {encounter.literatureAccepted || encounter.literatureOffered}
+                                      </p>
+                                    )}
 
-                                  {encounter.notes && (
-                                    <p className="text-muted-foreground italic">
-                                      &ldquo;{encounter.notes}&rdquo;
-                                    </p>
-                                  )}
+                                    {encounter.nextVisitNotes && (
+                                      <p className="text-primary font-medium bg-primary/5 p-1.5 rounded-lg border border-primary/20">
+                                        <strong className="text-primary">Next Plan:</strong> "
+                                        {encounter.nextVisitNotes}"
+                                      </p>
+                                    )}
+
+                                    {encounter.notes && (
+                                      <p className="text-muted-foreground italic">
+                                        &ldquo;{encounter.notes}&rdquo;
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })}

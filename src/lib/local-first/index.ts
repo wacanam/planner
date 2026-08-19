@@ -1,3 +1,4 @@
+export * from './contacts';
 export * from './database';
 export * from './encounters';
 export * from './households';
