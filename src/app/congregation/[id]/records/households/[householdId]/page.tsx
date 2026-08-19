@@ -556,7 +556,8 @@ export default function HouseholdDetailPage() {
                                       encounter.literatureOffered) && (
                                       <p className="text-muted-foreground">
                                         <strong className="text-foreground">Literature:</strong>{' '}
-                                        {encounter.literatureAccepted || encounter.literatureOffered}
+                                        {encounter.literatureAccepted ||
+                                          encounter.literatureOffered}
                                       </p>
                                     )}
 

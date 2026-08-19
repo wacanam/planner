@@ -1,7 +1,19 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BookOpen, Calendar, Clock, FileText, Plus, Sparkles, User, Users } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  FileText,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Sparkles,
+  User,
+  Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
@@ -19,8 +31,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { useMyEncounters } from '@/hooks/use-encounters';
 import { useHouseholdContacts } from '@/hooks/use-contacts';
+import { useMyEncounters } from '@/hooks/use-encounters';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
@@ -71,7 +83,11 @@ export function HouseholdLogVisitSheet({
   const [encounterAgeGroup, setEncounterAgeGroup] = useState<
     'youth' | 'young_adult' | 'adult' | 'senior' | 'unknown'
   >('adult');
+  const [encounterRole, setEncounterRole] = useState('unknown');
   const [encounterLanguage, setEncounterLanguage] = useState('');
+  const [encounterPhone, setEncounterPhone] = useState('');
+  const [encounterEmail, setEncounterEmail] = useState('');
+  const [encounterBestTimeToCall, setEncounterBestTimeToCall] = useState('');
   const [encounterTopic, setEncounterTopic] = useState('');
   const [encounterLiterature, setEncounterLiterature] = useState('');
   const [encounterReturnVisitRequested, setEncounterReturnVisitRequested] = useState(false);
@@ -79,6 +95,8 @@ export function HouseholdLogVisitSheet({
   const [encounterNextVisitTime, setEncounterNextVisitTime] = useState('');
   const [encounterNextVisitNotes, setEncounterNextVisitNotes] = useState('');
   const [encounterBibleStudyInterest, setEncounterBibleStudyInterest] = useState(false);
+  const [encounterPublication, setEncounterPublication] = useState('');
+  const [encounterLesson, setEncounterLesson] = useState('');
   const [selectedContact, setSelectedContact] = useState<HouseholdContactSummary | null>(null);
 
   // Query Firestore contacts & past encounters at this household, plus all user encounters for territory/congregation matching
@@ -204,17 +222,35 @@ export function HouseholdLogVisitSheet({
       setEncounterName(initialContact.name || '');
       setEncounterGender((initialContact.gender as any) || 'unknown');
       setEncounterAgeGroup((initialContact.ageGroup as any) || 'adult');
+      setEncounterRole((initialContact.role as any) || 'unknown');
       setEncounterLanguage(initialContact.language || (initialContact as any).languageSpoken || '');
+      setEncounterPhone(initialContact.phoneNumber || (initialContact as any).phoneNumber || '');
+      setEncounterEmail(initialContact.email || (initialContact as any).email || '');
+      setEncounterBestTimeToCall(
+        initialContact.bestTimeToCall || (initialContact as any).bestTimeToCall || ''
+      );
       setEncounterTopic(
         initialContact.topicsDiscussed || (initialContact as any).topicDiscussed || ''
       );
       setEncounterBibleStudyInterest(Boolean(initialContact.bibleStudyInterest));
+      setEncounterPublication(
+        initialContact.bibleStudyPublication || (initialContact as any).bibleStudyPublication || ''
+      );
+      setEncounterLesson(
+        initialContact.bibleStudyLesson || (initialContact as any).bibleStudyLesson || ''
+      );
     } else {
       setEncounterName('');
       setEncounterGender('unknown');
       setEncounterAgeGroup('adult');
+      setEncounterRole('unknown');
       setEncounterLanguage('');
+      setEncounterPhone('');
+      setEncounterEmail('');
+      setEncounterBestTimeToCall('');
       setEncounterBibleStudyInterest(false);
+      setEncounterPublication('');
+      setEncounterLesson('');
       setSelectedContact(null);
     }
   }, [open, household, assignmentId, initialOutcome, initialContact]);
@@ -306,9 +342,25 @@ export function HouseholdLogVisitSheet({
     setEncounterName(contact.name);
     setEncounterGender(contact.gender || 'unknown');
     setEncounterAgeGroup(contact.ageGroup || 'adult');
-    setEncounterLanguage(contact.language || '');
-    if (contact.bibleStudyInterest) {
+    setEncounterRole(contact.role || contact.latestEncounter?.role || 'unknown');
+    setEncounterLanguage(contact.language || contact.latestEncounter?.language || '');
+    setEncounterPhone(contact.phoneNumber || contact.latestEncounter?.phoneNumber || '');
+    setEncounterEmail(contact.email || contact.latestEncounter?.email || '');
+    setEncounterBestTimeToCall(
+      contact.bestTimeToCall || contact.latestEncounter?.bestTimeToCall || ''
+    );
+    if (contact.bibleStudyInterest || contact.latestEncounter?.bibleStudyInterest) {
       setEncounterBibleStudyInterest(true);
+    }
+    if (contact.bibleStudyPublication || contact.latestEncounter?.bibleStudyPublication) {
+      setEncounterPublication(
+        contact.bibleStudyPublication || contact.latestEncounter?.bibleStudyPublication || ''
+      );
+    }
+    if (contact.bibleStudyLesson || contact.latestEncounter?.bibleStudyLesson) {
+      setEncounterLesson(
+        contact.bibleStudyLesson || contact.latestEncounter?.bibleStudyLesson || ''
+      );
     }
   };
 
@@ -317,12 +369,18 @@ export function HouseholdLogVisitSheet({
     setEncounterName('');
     setEncounterGender('unknown');
     setEncounterAgeGroup('adult');
+    setEncounterRole('unknown');
     setEncounterLanguage('');
+    setEncounterPhone('');
+    setEncounterEmail('');
+    setEncounterBestTimeToCall('');
     setEncounterReturnVisitRequested(false);
     setEncounterNextVisitDate('');
     setEncounterNextVisitTime('');
     setEncounterNextVisitNotes('');
     setEncounterBibleStudyInterest(false);
+    setEncounterPublication('');
+    setEncounterLesson('');
   };
 
   const handleClearSelectedContact = () => {
@@ -360,6 +418,10 @@ export function HouseholdLogVisitSheet({
           response: encounterResponse,
           gender: encounterGender,
           ageGroup: encounterAgeGroup,
+          role: encounterRole,
+          phoneNumber: encounterPhone || undefined,
+          email: encounterEmail || undefined,
+          bestTimeToCall: encounterBestTimeToCall || undefined,
           languageSpoken: encounterLanguage || undefined,
           topicDiscussed: encounterTopic || undefined,
           literatureAccepted: encounterLiterature || data.literaturePlaced || undefined,
@@ -368,6 +430,8 @@ export function HouseholdLogVisitSheet({
           nextVisitTime: encounterNextVisitTime || undefined,
           nextVisitNotes: encounterNextVisitNotes || undefined,
           bibleStudyInterest: encounterBibleStudyInterest,
+          bibleStudyPublication: encounterPublication || undefined,
+          bibleStudyLesson: encounterLesson || undefined,
           notes: data.notes || undefined,
           visitDate: new Date().toISOString(),
           userId: user?.id || null,
@@ -644,7 +708,28 @@ export function HouseholdLogVisitSheet({
               </div>
 
               {/* Demographics */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Household Role</Label>
+                  <Select
+                    value={encounterRole}
+                    onValueChange={(val) => setEncounterRole(val as any)}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs bg-background">
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="unknown">Unspecified</SelectItem>
+                      <SelectItem value="head_of_household">Head of House</SelectItem>
+                      <SelectItem value="spouse">Spouse</SelectItem>
+                      <SelectItem value="resident">Resident / Family</SelectItem>
+                      <SelectItem value="child">Child / Youth</SelectItem>
+                      <SelectItem value="guest">Guest / Visitor</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-1">
                   <Label className="text-xs font-semibold">Gender</Label>
                   <Select
@@ -692,6 +777,62 @@ export function HouseholdLogVisitSheet({
                 </div>
               </div>
 
+              {/* Contact Info & Best Time to Call */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="encounterPhone"
+                    className="text-xs font-semibold flex items-center gap-1"
+                  >
+                    <Phone size={12} className="text-primary" />
+                    <span>Phone Number</span>
+                  </Label>
+                  <Input
+                    id="encounterPhone"
+                    type="tel"
+                    value={encounterPhone}
+                    onChange={(e) => setEncounterPhone(e.target.value)}
+                    placeholder="e.g. +1 555-0199"
+                    className="h-9 rounded-xl text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="encounterEmail"
+                    className="text-xs font-semibold flex items-center gap-1"
+                  >
+                    <Mail size={12} className="text-primary" />
+                    <span>Email Address</span>
+                  </Label>
+                  <Input
+                    id="encounterEmail"
+                    type="email"
+                    value={encounterEmail}
+                    onChange={(e) => setEncounterEmail(e.target.value)}
+                    placeholder="e.g. contact@email.com"
+                    className="h-9 rounded-xl text-xs bg-background"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label
+                    htmlFor="encounterBestTimeToCall"
+                    className="text-xs font-semibold flex items-center gap-1"
+                  >
+                    <Clock size={12} className="text-primary" />
+                    <span>Best Time to Call</span>
+                  </Label>
+                  <Input
+                    id="encounterBestTimeToCall"
+                    value={encounterBestTimeToCall}
+                    onChange={(e) => setEncounterBestTimeToCall(e.target.value)}
+                    placeholder="e.g. Evenings, Weekends"
+                    className="h-9 rounded-xl text-xs bg-background"
+                  />
+                </div>
+              </div>
+
               {/* Topic Discussed */}
               <div className="space-y-1">
                 <Label htmlFor="encounterTopic" className="text-xs font-semibold">
@@ -731,7 +872,9 @@ export function HouseholdLogVisitSheet({
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="encounterStudyInterest"
-                      checked={encounterBibleStudyInterest}
+                      checked={
+                        encounterBibleStudyInterest || encounterResponse === 'study_accepted'
+                      }
                       onCheckedChange={(checked) =>
                         setEncounterBibleStudyInterest(Boolean(checked))
                       }
@@ -740,10 +883,46 @@ export function HouseholdLogVisitSheet({
                       htmlFor="encounterStudyInterest"
                       className="text-xs font-semibold cursor-pointer text-foreground"
                     >
-                      Bible Study Interest
+                      Bible Study Interest / Conducted
                     </Label>
                   </div>
                 </div>
+
+                {/* Bible Study Details */}
+                {(encounterBibleStudyInterest || encounterResponse === 'study_accepted') && (
+                  <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 space-y-2">
+                    <p className="text-xs font-bold text-violet-700 dark:text-violet-400 flex items-center gap-1.5">
+                      <BookOpen size={13} />
+                      <span>Bible Study Details</span>
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="encounterPublication" className="text-xs font-medium">
+                          Publication / Material
+                        </Label>
+                        <Input
+                          id="encounterPublication"
+                          value={encounterPublication}
+                          onChange={(e) => setEncounterPublication(e.target.value)}
+                          placeholder="e.g. Enjoy Life Forever!"
+                          className="h-9 rounded-xl text-xs bg-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="encounterLesson" className="text-xs font-medium">
+                          Current Lesson / Chapter
+                        </Label>
+                        <Input
+                          id="encounterLesson"
+                          value={encounterLesson}
+                          onChange={(e) => setEncounterLesson(e.target.value)}
+                          placeholder="e.g. Lesson 03, Section 1"
+                          className="h-9 rounded-xl text-xs bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {encounterReturnVisitRequested && (
                   <div className="space-y-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
@@ -802,21 +981,25 @@ export function HouseholdLogVisitSheet({
               </div>
             </div>
           )}
+
+          {/* Section: Visit Notes & Follow-up (Always Visible) */}
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-1">
+              <Label htmlFor="visitNotes" className="text-xs font-semibold text-foreground">
+                Visit Notes
+              </Label>
+              <Textarea
+                id="visitNotes"
+                placeholder="Details of the conversation, householder reaction, questions raised…"
+                className="rounded-xl text-xs resize-none h-18 bg-background"
+                {...form.register('notes')}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="notes" className="text-xs font-semibold">
-            Visit Notes
-          </Label>
-          <Textarea
-            id="notes"
-            placeholder="Note general observations, door circumstances…"
-            className="rounded-xl text-xs resize-none h-16"
-            {...form.register('notes')}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
+        {/* Footer Actions */}
+        <div className="flex justify-end gap-2 pt-2 border-t border-border">
           <Button
             type="button"
             variant="outline"
@@ -864,9 +1047,14 @@ export function HouseholdEncounterSheet({
         householdId: values.householdId,
         name: values.name,
         response: values.response,
+        role: values.role,
         gender: values.gender,
         ageGroup: values.ageGroup,
         language: values.language,
+        phoneNumber: values.phoneNumber || undefined,
+        email: values.email || undefined,
+        bestTimeToCall: values.bestTimeToCall || undefined,
+        locationDescription: values.locationDescription || undefined,
         notes: values.notes || undefined,
         topicsDiscussed: values.topicsDiscussed || undefined,
         literatureOffered: values.literatureOffered || undefined,
@@ -875,6 +1063,8 @@ export function HouseholdEncounterSheet({
         nextVisitTime: values.nextVisitTime || undefined,
         nextVisitNotes: values.nextVisitNotes || undefined,
         bibleStudyInterest: values.bibleStudyInterest,
+        bibleStudyPublication: values.bibleStudyPublication || undefined,
+        bibleStudyLesson: values.bibleStudyLesson || undefined,
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
         publisherName: user?.name || null,

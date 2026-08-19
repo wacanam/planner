@@ -612,7 +612,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     },
     {
       label: 'Return Visits Planned',
-      count: doorData?.outcomeCounts.returnVisit ?? (doorData?.returnVisitsCount ?? 0),
+      count: doorData?.outcomeCounts.returnVisit ?? doorData?.returnVisitsCount ?? 0,
       color: [99, 102, 241],
     },
     { label: 'Not Home', count: doorData?.outcomeCounts.notHome ?? 0, color: [245, 158, 11] },
@@ -624,22 +624,22 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     },
     {
       label: 'Foreign Language',
-      count: doorData?.outcomeCounts.foreignLanguage ?? (doorData?.foreignLanguageCount ?? 0),
+      count: doorData?.outcomeCounts.foreignLanguage ?? doorData?.foreignLanguageCount ?? 0,
       color: [6, 182, 212],
     },
     {
       label: 'Inaccessible / Gated',
-      count: doorData?.outcomeCounts.inaccessible ?? (doorData?.inaccessibleCount ?? 0),
+      count: doorData?.outcomeCounts.inaccessible ?? doorData?.inaccessibleCount ?? 0,
       color: [120, 113, 108],
     },
     {
       label: 'Vacant / Unoccupied',
-      count: doorData?.outcomeCounts.vacant ?? (doorData?.vacantCount ?? 0),
+      count: doorData?.outcomeCounts.vacant ?? doorData?.vacantCount ?? 0,
       color: [100, 116, 139],
     },
     {
       label: 'Do Not Call (DNC)',
-      count: doorData?.outcomeCounts.doNotCall ?? (doorData?.doNotCallCount ?? 0),
+      count: doorData?.outcomeCounts.doNotCall ?? doorData?.doNotCallCount ?? 0,
       color: [225, 29, 72],
     },
   ];

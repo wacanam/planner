@@ -54,8 +54,12 @@ export function toContactView(
     language: record.language || undefined,
     role: (record.role as ContactRole) || 'unknown',
     status: (record.status as ContactStatus) || 'active',
+    phoneNumber: record.phoneNumber || undefined,
+    email: record.email || undefined,
     bestTimeToCall: record.bestTimeToCall || undefined,
     bibleStudyInterest: Boolean(record.bibleStudyInterest),
+    bibleStudyPublication: record.bibleStudyPublication || undefined,
+    bibleStudyLesson: record.bibleStudyLesson || undefined,
     notes: record.notes || undefined,
     createdById: record.createdById,
     creatorName: record.creatorName ?? household?.creatorName ?? null,
@@ -86,8 +90,12 @@ export async function createContact(input: CreateContactInput): Promise<LocalCon
     language: nullableString(input.language),
     role: input.role ?? 'unknown',
     status: input.status ?? 'active',
+    phoneNumber: nullableString(input.phoneNumber),
+    email: nullableString(input.email),
     bestTimeToCall: nullableString(input.bestTimeToCall),
     bibleStudyInterest: Boolean(input.bibleStudyInterest),
+    bibleStudyPublication: nullableString(input.bibleStudyPublication),
+    bibleStudyLesson: nullableString(input.bibleStudyLesson),
     notes: nullableString(input.notes),
     createdById: input.createdById ?? null,
     creatorName: nullableString(input.creatorName) ?? null,
@@ -118,10 +126,16 @@ export async function updateContact(
   if (input.language !== undefined) updates.language = nullableString(input.language);
   if (input.role !== undefined) updates.role = input.role;
   if (input.status !== undefined) updates.status = input.status;
+  if (input.phoneNumber !== undefined) updates.phoneNumber = nullableString(input.phoneNumber);
+  if (input.email !== undefined) updates.email = nullableString(input.email);
   if (input.bestTimeToCall !== undefined)
     updates.bestTimeToCall = nullableString(input.bestTimeToCall);
   if (input.bibleStudyInterest !== undefined)
     updates.bibleStudyInterest = Boolean(input.bibleStudyInterest);
+  if (input.bibleStudyPublication !== undefined)
+    updates.bibleStudyPublication = nullableString(input.bibleStudyPublication);
+  if (input.bibleStudyLesson !== undefined)
+    updates.bibleStudyLesson = nullableString(input.bibleStudyLesson);
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
   if (input.updatedById !== undefined) updates.updatedById = input.updatedById;
 

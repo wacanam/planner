@@ -33,9 +33,15 @@ export interface CreateEncounterInput {
   role?: string | null;
   response: Encounter['response'];
   languageSpoken?: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  bestTimeToCall?: string | null;
+  locationDescription?: string | null;
   topicDiscussed?: string | null;
   literatureAccepted?: string | null;
   bibleStudyInterest?: boolean;
+  bibleStudyPublication?: string | null;
+  bibleStudyLesson?: string | null;
   returnVisitRequested?: boolean;
   nextVisitDate?: string | null;
   nextVisitTime?: string | null;
@@ -63,18 +69,7 @@ function encounterFromSnapshot(snapshot: QueryDocumentSnapshot): LocalEncounter 
   return snapshot.data() as LocalEncounter;
 }
 
-export interface EncounterFilters {
-  visitId?: string | null;
-  householdId?: string | null;
-  userId?: string | null;
-  userRole?: string | null;
-  groupMateUserIds?: string[] | Set<string> | null;
-}
-
-export function filterEncounter(
-  record: LocalEncounter,
-  filters?: EncounterFilters
-): boolean {
+export function filterEncounter(record: LocalEncounter, filters?: EncounterFilters): boolean {
   if (record.deletedAt) return false;
   if (!filters) return true;
   if (filters.visitId && record.visitId !== filters.visitId) return false;
@@ -116,11 +111,17 @@ export function toEncounterView(
     response: record.response,
     languageSpoken: record.languageSpoken,
     language: record.languageSpoken,
+    phoneNumber: record.phoneNumber ?? null,
+    email: record.email ?? null,
+    bestTimeToCall: record.bestTimeToCall ?? null,
+    locationDescription: record.locationDescription ?? null,
     topicDiscussed: record.topicDiscussed,
     topicsDiscussed: record.topicDiscussed,
     literatureAccepted: record.literatureAccepted,
     literatureOffered: record.literatureAccepted,
     bibleStudyInterest: record.bibleStudyInterest,
+    bibleStudyPublication: record.bibleStudyPublication ?? null,
+    bibleStudyLesson: record.bibleStudyLesson ?? null,
     returnVisitRequested: record.returnVisitRequested,
     nextVisitDate: record.nextVisitDate ?? null,
     nextVisitTime: record.nextVisitTime ?? null,
@@ -159,9 +160,15 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
     role: encounter.role ?? null,
     response: encounter.response,
     languageSpoken: encounter.languageSpoken ?? null,
+    phoneNumber: encounter.phoneNumber ?? null,
+    email: encounter.email ?? null,
+    bestTimeToCall: encounter.bestTimeToCall ?? null,
+    locationDescription: encounter.locationDescription ?? null,
     topicDiscussed: encounter.topicDiscussed ?? null,
     literatureAccepted: encounter.literatureAccepted ?? null,
     bibleStudyInterest: Boolean(encounter.bibleStudyInterest),
+    bibleStudyPublication: encounter.bibleStudyPublication ?? null,
+    bibleStudyLesson: encounter.bibleStudyLesson ?? null,
     returnVisitRequested: Boolean(encounter.returnVisitRequested),
     nextVisitDate: encounter.nextVisitDate ?? null,
     nextVisitTime: encounter.nextVisitTime ?? null,
@@ -198,9 +205,15 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     role: nullableString(input.role),
     response: input.response,
     languageSpoken: nullableString(input.languageSpoken),
+    phoneNumber: nullableString(input.phoneNumber),
+    email: nullableString(input.email),
+    bestTimeToCall: nullableString(input.bestTimeToCall),
+    locationDescription: nullableString(input.locationDescription),
     topicDiscussed: nullableString(input.topicDiscussed),
     literatureAccepted: nullableString(input.literatureAccepted),
     bibleStudyInterest: Boolean(input.bibleStudyInterest),
+    bibleStudyPublication: nullableString(input.bibleStudyPublication),
+    bibleStudyLesson: nullableString(input.bibleStudyLesson),
     returnVisitRequested: Boolean(input.returnVisitRequested),
     nextVisitDate: nullableString(input.nextVisitDate),
     nextVisitTime: nullableString(input.nextVisitTime),
@@ -241,6 +254,12 @@ export async function updateEncounter(
   if (input.response !== undefined) updates.response = input.response;
   if (input.languageSpoken !== undefined)
     updates.languageSpoken = nullableString(input.languageSpoken);
+  if (input.phoneNumber !== undefined) updates.phoneNumber = nullableString(input.phoneNumber);
+  if (input.email !== undefined) updates.email = nullableString(input.email);
+  if (input.bestTimeToCall !== undefined)
+    updates.bestTimeToCall = nullableString(input.bestTimeToCall);
+  if (input.locationDescription !== undefined)
+    updates.locationDescription = nullableString(input.locationDescription);
   if (input.topicDiscussed !== undefined)
     updates.topicDiscussed = nullableString(input.topicDiscussed);
   if (input.literatureAccepted !== undefined) {
@@ -248,6 +267,10 @@ export async function updateEncounter(
   }
   if (input.bibleStudyInterest !== undefined)
     updates.bibleStudyInterest = Boolean(input.bibleStudyInterest);
+  if (input.bibleStudyPublication !== undefined)
+    updates.bibleStudyPublication = nullableString(input.bibleStudyPublication);
+  if (input.bibleStudyLesson !== undefined)
+    updates.bibleStudyLesson = nullableString(input.bibleStudyLesson);
   if (input.returnVisitRequested !== undefined) {
     updates.returnVisitRequested = Boolean(input.returnVisitRequested);
   }

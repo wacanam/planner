@@ -123,4 +123,41 @@ describe('extractHouseholdContacts', () => {
     expect(contacts[1].name).toBe('Alice Smith');
     expect(contacts[1].encountersCount).toBe(1);
   });
+
+  it('correctly extracts role, phone, email, bestTimeToCall, and study publication/lesson', () => {
+    const encounters: Encounter[] = [
+      {
+        id: 'enc-1',
+        name: 'Uncle A',
+        gender: 'male',
+        ageGroup: 'adult',
+        role: 'head_of_household',
+        phoneNumber: '+1 555 0199',
+        email: 'unclea@example.com',
+        bestTimeToCall: 'Evenings after 6pm',
+        locationDescription: 'Corner of 5th Ave',
+        response: 'study_accepted',
+        bibleStudyInterest: true,
+        bibleStudyPublication: 'Enjoy Life Forever!',
+        bibleStudyLesson: 'Lesson 03',
+        returnVisitRequested: true,
+        visitDate: '2026-08-15T10:00:00Z',
+        createdAt: '2026-08-15T10:00:00Z',
+        updatedAt: '2026-08-15T10:00:00Z',
+        userId: 'u1',
+        householdId: 'h1',
+        visitId: 'v1',
+      },
+    ];
+
+    const contacts = extractHouseholdContacts(encounters);
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0].role).toBe('head_of_household');
+    expect(contacts[0].phoneNumber).toBe('+1 555 0199');
+    expect(contacts[0].email).toBe('unclea@example.com');
+    expect(contacts[0].bestTimeToCall).toBe('Evenings after 6pm');
+    expect(contacts[0].locationDescription).toBe('Corner of 5th Ave');
+    expect(contacts[0].bibleStudyPublication).toBe('Enjoy Life Forever!');
+    expect(contacts[0].bibleStudyLesson).toBe('Lesson 03');
+  });
 });

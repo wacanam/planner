@@ -8,10 +8,14 @@ import {
   Clock,
   FileText,
   Home,
+  Mail,
+  MapPin,
   MessageSquare,
+  Phone,
   Plus,
   Sparkles,
   User,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -63,9 +67,16 @@ export const addEncounterSchema = z.object({
     'do_not_visit',
     'moved',
   ]),
+  role: z
+    .enum(['head_of_household', 'spouse', 'resident', 'child', 'guest', 'other', 'unknown'])
+    .optional(),
   gender: z.enum(['male', 'female', 'unknown']),
   ageGroup: z.enum(['youth', 'young_adult', 'adult', 'senior', 'unknown']),
   language: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  email: z.string().optional(),
+  bestTimeToCall: z.string().optional(),
+  locationDescription: z.string().optional(),
   notes: z.string().optional(),
   topicsDiscussed: z.string().optional(),
   literatureOffered: z.string().optional(),
@@ -74,6 +85,8 @@ export const addEncounterSchema = z.object({
   nextVisitTime: z.string().optional(),
   nextVisitNotes: z.string().optional(),
   bibleStudyInterest: z.boolean().optional(),
+  bibleStudyPublication: z.string().optional(),
+  bibleStudyLesson: z.string().optional(),
 });
 
 export type AddEncounterFormValues = z.infer<typeof addEncounterSchema>;
@@ -120,9 +133,14 @@ export function AddEncounterForm({
       visitId: initialValues?.visitId || null,
       name: initialValues?.name || '',
       response: (initialValues?.response as AddEncounterFormValues['response']) || 'receptive',
+      role: (initialValues?.role as any) || 'unknown',
       gender: (initialValues?.gender as any) || 'unknown',
       ageGroup: (initialValues?.ageGroup as any) || 'adult',
       language: initialValues?.language || initialValues?.languageSpoken || '',
+      phoneNumber: initialValues?.phoneNumber || '',
+      email: initialValues?.email || '',
+      bestTimeToCall: initialValues?.bestTimeToCall || '',
+      locationDescription: initialValues?.locationDescription || '',
       notes: initialValues?.notes || '',
       topicsDiscussed: initialValues?.topicDiscussed || initialValues?.topicsDiscussed || '',
       literatureOffered:
@@ -132,6 +150,8 @@ export function AddEncounterForm({
       nextVisitTime: initialValues?.nextVisitTime || '',
       nextVisitNotes: initialValues?.nextVisitNotes || '',
       bibleStudyInterest: Boolean(initialValues?.bibleStudyInterest),
+      bibleStudyPublication: initialValues?.bibleStudyPublication || '',
+      bibleStudyLesson: initialValues?.bibleStudyLesson || '',
     },
   });
 
@@ -230,9 +250,28 @@ export function AddEncounterForm({
     form.setValue('name', contact.name, { shouldValidate: true });
     form.setValue('gender', contact.gender || 'unknown');
     form.setValue('ageGroup', contact.ageGroup || 'adult');
-    form.setValue('language', contact.language || '');
-    if (contact.bibleStudyInterest) {
+    form.setValue('role', contact.role || contact.latestEncounter?.role || 'unknown');
+    form.setValue('language', contact.language || contact.latestEncounter?.language || '');
+    form.setValue('phoneNumber', contact.phoneNumber || contact.latestEncounter?.phoneNumber || '');
+    form.setValue('email', contact.email || contact.latestEncounter?.email || '');
+    form.setValue(
+      'bestTimeToCall',
+      contact.bestTimeToCall || contact.latestEncounter?.bestTimeToCall || ''
+    );
+    if (contact.bibleStudyInterest || contact.latestEncounter?.bibleStudyInterest) {
       form.setValue('bibleStudyInterest', true);
+    }
+    if (contact.bibleStudyPublication || contact.latestEncounter?.bibleStudyPublication) {
+      form.setValue(
+        'bibleStudyPublication',
+        contact.bibleStudyPublication || contact.latestEncounter?.bibleStudyPublication || ''
+      );
+    }
+    if (contact.bibleStudyLesson || contact.latestEncounter?.bibleStudyLesson) {
+      form.setValue(
+        'bibleStudyLesson',
+        contact.bibleStudyLesson || contact.latestEncounter?.bibleStudyLesson || ''
+      );
     }
   };
 
@@ -241,7 +280,15 @@ export function AddEncounterForm({
     form.setValue('name', '', { shouldValidate: true });
     form.setValue('gender', 'unknown');
     form.setValue('ageGroup', 'adult');
+    form.setValue('role', 'unknown');
     form.setValue('language', '');
+    form.setValue('phoneNumber', '');
+    form.setValue('email', '');
+    form.setValue('bestTimeToCall', '');
+    form.setValue('locationDescription', '');
+    form.setValue('bibleStudyInterest', false);
+    form.setValue('bibleStudyPublication', '');
+    form.setValue('bibleStudyLesson', '');
   };
 
   const handleClearSelectedContact = () => {
@@ -299,9 +346,13 @@ export function AddEncounterForm({
             </span>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 pt-1">
             {householdContacts.map((contact) => {
-              const isSelected = selectedContact?.normalizedName === contact.normalizedName;
+              const isSelected =
+                selectedContact?.normalizedName === contact.normalizedName ||
+                (!selectedContact &&
+                  form.watch('name')?.trim().toLowerCase() === contact.normalizedName);
+
               return (
                 <button
                   key={contact.normalizedName}
@@ -310,11 +361,11 @@ export function AddEncounterForm({
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                      : 'bg-background hover:bg-muted text-foreground border-border hover:border-primary/50'
+                      : 'bg-background text-foreground border-border hover:border-primary/50 hover:bg-muted'
                   }`}
                 >
-                  <User
-                    size={12}
+                  <UserCheck
+                    size={13}
                     className={isSelected ? 'text-primary-foreground' : 'text-primary'}
                   />
                   <span>{contact.name}</span>
@@ -348,114 +399,75 @@ export function AddEncounterForm({
         </div>
       )}
 
-      {/* Previous Visit Context Card */}
+      {/* Previous Visit Context Card (Shows topic, literature, next visit goal) */}
       {selectedContact && (
-        <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-2.5 animate-in fade-in-50 duration-200">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-              <Sparkles size={14} className="text-primary" />
+        <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 space-y-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-bold text-primary flex items-center gap-1.5">
+              <Sparkles size={14} />
               <span>Previous Visit with {selectedContact.name}</span>
-            </div>
+            </span>
             <div className="flex items-center gap-1.5">
-              <Badge
-                variant="outline"
-                className={`text-[10px] capitalize font-bold ${
-                  responseBadgeColors[selectedContact.lastResponse] ?? ''
-                }`}
-              >
-                {selectedContact.lastResponse.replace(/_/g, ' ')}
-              </Badge>
+              {selectedContact.lastResponse && (
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] capitalize font-bold ${
+                    responseBadgeColors[selectedContact.lastResponse] || ''
+                  }`}
+                >
+                  {selectedContact.lastResponse.replace(/_/g, ' ')}
+                </Badge>
+              )}
               {selectedContact.lastVisitDate && (
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Clock size={11} />
-                  {timeAgo(selectedContact.lastVisitDate)}
+                  <span>{timeAgo(selectedContact.lastVisitDate)}</span>
                 </span>
               )}
             </div>
           </div>
 
-          <div className="space-y-1.5 text-xs">
+          <div className="space-y-1 text-muted-foreground text-[11px]">
             {selectedContact.lastTopicDiscussed && (
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <BookOpen size={13} className="shrink-0 text-primary/70 mt-0.5" />
-                <span className="text-foreground">
-                  <strong className="font-semibold text-muted-foreground">Previous Topic:</strong>{' '}
-                  {selectedContact.lastTopicDiscussed}
-                </span>
-              </div>
+              <p>
+                <strong className="text-foreground">Last Topic:</strong>{' '}
+                {selectedContact.lastTopicDiscussed}
+              </p>
             )}
-
             {selectedContact.lastLiteratureAccepted && (
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <FileText size={13} className="shrink-0 text-primary/70 mt-0.5" />
-                <span className="text-foreground">
-                  <strong className="font-semibold text-muted-foreground">Literature Left:</strong>{' '}
-                  {selectedContact.lastLiteratureAccepted}
-                </span>
-              </div>
+              <p>
+                <strong className="text-foreground">Literature Left:</strong>{' '}
+                {selectedContact.lastLiteratureAccepted}
+              </p>
             )}
-
             {selectedContact.nextVisitPlannedTopic && (
-              <div className="p-2.5 rounded-xl bg-background/80 border border-primary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-start gap-1.5 min-w-0">
-                  <Calendar size={13} className="shrink-0 text-primary mt-0.5" />
-                  <div className="text-xs min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary block">
-                      Question / Topic Planned for Today:
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      "{selectedContact.nextVisitPlannedTopic}"
-                    </span>
-                  </div>
+              <div className="mt-1.5 p-2 rounded-xl bg-background/80 border border-primary/20 flex items-start justify-between gap-2">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider block">
+                    Planned Topic for this visit
+                  </span>
+                  <p className="text-xs text-foreground font-medium italic">
+                    &ldquo;{selectedContact.nextVisitPlannedTopic}&rdquo;
+                  </p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    selectedContact.nextVisitPlannedTopic &&
-                    handleApplyPlannedTopic(selectedContact.nextVisitPlannedTopic)
-                  }
-                  className="h-7 text-[11px] rounded-lg border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground font-semibold gap-1 self-start sm:self-auto shrink-0"
+                  onClick={() => handleApplyPlannedTopic(selectedContact.nextVisitPlannedTopic!)}
+                  className="h-7 text-[11px] font-semibold text-primary shrink-0 gap-1 rounded-lg"
                 >
-                  {copiedTopic ? (
-                    <>
-                      <Check size={12} />
-                      <span>Applied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={12} />
-                      <span>Use as today's topic</span>
-                    </>
-                  )}
+                  {copiedTopic ? <Check size={12} /> : null}
+                  <span>{copiedTopic ? 'Applied' : 'Use Topic'}</span>
                 </Button>
-              </div>
-            )}
-
-            {selectedContact.notes && (
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <MessageSquare size={13} className="shrink-0 text-muted-foreground/70 mt-0.5" />
-                <span className="text-foreground italic">"{selectedContact.notes}"</span>
-              </div>
-            )}
-
-            {selectedContact.bibleStudyInterest && (
-              <div className="pt-0.5">
-                <Badge
-                  variant="outline"
-                  className="bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20 text-[10px] font-bold"
-                >
-                  ⭐ Bible Study Interest Recorded
-                </Badge>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Name and Response */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {/* Person Name & Response Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label htmlFor="name" className="text-xs font-semibold">
             Person's Name *
@@ -501,7 +513,29 @@ export function AddEncounterForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {/* Demographics Row (Household Role, Gender, Age Group, Language) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold">Household Role</Label>
+          <Select
+            value={form.watch('role') || 'unknown'}
+            onValueChange={(val) => form.setValue('role', val as any)}
+          >
+            <SelectTrigger className="h-9 rounded-xl text-xs">
+              <SelectValue placeholder="Role" />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border-border">
+              <SelectItem value="unknown">Unspecified</SelectItem>
+              <SelectItem value="head_of_household">Head of House</SelectItem>
+              <SelectItem value="spouse">Spouse</SelectItem>
+              <SelectItem value="resident">Resident / Family</SelectItem>
+              <SelectItem value="child">Child / Youth</SelectItem>
+              <SelectItem value="guest">Guest / Visitor</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-1">
           <Label className="text-xs font-semibold">Gender</Label>
           <Select
@@ -552,6 +586,70 @@ export function AddEncounterForm({
         </div>
       </div>
 
+      {/* Contact Info & Best Time to Call Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="phoneNumber" className="text-xs font-semibold flex items-center gap-1">
+            <Phone size={12} className="text-primary" />
+            <span>Phone Number</span>
+          </Label>
+          <Input
+            id="phoneNumber"
+            type="tel"
+            placeholder="e.g. +1 555-0199"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('phoneNumber')}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="email" className="text-xs font-semibold flex items-center gap-1">
+            <Mail size={12} className="text-primary" />
+            <span>Email Address</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="e.g. contact@email.com"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('email')}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="bestTimeToCall" className="text-xs font-semibold flex items-center gap-1">
+            <Clock size={12} className="text-primary" />
+            <span>Best Time to Call</span>
+          </Label>
+          <Input
+            id="bestTimeToCall"
+            placeholder="e.g. Evenings, Weekends"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('bestTimeToCall')}
+          />
+        </div>
+      </div>
+
+      {/* Public / Street Location description (if not bound to a specific household) */}
+      {!household && !activeHouseholdId && (
+        <div className="space-y-1">
+          <Label
+            htmlFor="locationDescription"
+            className="text-xs font-semibold flex items-center gap-1"
+          >
+            <MapPin size={12} className="text-primary" />
+            <span>Public / Street Witnessing Location</span>
+          </Label>
+          <Input
+            id="locationDescription"
+            placeholder="e.g. City Park North bench, Bus stop near Main St, Public cart"
+            className="h-9 rounded-xl text-xs"
+            {...form.register('locationDescription')}
+          />
+        </div>
+      )}
+
+      {/* Topic Discussed */}
       <div className="space-y-1">
         <Label htmlFor="topicsDiscussed" className="text-xs font-semibold">
           Topic Discussed / Scripture
@@ -564,6 +662,7 @@ export function AddEncounterForm({
         />
       </div>
 
+      {/* Literature Placed */}
       <div className="space-y-1">
         <Label htmlFor="literatureOffered" className="text-xs font-semibold">
           Literature Left / Video Shown
@@ -576,7 +675,7 @@ export function AddEncounterForm({
         />
       </div>
 
-      {/* Next Visit / Return Visit Scheduling Section */}
+      {/* Bible Study & Next Visit Scheduling Section */}
       <div className="space-y-3 pt-2 border-t border-border/60">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/60">
           <div className="flex items-center gap-2">
@@ -595,18 +694,55 @@ export function AddEncounterForm({
           <div className="flex items-center gap-2">
             <Checkbox
               id="bibleStudyInterest"
-              checked={form.watch('bibleStudyInterest')}
+              checked={
+                form.watch('bibleStudyInterest') || form.watch('response') === 'study_accepted'
+              }
               onCheckedChange={(checked) => form.setValue('bibleStudyInterest', Boolean(checked))}
             />
             <Label
               htmlFor="bibleStudyInterest"
               className="text-xs font-semibold cursor-pointer text-foreground"
             >
-              Bible Study Interest
+              Bible Study Interest / Conducted
             </Label>
           </div>
         </div>
 
+        {/* Bible Study Details Section */}
+        {(form.watch('bibleStudyInterest') || form.watch('response') === 'study_accepted') && (
+          <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 space-y-2">
+            <p className="text-xs font-bold text-violet-700 dark:text-violet-400 flex items-center gap-1.5">
+              <BookOpen size={13} />
+              <span>Bible Study Details</span>
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="bibleStudyPublication" className="text-xs font-medium">
+                  Publication / Material
+                </Label>
+                <Input
+                  id="bibleStudyPublication"
+                  placeholder="e.g. Enjoy Life Forever!"
+                  className="h-9 rounded-xl text-xs bg-background"
+                  {...form.register('bibleStudyPublication')}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="bibleStudyLesson" className="text-xs font-medium">
+                  Current Lesson / Chapter
+                </Label>
+                <Input
+                  id="bibleStudyLesson"
+                  placeholder="e.g. Lesson 03, Section 1"
+                  className="h-9 rounded-xl text-xs bg-background"
+                  {...form.register('bibleStudyLesson')}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Return Visit Scheduling Details */}
         {form.watch('returnVisitRequested') && (
           <div className="space-y-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

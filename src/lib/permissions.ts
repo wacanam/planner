@@ -290,7 +290,10 @@ export function canReturnAssignment(
     | { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null }
     | null
     | undefined,
-  group?: { overseerId?: string | null; members?: { userId?: string | null; role?: string }[] } | null
+  group?: {
+    overseerId?: string | null;
+    members?: { userId?: string | null; role?: string }[];
+  } | null
 ): boolean {
   if (!user?.id || !assignment) return false;
 
@@ -390,8 +393,7 @@ export function resolveUserAssignments(
     const aGroupId = a.serviceGroupId?.trim();
 
     const isDirectPersonal =
-      Boolean(uid && a.userId === uid) ||
-      Boolean(userEmail && aEmail && aEmail === userEmail);
+      Boolean(uid && a.userId === uid) || Boolean(userEmail && aEmail && aEmail === userEmail);
 
     const isGroupInherited = Boolean(aGroupId && groupSet.has(aGroupId));
 

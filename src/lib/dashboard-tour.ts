@@ -81,17 +81,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Building2',
         title: 'Congregation Workspace',
-        description: 'Access your specific congregation territory database and shared ministry records.',
+        description:
+          'Access your specific congregation territory database and shared ministry records.',
       },
       {
         icon: 'Shield',
         title: 'Role-Based Access',
-        description: 'Features dynamically adapt to your role: Publisher, Territory Servant, Service Overseer, or Admin.',
+        description:
+          'Features dynamically adapt to your role: Publisher, Territory Servant, Service Overseer, or Admin.',
       },
       {
         icon: 'Zap',
         title: 'Instant Action Triggers',
-        description: 'Launch your active territory maps or browse available assignments with a single tap.',
+        description:
+          'Launch your active territory maps or browse available assignments with a single tap.',
       },
     ],
     tip: 'You can replay this interactive tour anytime using the Tour Guide button in this banner.',
@@ -109,22 +112,26 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'MapPin',
         title: 'Total Territories',
-        description: 'View total congregation territories and instantly see how many are available for checkout.',
+        description:
+          'View total congregation territories and instantly see how many are available for checkout.',
       },
       {
         icon: 'Compass',
         title: 'My Assignments',
-        description: 'Keep track of active territories currently checked out to you or your service group.',
+        description:
+          'Keep track of active territories currently checked out to you or your service group.',
       },
       {
         icon: 'Home',
         title: 'Door Records & Pinning',
-        description: 'Monitor total household records and receive alerts if any doors need GPS map pinning.',
+        description:
+          'Monitor total household records and receive alerts if any doors need GPS map pinning.',
       },
       {
         icon: 'Users',
         title: 'Publishers Directory',
-        description: 'Quick count of active congregation members working together in the territory.',
+        description:
+          'Quick count of active congregation members working together in the territory.',
       },
     ],
     tip: 'Stat cards automatically update in real-time as publishers log visits and check out territories.',
@@ -142,17 +149,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Map',
         title: 'Launch Territory Studio',
-        description: 'Open the interactive map to view exact boundaries, street paths, and household door pins.',
+        description:
+          'Open the interactive map to view exact boundaries, street paths, and household door pins.',
       },
       {
         icon: 'Clock',
         title: 'Due Dates & Turnaround',
-        description: 'Monitor assignment dates and turnaround timelines to keep ministry territories fresh.',
+        description:
+          'Monitor assignment dates and turnaround timelines to keep ministry territories fresh.',
       },
       {
         icon: 'CheckCircle2',
         title: 'Return & Endorsement Workflow',
-        description: 'Submit completed territory assignments with coverage notes for overseer review.',
+        description:
+          'Submit completed territory assignments with coverage notes for overseer review.',
       },
     ],
     tip: 'Territories can be assigned directly to individual publishers or to an entire service group.',
@@ -170,17 +180,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Search',
         title: 'Filter & Search',
-        description: 'Search territories by number, name, type (urban, rural, business), or status.',
+        description:
+          'Search territories by number, name, type (urban, rural, business), or status.',
       },
       {
         icon: 'PlusCircle',
         title: 'Create New Territories',
-        description: 'Servants and overseers can easily add new territory numbers, names, and geographic zones.',
+        description:
+          'Servants and overseers can easily add new territory numbers, names, and geographic zones.',
       },
       {
         icon: 'Send',
         title: 'Territory Requests',
-        description: 'Publishers can request available territories, and overseers can approve them in one click.',
+        description:
+          'Publishers can request available territories, and overseers can approve them in one click.',
       },
     ],
     tip: 'Head over to the Territories tab anytime to discover available territory zones.',
@@ -197,22 +210,26 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Edit3',
         title: 'Boundary Polygon Drawing',
-        description: 'Draw and adjust colored territory boundary polygons directly on the interactive map surface.',
+        description:
+          'Draw and adjust colored territory boundary polygons directly on the interactive map surface.',
       },
       {
         icon: 'MapPin',
         title: 'Landmarks & Hazards',
-        description: 'Mark landmarks (schools, churches, gates, stores) and hazard alerts for publishers.',
+        description:
+          'Mark landmarks (schools, churches, gates, stores) and hazard alerts for publishers.',
       },
       {
         icon: 'Printer',
         title: 'Print & PDF Export (S-12)',
-        description: 'Generate high-resolution printable territory map cards and PDF documents for field service.',
+        description:
+          'Generate high-resolution printable territory map cards and PDF documents for field service.',
       },
       {
         icon: 'Maximize2',
         title: 'GPS Location & Marker Clustering',
-        description: 'Use real-time device GPS to find your location and cluster dense household pins automatically.',
+        description:
+          'Use real-time device GPS to find your location and cluster dense household pins automatically.',
       },
     ],
     tip: 'Click "Open Map" on any territory card to launch the full Territory Studio experience.',
@@ -230,12 +247,14 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Home',
         title: 'Household Directory',
-        description: 'Store street names, house numbers, unit numbers, door status, and exact map coordinates.',
+        description:
+          'Store street names, house numbers, unit numbers, door status, and exact map coordinates.',
       },
       {
         icon: 'CheckCircle2',
         title: 'Visit Outcomes',
-        description: 'Log visits with statuses: Contacted, Not Home, Busy, Literature Placed, or Do Not Call.',
+        description:
+          'Log visits with statuses: Contacted, Not Home, Busy, Literature Placed, or Do Not Call.',
       },
       {
         icon: 'BookOpen',
@@ -258,17 +277,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'UserCheck',
         title: 'Encounters & Study Interests',
-        description: 'Record resident names, languages, age groups, and scheduled return visit appointments.',
+        description:
+          'Record resident names, languages, age groups, and scheduled return visit appointments.',
       },
       {
         icon: 'Share2',
         title: 'Personal Record Sharing',
-        description: 'Share return visits with preaching partners in Collaborate, Transfer, or View-only mode.',
+        description:
+          'Share return visits with preaching partners in Collaborate, Transfer, or View-only mode.',
       },
       {
         icon: 'Lock',
         title: 'Secure Endorsements',
-        description: 'Shared records require recipient acceptance, keeping congregation data organized and private.',
+        description:
+          'Shared records require recipient acceptance, keeping congregation data organized and private.',
       },
     ],
     tip: 'Sharing records helps preaching companions follow up on return visits seamlessly.',
@@ -286,17 +308,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'UserPlus',
         title: 'Members & Access Approvals',
-        description: 'Approve new publisher join requests, assign congregation roles, and manage permissions.',
+        description:
+          'Approve new publisher join requests, assign congregation roles, and manage permissions.',
       },
       {
         icon: 'FolderOpen',
         title: 'Service Groups',
-        description: 'Organize publishers into field service groups with appointed Group Overseers and Assistants.',
+        description:
+          'Organize publishers into field service groups with appointed Group Overseers and Assistants.',
       },
       {
         icon: 'FileSpreadsheet',
         title: 'S-13 Coverage Reports',
-        description: 'Generate official S-13 territory assignment records, turnaround analytics, and export to CSV or PDF.',
+        description:
+          'Generate official S-13 territory assignment records, turnaround analytics, and export to CSV or PDF.',
       },
     ],
     tip: 'Administrative pages appear automatically in the navigation for Service Overseers and Servants.',
@@ -314,17 +339,20 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Bell',
         title: 'Real-time Notifications & Sound Styles',
-        description: 'Receive instant alerts with customizable audio styles: Chime, Ding, Pop, or Subtle.',
+        description:
+          'Receive instant alerts with customizable audio styles: Chime, Ding, Pop, or Subtle.',
       },
       {
         icon: 'WifiOff',
         title: '100% Offline-First Firestore Cache',
-        description: 'Work in rural areas with zero signal. Changes are safely saved locally and sync automatically when online.',
+        description:
+          'Work in rural areas with zero signal. Changes are safely saved locally and sync automatically when online.',
       },
       {
         icon: 'User',
         title: 'Profile & Avatar Cropping',
-        description: 'Customize your profile, crop avatar photos, update credentials, and manage account preferences.',
+        description:
+          'Customize your profile, crop avatar photos, update credentials, and manage account preferences.',
       },
     ],
     tip: 'When working offline, a subtle top banner confirms offline mode while your changes save locally.',
@@ -351,7 +379,8 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
       {
         icon: 'Sparkles',
         title: 'Replay Anytime',
-        description: 'Click the "Tour Guide" button in the dashboard welcome banner whenever you need a refresher.',
+        description:
+          'Click the "Tour Guide" button in the dashboard welcome banner whenever you need a refresher.',
       },
     ],
     tip: 'Happy field service! Let’s get started.',

@@ -108,8 +108,27 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
         const existing = await findContactByName(householdId, rawName);
         if (existing) {
           contactId = existing.id;
+          const updates: Record<string, unknown> = {};
           if (data.bibleStudyInterest && !existing.bibleStudyInterest) {
-            await updateContact(existing.id, { bibleStudyInterest: true });
+            updates.bibleStudyInterest = true;
+          }
+          if (data.phoneNumber && !existing.phoneNumber) {
+            updates.phoneNumber = data.phoneNumber;
+          }
+          if (data.email && !existing.email) {
+            updates.email = data.email;
+          }
+          if (data.bestTimeToCall && !existing.bestTimeToCall) {
+            updates.bestTimeToCall = data.bestTimeToCall;
+          }
+          if (data.bibleStudyPublication && !existing.bibleStudyPublication) {
+            updates.bibleStudyPublication = data.bibleStudyPublication;
+          }
+          if (data.bibleStudyLesson && !existing.bibleStudyLesson) {
+            updates.bibleStudyLesson = data.bibleStudyLesson;
+          }
+          if (Object.keys(updates).length > 0) {
+            await updateContact(existing.id, updates);
           }
         } else {
           const newContact = await createContact({
@@ -120,7 +139,13 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
             language: ((data.languageSpoken ?? data.language) as string | null | undefined) ?? null,
             role: (data.role as CreateContactInput['role']) || 'unknown',
             status: 'active',
+            phoneNumber: (data.phoneNumber as string | null | undefined) ?? null,
+            email: (data.email as string | null | undefined) ?? null,
+            bestTimeToCall: (data.bestTimeToCall as string | null | undefined) ?? null,
             bibleStudyInterest: Boolean(data.bibleStudyInterest),
+            bibleStudyPublication:
+              (data.bibleStudyPublication as string | null | undefined) ?? null,
+            bibleStudyLesson: (data.bibleStudyLesson as string | null | undefined) ?? null,
             createdById: (data.userId as string | null | undefined) ?? null,
             creatorName:
               ((data.publisherName ?? data.creatorName) as string | null | undefined) ?? null,
@@ -149,11 +174,17 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
     role: (data.role as string | null | undefined) ?? null,
     response: String(data.response ?? 'other'),
     languageSpoken: ((data.languageSpoken ?? data.language) as string | null | undefined) ?? null,
+    phoneNumber: (data.phoneNumber as string | null | undefined) ?? null,
+    email: (data.email as string | null | undefined) ?? null,
+    bestTimeToCall: (data.bestTimeToCall as string | null | undefined) ?? null,
+    locationDescription: (data.locationDescription as string | null | undefined) ?? null,
     topicDiscussed:
       ((data.topicDiscussed ?? data.topicsDiscussed) as string | null | undefined) ?? null,
     literatureAccepted:
       ((data.literatureAccepted ?? data.literatureOffered) as string | null | undefined) ?? null,
     bibleStudyInterest: Boolean(data.bibleStudyInterest),
+    bibleStudyPublication: (data.bibleStudyPublication as string | null | undefined) ?? null,
+    bibleStudyLesson: (data.bibleStudyLesson as string | null | undefined) ?? null,
     returnVisitRequested: Boolean(data.returnVisitRequested),
     nextVisitDate: (data.nextVisitDate as string | null | undefined) ?? null,
     nextVisitTime: (data.nextVisitTime as string | null | undefined) ?? null,

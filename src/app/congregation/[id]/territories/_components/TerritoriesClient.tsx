@@ -395,10 +395,20 @@ export default function TerritoriesClient() {
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-2 min-w-0">
-                        <span className="font-extrabold text-sm text-primary shrink-0">#{t.number}</span>
-                        <h2 className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words" title={t.name}>{t.name}</h2>
+                        <span className="font-extrabold text-sm text-primary shrink-0">
+                          #{t.number}
+                        </span>
+                        <h2
+                          className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words"
+                          title={t.name}
+                        >
+                          {t.name}
+                        </h2>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 truncate" title={t.city || 'Congregation Area'}>
+                      <p
+                        className="text-xs text-muted-foreground mt-1 truncate"
+                        title={t.city || 'Congregation Area'}
+                      >
                         {t.city || 'Congregation Area'}
                       </p>
                     </div>
@@ -483,7 +493,7 @@ export default function TerritoriesClient() {
                             <UserCheck size={13} className="shrink-0 text-primary" />
                             <span className="truncate">Assign</span>
                           </Button>
-                        ) : (t.status === 'assigned' || t.status === 'pending') ? (
+                        ) : t.status === 'assigned' || t.status === 'pending' ? (
                           <Button
                             size="sm"
                             variant="outline"

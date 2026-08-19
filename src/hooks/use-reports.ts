@@ -700,7 +700,11 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       ) {
         doNotCallCount += 1;
       }
-      if (h.status === 'return_visit' || h.lastVisitOutcome === 'return_visit' || (h.totalVisitsCount || 0) > 1) {
+      if (
+        h.status === 'return_visit' ||
+        h.lastVisitOutcome === 'return_visit' ||
+        (h.totalVisitsCount || 0) > 1
+      ) {
         returnVisitsCount += 1;
       }
       if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language') {
@@ -741,19 +745,36 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
         outcomeCounts.foreignLanguage += 1;
       } else if (outcome === 'minor_only' || outcome.includes('minor')) {
         outcomeCounts.minorOnly += 1;
-      } else if (outcome === 'inaccessible' || outcome.includes('inaccessible') || outcome.includes('gated')) {
+      } else if (
+        outcome === 'inaccessible' ||
+        outcome.includes('inaccessible') ||
+        outcome.includes('gated')
+      ) {
         outcomeCounts.inaccessible += 1;
       } else if (outcome === 'vacant' || outcome.includes('vacant')) {
         outcomeCounts.vacant += 1;
       } else if (outcome === 'moved' || outcome.includes('moved')) {
         outcomeCounts.moved += 1;
-      } else if (outcome.includes('do_not') || outcome.includes('dnc') || outcome === 'do_not_visit' || outcome === 'do_not_call') {
+      } else if (
+        outcome.includes('do_not') ||
+        outcome.includes('dnc') ||
+        outcome === 'do_not_visit' ||
+        outcome === 'do_not_call'
+      ) {
         outcomeCounts.doNotCall += 1;
-      } else if (outcome.includes('place') || outcome.includes('literature') || Boolean(v.literaturePlaced || v.literatureLeft)) {
+      } else if (
+        outcome.includes('place') ||
+        outcome.includes('literature') ||
+        Boolean(v.literaturePlaced || v.literatureLeft)
+      ) {
         outcomeCounts.placedLiterature += 1;
       } else if (outcome.includes('return') || outcome.includes('revisit')) {
         outcomeCounts.returnVisit += 1;
-      } else if (outcome.includes('contact') || outcome.includes('interested') || outcome === 'answered') {
+      } else if (
+        outcome.includes('contact') ||
+        outcome.includes('interested') ||
+        outcome === 'answered'
+      ) {
         outcomeCounts.contacted += 1;
       } else {
         outcomeCounts.other += 1;

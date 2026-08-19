@@ -1196,10 +1196,7 @@ export function StudioGoogleMap({
 
         const isSelected = selectedBoundaryId === boundary.id;
         const isEditable =
-          !isReadOnly &&
-          !isPrintViewportActive &&
-          isSelected &&
-          activeTool === 'pointer';
+          !isReadOnly && !isPrintViewportActive && isSelected && activeTool === 'pointer';
 
         const polygon = new google.maps.Polygon({
           paths: boundary.points,
@@ -2008,8 +2005,7 @@ export function StudioGoogleMap({
           isPrintViewportActiveRef,
           activeToolRef,
           onSelect: () => handleSelectLandmarkRef.current?.(landmark),
-          onMove: (newLat, newLng) =>
-            handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng),
+          onMove: (newLat, newLng) => handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng),
           getIsSelected: () => selectedLandmarkIdRef.current === landmark.id,
         });
 

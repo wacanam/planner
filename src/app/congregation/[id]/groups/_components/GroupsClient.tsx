@@ -751,7 +751,8 @@ export default function GroupsClient() {
                           </p>
                           <p className="text-xs font-bold text-foreground truncate">
                             {editGroup.overseerName ||
-                              members.find((m) => (m.userId || m.id) === editGroup.overseerId)?.user?.name ||
+                              members.find((m) => (m.userId || m.id) === editGroup.overseerId)?.user
+                                ?.name ||
                               'Unassigned'}
                           </p>
                         </div>
@@ -776,7 +777,9 @@ export default function GroupsClient() {
                           </p>
                           <p className="text-xs font-bold text-foreground truncate">
                             {editGroup.assistantOverseerName ||
-                              members.find((m) => (m.userId || m.id) === editGroup.assistantOverseerId)?.user?.name ||
+                              members.find(
+                                (m) => (m.userId || m.id) === editGroup.assistantOverseerId
+                              )?.user?.name ||
                               'Unassigned'}
                           </p>
                         </div>
@@ -1074,13 +1077,15 @@ export default function GroupsClient() {
                                   onValueChange={(val) => {
                                     if (val === 'overseer') {
                                       setOverseerId(uid);
-                                      if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                      if (assistantOverseerId === uid)
+                                        setAssistantOverseerId('none');
                                     } else if (val === 'assistant') {
                                       setAssistantOverseerId(uid);
                                       if (overseerId === uid) setOverseerId('none');
                                     } else {
                                       if (overseerId === uid) setOverseerId('none');
-                                      if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                      if (assistantOverseerId === uid)
+                                        setAssistantOverseerId('none');
                                     }
                                   }}
                                 >

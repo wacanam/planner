@@ -7,7 +7,14 @@ export interface HouseholdContactSummary {
   encountersCount: number;
   gender: 'male' | 'female' | 'unknown';
   ageGroup: 'youth' | 'young_adult' | 'adult' | 'senior' | 'unknown';
+  role?: string;
   language?: string;
+  phoneNumber?: string;
+  email?: string;
+  bestTimeToCall?: string;
+  locationDescription?: string;
+  bibleStudyPublication?: string;
+  bibleStudyLesson?: string;
   latestEncounter: Encounter;
   lastVisitDate: string;
   lastResponse: string;
@@ -87,13 +94,36 @@ export function extractHouseholdContacts(
         ? rawAge
         : 'unknown';
 
+    const phone =
+      contactEncounters.find((e) => e.phoneNumber && e.phoneNumber.trim().length > 0)
+        ?.phoneNumber || undefined;
+    const email =
+      contactEncounters.find((e) => e.email && e.email.trim().length > 0)?.email || undefined;
+    const bestTime =
+      contactEncounters.find((e) => e.bestTimeToCall && e.bestTimeToCall.trim().length > 0)
+        ?.bestTimeToCall || undefined;
+    const studyPublication =
+      contactEncounters.find(
+        (e) => e.bibleStudyPublication && e.bibleStudyPublication.trim().length > 0
+      )?.bibleStudyPublication || undefined;
+    const studyLesson =
+      contactEncounters.find((e) => e.bibleStudyLesson && e.bibleStudyLesson.trim().length > 0)
+        ?.bibleStudyLesson || undefined;
+
     result.push({
       name,
       normalizedName,
       encountersCount: contactEncounters.length,
       gender,
       ageGroup,
+      role: latest.role || undefined,
       language: latest.language || latest.languageSpoken || undefined,
+      phoneNumber: phone,
+      email,
+      bestTimeToCall: bestTime,
+      locationDescription: latest.locationDescription || undefined,
+      bibleStudyPublication: studyPublication,
+      bibleStudyLesson: studyLesson,
       latestEncounter: latest,
       lastVisitDate: latest.visitDate || latest.createdAt || '',
       lastResponse: latest.response || 'receptive',
@@ -102,7 +132,8 @@ export function extractHouseholdContacts(
       nextVisitPlannedTopic: latest.nextVisitNotes || undefined,
       nextVisitDate: latest.nextVisitDate || undefined,
       notes: latest.notes || undefined,
-      bibleStudyInterest: Boolean(latest.bibleStudyInterest),
+      bibleStudyInterest:
+        Boolean(latest.bibleStudyInterest) || contactEncounters.some((e) => e.bibleStudyInterest),
       householdAddress: latest.householdAddress || undefined,
       territoryId: latest.territoryId || undefined,
       matchScope: 'household',

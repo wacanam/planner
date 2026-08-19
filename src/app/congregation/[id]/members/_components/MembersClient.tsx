@@ -265,7 +265,8 @@ export default function MembersClient() {
                 <Users size={36} className="text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-foreground">No Service Group Assigned</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  You are not currently assigned to a field service group. Contact your service overseer to be assigned.
+                  You are not currently assigned to a field service group. Contact your service
+                  overseer to be assigned.
                 </p>
               </div>
             ) : (

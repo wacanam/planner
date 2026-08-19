@@ -255,7 +255,10 @@ export function DashboardTourGuide({
             </div>
 
             <div className="min-w-0 space-y-1">
-              <h2 id={titleId} className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+              <h2
+                id={titleId}
+                className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight"
+              >
                 {activeStep.title}
               </h2>
               {activeStep.subtitle && (

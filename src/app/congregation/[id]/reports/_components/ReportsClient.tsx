@@ -1099,7 +1099,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp; Discussed
+                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp;
+                        Discussed
                       </span>
                       <span>{doorData?.outcomeCounts.contacted ?? 0}</span>
                     </div>

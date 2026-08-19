@@ -4,9 +4,13 @@ import {
   BookOpen,
   Calendar,
   ChevronDown,
+  Clock,
   Home,
   LayoutList,
+  Mail,
+  MapPin,
   Pencil,
+  Phone,
   Plus,
   Search,
   Trash2,
@@ -350,6 +354,14 @@ export default function EncountersClient() {
                             {contact.encountersCount}{' '}
                             {contact.encountersCount === 1 ? 'encounter' : 'encounters'}
                           </Badge>
+                          {contact.role && contact.role !== 'unknown' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] capitalize py-0 font-medium bg-muted/40"
+                            >
+                              {contact.role.replace(/_/g, ' ')}
+                            </Badge>
+                          )}
                           {contact.gender && contact.gender !== 'unknown' && (
                             <Badge variant="outline" className="text-[10px] capitalize py-0">
                               {contact.gender}
@@ -370,7 +382,10 @@ export default function EncountersClient() {
                               variant="outline"
                               className="text-[10px] font-semibold py-0 text-violet-700 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:text-violet-300"
                             >
-                              📖 Study Interest
+                              📖 Study Interest{' '}
+                              {contact.bibleStudyPublication
+                                ? `· ${contact.bibleStudyPublication}`
+                                : ''}
                             </Badge>
                           )}
                         </div>
@@ -403,7 +418,36 @@ export default function EncountersClient() {
                           </Link>
                         ) : (
                           <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
-                            <span>🚶 Street / Public Witnessing / Informal</span>
+                            <MapPin size={11} className="shrink-0" />
+                            <span>
+                              {contact.locationDescription
+                                ? `🚶 ${contact.locationDescription}`
+                                : '🚶 Street / Public Witnessing / Informal'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Contact Info (Phone / Email / Best time) */}
+                        {(contact.phoneNumber || contact.email || contact.bestTimeToCall) && (
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                            {contact.phoneNumber && (
+                              <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                                <Phone size={11} className="text-primary" />
+                                <span>{contact.phoneNumber}</span>
+                              </span>
+                            )}
+                            {contact.email && (
+                              <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                                <Mail size={11} className="text-primary" />
+                                <span>{contact.email}</span>
+                              </span>
+                            )}
+                            {contact.bestTimeToCall && (
+                              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                <Clock size={11} className="text-primary" />
+                                <span>Call: {contact.bestTimeToCall}</span>
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -597,6 +641,14 @@ export default function EncountersClient() {
                     >
                       {e.response.replace(/_/g, ' ')}
                     </Badge>
+                    {e.role && e.role !== 'unknown' && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] capitalize py-0 font-medium bg-muted/40"
+                      >
+                        {e.role.replace(/_/g, ' ')}
+                      </Badge>
+                    )}
                     {(e.language || e.languageSpoken) && (
                       <Badge variant="outline" className="text-[10px] py-0">
                         {e.language || e.languageSpoken}
@@ -623,7 +675,36 @@ export default function EncountersClient() {
                     </Link>
                   ) : (
                     <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
-                      <span>🚶 Street / Public Witnessing / Informal</span>
+                      <MapPin size={11} className="shrink-0" />
+                      <span>
+                        {e.locationDescription
+                          ? `🚶 ${e.locationDescription}`
+                          : '🚶 Street / Public Witnessing / Informal'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Contact Info (Phone / Email / Best time) */}
+                  {(e.phoneNumber || e.email || e.bestTimeToCall) && (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                      {e.phoneNumber && (
+                        <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                          <Phone size={11} className="text-primary" />
+                          <span>{e.phoneNumber}</span>
+                        </span>
+                      )}
+                      {e.email && (
+                        <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                          <Mail size={11} className="text-primary" />
+                          <span>{e.email}</span>
+                        </span>
+                      )}
+                      {e.bestTimeToCall && (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <Clock size={11} className="text-primary" />
+                          <span>Call: {e.bestTimeToCall}</span>
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -674,7 +755,9 @@ export default function EncountersClient() {
                       )}
                       {e.bibleStudyInterest && (
                         <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40 text-[11px]">
-                          📖 Bible Study Interest
+                          📖 Bible Study{' '}
+                          {e.bibleStudyPublication ? `· ${e.bibleStudyPublication}` : 'Interest'}
+                          {e.bibleStudyLesson ? ` (${e.bibleStudyLesson})` : ''}
                         </span>
                       )}
                       {e.nextVisitNotes && (

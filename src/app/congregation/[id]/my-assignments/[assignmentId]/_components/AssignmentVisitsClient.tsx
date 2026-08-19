@@ -179,7 +179,11 @@ export default function AssignmentVisitsClient() {
       if (userId && userId === user?.id) {
         return user.name || 'You';
       }
-      if (publisherName && publisherName.trim() && publisherName.trim().toLowerCase() !== 'publisher') {
+      if (
+        publisherName &&
+        publisherName.trim() &&
+        publisherName.trim().toLowerCase() !== 'publisher'
+      ) {
         return publisherName.trim();
       }
       if (userId && userNameMap.has(userId)) {
@@ -235,7 +239,8 @@ export default function AssignmentVisitsClient() {
       if (h.status === 'not_home' || h.lastVisitOutcome === 'not_home') notHome++;
       if (h.status === 'busy' || h.lastVisitOutcome === 'busy') busy++;
       if (h.status === 'return_visit' || h.lastVisitOutcome === 'return_visit') returnVisit++;
-      if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language') foreignLanguage++;
+      if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language')
+        foreignLanguage++;
       if (h.status === 'vacant' || h.lastVisitOutcome === 'vacant') vacant++;
       if (h.status === 'inaccessible' || h.lastVisitOutcome === 'inaccessible') inaccessible++;
       if (h.status === 'do_not_visit' || h.lastVisitOutcome === 'do_not_visit') doNotCall++;
@@ -334,7 +339,9 @@ export default function AssignmentVisitsClient() {
 
       if (statusFilter === 'all') return true;
       if (statusFilter === 'worked') {
-        return h.lastVisitDate || (typeof h.totalVisitsCount === 'number' && h.totalVisitsCount > 0);
+        return (
+          h.lastVisitDate || (typeof h.totalVisitsCount === 'number' && h.totalVisitsCount > 0)
+        );
       }
       if (statusFilter === 'unworked') {
         return !h.lastVisitDate && (!h.totalVisitsCount || h.totalVisitsCount === 0);
@@ -358,7 +365,12 @@ export default function AssignmentVisitsClient() {
         {/* Header Title & Back Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
-            <Button asChild variant="ghost" size="icon" className="h-9 w-9 shrink-0 mt-0.5 rounded-xl">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 mt-0.5 rounded-xl"
+            >
               <Link href={backHref}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -386,12 +398,16 @@ export default function AssignmentVisitsClient() {
                 {Boolean(activeAssignment?.serviceGroupId || activeAssignment?.groupName) ? (
                   <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
                     <Crown size={12} />
-                    <span>Group: {assignedGroup?.name || activeAssignment?.groupName || 'Service Group'}</span>
+                    <span>
+                      Group: {assignedGroup?.name || activeAssignment?.groupName || 'Service Group'}
+                    </span>
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 font-semibold text-primary">
                     <UserCheck size={12} />
-                    <span>Assignee: {activeAssignment?.assigneeName || user?.name || 'Personal'}</span>
+                    <span>
+                      Assignee: {activeAssignment?.assigneeName || user?.name || 'Personal'}
+                    </span>
                   </span>
                 )}
                 {activeAssignment?.assignedAt && (
@@ -399,7 +415,9 @@ export default function AssignmentVisitsClient() {
                     <span>•</span>
                     <span className="inline-flex items-center gap-1">
                       <Calendar size={12} />
-                      <span>Assigned {new Date(activeAssignment.assignedAt).toLocaleDateString()}</span>
+                      <span>
+                        Assigned {new Date(activeAssignment.assignedAt).toLocaleDateString()}
+                      </span>
                     </span>
                   </>
                 )}
@@ -424,10 +442,14 @@ export default function AssignmentVisitsClient() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <TrendingUp size={16} className="text-primary" />
-                <span className="text-sm font-bold text-foreground">Overall Territory Coverage</span>
+                <span className="text-sm font-bold text-foreground">
+                  Overall Territory Coverage
+                </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black text-primary">{coverageStats.coveragePercent}%</span>
+                <span className="text-2xl font-black text-primary">
+                  {coverageStats.coveragePercent}%
+                </span>
                 <span className="text-xs text-muted-foreground">
                   ({coverageStats.workedDoors} of {coverageStats.totalDoors} doors worked)
                 </span>
@@ -476,7 +498,9 @@ export default function AssignmentVisitsClient() {
                 <span className="text-[11px] font-bold uppercase tracking-wider">Total Doors</span>
                 <Home size={15} className="text-primary" />
               </div>
-              <p className="text-2xl sm:text-3xl font-black text-foreground">{coverageStats.totalDoors}</p>
+              <p className="text-2xl sm:text-3xl font-black text-foreground">
+                {coverageStats.totalDoors}
+              </p>
               <p className="text-xs text-muted-foreground">Mapped in territory</p>
             </div>
 
@@ -489,13 +513,17 @@ export default function AssignmentVisitsClient() {
               <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
                 {coverageStats.workedDoors}
               </p>
-              <p className="text-xs text-muted-foreground">{coverageStats.coveragePercent}% territory coverage</p>
+              <p className="text-xs text-muted-foreground">
+                {coverageStats.coveragePercent}% territory coverage
+              </p>
             </div>
 
             {/* KPI 3: Total Visits Logged */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Visits Logged</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Visits Logged
+                </span>
                 <Clock size={15} className="text-blue-500" />
               </div>
               <p className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400">
@@ -519,7 +547,9 @@ export default function AssignmentVisitsClient() {
             {/* KPI 5: Return Visits / Follow-ups */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Return Visits</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Return Visits
+                </span>
                 <Sparkles size={15} className="text-purple-500" />
               </div>
               <p className="text-2xl font-black text-purple-700 dark:text-purple-300">
@@ -546,16 +576,16 @@ export default function AssignmentVisitsClient() {
                 <span className="text-[11px] font-bold uppercase tracking-wider">Do Not Visit</span>
                 <ShieldAlert size={15} className="text-destructive" />
               </div>
-              <p className="text-2xl font-black text-destructive">
-                {demographicStats.doNotCall}
-              </p>
+              <p className="text-2xl font-black text-destructive">{demographicStats.doNotCall}</p>
               <p className="text-xs text-muted-foreground">Flagged sensitive addresses</p>
             </div>
 
             {/* KPI 8: Bible Study / Receptive Interests */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Study Interests</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Study Interests
+                </span>
                 <BookOpen size={15} className="text-emerald-500" />
               </div>
               <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
@@ -578,7 +608,8 @@ export default function AssignmentVisitsClient() {
                   </h2>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {publisherStats.length} {publisherStats.length === 1 ? 'contributor' : 'contributors'}
+                  {publisherStats.length}{' '}
+                  {publisherStats.length === 1 ? 'contributor' : 'contributors'}
                 </span>
               </div>
 
@@ -594,7 +625,10 @@ export default function AssignmentVisitsClient() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-foreground truncate">
-                          {pub.name} {pub.isCurrentUser && <span className="text-primary font-normal">(You)</span>}
+                          {pub.name}{' '}
+                          {pub.isCurrentUser && (
+                            <span className="text-primary font-normal">(You)</span>
+                          )}
                         </p>
                         {pub.lastActive && (
                           <p className="text-[10px] text-muted-foreground">
@@ -611,7 +645,9 @@ export default function AssignmentVisitsClient() {
                       </div>
                       {pub.encountersCount > 0 && (
                         <div>
-                          <p className="font-bold text-purple-600 dark:text-purple-400">{pub.encountersCount}</p>
+                          <p className="font-bold text-purple-600 dark:text-purple-400">
+                            {pub.encountersCount}
+                          </p>
                           <p className="text-[10px] text-muted-foreground">people met</p>
                         </div>
                       )}
@@ -633,7 +669,10 @@ export default function AssignmentVisitsClient() {
               </h2>
             </div>
             <div className="relative w-full sm:w-64">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={13}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
               <Input
                 placeholder="Search door address…"
                 value={doorSearch}
@@ -653,7 +692,10 @@ export default function AssignmentVisitsClient() {
                 { key: 'return_visit', label: `Return Visits (${demographicStats.returnVisit})` },
                 { key: 'not_home', label: `Not Home (${demographicStats.notHome})` },
                 { key: 'busy', label: `Busy (${demographicStats.busy})` },
-                { key: 'foreign_language', label: `Foreign Lang (${demographicStats.foreignLanguage})` },
+                {
+                  key: 'foreign_language',
+                  label: `Foreign Lang (${demographicStats.foreignLanguage})`,
+                },
                 { key: 'vacant', label: `Vacant (${demographicStats.vacant})` },
                 { key: 'inaccessible', label: `Inaccessible (${demographicStats.inaccessible})` },
                 { key: 'do_not_visit', label: `Do Not Call (${demographicStats.doNotCall})` },
@@ -708,7 +750,9 @@ export default function AssignmentVisitsClient() {
                       {h.lastVisitDate ? (
                         <span>• Last visit {timeAgo(h.lastVisitDate)}</span>
                       ) : (
-                        <span className="text-amber-600 dark:text-amber-400 font-medium">• Not yet worked</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">
+                          • Not yet worked
+                        </span>
                       )}
                       {h.occupantsCount && h.occupantsCount > 1 && (
                         <span>• {h.occupantsCount} occupants</span>
@@ -775,9 +819,7 @@ export default function AssignmentVisitsClient() {
                       <span className="font-medium text-foreground/80">
                         Logged by {resolvePublisherName(v.userId, v.publisherName)}
                       </span>
-                      {v.bibleTopicDiscussed && (
-                        <span>• Topic: {v.bibleTopicDiscussed}</span>
-                      )}
+                      {v.bibleTopicDiscussed && <span>• Topic: {v.bibleTopicDiscussed}</span>}
                       {(v.literaturePlaced || v.literatureLeft) && (
                         <span className="text-primary font-medium">
                           • Left: {v.literaturePlaced || v.literatureLeft}

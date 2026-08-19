@@ -141,19 +141,26 @@ export default function MyAssignmentsClient() {
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-bold text-sm sm:text-base text-foreground">{myGroup.name}</h2>
-                  <Badge variant="outline" className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20"
+                  >
                     {groupmateCount} Publishers
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                   <span>
-                    Overseer: <strong className="text-foreground">{myGroup.overseerName || 'Unassigned'}</strong>
+                    Overseer:{' '}
+                    <strong className="text-foreground">
+                      {myGroup.overseerName || 'Unassigned'}
+                    </strong>
                   </span>
                   {myGroup.assistantOverseerName && (
                     <>
                       <span>•</span>
                       <span>
-                        Assistant: <strong className="text-foreground">{myGroup.assistantOverseerName}</strong>
+                        Assistant:{' '}
+                        <strong className="text-foreground">{myGroup.assistantOverseerName}</strong>
                       </span>
                     </>
                   )}
@@ -163,7 +170,10 @@ export default function MyAssignmentsClient() {
 
             <div className="flex items-center gap-1 text-xs font-semibold text-primary self-end sm:self-center">
               <span>View Service Group</span>
-              <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight
+                size={15}
+                className="group-hover:translate-x-0.5 transition-transform"
+              />
             </div>
           </Link>
         )}
@@ -228,12 +238,22 @@ export default function MyAssignmentsClient() {
                       <div className="space-y-2.5 min-w-0">
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 flex-1">
-                            <span className="font-extrabold text-sm text-primary shrink-0">#{number}</span>
-                            <h3 className="font-bold text-base text-foreground line-clamp-2 mt-0.5 min-w-0 leading-snug break-words" title={name}>
+                            <span className="font-extrabold text-sm text-primary shrink-0">
+                              #{number}
+                            </span>
+                            <h3
+                              className="font-bold text-base text-foreground line-clamp-2 mt-0.5 min-w-0 leading-snug break-words"
+                              title={name}
+                            >
                               {name}
                             </h3>
                             {terr?.city && (
-                              <p className="text-[11px] text-muted-foreground truncate" title={terr.city}>{terr.city}</p>
+                              <p
+                                className="text-[11px] text-muted-foreground truncate"
+                                title={terr.city}
+                              >
+                                {terr.city}
+                              </p>
                             )}
                           </div>
 

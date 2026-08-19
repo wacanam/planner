@@ -423,7 +423,13 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
       const userGroupIds = new Set<string>(); // not in group-1
 
       // 3 active assignments exist in congregation (a-2, a-3, a-4), but none belong to Wave
-      const userAssignments = resolveUserAssignments(user, assignmentsList, [], userGroupIds, 'cong-1');
+      const userAssignments = resolveUserAssignments(
+        user,
+        assignmentsList,
+        [],
+        userGroupIds,
+        'cong-1'
+      );
       expect(userAssignments).toHaveLength(1);
       expect(userAssignments[0].id).toBe('a-1');
 
@@ -435,7 +441,13 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
       const user = { id: 'user-wave', email: 'wacanam20@gmail.com' };
       const userGroupIds = new Set(['group-1']);
 
-      const userAssignments = resolveUserAssignments(user, assignmentsList, [], userGroupIds, 'cong-1');
+      const userAssignments = resolveUserAssignments(
+        user,
+        assignmentsList,
+        [],
+        userGroupIds,
+        'cong-1'
+      );
       expect(userAssignments).toHaveLength(2); // a-1 (personal past) and a-4 (group active)
 
       const active = filterActiveAssignments(userAssignments);

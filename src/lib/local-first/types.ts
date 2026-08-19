@@ -70,8 +70,12 @@ export interface LocalContact extends FirestoreRecordMetadata {
   language: string | null;
   role: string | null;
   status: string;
+  phoneNumber?: string | null;
+  email?: string | null;
   bestTimeToCall: string | null;
   bibleStudyInterest: boolean;
+  bibleStudyPublication?: string | null;
+  bibleStudyLesson?: string | null;
   notes: string | null;
   createdById: string | null;
   creatorName?: string | null;
@@ -94,9 +98,15 @@ export interface LocalEncounter extends FirestoreRecordMetadata {
   role: string | null;
   response: string;
   languageSpoken: string | null;
+  phoneNumber?: string | null;
+  email?: string | null;
+  bestTimeToCall?: string | null;
+  locationDescription?: string | null;
   topicDiscussed: string | null;
   literatureAccepted: string | null;
   bibleStudyInterest: boolean;
+  bibleStudyPublication?: string | null;
+  bibleStudyLesson?: string | null;
   returnVisitRequested: boolean;
   nextVisitDate?: string | null;
   nextVisitTime?: string | null;

@@ -238,7 +238,10 @@ export default function CongregationDashboardClient() {
         {/* Action Sections */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* My Active Working Territories */}
-          <Card data-tour="active-assignments" className="lg:col-span-2 bg-card border-border shadow-xs">
+          <Card
+            data-tour="active-assignments"
+            className="lg:col-span-2 bg-card border-border shadow-xs"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Compass size={16} className="text-primary" />
@@ -281,7 +284,10 @@ export default function CongregationDashboardClient() {
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-2 min-w-0">
-                            <p className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words" title={`#${number} — ${name}`}>
+                            <p
+                              className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words"
+                              title={`#${number} — ${name}`}
+                            >
                               #{number} — {name}
                             </p>
                             <Badge
