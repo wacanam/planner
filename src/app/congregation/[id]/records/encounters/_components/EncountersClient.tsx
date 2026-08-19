@@ -1,6 +1,17 @@
 'use client';
 
-import { BookOpen, Calendar, Home, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import {
+  BookOpen,
+  Calendar,
+  ChevronDown,
+  Home,
+  LayoutList,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -16,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
+import { type HouseholdContactSummary, extractHouseholdContacts } from '@/lib/household-contacts';
 import { canDeleteEncounter, canEditEncounter, isTerritoryServant } from '@/lib/permissions';
 import {
   deleteEncounterRecord,
@@ -57,6 +69,10 @@ export default function EncountersClient() {
     groupMateUserIds,
   });
 
+  const [viewMode, setViewMode] = useState<'timeline' | 'contacts'>('timeline');
+  const [expandedContactKeys, setExpandedContactKeys] = useState<Set<string>>(new Set());
+  const [presetContact, setPresetContact] = useState<HouseholdContactSummary | null>(null);
+
   const [search, setSearch] = useState('');
   const [responseFilter, setResponseFilter] = useState<string>('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -82,6 +98,22 @@ export default function EncountersClient() {
     }
     return list;
   }, [encounters, responseFilter, search]);
+
+  const groupedContacts = useMemo(() => {
+    return extractHouseholdContacts(filtered);
+  }, [filtered]);
+
+  const toggleExpandContact = (normalizedName: string) => {
+    setExpandedContactKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(normalizedName)) {
+        next.delete(normalizedName);
+      } else {
+        next.add(normalizedName);
+      }
+      return next;
+    });
+  };
 
   const handleSaveEncounter = async (values: AddEncounterFormValues) => {
     try {
@@ -164,52 +196,112 @@ export default function EncountersClient() {
         </div>
         <Button
           size="sm"
-          onClick={() => setAddDialogOpen(true)}
-          className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
+          onClick={() => {
+            setPresetContact(null);
+            setAddDialogOpen(true);
+          }}
+          className="rounded-2xl text-xs font-semibold gap-1.5 h-9 shadow-sm"
         >
           <Plus size={14} />
           <span>New Encounter</span>
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            placeholder="Search person or topic…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 rounded-xl text-xs"
-          />
+      {/* View Switcher & Filters */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* View Mode Toggle */}
+          <div className="flex items-center p-1 bg-muted/80 rounded-2xl border border-border">
+            <button
+              type="button"
+              onClick={() => setViewMode('timeline')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                viewMode === 'timeline'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutList size={13} />
+              <span>All Encounters</span>
+              <span className="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold text-muted-foreground">
+                {filtered.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('contacts')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                viewMode === 'contacts'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users size={13} />
+              <span>Group by Person</span>
+              <span className="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-muted font-bold text-muted-foreground">
+                {groupedContacts.length}
+              </span>
+            </button>
+          </div>
+
+          {viewMode === 'contacts' && groupedContacts.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (expandedContactKeys.size === groupedContacts.length) {
+                  setExpandedContactKeys(new Set());
+                } else {
+                  setExpandedContactKeys(new Set(groupedContacts.map((c) => c.normalizedName)));
+                }
+              }}
+              className="h-8 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              {expandedContactKeys.size === groupedContacts.length
+                ? 'Collapse All History'
+                : 'Expand All History'}
+            </Button>
+          )}
         </div>
 
-        <select
-          value={responseFilter}
-          onChange={(e) => setResponseFilter(e.target.value)}
-          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
-        >
-          <option value="all">All responses</option>
-          <option value="receptive">Receptive / Interested</option>
-          <option value="study_accepted">Bible Study Accepted</option>
-          <option value="neutral">Neutral</option>
-          <option value="busy">Busy / Call Back</option>
-          <option value="foreign_language">Foreign Language</option>
-          <option value="not_interested">Not Interested</option>
-          <option value="hostile">Hostile</option>
-          <option value="do_not_visit">Do Not Visit</option>
-          <option value="moved">Moved Out</option>
-        </select>
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              placeholder="Search person or topic…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 rounded-xl text-xs"
+            />
+          </div>
+
+          <select
+            value={responseFilter}
+            onChange={(e) => setResponseFilter(e.target.value)}
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+          >
+            <option value="all">All responses</option>
+            <option value="receptive">Receptive / Interested</option>
+            <option value="study_accepted">Bible Study Accepted</option>
+            <option value="neutral">Neutral</option>
+            <option value="busy">Busy / Call Back</option>
+            <option value="foreign_language">Foreign Language</option>
+            <option value="not_interested">Not Interested</option>
+            <option value="hostile">Hostile</option>
+            <option value="do_not_visit">Do Not Visit</option>
+            <option value="moved">Moved Out</option>
+          </select>
+        </div>
       </div>
 
       {/* Encounters List */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />
+            <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -220,7 +312,275 @@ export default function EncountersClient() {
             Record people met in your ministry to track interest.
           </p>
         </div>
+      ) : viewMode === 'contacts' ? (
+        /* Grouped by Contact / Person View */
+        <div className="space-y-3">
+          {groupedContacts.map((contact) => {
+            const isExpanded = expandedContactKeys.has(contact.normalizedName);
+            const household = households.find((h) => h.id === contact.latestEncounter?.householdId);
+
+            return (
+              <Card
+                key={contact.normalizedName}
+                className="bg-card border-border shadow-xs hover:border-primary/40 transition-all overflow-hidden"
+              >
+                <CardContent className="p-4 sm:p-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Avatar */}
+                      <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-base shrink-0 border border-primary/20">
+                        {contact.name.charAt(0).toUpperCase()}
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        {/* Name & Badges */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="font-bold text-base text-foreground tracking-tight">
+                            {contact.name}
+                          </h2>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-bold capitalize py-0 ${
+                              responseColors[contact.lastResponse] ?? ''
+                            }`}
+                          >
+                            {contact.lastResponse.replace(/_/g, ' ')}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px] font-semibold py-0">
+                            {contact.encountersCount}{' '}
+                            {contact.encountersCount === 1 ? 'encounter' : 'encounters'}
+                          </Badge>
+                          {contact.gender && contact.gender !== 'unknown' && (
+                            <Badge variant="outline" className="text-[10px] capitalize py-0">
+                              {contact.gender}
+                            </Badge>
+                          )}
+                          {contact.ageGroup && contact.ageGroup !== 'unknown' && (
+                            <Badge variant="outline" className="text-[10px] capitalize py-0">
+                              {contact.ageGroup.replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                          {contact.language && (
+                            <Badge variant="outline" className="text-[10px] py-0">
+                              {contact.language}
+                            </Badge>
+                          )}
+                          {contact.bibleStudyInterest && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] font-semibold py-0 text-violet-700 bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:text-violet-300"
+                            >
+                              📖 Study Interest
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Household / Location */}
+                        {contact.householdAddress ? (
+                          <Link
+                            href={
+                              contact.latestEncounter?.householdId
+                                ? `/congregation/${congregationId}/records/households/${contact.latestEncounter.householdId}`
+                                : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(
+                                    contact.householdAddress || ''
+                                  )}`
+                            }
+                            className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold flex-wrap"
+                          >
+                            <Home size={12} className="shrink-0" />
+                            <span>
+                              {contact.latestEncounter?.houseNumber
+                                ? `${contact.latestEncounter.houseNumber} `
+                                : ''}
+                              {contact.householdAddress}
+                              {contact.latestEncounter?.unitNumber
+                                ? ` (Unit ${contact.latestEncounter.unitNumber})`
+                                : ''}
+                              {contact.latestEncounter?.householdCity
+                                ? ` · ${contact.latestEncounter.householdCity}`
+                                : ''}
+                            </span>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
+                            <span>🚶 Street / Public Witnessing / Informal</span>
+                          </div>
+                        )}
+
+                        {/* Dates & Attribution */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={12} className="shrink-0" />
+                            <span>
+                              Last met: {new Date(contact.lastVisitDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {contact.creatorName && (
+                            <span className="text-foreground/80 font-medium">
+                              · First met by {contact.creatorName}
+                            </span>
+                          )}
+                          {contact.firstMetDate &&
+                            contact.firstMetDate !== contact.lastVisitDate && (
+                              <span>
+                                (First: {new Date(contact.firstMetDate).toLocaleDateString()})
+                              </span>
+                            )}
+                        </div>
+
+                        {/* Latest Topic / Notes */}
+                        {contact.lastTopicDiscussed && (
+                          <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
+                            <BookOpen size={12} className="text-primary shrink-0" />
+                            <span>Latest topic: {contact.lastTopicDiscussed}</span>
+                          </div>
+                        )}
+                        {contact.lastLiteratureAccepted && (
+                          <p className="text-xs text-primary font-medium">
+                            Literature: {contact.lastLiteratureAccepted}
+                          </p>
+                        )}
+                        {contact.nextVisitDate && (
+                          <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                            <span>
+                              🗓️ Next Visit: {new Date(contact.nextVisitDate).toLocaleDateString()}
+                            </span>
+                            {contact.nextVisitPlannedTopic && (
+                              <span className="font-normal text-muted-foreground">
+                                · Topic: &ldquo;{contact.nextVisitPlannedTopic}&rdquo;
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {contact.notes && (
+                          <p className="text-xs text-muted-foreground italic line-clamp-2">
+                            &ldquo;{contact.notes}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPresetContact(contact);
+                          setAddDialogOpen(true);
+                        }}
+                        className="h-8 rounded-xl text-xs font-semibold gap-1 text-primary hover:text-primary hover:bg-primary/10 border-primary/30"
+                      >
+                        <Plus size={13} />
+                        <span>Log Encounter</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => toggleExpandContact(contact.normalizedName)}
+                        className="h-8 px-2.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <span>
+                          {isExpanded ? 'Hide history' : `History (${contact.encountersCount})`}
+                        </span>
+                        <ChevronDown
+                          size={13}
+                          className={`ml-1 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expanded History Accordion */}
+                  {isExpanded && (
+                    <div className="pt-3 border-t border-border/60 space-y-2 mt-3">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Encounter History ({contact.allEncounters.length})
+                      </p>
+                      <div className="space-y-2">
+                        {contact.allEncounters.map((enc) => (
+                          <div
+                            key={enc.id}
+                            className="p-3 rounded-xl bg-muted/40 border border-border/60 flex items-start justify-between gap-3 text-xs"
+                          >
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-foreground">
+                                  {new Date(enc.visitDate ?? enc.createdAt).toLocaleDateString()}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] font-bold capitalize py-0 ${
+                                    responseColors[enc.response] ?? ''
+                                  }`}
+                                >
+                                  {enc.response.replace(/_/g, ' ')}
+                                </Badge>
+                                {enc.publisherName && (
+                                  <span className="text-muted-foreground">
+                                    · By {enc.publisherName}
+                                  </span>
+                                )}
+                                {enc.visitId && (
+                                  <span className="text-[10px] bg-muted px-1.5 py-0.2 rounded font-medium text-muted-foreground">
+                                    Linked visit
+                                  </span>
+                                )}
+                              </div>
+                              {(enc.topicsDiscussed || enc.topicDiscussed) && (
+                                <p className="text-foreground/90 font-medium">
+                                  Topic: {enc.topicsDiscussed || enc.topicDiscussed}
+                                </p>
+                              )}
+                              {(enc.literatureOffered || enc.literatureAccepted) && (
+                                <p className="text-primary font-medium">
+                                  Literature: {enc.literatureOffered || enc.literatureAccepted}
+                                </p>
+                              )}
+                              {enc.notes && (
+                                <p className="text-muted-foreground italic">
+                                  &ldquo;{enc.notes}&rdquo;
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Edit / Delete on individual history item */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {canEditEncounter(user, enc, household) && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setEditEncounter(enc)}
+                                >
+                                  <Pencil size={12} />
+                                </Button>
+                              )}
+                              {canDeleteEncounter(user, enc, household) && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeleteConfirmId(enc.id)}
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       ) : (
+        /* Timeline View (All Encounters) */
         <div className="space-y-3">
           {filtered.map((e) => (
             <Card
@@ -375,14 +735,37 @@ export default function EncountersClient() {
       {/* Add Encounter Dialog */}
       <ResponsiveDialog
         open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        onOpenChange={(op) => {
+          setAddDialogOpen(op);
+          if (!op) setPresetContact(null);
+        }}
         title="Record Person Encounter"
-        description="Save details of receptive people met in field work"
+        description={
+          presetContact
+            ? `Log a new conversation with ${presetContact.name}`
+            : 'Save details of receptive people met in field work'
+        }
       >
         <AddEncounterForm
           households={households}
+          defaultHouseholdId={presetContact?.latestEncounter?.householdId || undefined}
+          initialValues={
+            presetContact
+              ? {
+                  name: presetContact.name,
+                  gender: presetContact.gender,
+                  ageGroup: presetContact.ageGroup,
+                  language: presetContact.language,
+                  householdId: presetContact.latestEncounter?.householdId || null,
+                  bibleStudyInterest: presetContact.bibleStudyInterest,
+                }
+              : undefined
+          }
           onSubmit={handleSaveEncounter}
-          onCancel={() => setAddDialogOpen(false)}
+          onCancel={() => {
+            setAddDialogOpen(false);
+            setPresetContact(null);
+          }}
         />
       </ResponsiveDialog>
 
