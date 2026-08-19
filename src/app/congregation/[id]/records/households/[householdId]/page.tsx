@@ -430,38 +430,65 @@ export default function HouseholdDetailPage() {
                           )}
                         </div>
 
-                        {/* Conversation History Thread (Expandable) */}
-                        <div className="pt-1 border-t border-border/50">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(contact.normalizedName)}
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold py-1 transition-colors"
-                          >
-                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            <span>
-                              {isExpanded ? 'Hide' : 'View'} conversation timeline (
-                              {contact.allEncounters.length}{' '}
-                              {contact.allEncounters.length === 1 ? 'interaction' : 'interactions'})
+                        {/* Conversation History Thread */}
+                        <div className="pt-2 border-t border-border/50 space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-foreground">
+                              Conversation History ({contact.allEncounters.length}{' '}
+                              {contact.allEncounters.length === 1 ? 'visit' : 'visits'})
                             </span>
-                          </button>
+                            {contact.allEncounters.length > 3 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(contact.normalizedName)}
+                                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <ChevronUp size={12} />
+                                    <span>Show recent (3)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown size={12} />
+                                    <span>Show all {contact.allEncounters.length} visits</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
 
-                          {isExpanded && (
-                            <div className="space-y-2 pt-2 animate-in fade-in-50">
-                              {contact.allEncounters.map((encounter, idx) => (
+                          <div className="relative pl-4 sm:pl-5 before:absolute before:left-1.5 sm:before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border space-y-2.5">
+                            {(isExpanded || contact.allEncounters.length <= 3
+                              ? contact.allEncounters
+                              : contact.allEncounters.slice(0, 3)
+                            ).map((encounter, idx) => {
+                              const visitNumber = contact.allEncounters.length - idx;
+                              const dateFormatted = encounter.visitDate
+                                ? new Date(encounter.visitDate).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })
+                                : 'Recent';
+
+                              return (
                                 <div
                                   key={encounter.id || idx}
-                                  className="p-3 rounded-xl bg-muted/20 border border-border/70 text-xs space-y-1"
+                                  className="relative p-3 rounded-xl bg-muted/30 border border-border/70 text-xs space-y-1.5 hover:border-primary/40 transition-colors"
                                 >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="font-bold text-foreground">
-                                      Visit {contact.allEncounters.length - idx} &bull;{' '}
-                                      {new Date(
-                                        encounter.visitDate || encounter.createdAt
-                                      ).toLocaleDateString()}
+                                  {/* Timeline bullet dot */}
+                                  <div className="absolute -left-[19px] sm:-left-[23px] top-3.5 h-2 w-2 rounded-full bg-primary ring-4 ring-background" />
+
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                                      <span>
+                                        Visit {visitNumber} ({dateFormatted})
+                                      </span>
                                     </span>
                                     <Badge
                                       variant="outline"
-                                      className={`text-[9px] font-bold capitalize ${
+                                      className={`text-[9px] font-bold capitalize py-0 ${
                                         responseBadgeColors[encounter.response] ?? ''
                                       }`}
                                     >
@@ -485,20 +512,21 @@ export default function HouseholdDetailPage() {
                                   )}
 
                                   {encounter.nextVisitNotes && (
-                                    <p className="text-primary font-medium">
-                                      <strong>Next plan:</strong> "{encounter.nextVisitNotes}"
+                                    <p className="text-primary font-medium bg-primary/5 p-1.5 rounded-lg border border-primary/20">
+                                      <strong className="text-primary">Next Plan:</strong> "
+                                      {encounter.nextVisitNotes}"
                                     </p>
                                   )}
 
                                   {encounter.notes && (
                                     <p className="text-muted-foreground italic">
-                                      "{encounter.notes}"
+                                      &ldquo;{encounter.notes}&rdquo;
                                     </p>
                                   )}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              );
+                            })}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
