@@ -236,12 +236,16 @@ export function AddEncounterForm({
     }
   };
 
-  const handleClearContact = () => {
+  const handleNewPerson = () => {
     setSelectedContact(null);
     form.setValue('name', '', { shouldValidate: true });
     form.setValue('gender', 'unknown');
     form.setValue('ageGroup', 'adult');
     form.setValue('language', '');
+  };
+
+  const handleClearSelectedContact = () => {
+    setSelectedContact(null);
   };
 
   const handleApplyPlannedTopic = (topic: string) => {
@@ -330,7 +334,7 @@ export function AddEncounterForm({
 
             <button
               type="button"
-              onClick={handleClearContact}
+              onClick={handleNewPerson}
               className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all border border-dashed ${
                 !selectedContact
                   ? 'bg-primary/10 text-primary border-primary font-semibold'
@@ -461,7 +465,7 @@ export function AddEncounterForm({
             value={form.watch('name')}
             onChange={(name) => form.setValue('name', name, { shouldValidate: true })}
             onSelectContact={handleSelectContact}
-            onClearSelection={handleClearContact}
+            onClearSelection={handleClearSelectedContact}
             contacts={autocompleteContacts}
             selectedContact={selectedContact}
             placeholder="e.g. John Doe"

@@ -312,7 +312,7 @@ export function HouseholdLogVisitSheet({
     }
   };
 
-  const handleClearContact = () => {
+  const handleNewPerson = () => {
     setSelectedContact(null);
     setEncounterName('');
     setEncounterGender('unknown');
@@ -323,6 +323,10 @@ export function HouseholdLogVisitSheet({
     setEncounterNextVisitTime('');
     setEncounterNextVisitNotes('');
     setEncounterBibleStudyInterest(false);
+  };
+
+  const handleClearSelectedContact = () => {
+    setSelectedContact(null);
   };
 
   const onSubmit = async (data: LogVisitFormData) => {
@@ -383,7 +387,7 @@ export function HouseholdLogVisitSheet({
       onSaved?.();
       onOpenChange(false);
       form.reset();
-      handleClearContact();
+      handleNewPerson();
       setRecordEncounter(false);
     } finally {
       setSubmitting(false);
@@ -541,7 +545,7 @@ export function HouseholdLogVisitSheet({
 
                     <button
                       type="button"
-                      onClick={handleClearContact}
+                      onClick={handleNewPerson}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-medium transition-all border border-dashed ${
                         !selectedContact
                           ? 'bg-primary/10 text-primary border-primary font-semibold'
@@ -611,7 +615,7 @@ export function HouseholdLogVisitSheet({
                     value={encounterName}
                     onChange={setEncounterName}
                     onSelectContact={handleSelectContact}
-                    onClearSelection={handleClearContact}
+                    onClearSelection={handleClearSelectedContact}
                     contacts={autocompleteContacts}
                     selectedContact={selectedContact}
                     placeholder="e.g. John Doe"
