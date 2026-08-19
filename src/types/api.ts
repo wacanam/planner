@@ -540,6 +540,7 @@ export interface Contact {
   bibleStudyInterest: boolean;
   notes?: string | null;
   createdById?: string | null;
+  creatorName?: string | null;
   createdAt: string;
   updatedAt: string;
   // Augmented View fields
@@ -548,6 +549,7 @@ export interface Contact {
   encountersCount?: number;
   lastVisitDate?: string | null;
   lastResponse?: string | null;
+  matchScope?: 'household' | 'territory' | 'congregation';
 }
 
 export interface CreateContactInput {

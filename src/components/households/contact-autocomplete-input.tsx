@@ -159,7 +159,7 @@ export function ContactAutocompleteInput({
 
       {/* Autocomplete Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 w-[calc(100vw-48px)] sm:w-[135%] min-w-[320px] max-w-sm sm:max-w-md rounded-2xl bg-popover border border-border shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 top-full mt-1.5 z-50 w-[calc(100vw-32px)] sm:w-[150%] min-w-[340px] max-w-lg rounded-2xl bg-popover border border-border shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-64 overflow-y-auto">
           {filteredContacts.length > 0 ? (
             <div className="p-1.5 space-y-0.5">
               <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -173,6 +173,8 @@ export function ContactAutocompleteInput({
                   selectedContact?.name.toLowerCase() === contact.name.toLowerCase();
                 const visitCount =
                   'encountersCount' in contact ? contact.encountersCount : undefined;
+                const creator =
+                  'creatorName' in contact && contact.creatorName ? contact.creatorName : undefined;
 
                 return (
                   <button
@@ -202,6 +204,14 @@ export function ContactAutocompleteInput({
                             <span>· {contact.ageGroup.replace(/_/g, ' ')}</span>
                           )}
                           {contact.language && <span>· {contact.language}</span>}
+                          {creator &&
+                            'matchScope' in contact &&
+                            (contact.matchScope === 'territory' ||
+                              contact.matchScope === 'congregation') && (
+                              <span className="text-primary/90 font-medium">
+                                · First by {creator}
+                              </span>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -218,16 +228,16 @@ export function ContactAutocompleteInput({
                       ) : 'matchScope' in contact && contact.matchScope === 'territory' ? (
                         <Badge
                           variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4.5 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-bold max-w-[150px] truncate"
-                          title={contact.householdAddress || undefined}
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 font-bold max-w-[160px] truncate"
+                          title={`${contact.householdAddress || 'Territory'}${creator ? ` · Recorded by ${creator}` : ''}`}
                         >
                           🗺️ {contact.householdAddress || 'Territory'}
                         </Badge>
                       ) : 'matchScope' in contact && contact.matchScope === 'congregation' ? (
                         <Badge
                           variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4.5 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-bold max-w-[150px] truncate"
-                          title={contact.householdAddress || undefined}
+                          className="text-[10px] px-1.5 py-0 h-4.5 bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 font-bold max-w-[160px] truncate"
+                          title={`${contact.householdAddress || 'Congregation'}${creator ? ` · Recorded by ${creator}` : ''}`}
                         >
                           🏛️ {contact.householdAddress || 'Congregation'}
                         </Badge>

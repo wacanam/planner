@@ -20,6 +20,8 @@ export interface HouseholdContactSummary {
   householdAddress?: string;
   territoryId?: string;
   matchScope?: 'household' | 'territory' | 'congregation';
+  creatorName?: string | null;
+  firstMetDate?: string | null;
   allEncounters: Encounter[];
 }
 
@@ -71,6 +73,10 @@ export function extractHouseholdContacts(
 
   for (const [normalizedName, { name, encounters: contactEncounters }] of contactsMap.entries()) {
     const latest = contactEncounters[0];
+    const oldest = contactEncounters[contactEncounters.length - 1];
+    const creatorName = oldest.publisherName || latest.publisherName || null;
+    const firstMetDate = oldest.visitDate || oldest.createdAt || null;
+
     const rawGender = latest.gender?.toLowerCase();
     const gender: 'male' | 'female' | 'unknown' =
       rawGender === 'male' || rawGender === 'female' ? rawGender : 'unknown';
@@ -100,6 +106,8 @@ export function extractHouseholdContacts(
       householdAddress: latest.householdAddress || undefined,
       territoryId: latest.territoryId || undefined,
       matchScope: 'household',
+      creatorName,
+      firstMetDate,
       allEncounters: contactEncounters,
     });
   }
