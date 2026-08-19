@@ -68,8 +68,10 @@ export function HouseholdLogVisitSheet({
   const [encounterLanguage, setEncounterLanguage] = useState('');
   const [encounterTopic, setEncounterTopic] = useState('');
   const [encounterLiterature, setEncounterLiterature] = useState('');
-  const [encounterNextVisitNotes, setEncounterNextVisitNotes] = useState('');
+  const [encounterReturnVisitRequested, setEncounterReturnVisitRequested] = useState(false);
+  const [encounterNextVisitDate, setEncounterNextVisitDate] = useState('');
   const [encounterNextVisitTime, setEncounterNextVisitTime] = useState('');
+  const [encounterNextVisitNotes, setEncounterNextVisitNotes] = useState('');
   const [encounterBibleStudyInterest, setEncounterBibleStudyInterest] = useState(false);
   const [selectedContact, setSelectedContact] = useState<HouseholdContactSummary | null>(null);
 
@@ -101,6 +103,9 @@ export function HouseholdLogVisitSheet({
       if (knownContacts.length > 0) {
         setRecordEncounter(true);
       }
+      if (outcome === 'return_visit' || outcome === 'study_conducted') {
+        setEncounterReturnVisitRequested(true);
+      }
     }
   }, [outcome, knownContacts.length]);
 
@@ -121,12 +126,21 @@ export function HouseholdLogVisitSheet({
     setEncounterGender('unknown');
     setEncounterAgeGroup('adult');
     setEncounterLanguage('');
+    setEncounterReturnVisitRequested(false);
+    setEncounterNextVisitDate('');
+    setEncounterNextVisitTime('');
+    setEncounterNextVisitNotes('');
+    setEncounterBibleStudyInterest(false);
   };
 
   const onSubmit = async (data: LogVisitFormData) => {
     if (!household) return;
     setSubmitting(true);
     try {
+      const followUpDate = encounterReturnVisitRequested
+        ? encounterNextVisitDate || data.returnVisitDate || undefined
+        : data.returnVisitDate || undefined;
+
       // 1. Save Visit Record
       const visitId = await saveVisitRecord({
         householdId: household.id,
@@ -134,9 +148,9 @@ export function HouseholdLogVisitSheet({
         outcome: data.outcome,
         notes: data.notes || undefined,
         literaturePlaced: data.literaturePlaced || undefined,
-        returnVisitDate: data.returnVisitDate || undefined,
-        nextVisitDate: data.returnVisitDate || undefined,
-        returnVisitPlanned: Boolean(data.returnVisitDate),
+        returnVisitDate: followUpDate,
+        nextVisitDate: followUpDate,
+        returnVisitPlanned: Boolean(followUpDate || encounterReturnVisitRequested),
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
       });
@@ -153,8 +167,8 @@ export function HouseholdLogVisitSheet({
           languageSpoken: encounterLanguage || undefined,
           topicDiscussed: encounterTopic || undefined,
           literatureAccepted: encounterLiterature || data.literaturePlaced || undefined,
-          returnVisitRequested: Boolean(data.returnVisitDate),
-          nextVisitDate: data.returnVisitDate || undefined,
+          returnVisitRequested: Boolean(encounterReturnVisitRequested || followUpDate),
+          nextVisitDate: followUpDate,
           nextVisitTime: encounterNextVisitTime || undefined,
           nextVisitNotes: encounterNextVisitNotes || undefined,
           bibleStudyInterest: encounterBibleStudyInterest,
@@ -509,33 +523,99 @@ export function HouseholdLogVisitSheet({
                 />
               </div>
 
-              {/* Question for Next Visit */}
-              <div className="space-y-1">
-                <Label htmlFor="encounterNextVisitNotes" className="text-xs font-semibold">
-                  Question / Topic for Next Visit
-                </Label>
-                <Input
-                  id="encounterNextVisitNotes"
-                  value={encounterNextVisitNotes}
-                  onChange={(e) => setEncounterNextVisitNotes(e.target.value)}
-                  placeholder="e.g. Question to answer on next visit"
-                  className="h-9 rounded-xl text-xs bg-background"
-                />
-              </div>
+              {/* Next Visit / Return Visit Scheduling Section */}
+              <div className="space-y-3 pt-2 border-t border-border/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-muted/30 border border-border/60">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="encounterReturnVisitRequested"
+                      checked={encounterReturnVisitRequested}
+                      onCheckedChange={(checked) => {
+                        const isChecked = Boolean(checked);
+                        setEncounterReturnVisitRequested(isChecked);
+                        if (isChecked && !encounterNextVisitDate && form.watch('returnVisitDate')) {
+                          setEncounterNextVisitDate(form.watch('returnVisitDate') || '');
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor="encounterReturnVisitRequested"
+                      className="text-xs font-semibold cursor-pointer text-foreground"
+                    >
+                      Schedule Next Visit / Return Call
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="encounterStudyInterest"
+                      checked={encounterBibleStudyInterest}
+                      onCheckedChange={(checked) =>
+                        setEncounterBibleStudyInterest(Boolean(checked))
+                      }
+                    />
+                    <Label
+                      htmlFor="encounterStudyInterest"
+                      className="text-xs font-semibold cursor-pointer text-foreground"
+                    >
+                      Bible Study Interest
+                    </Label>
+                  </div>
+                </div>
 
-              {/* Bible Study Checkbox */}
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox
-                  id="encounterStudyInterest"
-                  checked={encounterBibleStudyInterest}
-                  onCheckedChange={(c) => setEncounterBibleStudyInterest(Boolean(c))}
-                />
-                <Label
-                  htmlFor="encounterStudyInterest"
-                  className="text-xs font-semibold cursor-pointer text-foreground"
-                >
-                  Bible Study Interest / Study Conducted
-                </Label>
+                {encounterReturnVisitRequested && (
+                  <div className="space-y-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="encounterNextVisitDate"
+                          className="text-xs font-semibold text-foreground"
+                        >
+                          Next Visit / Follow-up Date
+                        </Label>
+                        <Input
+                          id="encounterNextVisitDate"
+                          type="date"
+                          value={encounterNextVisitDate}
+                          onChange={(e) => {
+                            setEncounterNextVisitDate(e.target.value);
+                            form.setValue('returnVisitDate', e.target.value);
+                          }}
+                          className="h-9 rounded-xl text-xs bg-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="encounterNextVisitTime"
+                          className="text-xs font-semibold text-foreground"
+                        >
+                          Next Visit Time
+                        </Label>
+                        <Input
+                          id="encounterNextVisitTime"
+                          type="time"
+                          value={encounterNextVisitTime}
+                          onChange={(e) => setEncounterNextVisitTime(e.target.value)}
+                          className="h-9 rounded-xl text-xs bg-background"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="encounterNextVisitNotes"
+                        className="text-xs font-semibold text-foreground"
+                      >
+                        Question / Topic for Next Visit
+                      </Label>
+                      <Input
+                        id="encounterNextVisitNotes"
+                        value={encounterNextVisitNotes}
+                        onChange={(e) => setEncounterNextVisitNotes(e.target.value)}
+                        placeholder="e.g. Question to answer on next visit"
+                        className="h-9 rounded-xl text-xs bg-background"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
