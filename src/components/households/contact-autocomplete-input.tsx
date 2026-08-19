@@ -34,15 +34,41 @@ export function ContactAutocompleteInput({
 }: ContactAutocompleteInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const internalId = useId();
   const inputId = id || internalId;
 
-  // Filter contacts based on typed text and prioritize household matches first, then territory, then congregation
+  // Debounce typed text (250ms) and enforce min 3-character threshold
+  useEffect(() => {
+    const trimmed = (value || '').trim();
+    if (trimmed.length < 3) {
+      setDebouncedQuery('');
+      setIsSearching(false);
+      setIsOpen(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(trimmed);
+      setIsSearching(false);
+      setIsOpen(true);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [value]);
+
+  // Filter contacts based on debounced query (>= 3 chars) and prioritize household > territory > congregation
   const filteredContacts = useMemo(() => {
-    const query = (value || '').trim().toLowerCase();
-    const list = query ? contacts.filter((c) => c.name.toLowerCase().includes(query)) : contacts;
+    const query = debouncedQuery.toLowerCase();
+    if (query.length < 3) {
+      return [];
+    }
+
+    const list = contacts.filter((c) => c.name.toLowerCase().includes(query));
 
     return [...list].sort((a, b) => {
       const scopeOrder: Record<string, number> = {
@@ -61,12 +87,12 @@ export function ContactAutocompleteInput({
 
       return a.name.localeCompare(b.name);
     });
-  }, [contacts, value]);
+  }, [contacts, debouncedQuery]);
 
   // Check if current typed value is an exact match for an existing contact
   const exactMatch = useMemo(() => {
     const query = (value || '').trim().toLowerCase();
-    if (!query) return null;
+    if (query.length < 3) return null;
     return contacts.find((c) => c.name.trim().toLowerCase() === query) || null;
   }, [contacts, value]);
 
@@ -89,7 +115,11 @@ export function ContactAutocompleteInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    if (
+      !isOpen &&
+      (value || '').trim().length >= 3 &&
+      (e.key === 'ArrowDown' || e.key === 'ArrowUp')
+    ) {
       setIsOpen(true);
       return;
     }
@@ -113,6 +143,8 @@ export function ContactAutocompleteInput({
     }
   };
 
+  const showDropdown = isOpen && (value || '').trim().length >= 3;
+
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative flex items-center">
@@ -122,14 +154,17 @@ export function ContactAutocompleteInput({
           type="text"
           value={value}
           onChange={(e) => {
-            onChange(e.target.value);
-            if (!isOpen) setIsOpen(true);
-            if (selectedContact && selectedContact.name !== e.target.value) {
+            const nextVal = e.target.value;
+            onChange(nextVal);
+            if (nextVal.trim().length < 3) {
+              setIsOpen(false);
+            }
+            if (selectedContact && selectedContact.name !== nextVal) {
               onClearSelection?.();
             }
           }}
           onFocus={() => {
-            if (contacts.length > 0) {
+            if ((value || '').trim().length >= 3) {
               setIsOpen(true);
             }
           }}
@@ -145,6 +180,8 @@ export function ContactAutocompleteInput({
             type="button"
             onClick={() => {
               onChange('');
+              setDebouncedQuery('');
+              setIsOpen(false);
               onClearSelection?.();
               inputRef.current?.focus();
             }}
@@ -158,7 +195,7 @@ export function ContactAutocompleteInput({
       </div>
 
       {/* Autocomplete Dropdown */}
-      {isOpen && (
+      {showDropdown && (
         <div className="absolute left-0 top-full mt-1.5 z-50 w-[calc(100vw-32px)] sm:w-[150%] min-w-[340px] max-w-lg rounded-2xl bg-popover border border-border shadow-xl overflow-hidden animate-in fade-in-50 zoom-in-95 max-h-64 overflow-y-auto">
           {filteredContacts.length > 0 ? (
             <div className="p-1.5 space-y-0.5">
