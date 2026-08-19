@@ -35,6 +35,8 @@ export interface CreateEncounterInput {
   literatureAccepted?: string | null;
   bibleStudyInterest?: boolean | null;
   returnVisitRequested?: boolean | null;
+  nextVisitDate?: string | null;
+  nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
   notes?: string | null;
 }
@@ -100,6 +102,8 @@ export function toEncounterView(
     literatureOffered: record.literatureAccepted,
     bibleStudyInterest: record.bibleStudyInterest,
     returnVisitRequested: record.returnVisitRequested,
+    nextVisitDate: record.nextVisitDate ?? null,
+    nextVisitTime: record.nextVisitTime ?? null,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
     createdAt: record.createdAt,
@@ -136,6 +140,8 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
     literatureAccepted: encounter.literatureAccepted ?? null,
     bibleStudyInterest: Boolean(encounter.bibleStudyInterest),
     returnVisitRequested: Boolean(encounter.returnVisitRequested),
+    nextVisitDate: encounter.nextVisitDate ?? null,
+    nextVisitTime: encounter.nextVisitTime ?? null,
     nextVisitNotes: encounter.nextVisitNotes ?? null,
     notes: encounter.notes ?? null,
     deletedAt: null,
@@ -170,6 +176,8 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     literatureAccepted: nullableString(input.literatureAccepted),
     bibleStudyInterest: Boolean(input.bibleStudyInterest),
     returnVisitRequested: Boolean(input.returnVisitRequested),
+    nextVisitDate: nullableString(input.nextVisitDate),
+    nextVisitTime: nullableString(input.nextVisitTime),
     nextVisitNotes: nullableString(input.nextVisitNotes),
     notes: nullableString(input.notes),
     deletedAt: null,
@@ -217,6 +225,10 @@ export async function updateEncounter(
   if (input.returnVisitRequested !== undefined) {
     updates.returnVisitRequested = Boolean(input.returnVisitRequested);
   }
+  if (input.nextVisitDate !== undefined)
+    updates.nextVisitDate = nullableString(input.nextVisitDate);
+  if (input.nextVisitTime !== undefined)
+    updates.nextVisitTime = nullableString(input.nextVisitTime);
   if (input.nextVisitNotes !== undefined)
     updates.nextVisitNotes = nullableString(input.nextVisitNotes);
   if (input.notes !== undefined) updates.notes = nullableString(input.notes);
@@ -293,6 +305,8 @@ export function encounterPayload(
     literatureAccepted: record.literatureAccepted,
     bibleStudyInterest: record.bibleStudyInterest,
     returnVisitRequested: record.returnVisitRequested,
+    nextVisitDate: record.nextVisitDate ?? null,
+    nextVisitTime: record.nextVisitTime ?? null,
     nextVisitNotes: record.nextVisitNotes,
     notes: record.notes,
   };

@@ -47,10 +47,14 @@ describe('calculateTerritoryCoverage', () => {
       { id: '1', address: 'Door 1', status: 'return_visit', lastVisitDate: '2026-08-15' },
       { id: '2', address: 'Door 2', status: 'not_home', lastVisitDate: '2026-08-16' },
       { id: '3', address: 'Door 3', status: 'do_not_visit', lastVisitDate: null },
+      { id: '4', address: 'Door 4', status: 'busy', lastVisitDate: null },
+      { id: '5', address: 'Door 5', status: 'foreign_language', lastVisitDate: null },
+      { id: '6', address: 'Door 6', status: 'vacant', lastVisitDate: null },
+      { id: '7', address: 'Door 7', status: 'inaccessible', lastVisitDate: null },
     ];
     const stats = calculateTerritoryCoverage(households as Household[]);
-    expect(stats.totalDoors).toBe(3);
-    expect(stats.workedDoors).toBe(3);
+    expect(stats.totalDoors).toBe(7);
+    expect(stats.workedDoors).toBe(7);
     expect(stats.coveragePercent).toBe(100);
   });
 });

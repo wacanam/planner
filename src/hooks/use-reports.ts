@@ -660,6 +660,10 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
     let workedDoors = 0;
     let doNotCallCount = 0;
     let returnVisitsCount = 0;
+    let foreignLanguageCount = 0;
+    let vacantCount = 0;
+    let inaccessibleCount = 0;
+    let busyCount = 0;
 
     const outcomeCounts = {
       notHome: 0,
@@ -668,42 +672,88 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       returnVisit: 0,
       busy: 0,
       doNotCall: 0,
+      studyConducted: 0,
+      minorOnly: 0,
+      foreignLanguage: 0,
+      inaccessible: 0,
+      vacant: 0,
+      moved: 0,
       other: 0,
     };
 
     const streetCounts = new Map<string, { total: number; worked: number }>();
 
     for (const h of households) {
-      if (h.status === 'visited' || h.lastVisitDate) {
+      if (
+        h.status === 'visited' ||
+        h.lastVisitDate ||
+        (h.totalVisitsCount || 0) > 0 ||
+        (h.status && h.status.trim().toLowerCase() !== 'new')
+      ) {
         workedDoors += 1;
       }
-      if (h.status === 'do_not_call' || h.lastVisitOutcome === 'do_not_call') {
+      if (
+        h.status === 'do_not_call' ||
+        h.status === 'do_not_visit' ||
+        h.lastVisitOutcome === 'do_not_call' ||
+        h.lastVisitOutcome === 'do_not_visit'
+      ) {
         doNotCallCount += 1;
       }
-      if (h.lastVisitOutcome === 'return_visit' || (h.totalVisitsCount || 0) > 1) {
+      if (h.status === 'return_visit' || h.lastVisitOutcome === 'return_visit' || (h.totalVisitsCount || 0) > 1) {
         returnVisitsCount += 1;
+      }
+      if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language') {
+        foreignLanguageCount += 1;
+      }
+      if (h.status === 'vacant' || h.lastVisitOutcome === 'vacant') {
+        vacantCount += 1;
+      }
+      if (h.status === 'inaccessible' || h.lastVisitOutcome === 'inaccessible') {
+        inaccessibleCount += 1;
+      }
+      if (h.status === 'busy' || h.lastVisitOutcome === 'busy') {
+        busyCount += 1;
       }
 
       const street = (h.streetName || h.address || 'Other Area').trim();
       const curr = streetCounts.get(street) || { total: 0, worked: 0 };
       curr.total += 1;
-      if (h.status === 'visited' || h.lastVisitDate) curr.worked += 1;
+      if (
+        h.status === 'visited' ||
+        h.lastVisitDate ||
+        (h.status && h.status.trim().toLowerCase() !== 'new')
+      ) {
+        curr.worked += 1;
+      }
       streetCounts.set(street, curr);
     }
 
     for (const v of visits) {
       const outcome = (v.outcome || '').toLowerCase();
-      if (outcome.includes('not_home') || outcome.includes('not home')) {
+      if (outcome === 'study_conducted' || outcome.includes('study')) {
+        outcomeCounts.studyConducted += 1;
+      } else if (outcome.includes('not_home') || outcome.includes('not home')) {
         outcomeCounts.notHome += 1;
-      } else if (outcome.includes('place') || outcome.includes('literature')) {
+      } else if (outcome === 'busy' || outcome.includes('busy')) {
+        outcomeCounts.busy += 1;
+      } else if (outcome === 'foreign_language' || outcome.includes('language')) {
+        outcomeCounts.foreignLanguage += 1;
+      } else if (outcome === 'minor_only' || outcome.includes('minor')) {
+        outcomeCounts.minorOnly += 1;
+      } else if (outcome === 'inaccessible' || outcome.includes('inaccessible') || outcome.includes('gated')) {
+        outcomeCounts.inaccessible += 1;
+      } else if (outcome === 'vacant' || outcome.includes('vacant')) {
+        outcomeCounts.vacant += 1;
+      } else if (outcome === 'moved' || outcome.includes('moved')) {
+        outcomeCounts.moved += 1;
+      } else if (outcome.includes('do_not') || outcome.includes('dnc') || outcome === 'do_not_visit' || outcome === 'do_not_call') {
+        outcomeCounts.doNotCall += 1;
+      } else if (outcome.includes('place') || outcome.includes('literature') || Boolean(v.literaturePlaced || v.literatureLeft)) {
         outcomeCounts.placedLiterature += 1;
       } else if (outcome.includes('return') || outcome.includes('revisit')) {
         outcomeCounts.returnVisit += 1;
-      } else if (outcome.includes('busy')) {
-        outcomeCounts.busy += 1;
-      } else if (outcome.includes('do_not_call') || outcome.includes('dnc')) {
-        outcomeCounts.doNotCall += 1;
-      } else if (outcome.includes('contact') || outcome.includes('interested')) {
+      } else if (outcome.includes('contact') || outcome.includes('interested') || outcome === 'answered') {
         outcomeCounts.contacted += 1;
       } else {
         outcomeCounts.other += 1;
@@ -725,6 +775,10 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       unworkedDoors: Math.max(0, totalDoors - workedDoors),
       doNotCallCount,
       returnVisitsCount,
+      foreignLanguageCount,
+      vacantCount,
+      inaccessibleCount,
+      busyCount,
       outcomeCounts,
       topStreets,
     };

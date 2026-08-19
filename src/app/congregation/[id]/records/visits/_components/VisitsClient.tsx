@@ -37,8 +37,18 @@ import type { Encounter, Visit } from '@/types/api';
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
+  busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
   return_visit:
     'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+  study_conducted:
+    'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
+  minor_only:
+    'text-indigo-700 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400',
+  foreign_language:
+    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
+  inaccessible:
+    'text-stone-700 border-stone-200 bg-stone-50 dark:bg-stone-950/40 dark:text-stone-400',
+  vacant: 'text-slate-700 border-slate-200 bg-slate-50 dark:bg-slate-950/40 dark:text-slate-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   other: 'text-muted-foreground border-border bg-muted/30',
@@ -46,7 +56,12 @@ const outcomeColors: Record<string, string> = {
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  study_accepted:
+    'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
   neutral: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
+  foreign_language:
+    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
   not_interested:
     'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   hostile: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
@@ -169,6 +184,11 @@ export default function VisitsClient() {
         notes: values.notes || undefined,
         topicsDiscussed: values.topicsDiscussed || undefined,
         literatureOffered: values.literatureOffered || undefined,
+        returnVisitRequested: values.returnVisitRequested,
+        nextVisitDate: values.nextVisitDate || undefined,
+        nextVisitTime: values.nextVisitTime || undefined,
+        nextVisitNotes: values.nextVisitNotes || undefined,
+        bibleStudyInterest: values.bibleStudyInterest,
         visitDate: addEncounterVisit.visitDate || new Date().toISOString(),
         userId: user?.id || null,
       });
@@ -215,9 +235,15 @@ export default function VisitsClient() {
           <option value="all">All outcomes</option>
           <option value="answered">Answered</option>
           <option value="not_home">Not Home</option>
-          <option value="return_visit">Return Visit</option>
+          <option value="busy">Busy / Call Back</option>
+          <option value="return_visit">Return Visit Made</option>
+          <option value="study_conducted">Bible Study Conducted</option>
+          <option value="minor_only">Minor / Youth Only</option>
+          <option value="foreign_language">Foreign Language</option>
+          <option value="inaccessible">Inaccessible / Gated</option>
+          <option value="vacant">Vacant / Unoccupied</option>
           <option value="do_not_visit">Do Not Visit</option>
-          <option value="moved">Moved</option>
+          <option value="moved">Moved Away</option>
           <option value="other">Other</option>
         </select>
       </div>
@@ -339,6 +365,16 @@ export default function VisitsClient() {
                               >
                                 {enc.response.replace(/_/g, ' ')}
                               </Badge>
+                              {enc.returnVisitRequested && (
+                                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                                  · 📅 Next Visit
+                                </span>
+                              )}
+                              {enc.bibleStudyInterest && (
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                                  · 📖 Study
+                                </span>
+                              )}
                               {(enc.literatureAccepted || enc.literatureOffered) && (
                                 <span className="text-[10px] text-primary">
                                   · {enc.literatureAccepted || enc.literatureOffered}

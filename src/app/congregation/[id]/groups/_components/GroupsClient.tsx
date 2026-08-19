@@ -21,6 +21,7 @@ import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,9 +39,11 @@ import {
   useCongregationGroups,
   useCongregationMembers,
   useCreateGroup,
+  useCurrentUser,
   useDeleteGroup,
   useUpdateGroup,
 } from '@/hooks';
+import { canManageGroups, isUserInGroup } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import { toast } from 'sonner';
 import type { Group, GroupMember } from '@/types/api';
@@ -48,12 +51,18 @@ import type { Group, GroupMember } from '@/types/api';
 export default function GroupsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
+  const { user } = useCurrentUser();
+  const canManage = canManageGroups(user.role, user.congregationRole);
 
   const { groups = [], isLoading } = useCongregationGroups(congregationId);
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { create: createGroup, isPending: creating } = useCreateGroup(congregationId);
   const { update: updateGroup, isPending: updating } = useUpdateGroup(congregationId);
   const { remove: deleteGroup, isPending: deleting } = useDeleteGroup(congregationId);
+
+  const myGroup = useMemo(() => {
+    return groups.find((g) => isUserInGroup(user, g) || g.id === user.groupId);
+  }, [groups, user]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
@@ -106,6 +115,26 @@ export default function GroupsClient() {
       (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [availableMembers, memberSearch]);
+
+  // Assigned members for read-only group detail view
+  const editGroupMembers = useMemo(() => {
+    if (!editGroup) return [];
+    return activeMembers.filter((m) => {
+      const uid = m.userId || m.id;
+      return (
+        m.groupId === editGroup.id ||
+        editGroup.members?.some((gm) => gm.userId === uid || gm.id === uid)
+      );
+    });
+  }, [activeMembers, editGroup]);
+
+  const filteredViewMembers = useMemo(() => {
+    if (!memberSearch.trim()) return editGroupMembers;
+    const q = memberSearch.toLowerCase();
+    return editGroupMembers.filter(
+      (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
+    );
+  }, [editGroupMembers, memberSearch]);
 
   const handleOpenCreate = () => {
     setGroupName('');
@@ -255,7 +284,7 @@ export default function GroupsClient() {
   };
 
   return (
-    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
+    <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         <div className="flex items-center justify-between gap-4">
@@ -265,13 +294,15 @@ export default function GroupsClient() {
               Field ministry service groups, group overseers, and publisher assignments
             </p>
           </div>
-          <Button
-            onClick={handleOpenCreate}
-            className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs shrink-0"
-          >
-            <Plus size={14} />
-            <span>Create Group</span>
-          </Button>
+          {canManage && (
+            <Button
+              onClick={handleOpenCreate}
+              className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs shrink-0"
+            >
+              <Plus size={14} />
+              <span>Create Group</span>
+            </Button>
+          )}
         </div>
 
         {/* Groups Grid */}
@@ -294,6 +325,7 @@ export default function GroupsClient() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groups.map((group) => {
               const groupMembersList = group.members || [];
+              const isMyGroup = myGroup?.id === group.id;
               const overseer =
                 group.overseerName ||
                 groupMembersList.find(
@@ -308,7 +340,9 @@ export default function GroupsClient() {
               return (
                 <Card
                   key={group.id}
-                  className="bg-card border-border shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between"
+                  className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between ${
+                    isMyGroup ? 'ring-2 ring-primary/30 border-primary/40' : ''
+                  }`}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -317,35 +351,47 @@ export default function GroupsClient() {
                           <Users size={16} />
                         </div>
                         <div className="min-w-0">
-                          <h2 className="font-bold text-sm text-foreground truncate">
-                            {group.name}
-                          </h2>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h2 className="font-bold text-sm text-foreground truncate">
+                              {group.name}
+                            </h2>
+                            {isMyGroup && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/30"
+                              >
+                                Your Group
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-[11px] text-muted-foreground font-medium">
                             {groupMembersList.length} publisher
                             {groupMembersList.length === 1 ? '' : 's'} assigned
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 rounded-lg p-0"
-                          onClick={() => handleOpenEdit(group)}
-                          title="Edit group & manage members"
-                        >
-                          <Pencil size={13} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 w-7 rounded-lg p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteConfirmId(group.id)}
-                          title="Delete group"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
+                      {canManage && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-lg p-0"
+                            onClick={() => handleOpenEdit(group)}
+                            title="Edit group & manage members"
+                          >
+                            <Pencil size={13} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 rounded-lg p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteConfirmId(group.id)}
+                            title="Delete group"
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Roles Summary */}
@@ -415,7 +461,7 @@ export default function GroupsClient() {
                       )}
                     </div>
 
-                    {/* Quick Manage Button */}
+                    {/* Quick Manage / View Button */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -423,7 +469,10 @@ export default function GroupsClient() {
                       className="w-full h-8 text-xs font-semibold rounded-xl gap-1.5 mt-2 bg-muted/30 hover:bg-muted"
                     >
                       <UserCheck size={13} className="text-primary" />
-                      <span>Manage Group & Roles ({groupMembersList.length})</span>
+                      <span>
+                        {canManage ? 'Manage Group & Roles' : 'View Group & Roles'} (
+                        {groupMembersList.length})
+                      </span>
                     </Button>
                   </CardContent>
                 </Card>
@@ -650,221 +699,443 @@ export default function GroupsClient() {
           </div>
         </ResponsiveDialog>
 
-        {/* Edit Group Dialog (with Member Assignment & Roles) */}
-        <ResponsiveDialog
-          open={!!editGroup}
-          onOpenChange={(op) => !op && setEditGroup(null)}
-          title="Manage Service Group"
-          description={`Update group details, designate overseers, and manage publishers for ${editGroup?.name || 'group'}`}
-        >
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Group Name *</Label>
-              <Input
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="h-9 rounded-xl text-xs"
-              />
-            </div>
+        {/* Service Group Details Modal (Clean Read-Only for Non-Service Overseers) */}
+        {!canManage && (
+          <ResponsiveDialog
+            open={!!editGroup}
+            onOpenChange={(op) => !op && setEditGroup(null)}
+            title="Service Group Details"
+            description={`Leadership and assigned publishers for ${editGroup?.name || 'group'}`}
+          >
+            {editGroup && (
+              <div className="space-y-4">
+                {/* Group Summary Banner */}
+                <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-primary text-primary-foreground">
+                      <Users size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">{editGroup.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {editGroupMembers.length} publisher
+                        {editGroupMembers.length === 1 ? '' : 's'} assigned
+                      </p>
+                    </div>
+                  </div>
+                  {myGroup?.id === editGroup.id && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase font-bold bg-primary/10 text-primary border-primary/30"
+                    >
+                      Your Group
+                    </Badge>
+                  )}
+                </div>
 
-            {/* Overseer & Assistant Roles Selection */}
-            <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex items-center gap-1.5">
-                  <Crown size={13} className="text-amber-500" />
-                  <span>Group Overseer</span>
-                </Label>
-                <Select value={overseerId} onValueChange={setOverseerId}>
-                  <SelectTrigger className="h-9 rounded-xl text-xs">
-                    <SelectValue placeholder="Choose Overseer…" />
-                  </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border max-h-52">
-                    <SelectItem value="none">None (Unassigned)</SelectItem>
-                    {availableMembers.map((m) => {
-                      const uid = m.userId || m.id;
-                      return (
-                        <SelectItem key={uid} value={uid}>
-                          {m.user?.name || m.user?.email || uid}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                {/* Leadership Cards */}
+                <div className="space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Group Leadership
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-2.5">
+                    {/* Overseer */}
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                          <Crown size={15} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                            Group Overseer
+                          </p>
+                          <p className="text-xs font-bold text-foreground truncate">
+                            {editGroup.overseerName ||
+                              members.find((m) => (m.userId || m.id) === editGroup.overseerId)?.user?.name ||
+                              'Unassigned'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] uppercase font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 shrink-0"
+                      >
+                        Overseer
+                      </Badge>
+                    </div>
+
+                    {/* Assistant Overseer */}
+                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <Shield size={15} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                            Assistant Overseer
+                          </p>
+                          <p className="text-xs font-bold text-foreground truncate">
+                            {editGroup.assistantOverseerName ||
+                              members.find((m) => (m.userId || m.id) === editGroup.assistantOverseerId)?.user?.name ||
+                              'Unassigned'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] uppercase font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 shrink-0"
+                      >
+                        Assistant
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Publishers Roster */}
+                <div className="space-y-2 pt-1 border-t border-border">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Publishers ({filteredViewMembers.length})
+                    </p>
+                  </div>
+
+                  <div className="relative">
+                    <Search
+                      size={13}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      placeholder="Search publishers in group…"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      className="h-8 pl-8 text-xs rounded-lg"
+                    />
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-xl border border-border p-1.5 bg-muted/20">
+                    {filteredViewMembers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4 italic">
+                        {memberSearch.trim()
+                          ? 'No matching publishers found'
+                          : 'No publishers assigned to this group yet'}
+                      </p>
+                    ) : (
+                      filteredViewMembers.map((m) => {
+                        const uid = m.userId || m.id;
+                        const isOverseer = editGroup.overseerId === uid;
+                        const isAssistant = editGroup.assistantOverseerId === uid;
+                        const isSelf =
+                          uid === user.id ||
+                          (Boolean(m.user?.email) &&
+                            m.user?.email?.toLowerCase() === user.email?.toLowerCase());
+
+                        return (
+                          <div
+                            key={uid}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-card border border-border/60 text-xs shadow-2xs"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <Avatar className="w-8 h-8 rounded-lg border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                                {m.user?.avatarUrl && (
+                                  <AvatarImage
+                                    src={m.user.avatarUrl}
+                                    alt={m.user.name || 'Member'}
+                                    className="object-cover w-full h-full rounded-lg"
+                                  />
+                                )}
+                                <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold text-[10px]">
+                                  {(m.user?.name || m.user?.email || 'P')
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .toUpperCase()
+                                    .slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-foreground font-semibold truncate block">
+                                    {m.user?.name || m.user?.email || 'Publisher'}
+                                  </span>
+                                  {isSelf && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20"
+                                    >
+                                      You
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-muted-foreground truncate block">
+                                  {m.user?.email}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              {isOverseer ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] uppercase font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                                >
+                                  👑 Overseer
+                                </Badge>
+                              ) : isAssistant ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] uppercase font-bold bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30"
+                                >
+                                  🛡️ Assistant
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] uppercase font-medium bg-muted text-muted-foreground"
+                                >
+                                  {m.congregationRole?.replace(/_/g, ' ') || 'Publisher'}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end pt-2 border-t border-border">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl text-xs"
+                    onClick={() => setEditGroup(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </ResponsiveDialog>
+        )}
+
+        {/* Manage Group Dialog (Full Interactive for Service Overseers) */}
+        {canManage && (
+          <ResponsiveDialog
+            open={!!editGroup}
+            onOpenChange={(op) => !op && setEditGroup(null)}
+            title="Manage Service Group"
+            description={`Update group details, designate overseers, and manage publishers for ${editGroup?.name || 'group'}`}
+          >
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Group Name *</Label>
+                <Input
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="h-9 rounded-xl text-xs"
+                />
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold flex items-center gap-1.5">
-                  <Shield size={13} className="text-blue-500" />
-                  <span>Assistant Overseer</span>
-                </Label>
-                <Select value={assistantOverseerId} onValueChange={setAssistantOverseerId}>
-                  <SelectTrigger className="h-9 rounded-xl text-xs">
-                    <SelectValue placeholder="Choose Assistant (Optional)…" />
-                  </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border max-h-52">
-                    <SelectItem value="none">None (Optional)</SelectItem>
-                    {availableMembers.map((m) => {
-                      const uid = m.userId || m.id;
-                      return (
-                        <SelectItem key={uid} value={uid}>
-                          {m.user?.name || m.user?.email || uid}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+              {/* Overseer & Assistant Roles Selection */}
+              <div className="grid sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-muted/30 border border-border">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <Crown size={13} className="text-amber-500" />
+                    <span>Group Overseer</span>
+                  </Label>
+                  <Select value={overseerId} onValueChange={setOverseerId}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Choose Overseer…" />
+                    </SelectTrigger>
+                    <SelectContent side="top" className="bg-popover border-border max-h-52">
+                      <SelectItem value="none">None (Unassigned)</SelectItem>
+                      {availableMembers.map((m) => {
+                        const uid = m.userId || m.id;
+                        return (
+                          <SelectItem key={uid} value={uid}>
+                            {m.user?.name || m.user?.email || uid}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Member Assignment Section */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">
-                  Publishers ({selectedUserIds.length} in group)
-                </Label>
-                <div className="flex items-center gap-2 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={handleSelectAll}
-                    className="text-primary font-semibold hover:underline"
-                  >
-                    Select All
-                  </button>
-                  <span className="text-muted-foreground">•</span>
-                  <button
-                    type="button"
-                    onClick={handleClearSelection}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Clear
-                  </button>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <Shield size={13} className="text-blue-500" />
+                    <span>Assistant Overseer</span>
+                  </Label>
+                  <Select value={assistantOverseerId} onValueChange={setAssistantOverseerId}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Choose Assistant (Optional)…" />
+                    </SelectTrigger>
+                    <SelectContent side="top" className="bg-popover border-border max-h-52">
+                      <SelectItem value="none">None (Optional)</SelectItem>
+                      {availableMembers.map((m) => {
+                        const uid = m.userId || m.id;
+                        return (
+                          <SelectItem key={uid} value={uid}>
+                            {m.user?.name || m.user?.email || uid}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div className="relative">
-                <Search
-                  size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  placeholder="Search publishers…"
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  className="h-8 pl-8 text-xs rounded-lg"
-                />
-              </div>
+              {/* Member Assignment Section */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold">
+                    Publishers ({selectedUserIds.length} in group)
+                  </Label>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={handleSelectAll}
+                      className="text-primary font-semibold hover:underline"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-muted-foreground">•</span>
+                    <button
+                      type="button"
+                      onClick={handleClearSelection}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
 
-              <div className="max-h-52 overflow-y-auto space-y-1 rounded-xl border border-border p-1.5 bg-muted/20">
-                {membersLoading ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">
-                    Loading publishers…
-                  </p>
-                ) : filteredMembers.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">
-                    No unassigned publishers available to add.
-                  </p>
-                ) : (
-                  filteredMembers.map((m) => {
-                    const uid = m.userId || m.id;
-                    const isSelected = selectedUserIds.includes(uid);
-                    const isOverseer = overseerId === uid;
-                    const isAssistant = assistantOverseerId === uid;
+                <div className="relative">
+                  <Search
+                    size={13}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    placeholder="Search publishers…"
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="h-8 pl-8 text-xs rounded-lg"
+                  />
+                </div>
 
-                    return (
-                      <div
-                        key={uid}
-                        onClick={() => toggleMemberSelection(uid)}
-                        className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'bg-primary/10 text-foreground font-semibold'
-                            : 'hover:bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleMemberSelection(uid)}
-                          />
-                          <div className="min-w-0">
-                            <span className="text-foreground truncate block font-medium">
-                              {m.user?.name || m.user?.email || 'Publisher'}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground truncate block">
-                              {m.user?.email}
-                            </span>
+                <div className="max-h-52 overflow-y-auto space-y-1 rounded-xl border border-border p-1.5 bg-muted/20">
+                  {membersLoading ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">
+                      Loading publishers…
+                    </p>
+                  ) : filteredMembers.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">
+                      No unassigned publishers available to add.
+                    </p>
+                  ) : (
+                    filteredMembers.map((m) => {
+                      const uid = m.userId || m.id;
+                      const isSelected = selectedUserIds.includes(uid);
+                      const isOverseer = overseerId === uid;
+                      const isAssistant = assistantOverseerId === uid;
+
+                      return (
+                        <div
+                          key={uid}
+                          onClick={() => toggleMemberSelection(uid)}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 text-foreground font-semibold'
+                              : 'hover:bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleMemberSelection(uid)}
+                            />
+                            <div className="min-w-0">
+                              <span className="text-foreground truncate block font-medium">
+                                {m.user?.name || m.user?.email || 'Publisher'}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground truncate block">
+                                {m.user?.email}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            {isSelected ? (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <Select
+                                  value={
+                                    isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'
+                                  }
+                                  onValueChange={(val) => {
+                                    if (val === 'overseer') {
+                                      setOverseerId(uid);
+                                      if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                    } else if (val === 'assistant') {
+                                      setAssistantOverseerId(uid);
+                                      if (overseerId === uid) setOverseerId('none');
+                                    } else {
+                                      if (overseerId === uid) setOverseerId('none');
+                                      if (assistantOverseerId === uid) setAssistantOverseerId('none');
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger
+                                    className={`h-7 text-[10px] w-32 rounded-lg py-0 px-2 font-semibold ${
+                                      isOverseer
+                                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                        : isAssistant
+                                          ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                          : 'bg-muted/80 text-foreground border-border'
+                                    }`}
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent side="top" className="text-xs">
+                                    <SelectItem value="overseer">👑 Group Overseer</SelectItem>
+                                    <SelectItem value="assistant">🛡️ Assistant</SelectItem>
+                                    <SelectItem value="member">👤 Publisher</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] text-muted-foreground">
+                                Unassigned
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 ml-1">
-                          {isSelected ? (
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <Select
-                                value={
-                                  isOverseer ? 'overseer' : isAssistant ? 'assistant' : 'member'
-                                }
-                                onValueChange={(val) => {
-                                  if (val === 'overseer') {
-                                    setOverseerId(uid);
-                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
-                                  } else if (val === 'assistant') {
-                                    setAssistantOverseerId(uid);
-                                    if (overseerId === uid) setOverseerId('none');
-                                  } else {
-                                    if (overseerId === uid) setOverseerId('none');
-                                    if (assistantOverseerId === uid) setAssistantOverseerId('none');
-                                  }
-                                }}
-                              >
-                                <SelectTrigger
-                                  className={`h-7 text-[10px] w-32 rounded-lg py-0 px-2 font-semibold ${
-                                    isOverseer
-                                      ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
-                                      : isAssistant
-                                        ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30'
-                                        : 'bg-muted/80 text-foreground border-border'
-                                  }`}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent side="top" className="text-xs">
-                                  <SelectItem value="overseer">👑 Group Overseer</SelectItem>
-                                  <SelectItem value="assistant">🛡️ Assistant</SelectItem>
-                                  <SelectItem value="member">👤 Publisher</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ) : (
-                            <Badge variant="outline" className="text-[9px] text-muted-foreground">
-                              Unassigned
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => setEditGroup(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={handleUpdate}
+                  disabled={!groupName.trim() || updating}
+                >
+                  {updating ? 'Saving…' : 'Save Changes'}
+                </Button>
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl text-xs"
-                onClick={() => setEditGroup(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="rounded-xl text-xs font-semibold"
-                onClick={handleUpdate}
-                disabled={!groupName.trim() || updating}
-              >
-                {updating ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        </ResponsiveDialog>
+          </ResponsiveDialog>
+        )}
 
         {/* Delete Confirmation */}
         <ConfirmDialog

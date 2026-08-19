@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Cloud,
+  Crown,
   Eye,
   EyeOff,
   KeyRound,
@@ -210,6 +211,96 @@ export default function ProfilePage() {
     }
     return { title: 'Group Member', icon: '👥' };
   })();
+
+  // Robust groupmates list from group.members + congregationMembers
+  const groupmatesList = useMemo(() => {
+    if (!userGroup) return [];
+
+    const map = new Map<
+      string,
+      {
+        id: string;
+        userId: string;
+        name: string;
+        email: string;
+        role?: string;
+        congregationRole?: string | null;
+      }
+    >();
+
+    // 1. Members from group.members
+    for (const gm of userGroup.members || []) {
+      const uid = gm.userId || gm.id;
+      if (!uid) continue;
+      const memberDoc = members.find((m) => (m.userId || m.id) === uid);
+      map.set(uid, {
+        id: uid,
+        userId: uid,
+        name:
+          gm.user?.name ||
+          memberDoc?.user?.name ||
+          (gm as any).name ||
+          memberDoc?.user?.email ||
+          'Publisher',
+        email: gm.user?.email || memberDoc?.user?.email || '',
+        role:
+          gm.role ||
+          (uid === userGroup.overseerId
+            ? 'group_overseer'
+            : uid === userGroup.assistantOverseerId
+              ? 'assistant_overseer'
+              : 'member'),
+        congregationRole: memberDoc?.congregationRole || null,
+      });
+    }
+
+    // 2. Members from congregationMembers with matching groupId
+    for (const m of members) {
+      if (m.groupId === userGroup.id && (m.status === 'active' || !m.status)) {
+        const uid = m.userId || m.id;
+        if (!uid || map.has(uid)) continue;
+        map.set(uid, {
+          id: uid,
+          userId: uid,
+          name: m.user?.name || m.user?.email || 'Publisher',
+          email: m.user?.email || '',
+          role:
+            uid === userGroup.overseerId
+              ? 'group_overseer'
+              : uid === userGroup.assistantOverseerId
+                ? 'assistant_overseer'
+                : 'member',
+          congregationRole: m.congregationRole || null,
+        });
+      }
+    }
+
+    // 3. Ensure Overseer and Assistant Overseer are present if names exist
+    if (userGroup.overseerId && !map.has(userGroup.overseerId)) {
+      const memberDoc = members.find((m) => (m.userId || m.id) === userGroup.overseerId);
+      map.set(userGroup.overseerId, {
+        id: userGroup.overseerId,
+        userId: userGroup.overseerId,
+        name: userGroup.overseerName || memberDoc?.user?.name || 'Group Overseer',
+        email: memberDoc?.user?.email || '',
+        role: 'group_overseer',
+        congregationRole: memberDoc?.congregationRole || null,
+      });
+    }
+    if (userGroup.assistantOverseerId && !map.has(userGroup.assistantOverseerId)) {
+      const memberDoc = members.find((m) => (m.userId || m.id) === userGroup.assistantOverseerId);
+      map.set(userGroup.assistantOverseerId, {
+        id: userGroup.assistantOverseerId,
+        userId: userGroup.assistantOverseerId,
+        name: userGroup.assistantOverseerName || memberDoc?.user?.name || 'Assistant Overseer',
+        email: memberDoc?.user?.email || '',
+        role: 'assistant_overseer',
+        congregationRole: memberDoc?.congregationRole || null,
+      });
+    }
+
+    return Array.from(map.values());
+  }, [userGroup, members]);
 
   // Congregation role label
   const congregationRoleLabel = (() => {
@@ -692,7 +783,7 @@ export default function ProfilePage() {
 
                   {/* Service Group Detailed Row */}
                   {congregation && (
-                    <div className="p-3.5 rounded-2xl bg-muted/30 border border-border space-y-1">
+                    <div className="p-4 rounded-2xl bg-muted/30 border border-border space-y-3.5">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
                           Field Service Group
@@ -706,20 +797,124 @@ export default function ProfilePage() {
                           </Badge>
                         )}
                       </div>
+
                       {userGroup ? (
-                        <div>
-                          <p className="text-sm font-bold text-foreground flex items-center gap-1.5 mt-0.5">
-                            <Users size={15} className="text-primary shrink-0" />
-                            <span>{userGroup.name}</span>
-                          </p>
-                          {userGroup.overseerName && (
-                            <p className="text-xs text-muted-foreground pl-5 mt-0.5 truncate">
-                              Overseer:{' '}
-                              <span className="text-foreground font-medium">
-                                {userGroup.overseerName}
-                              </span>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-base font-bold text-foreground flex items-center gap-2">
+                              <Users size={17} className="text-primary shrink-0" />
+                              <span>{userGroup.name}</span>
                             </p>
-                          )}
+                          </div>
+
+                          {/* Leadership Summary */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl bg-card border border-border/70 text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Crown size={14} className="text-amber-500 shrink-0" />
+                              <span className="text-muted-foreground text-xs">Overseer:</span>
+                              <span className="font-semibold text-foreground truncate text-xs">
+                                {userGroup.overseerName || 'Unassigned'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Shield size={14} className="text-blue-500 shrink-0" />
+                              <span className="text-muted-foreground text-xs">Assistant:</span>
+                              <span className="font-semibold text-foreground truncate text-xs">
+                                {userGroup.assistantOverseerName || 'Unassigned'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Groupmates list */}
+                          <div className="space-y-2 pt-1 border-t border-border/50">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                <span>Groupmates</span>
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                                  {groupmatesList.length}
+                                </Badge>
+                              </p>
+                              {congregationId && (
+                                <Link
+                                  href={`/congregation/${congregationId}/groups`}
+                                  className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                                >
+                                  <span>View Group Details</span>
+                                  <ChevronRight size={12} />
+                                </Link>
+                              )}
+                            </div>
+
+                            {groupmatesList.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic py-1">
+                                No other publishers assigned to this group yet.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                                {groupmatesList.map((gm) => {
+                                  const isSelf =
+                                    gm.userId === targetUserId ||
+                                    (Boolean(gm.email) &&
+                                      gm.email.toLowerCase() === user.email?.toLowerCase());
+                                  const isOverseer = gm.userId === userGroup.overseerId;
+                                  const isAssistant = gm.userId === userGroup.assistantOverseerId;
+
+                                  return (
+                                    <div
+                                      key={gm.id}
+                                      className="flex items-center justify-between p-2 rounded-xl bg-card/80 border border-border/60 text-xs shadow-2xs"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-[9px] flex items-center justify-center shrink-0">
+                                          {(gm.name || gm.email || 'P')
+                                            .split(' ')
+                                            .map((n) => n[0])
+                                            .join('')
+                                            .toUpperCase()
+                                            .slice(0, 2)}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="font-semibold text-foreground truncate text-[11px] leading-tight">
+                                            {gm.name}
+                                          </p>
+                                          {gm.email && (
+                                            <p className="text-[10px] text-muted-foreground truncate leading-tight">
+                                              {gm.email}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="shrink-0 ml-1">
+                                        {isSelf ? (
+                                          <Badge
+                                            variant="secondary"
+                                            className="text-[9px] px-1 py-0 bg-primary/10 text-primary border-primary/20"
+                                          >
+                                            You
+                                          </Badge>
+                                        ) : isOverseer ? (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px] px-1 py-0 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                          >
+                                            👑
+                                          </Badge>
+                                        ) : isAssistant ? (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[9px] px-1 py-0 bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                                          >
+                                            🛡️
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <p className="text-xs text-muted-foreground italic mt-1">

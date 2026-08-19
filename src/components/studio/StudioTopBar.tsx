@@ -72,8 +72,16 @@ const getHouseholdStatusBadge = (status?: string) => {
       return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200';
     case 'not_home':
       return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200';
+    case 'busy':
+      return 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200';
     case 'return_visit':
       return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200';
+    case 'foreign_language':
+      return 'bg-cyan-50 text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300 border-cyan-200';
+    case 'vacant':
+      return 'bg-slate-50 text-slate-700 dark:bg-slate-900 dark:text-slate-300 border-slate-200';
+    case 'inaccessible':
+      return 'bg-stone-50 text-stone-700 dark:bg-stone-900 dark:text-stone-300 border-stone-200';
     case 'do_not_visit':
       return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200';
     default:

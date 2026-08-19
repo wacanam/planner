@@ -1,0 +1,126 @@
+import { describe, expect, it } from 'vitest';
+import { extractHouseholdContacts } from '@/lib/household-contacts';
+import type { Encounter } from '@/types/api';
+
+describe('extractHouseholdContacts', () => {
+  it('returns empty array when given null, undefined, or empty encounters', () => {
+    expect(extractHouseholdContacts(null)).toEqual([]);
+    expect(extractHouseholdContacts(undefined)).toEqual([]);
+    expect(extractHouseholdContacts([])).toEqual([]);
+  });
+
+  it('filters out encounters without names', () => {
+    const encounters = [
+      {
+        id: '1',
+        name: '   ',
+        response: 'not_interested',
+        userId: 'u1',
+        createdAt: '2026-08-01T10:00:00Z',
+      } as Encounter,
+    ];
+    expect(extractHouseholdContacts(encounters)).toEqual([]);
+  });
+
+  it('aggregates multiple encounters for the same person and sorts newest first', () => {
+    const encounters: Encounter[] = [
+      {
+        id: 'enc-1',
+        name: 'John Doe',
+        gender: 'male',
+        ageGroup: 'adult',
+        language: 'English',
+        response: 'neutral',
+        topicDiscussed: 'Future hope',
+        literatureAccepted: 'Tract',
+        nextVisitNotes: 'Discuss why God allows suffering',
+        notes: 'Initial conversation',
+        bibleStudyInterest: false,
+        returnVisitRequested: false,
+        visitDate: '2026-08-01T10:00:00Z',
+        createdAt: '2026-08-01T10:00:00Z',
+        updatedAt: '2026-08-01T10:00:00Z',
+        userId: 'u1',
+        householdId: 'h1',
+        visitId: 'v1',
+      },
+      {
+        id: 'enc-2',
+        name: 'john doe', // different casing
+        gender: 'male',
+        ageGroup: 'adult',
+        language: 'English',
+        response: 'receptive',
+        topicDiscussed: 'Why God allows suffering',
+        literatureAccepted: 'Brochure Lesson 1',
+        nextVisitNotes: 'What is God kingdom?',
+        notes: 'Asked deep questions',
+        bibleStudyInterest: true,
+        returnVisitRequested: true,
+        visitDate: '2026-08-10T10:00:00Z',
+        createdAt: '2026-08-10T10:00:00Z',
+        updatedAt: '2026-08-10T10:00:00Z',
+        userId: 'u1',
+        householdId: 'h1',
+        visitId: 'v2',
+      },
+    ];
+
+    const contacts = extractHouseholdContacts(encounters);
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0].name).toBe('john doe');
+    expect(contacts[0].normalizedName).toBe('john doe');
+    expect(contacts[0].encountersCount).toBe(2);
+    expect(contacts[0].lastResponse).toBe('receptive');
+    expect(contacts[0].lastTopicDiscussed).toBe('Why God allows suffering');
+    expect(contacts[0].lastLiteratureAccepted).toBe('Brochure Lesson 1');
+    expect(contacts[0].nextVisitPlannedTopic).toBe('What is God kingdom?');
+    expect(contacts[0].bibleStudyInterest).toBe(true);
+    expect(contacts[0].gender).toBe('male');
+    expect(contacts[0].ageGroup).toBe('adult');
+    expect(contacts[0].allEncounters).toHaveLength(2);
+  });
+
+  it('correctly handles multiple distinct persons at the same address', () => {
+    const encounters: Encounter[] = [
+      {
+        id: 'enc-1',
+        name: 'Alice Smith',
+        gender: 'female',
+        ageGroup: 'young_adult',
+        response: 'receptive',
+        bibleStudyInterest: false,
+        returnVisitRequested: false,
+        visitDate: '2026-08-05T10:00:00Z',
+        createdAt: '2026-08-05T10:00:00Z',
+        updatedAt: '2026-08-05T10:00:00Z',
+        userId: 'u1',
+        householdId: 'h1',
+        visitId: 'v1',
+      },
+      {
+        id: 'enc-2',
+        name: 'Bob Smith',
+        gender: 'male',
+        ageGroup: 'senior',
+        response: 'busy',
+        bibleStudyInterest: false,
+        returnVisitRequested: false,
+        visitDate: '2026-08-12T10:00:00Z',
+        createdAt: '2026-08-12T10:00:00Z',
+        updatedAt: '2026-08-12T10:00:00Z',
+        userId: 'u1',
+        householdId: 'h1',
+        visitId: 'v2',
+      },
+    ];
+
+    const contacts = extractHouseholdContacts(encounters);
+    expect(contacts).toHaveLength(2);
+    // Bob should be first because visitDate 2026-08-12 is newer
+    expect(contacts[0].name).toBe('Bob Smith');
+    expect(contacts[0].encountersCount).toBe(1);
+    expect(contacts[1].name).toBe('Alice Smith');
+    expect(contacts[1].encountersCount).toBe(1);
+  });
+});

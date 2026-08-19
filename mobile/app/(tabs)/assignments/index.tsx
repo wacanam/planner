@@ -5,8 +5,10 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  Crown,
   Home,
   MapPin,
+  Shield,
   Sparkles,
   Users,
 } from 'lucide-react-native';
@@ -15,6 +17,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,9 +33,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useMyAssignments } from '@/hooks/useAssignments';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
+import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useHouseholds } from '@/hooks/useHouseholds';
 import { useCongregationTerritories } from '@/hooks/useTerritories';
-import { getUserGroupIds, resolveUserAssignments } from '@/lib/permissions';
+import { getUserGroupIds, isUserInGroup, resolveUserAssignments } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
 
@@ -44,21 +48,76 @@ export default function MyAssignmentsScreen() {
 
   const { assignments, isLoading: assignmentsLoading } = useMyAssignments(activeCongregationId);
   const { territories, isLoading: territoriesLoading } = useCongregationTerritories(activeCongregationId);
-  const { groups = [] } = useCongregationGroups(activeCongregationId);
+  const { groups = [], isLoading: groupsLoading } = useCongregationGroups(activeCongregationId);
+  const { members = [] } = useCongregationMembers(activeCongregationId);
   const { households = [] } = useHouseholds({ congregationId: activeCongregationId });
 
   const userGroupIds = useMemo(() => getUserGroupIds(user, groups), [user, groups]);
+
+  const myGroup = useMemo(() => {
+    return groups.find((g) => isUserInGroup(user, g) || g.id === user?.groupId);
+  }, [groups, user]);
+
+  const groupmateCount = useMemo(() => {
+    if (!myGroup) return 0;
+    const fromGroup = (myGroup.members || []).length;
+    const fromMembers = members.filter(
+      (m) =>
+        (m.status === 'active' || !m.status) &&
+        (m.groupId === myGroup.id ||
+          myGroup.members?.some((gm) => gm.userId === m.userId || gm.id === m.userId))
+    ).length;
+    return Math.max(fromGroup, fromMembers);
+  }, [members, myGroup]);
 
   const activeAssignments = useMemo(() => {
     const resolved = resolveUserAssignments(user, assignments, territories, userGroupIds, activeCongregationId);
     return resolved.filter((a) => a.status === 'assigned' || a.status === 'active' || !a.status);
   }, [user, assignments, territories, userGroupIds, activeCongregationId]);
 
-  const isLoading = assignmentsLoading || territoriesLoading;
+  const isLoading = assignmentsLoading || territoriesLoading || groupsLoading;
 
   const handleOpenAssignment = (assignment: Assignment) => {
     triggerHaptic('light');
     router.push(`/(tabs)/assignments/${assignment.territoryId}`);
+  };
+
+  const renderGroupBanner = () => {
+    if (!myGroup) return null;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          triggerHaptic('light');
+          router.push('/(tabs)/more/groups');
+        }}
+        style={{ marginBottom: spacing.md }}
+      >
+        <Card style={[styles.groupBanner, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+          <View style={styles.groupBannerRow}>
+            <View style={[styles.groupIconBox, { backgroundColor: colors.primary }]}>
+              <Users size={18} color="#ffffff" />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.groupBannerTitle, { color: colors.foreground, fontSize: typography.sm }]}>
+                  {myGroup.name}
+                </Text>
+                <Badge label={`${groupmateCount} Publishers`} variant="outline" size="sm" />
+              </View>
+
+              <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
+                Overseer: {myGroup.overseerName || 'Unassigned'}
+                {myGroup.assistantOverseerName ? ` • Asst: ${myGroup.assistantOverseerName}` : ''}
+              </Text>
+            </View>
+
+            <ChevronRight size={16} color={colors.primary} />
+          </View>
+        </Card>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -73,13 +132,22 @@ export default function MyAssignmentsScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : activeAssignments.length === 0 ? (
-        <EmptyState
-          icon={<Sparkles size={48} color={colors.primary} />}
-          title="No Active Assignments"
-          description="You don't currently have any active territory assignments. Browse available territories to request one!"
-          actionTitle="Browse Territories"
-          onActionPress={() => router.push('/(tabs)/territories')}
-        />
+        <ScrollView
+          contentContainerStyle={{
+            padding: spacing.md,
+            paddingBottom: insets.bottom + spacing.xxl,
+          }}
+        >
+          {renderGroupBanner()}
+
+          <EmptyState
+            icon={<Sparkles size={48} color={colors.primary} />}
+            title="No Active Assignments"
+            description="You don't currently have any active territory assignments. Browse available territories to request one!"
+            actionTitle="Browse Territories"
+            onActionPress={() => router.push('/(tabs)/territories')}
+          />
+        </ScrollView>
       ) : (
         <FlatList
           data={activeAssignments}
@@ -88,6 +156,7 @@ export default function MyAssignmentsScreen() {
             padding: spacing.md,
             paddingBottom: insets.bottom + spacing.xxl,
           }}
+          ListHeaderComponent={renderGroupBanner}
           renderItem={({ item }) => {
             const territory = territories.find((t) => t.id === item.territoryId);
             const territoryHouseholds = households.filter((h) => h.territoryId === item.territoryId);
@@ -184,6 +253,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  groupBanner: {
+    padding: 12,
+    borderWidth: 1,
+  },
+  groupBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupBannerTitle: {
+    fontWeight: '800',
   },
   card: {
     padding: 16,

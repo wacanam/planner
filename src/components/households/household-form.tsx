@@ -28,7 +28,11 @@ export const householdFormSchema = z.object({
     'new',
     'active',
     'not_home',
+    'busy',
     'return_visit',
+    'foreign_language',
+    'vacant',
+    'inaccessible',
     'do_not_visit',
     'moved',
     'inactive',
@@ -69,7 +73,7 @@ export function HouseholdForm({
       status: (initialValues?.status as HouseholdFormValues['status']) ?? 'new',
       occupantsCount: initialValues?.occupantsCount ?? 1,
       notes: initialValues?.notes ?? '',
-      language: initialValues?.language ?? initialValues?.languages?.[0] ?? 'English',
+      language: initialValues?.language ?? initialValues?.languages?.[0] ?? '',
       territoryId: initialValues?.territoryId ?? null,
     },
   });
@@ -192,9 +196,14 @@ export function HouseholdForm({
               <SelectItem value="new">New Record</SelectItem>
               <SelectItem value="active">Active Household</SelectItem>
               <SelectItem value="not_home">Not Home</SelectItem>
+              <SelectItem value="busy">Busy / Call Back</SelectItem>
               <SelectItem value="return_visit">Return Visit</SelectItem>
+              <SelectItem value="foreign_language">Foreign Language</SelectItem>
+              <SelectItem value="vacant">Vacant / Unoccupied</SelectItem>
+              <SelectItem value="inaccessible">Inaccessible / Gated</SelectItem>
               <SelectItem value="do_not_visit">Do Not Visit</SelectItem>
               <SelectItem value="moved">Moved Away</SelectItem>
+              <SelectItem value="inactive">Inactive / Archived</SelectItem>
             </SelectContent>
           </Select>
         </div>

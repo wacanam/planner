@@ -143,7 +143,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         <PopoverContent
           align="end"
           sideOffset={8}
-          className="w-[360px] sm:w-[400px] p-0 rounded-2xl border-border bg-popover shadow-xl overflow-hidden z-50"
+          className="w-[calc(100vw-1.5rem)] sm:w-[400px] max-w-[400px] p-0 rounded-2xl border-border bg-popover shadow-xl overflow-hidden z-50"
         >
           {/* Header */}
           <div className="p-3.5 border-b border-border bg-muted/30">
@@ -298,7 +298,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
           </div>
 
           {/* Notification List */}
-          <div className="max-h-[380px] overflow-y-auto divide-y divide-border/50 scrollbar-thin">
+          <div className="max-h-[min(380px,calc(100dvh-13rem))] overflow-y-auto divide-y divide-border/50 scrollbar-thin">
             {isLoading && notifications.length === 0 ? (
               <div className="p-8 text-center space-y-2">
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />

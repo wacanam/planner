@@ -53,7 +53,13 @@ import type { Household } from '@/types/api';
 const OUTCOME_OPTIONS = [
   { id: 'answered', label: 'Answered', color: '#16a34a' },
   { id: 'not_home', label: 'Not Home', color: '#d97706' },
+  { id: 'busy', label: 'Busy / Callback', color: '#ea580c' },
   { id: 'return_visit', label: 'Return Visit', color: '#6b9ecc' },
+  { id: 'study_conducted', label: 'Bible Study', color: '#8b5cf6' },
+  { id: 'minor_only', label: 'Minor Only', color: '#6366f1' },
+  { id: 'foreign_language', label: 'Foreign Lang', color: '#06b6d4' },
+  { id: 'inaccessible', label: 'Inaccessible', color: '#78716c' },
+  { id: 'vacant', label: 'Vacant', color: '#64748b' },
   { id: 'do_not_visit', label: 'Do Not Call', color: '#dc2626' },
   { id: 'moved', label: 'Moved', color: '#9b9b9b' },
   { id: 'other', label: 'Other', color: '#707070' },
@@ -195,6 +201,30 @@ export default function AssignmentDetailScreen() {
     setVisitModalVisible(true);
   };
 
+  const resolveHouseholdStatusAfter = (selectedOutcome: string) => {
+    switch (selectedOutcome) {
+      case 'do_not_visit':
+        return 'do_not_visit';
+      case 'moved':
+        return 'moved';
+      case 'vacant':
+        return 'vacant';
+      case 'foreign_language':
+        return 'foreign_language';
+      case 'inaccessible':
+        return 'inaccessible';
+      case 'not_home':
+        return 'not_home';
+      case 'busy':
+        return 'busy';
+      case 'return_visit':
+      case 'study_conducted':
+        return 'return_visit';
+      default:
+        return 'active';
+    }
+  };
+
   const handleSubmitVisit = async () => {
     if (!selectedHousehold || !user) return;
     try {
@@ -204,11 +234,11 @@ export default function AssignmentDetailScreen() {
         publisherName: user.name || 'Publisher',
         assignmentId: activeAssignment?.id || null,
         outcome,
-        householdStatusAfter: outcome === 'do_not_visit' ? 'do_not_visit' : 'active',
+        householdStatusAfter: resolveHouseholdStatusAfter(outcome),
         notes: notes || null,
         bibleTopicDiscussed: topicDiscussed || null,
         literatureLeft: literatureLeft || null,
-        returnVisitPlanned,
+        returnVisitPlanned: returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
       });
       await triggerHaptic('success');
       setVisitModalVisible(false);
@@ -262,6 +292,14 @@ export default function AssignmentDetailScreen() {
         return '#6b9ecc';
       case 'not_home':
         return '#d97706';
+      case 'busy':
+        return '#ea580c';
+      case 'foreign_language':
+        return '#06b6d4';
+      case 'inaccessible':
+        return '#78716c';
+      case 'vacant':
+        return '#64748b';
       case 'active':
         return '#16a34a';
       default:

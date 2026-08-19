@@ -280,13 +280,13 @@ export default function CongregationDashboardClient() {
                         className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all min-w-0"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="font-bold text-sm text-foreground truncate min-w-0" title={`#${number} — ${name}`}>
+                          <div className="flex items-start gap-2 min-w-0">
+                            <p className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words" title={`#${number} — ${name}`}>
                               #{number} — {name}
                             </p>
                             <Badge
                               variant="outline"
-                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0"
+                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0 mt-0.5"
                             >
                               Working
                             </Badge>

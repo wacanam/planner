@@ -18,7 +18,20 @@ import { Textarea } from '@/components/ui/textarea';
 import type { Visit } from '@/types/api';
 
 export const editVisitSchema = z.object({
-  outcome: z.enum(['answered', 'not_home', 'return_visit', 'do_not_visit', 'moved', 'other']),
+  outcome: z.enum([
+    'answered',
+    'not_home',
+    'busy',
+    'return_visit',
+    'study_conducted',
+    'minor_only',
+    'foreign_language',
+    'inaccessible',
+    'vacant',
+    'do_not_visit',
+    'moved',
+    'other',
+  ]),
   bibleTopicDiscussed: z.string().optional(),
   literatureLeft: z.string().optional(),
   notes: z.string().optional(),
@@ -68,10 +81,16 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
           <SelectContent className="bg-popover border-border">
             <SelectItem value="answered">Answered (Conversation)</SelectItem>
             <SelectItem value="not_home">Not Home</SelectItem>
-            <SelectItem value="return_visit">Return Visit</SelectItem>
+            <SelectItem value="busy">Busy / Call Back Later</SelectItem>
+            <SelectItem value="return_visit">Return Visit Made</SelectItem>
+            <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
+            <SelectItem value="minor_only">Minor / Youth Only</SelectItem>
+            <SelectItem value="foreign_language">Foreign / Different Language</SelectItem>
+            <SelectItem value="inaccessible">Inaccessible / Gated</SelectItem>
+            <SelectItem value="vacant">Vacant / Unoccupied</SelectItem>
             <SelectItem value="do_not_visit">Do Not Call / Visit</SelectItem>
-            <SelectItem value="moved">Moved</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="moved">Moved Away</SelectItem>
+            <SelectItem value="other">Other Outcome</SelectItem>
           </SelectContent>
         </Select>
       </div>

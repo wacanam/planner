@@ -356,6 +356,11 @@ export interface DoorAnalyticsReport {
   unworkedDoors: number;
   doNotCallCount: number;
   returnVisitsCount: number;
+  foreignLanguageCount?: number;
+  vacantCount?: number;
+  inaccessibleCount?: number;
+  busyCount?: number;
+  studyConductedCount?: number;
   outcomeCounts: {
     notHome: number;
     contacted: number;
@@ -363,6 +368,12 @@ export interface DoorAnalyticsReport {
     returnVisit: number;
     busy: number;
     doNotCall: number;
+    studyConducted: number;
+    minorOnly: number;
+    foreignLanguage: number;
+    inaccessible: number;
+    vacant: number;
+    moved: number;
     other: number;
   };
   topStreets: {

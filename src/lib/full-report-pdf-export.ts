@@ -605,39 +605,64 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
       count: doorData?.outcomeCounts.contacted ?? 0,
       color: [16, 185, 129],
     },
+    {
+      label: 'Bible Study Conducted',
+      count: doorData?.outcomeCounts.studyConducted ?? 0,
+      color: [139, 92, 246],
+    },
+    {
+      label: 'Return Visits Planned',
+      count: doorData?.outcomeCounts.returnVisit ?? (doorData?.returnVisitsCount ?? 0),
+      color: [99, 102, 241],
+    },
     { label: 'Not Home', count: doorData?.outcomeCounts.notHome ?? 0, color: [245, 158, 11] },
+    { label: 'Busy / Call Back', count: doorData?.outcomeCounts.busy ?? 0, color: [249, 115, 22] },
     {
       label: 'Literature Placed',
       count: doorData?.outcomeCounts.placedLiterature ?? 0,
       color: [37, 99, 235],
     },
     {
-      label: 'Return Visits Planned',
-      count: doorData?.returnVisitsCount ?? 0,
-      color: [139, 92, 246],
+      label: 'Foreign Language',
+      count: doorData?.outcomeCounts.foreignLanguage ?? (doorData?.foreignLanguageCount ?? 0),
+      color: [6, 182, 212],
     },
-    { label: 'Do Not Call (DNC)', count: doorData?.doNotCallCount ?? 0, color: [225, 29, 72] },
+    {
+      label: 'Inaccessible / Gated',
+      count: doorData?.outcomeCounts.inaccessible ?? (doorData?.inaccessibleCount ?? 0),
+      color: [120, 113, 108],
+    },
+    {
+      label: 'Vacant / Unoccupied',
+      count: doorData?.outcomeCounts.vacant ?? (doorData?.vacantCount ?? 0),
+      color: [100, 116, 139],
+    },
+    {
+      label: 'Do Not Call (DNC)',
+      count: doorData?.outcomeCounts.doNotCall ?? (doorData?.doNotCallCount ?? 0),
+      color: [225, 29, 72],
+    },
   ];
 
-  outcomes.forEach((out, i) => {
+  outcomes.forEach((out) => {
     doc.setFillColor(255, 255, 255);
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.3);
-    doc.roundedRect(marginLeft, leftY, leftColWidth, 8, 1.5, 1.5, 'FD');
+    doc.roundedRect(marginLeft, leftY, leftColWidth, 6.8, 1.2, 1.2, 'FD');
 
     doc.setFillColor(out.color[0], out.color[1], out.color[2]);
-    doc.circle(marginLeft + 4, leftY + 4, 1.5, 'F');
+    doc.circle(marginLeft + 3.5, leftY + 3.4, 1.3, 'F');
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(51, 65, 85);
-    doc.text(out.label, marginLeft + 8, leftY + 5.2);
+    doc.text(out.label, marginLeft + 7, leftY + 4.5);
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text(`${out.count}`, marginLeft + leftColWidth - 4, leftY + 5.2, { align: 'right' });
+    doc.text(`${out.count}`, marginLeft + leftColWidth - 4, leftY + 4.5, { align: 'right' });
 
-    leftY += 9.5;
+    leftY += 7.8;
   });
 
   // Right Column: Recent Audit Log (width = 130mm)

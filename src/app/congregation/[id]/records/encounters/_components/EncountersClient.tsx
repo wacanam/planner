@@ -25,7 +25,12 @@ import type { Encounter } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  study_accepted:
+    'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
   neutral: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
+  foreign_language:
+    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
   not_interested:
     'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   hostile: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
@@ -89,6 +94,11 @@ export default function EncountersClient() {
         notes: values.notes || undefined,
         topicsDiscussed: values.topicsDiscussed || undefined,
         literatureOffered: values.literatureOffered || undefined,
+        returnVisitRequested: values.returnVisitRequested,
+        nextVisitDate: values.nextVisitDate || undefined,
+        nextVisitTime: values.nextVisitTime || undefined,
+        nextVisitNotes: values.nextVisitNotes || undefined,
+        bibleStudyInterest: values.bibleStudyInterest,
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
       });
@@ -113,6 +123,11 @@ export default function EncountersClient() {
         notes: values.notes || undefined,
         topicDiscussed: values.topicsDiscussed || undefined,
         literatureAccepted: values.literatureOffered || undefined,
+        returnVisitRequested: values.returnVisitRequested,
+        nextVisitDate: values.nextVisitDate || undefined,
+        nextVisitTime: values.nextVisitTime || undefined,
+        nextVisitNotes: values.nextVisitNotes || undefined,
+        bibleStudyInterest: values.bibleStudyInterest,
       });
       toast.success('Encounter updated');
       setEditEncounter(null);
@@ -176,11 +191,15 @@ export default function EncountersClient() {
           className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
         >
           <option value="all">All responses</option>
-          <option value="receptive">Receptive</option>
+          <option value="receptive">Receptive / Interested</option>
+          <option value="study_accepted">Bible Study Accepted</option>
           <option value="neutral">Neutral</option>
+          <option value="busy">Busy / Call Back</option>
+          <option value="foreign_language">Foreign Language</option>
           <option value="not_interested">Not Interested</option>
           <option value="hostile">Hostile</option>
           <option value="do_not_visit">Do Not Visit</option>
+          <option value="moved">Moved Out</option>
         </select>
       </div>
 
@@ -268,6 +287,33 @@ export default function EncountersClient() {
                     <p className="text-xs text-primary font-medium">
                       Literature: {e.literatureOffered || e.literatureAccepted}
                     </p>
+                  )}
+
+                  {/* Return Visit & Bible Study Indicators */}
+                  {(e.returnVisitRequested || e.bibleStudyInterest || e.nextVisitDate) && (
+                    <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
+                      {e.returnVisitRequested && (
+                        <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md border border-purple-200/60 dark:border-purple-800/40 text-[11px]">
+                          <span>📅 Next Visit Planned</span>
+                          {e.nextVisitDate && (
+                            <span className="font-normal text-purple-600 dark:text-purple-400">
+                              ({new Date(e.nextVisitDate).toLocaleDateString()}
+                              {e.nextVisitTime ? ` at ${e.nextVisitTime}` : ''})
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {e.bibleStudyInterest && (
+                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40 text-[11px]">
+                          📖 Bible Study Interest
+                        </span>
+                      )}
+                      {e.nextVisitNotes && (
+                        <p className="w-full text-xs text-muted-foreground italic">
+                          Next visit note: {e.nextVisitNotes}
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   {e.notes && (

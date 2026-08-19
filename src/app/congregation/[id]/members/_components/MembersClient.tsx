@@ -4,6 +4,7 @@ import {
   Calendar,
   Check,
   Clock,
+  Crown,
   FolderOpen,
   Search,
   Shield,
@@ -35,6 +36,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   useApproveAssignment,
+  useCongregationGroups,
   useCongregationJoinRequests,
   useCongregationMembers,
   useCurrentUser,
@@ -42,12 +44,12 @@ import {
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
-import { isServiceOverseer } from '@/lib/permissions';
+import { isServiceOverseer, isUserInGroup } from '@/lib/permissions';
 import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
 import { timeAgo } from '@/lib/time-ago';
 import type { Assignment } from '@/types/api';
 
-type Tab = 'members' | 'requests' | 'endorsements';
+type Tab = 'members' | 'my_group' | 'requests' | 'endorsements';
 
 export default function MembersClient() {
   const params = useParams();
@@ -57,6 +59,7 @@ export default function MembersClient() {
   const _isOverseer = isServiceOverseer(user.role);
 
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
+  const { groups = [] } = useCongregationGroups(congregationId);
   const { data: joinRequests = [], isLoading: requestsLoading } = useCongregationJoinRequests(
     congregationId,
     'pending'
@@ -69,7 +72,9 @@ export default function MembersClient() {
 
   const initialTab = (searchParams?.get('tab') as Tab) || 'members';
   const [tab, setTab] = useState<Tab>(
-    initialTab === 'endorsements' || initialTab === 'requests' ? initialTab : 'members'
+    initialTab === 'endorsements' || initialTab === 'requests' || initialTab === 'my_group'
+      ? initialTab
+      : 'members'
   );
   const [search, setSearch] = useState('');
   const [editMember, setEditMember] = useState<(typeof members)[0] | null>(null);
@@ -80,9 +85,29 @@ export default function MembersClient() {
   const [declineReason, setDeclineReason] = useState('');
   const [isSubmittingDecline, setIsSubmittingDecline] = useState(false);
 
+  // Current user's group
+  const myGroup = useMemo(() => {
+    return groups.find((g) => isUserInGroup(user, g) || g.id === user.groupId);
+  }, [groups, user]);
+
+  const myGroupMembers = useMemo(() => {
+    if (!myGroup) return [];
+    return members.filter(
+      (m) =>
+        (m.status === 'active' || !m.status) &&
+        (m.groupId === myGroup.id ||
+          myGroup.members?.some((gm) => gm.userId === m.userId || gm.id === m.userId))
+    );
+  }, [members, myGroup]);
+
   useEffect(() => {
     const tabParam = searchParams?.get('tab') as Tab;
-    if (tabParam === 'endorsements' || tabParam === 'requests' || tabParam === 'members') {
+    if (
+      tabParam === 'endorsements' ||
+      tabParam === 'requests' ||
+      tabParam === 'members' ||
+      tabParam === 'my_group'
+    ) {
       setTab(tabParam);
     }
   }, [searchParams]);
@@ -104,6 +129,14 @@ export default function MembersClient() {
       (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [activeMembers, search]);
+
+  const filteredGroupMembers = useMemo(() => {
+    if (!search.trim()) return myGroupMembers;
+    const q = search.toLowerCase();
+    return myGroupMembers.filter(
+      (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
+    );
+  }, [myGroupMembers, search]);
 
   const handleUpdateRole = async () => {
     if (!editMember) return;
@@ -168,48 +201,263 @@ export default function MembersClient() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 p-1 bg-muted/40 rounded-2xl w-fit border border-border">
-          <button
-            type="button"
-            onClick={() => setTab('members')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-              tab === 'members'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Users size={14} />
-            <span>Active Members ({activeMembers.length})</span>
-          </button>
+        <div className="w-full overflow-x-auto scrollbar-none pb-1">
+          <div className="inline-flex items-center gap-2 p-1 bg-muted/40 rounded-2xl border border-border min-w-max">
+            <button
+              type="button"
+              onClick={() => setTab('members')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'members'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users size={14} />
+              <span>Active Members ({activeMembers.length})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTab('requests')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-              tab === 'requests'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Clock size={14} />
-            <span>Join Requests ({joinRequests.length})</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setTab('my_group')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'my_group'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users size={14} />
+              <span>★ My Group ({myGroupMembers.length})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTab('endorsements')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-              tab === 'endorsements'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Shield size={14} />
-            <span>Endorsements ({endorsements.length})</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setTab('requests')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'requests'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Clock size={14} />
+              <span>Join Requests ({joinRequests.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTab('endorsements')}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'endorsements'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Shield size={14} />
+              <span>Endorsements ({endorsements.length})</span>
+            </button>
+          </div>
         </div>
 
         {/* Content */}
+        {tab === 'my_group' && (
+          <div className="space-y-4">
+            {!myGroup ? (
+              <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+                <Users size={36} className="text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-foreground">No Service Group Assigned</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  You are not currently assigned to a field service group. Contact your service overseer to be assigned.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* My Group Banner */}
+                <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-primary text-primary-foreground">
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-base text-foreground">{myGroup.name}</h2>
+                      <p className="text-xs text-muted-foreground">
+                        {myGroupMembers.length} publishers assigned to your service group
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Group Leadership Cards */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Group Leadership
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Overseer Card */}
+                    <Card className="bg-card border-amber-500/30 shadow-xs">
+                      <CardContent className="p-3.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                            <Crown size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                              Group Overseer
+                            </p>
+                            <p className="font-bold text-sm text-foreground truncate">
+                              {myGroup.overseerName || 'Unassigned'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] uppercase font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        >
+                          Overseer
+                        </Badge>
+                      </CardContent>
+                    </Card>
+
+                    {/* Assistant Overseer Card */}
+                    <Card className="bg-card border-blue-500/30 shadow-xs">
+                      <CardContent className="p-3.5 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                            <Shield size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                              Assistant Overseer
+                            </p>
+                            <p className="font-bold text-sm text-foreground truncate">
+                              {myGroup.assistantOverseerName || 'Unassigned'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] uppercase font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                        >
+                          Assistant
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Groupmates Directory */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Groupmates ({filteredGroupMembers.length})
+                    </h3>
+                    <div className="relative w-full sm:w-64">
+                      <Search
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <Input
+                        placeholder="Search groupmates…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="pl-8 h-9 rounded-xl text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {filteredGroupMembers.map((m) => {
+                      const isSelf = isCurrentSelf(m);
+                      const isOverseer = m.userId === myGroup.overseerId;
+                      const isAssistant = m.userId === myGroup.assistantOverseerId;
+
+                      return (
+                        <Card key={m.id} className="bg-card border-border shadow-xs">
+                          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar className="w-9 h-9 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                                {m.user?.avatarUrl && (
+                                  <AvatarImage
+                                    src={m.user.avatarUrl}
+                                    alt={m.user.name || 'Member'}
+                                    className="object-cover w-full h-full rounded-xl"
+                                  />
+                                )}
+                                <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                                  {(m.user?.name || m.user?.email || 'P')
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .toUpperCase()
+                                    .slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-bold text-sm text-foreground truncate">
+                                    {m.user?.name || m.user?.email || 'Publisher'}
+                                  </p>
+                                  {isSelf && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[9px] uppercase font-bold bg-primary/10 text-primary border-primary/20"
+                                    >
+                                      You
+                                    </Badge>
+                                  )}
+                                  {isOverseer && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] uppercase font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                                    >
+                                      👑 Overseer
+                                    </Badge>
+                                  )}
+                                  {isAssistant && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] uppercase font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                                    >
+                                      🛡️ Assistant
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {m.user?.email}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] uppercase font-semibold"
+                              >
+                                {m.congregationRole?.replace(/_/g, ' ') || 'PUBLISHER'}
+                              </Badge>
+                              {!isSelf && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 rounded-xl text-xs font-semibold"
+                                  onClick={() => {
+                                    setEditMember(m);
+                                    setSelectedRole(m.congregationRole || 'publisher');
+                                  }}
+                                >
+                                  Change Role
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'members' && (
           <div className="space-y-4">
             <div className="relative max-w-md">

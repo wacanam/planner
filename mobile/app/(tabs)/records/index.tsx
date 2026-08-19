@@ -128,13 +128,17 @@ export default function RecordsScreen() {
       case 'do_not_visit':
         return 'destructive';
       case 'return_visit':
+      case 'study_conducted':
+      case 'foreign_language':
         return 'primary';
       case 'active':
+      case 'answered':
         return 'success';
       case 'not_home':
+      case 'busy':
         return 'warning';
       default:
-        return 'muted';
+        return 'secondary';
     }
   };
 

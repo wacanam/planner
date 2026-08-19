@@ -25,7 +25,16 @@ import type { BoundaryDisplaySettings } from '@/types/api';
 
 export type BasemapMode = 'satellite' | 'street';
 
-export type HouseholdStatusFilter = 'all' | 'return_visit' | 'active' | 'not_home' | 'do_not_visit';
+export type HouseholdStatusFilter =
+  | 'all'
+  | 'return_visit'
+  | 'active'
+  | 'not_home'
+  | 'busy'
+  | 'foreign_language'
+  | 'vacant'
+  | 'inaccessible'
+  | 'do_not_visit';
 
 export interface StudioLayerSettings {
   showHouses: boolean;
@@ -91,6 +100,10 @@ const STATUS_FILTER_OPTIONS: Array<{
   { id: 'return_visit', label: 'Return Visits & Interested', dotColor: 'bg-blue-600' },
   { id: 'active', label: 'Active Doors', dotColor: 'bg-emerald-600' },
   { id: 'not_home', label: 'Not Home', dotColor: 'bg-amber-600' },
+  { id: 'busy', label: 'Busy / Call Back', dotColor: 'bg-orange-500' },
+  { id: 'foreign_language', label: 'Foreign Language', dotColor: 'bg-cyan-500' },
+  { id: 'vacant', label: 'Vacant / Unoccupied', dotColor: 'bg-slate-500' },
+  { id: 'inaccessible', label: 'Inaccessible / Gated', dotColor: 'bg-stone-500' },
   { id: 'do_not_visit', label: 'Do Not Visit / Call', dotColor: 'bg-rose-600' },
 ];
 

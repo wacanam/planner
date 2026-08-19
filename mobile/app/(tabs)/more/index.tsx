@@ -29,8 +29,9 @@ import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregation } from '@/hooks/useCongregations';
-import { canManageCongregation, canViewReports, isSystemAdmin } from '@/lib/permissions';
+import { canManageCongregation, canViewReports, isSystemAdmin, isUserInGroup } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function MoreMenuScreen() {
@@ -38,7 +39,12 @@ export default function MoreMenuScreen() {
   const insets = useSafeAreaInsets();
   const { user, activeCongregationId, logout } = useAuth();
   const { congregation } = useCongregation(activeCongregationId);
+  const { groups = [] } = useCongregationGroups(activeCongregationId);
   const { colors, typography, spacing, radius, isDark, toggleTheme } = useTheme();
+
+  const myGroup = React.useMemo(() => {
+    return groups.find((g) => isUserInGroup(user, g) || g.id === user?.groupId);
+  }, [groups, user]);
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out of Kanataran?', [
@@ -130,10 +136,13 @@ export default function MoreMenuScreen() {
               <Text style={[styles.userEmail, { color: colors.mutedForeground, fontSize: typography.xs }]}>
                 {user?.email}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                 <Badge label={user?.role || 'PUBLISHER'} variant="primary" size="sm" />
                 {user?.congregationRole && (
                   <Badge label={user.congregationRole} variant="secondary" size="sm" />
+                )}
+                {myGroup && (
+                  <Badge label={myGroup.name} variant="outline" size="sm" />
                 )}
               </View>
             </View>

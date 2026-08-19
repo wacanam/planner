@@ -3,6 +3,7 @@
 import {
   BarChart2,
   Calendar,
+  ChevronRight,
   Clock,
   Compass,
   Crown,
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   useCongregationGroups,
+  useCongregationMembers,
   useCongregationTerritories,
   useCurrentUser,
   useHouseholds,
@@ -35,6 +37,7 @@ import {
   canReturnAssignment,
   filterActiveAssignments,
   getUserGroupIds,
+  isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
@@ -49,10 +52,28 @@ export default function MyAssignmentsClient() {
   const { data: territories = [], isLoading: loadingTerritories } =
     useCongregationTerritories(congregationId);
   const { groups = [], isLoading: loadingGroups } = useCongregationGroups(congregationId);
+  const { data: members = [] } = useCongregationMembers(congregationId);
   const { households = [], isLoading: loadingHouseholds } = useHouseholds({ congregationId });
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmAssignment, setReturnConfirmAssignment] = useState<Assignment | null>(null);
+
+  // Find user's service group
+  const myGroup = useMemo(() => {
+    return groups.find((g) => isUserInGroup(user, g) || g.id === user.groupId);
+  }, [groups, user]);
+
+  const groupmateCount = useMemo(() => {
+    if (!myGroup) return 0;
+    const fromGroup = (myGroup.members || []).length;
+    const fromMembers = members.filter(
+      (m) =>
+        (m.status === 'active' || !m.status) &&
+        (m.groupId === myGroup.id ||
+          myGroup.members?.some((gm) => gm.userId === m.userId || gm.id === m.userId))
+    ).length;
+    return Math.max(fromGroup, fromMembers);
+  }, [members, myGroup]);
 
   const territoryMap = useMemo(() => {
     return new Map(territories.map((t) => [t.id, t]));
@@ -106,6 +127,46 @@ export default function MyAssignmentsClient() {
             Territory cards assigned to you directly or inherited through your service group
           </p>
         </div>
+
+        {/* My Service Group Banner */}
+        {myGroup && (
+          <Link
+            href={`/congregation/${congregationId}/groups`}
+            className="p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-primary/40 transition-all shadow-xs"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
+                <Users size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-sm sm:text-base text-foreground">{myGroup.name}</h2>
+                  <Badge variant="outline" className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20">
+                    {groupmateCount} Publishers
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span>
+                    Overseer: <strong className="text-foreground">{myGroup.overseerName || 'Unassigned'}</strong>
+                  </span>
+                  {myGroup.assistantOverseerName && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        Assistant: <strong className="text-foreground">{myGroup.assistantOverseerName}</strong>
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 text-xs font-semibold text-primary self-end sm:self-center">
+              <span>View Service Group</span>
+              <ChevronRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </Link>
+        )}
 
         {/* Active Assignments */}
         <div className="space-y-4">
@@ -168,7 +229,7 @@ export default function MyAssignmentsClient() {
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 flex-1">
                             <span className="font-extrabold text-sm text-primary shrink-0">#{number}</span>
-                            <h3 className="font-bold text-base text-foreground truncate mt-0.5 min-w-0" title={name}>
+                            <h3 className="font-bold text-base text-foreground line-clamp-2 mt-0.5 min-w-0 leading-snug break-words" title={name}>
                               {name}
                             </h3>
                             {terr?.city && (
@@ -276,6 +337,7 @@ export default function MyAssignmentsClient() {
                                 {assignedGroup?.overseerName
                                   ? ` (${assignedGroup.overseerName})`
                                   : ''}
+                                , Territory Servant, or Service Overseer
                               </span>
                             </p>
                           </div>

@@ -391,14 +391,14 @@ export default function TerritoriesClient() {
                 key={t.id}
                 className="bg-card border-border shadow-xs hover:border-primary/50 transition-all group flex flex-col justify-between min-w-0"
               >
-                <CardContent className="p-5 space-y-4 min-w-0">
+                <CardContent className="p-4 sm:p-5 space-y-4 min-w-0">
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-start gap-2 min-w-0">
                         <span className="font-extrabold text-sm text-primary shrink-0">#{t.number}</span>
-                        <h2 className="font-bold text-sm text-foreground truncate min-w-0" title={t.name}>{t.name}</h2>
+                        <h2 className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words" title={t.name}>{t.name}</h2>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate" title={t.city || 'Congregation Area'}>
+                      <p className="text-xs text-muted-foreground mt-1 truncate" title={t.city || 'Congregation Area'}>
                         {t.city || 'Congregation Area'}
                       </p>
                     </div>
@@ -454,75 +454,75 @@ export default function TerritoriesClient() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 pt-2 min-w-0">
+                  <div className="pt-2 border-t border-border/60 space-y-2 min-w-0">
                     <Button
                       asChild
                       size="sm"
-                      className="flex-1 rounded-xl text-xs font-semibold gap-1.5 shadow-sm min-w-0"
+                      className="w-full rounded-xl text-xs font-semibold gap-1.5 shadow-sm h-9"
                     >
-                      <Link href={`/congregation/${congregationId}/territories/${t.id}`} className="truncate min-w-0">
+                      <Link href={`/congregation/${congregationId}/territories/${t.id}`}>
                         <MapPin size={13} className="shrink-0" />
-                        <span className="truncate">Studio Map</span>
+                        <span>Map Studio</span>
                       </Link>
                     </Button>
 
                     {isServant && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl text-xs gap-1 hover:border-primary/50 hover:bg-primary/5 shrink-0"
-                        onClick={() => handleOpenEdit(t)}
-                        title="Edit territory details"
-                      >
-                        <Pencil size={12} className="shrink-0" />
-                        <span>Edit</span>
-                      </Button>
-                    )}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {t.status === 'available' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 rounded-xl text-xs gap-1 h-8 font-semibold bg-background hover:bg-muted min-w-0"
+                            onClick={() => {
+                              setAssignTerritory(t);
+                              setAssignType('publisher');
+                              setAssignUserId('');
+                              setAssignGroupId('');
+                            }}
+                          >
+                            <UserCheck size={13} className="shrink-0 text-primary" />
+                            <span className="truncate">Assign</span>
+                          </Button>
+                        ) : (t.status === 'assigned' || t.status === 'pending') ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 rounded-xl text-xs gap-1 h-8 text-muted-foreground hover:text-destructive hover:border-destructive/30 hover:bg-destructive/5 min-w-0"
+                            onClick={() => setRevokeConfirmTerritory(t)}
+                            title="Revoke assignment and make territory available"
+                          >
+                            <RotateCcw size={12} className="shrink-0" />
+                            <span className="truncate">Revoke</span>
+                          </Button>
+                        ) : null}
 
-                    {canDelete && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2.5 shrink-0"
-                        onClick={() => {
-                          setDeleteConfirmTerritory(t);
-                          setDeleteConfirmInput('');
-                        }}
-                        title="Permanently delete territory"
-                      >
-                        <Trash2 size={12} className="shrink-0" />
-                        <span className="sr-only sm:not-sr-only">Delete</span>
-                      </Button>
-                    )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs gap-1 h-8 px-3 hover:border-primary/50 hover:bg-primary/5 shrink-0"
+                          onClick={() => handleOpenEdit(t)}
+                          title="Edit territory details"
+                        >
+                          <Pencil size={12} className="shrink-0" />
+                          <span>Edit</span>
+                        </Button>
 
-                    {isServant && t.status === 'available' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl text-xs gap-1 shrink-0"
-                        onClick={() => {
-                          setAssignTerritory(t);
-                          setAssignType('publisher');
-                          setAssignUserId('');
-                          setAssignGroupId('');
-                        }}
-                      >
-                        <UserCheck size={13} className="shrink-0" />
-                        <span>Assign</span>
-                      </Button>
-                    )}
-
-                    {isServant && (t.status === 'assigned' || t.status === 'pending') && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="rounded-xl text-xs gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                        onClick={() => setRevokeConfirmTerritory(t)}
-                        title="Revoke assignment and make territory available"
-                      >
-                        <RotateCcw size={12} className="shrink-0" />
-                        <span>Revoke</span>
-                      </Button>
+                        {canDelete && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl text-xs h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                            onClick={() => {
+                              setDeleteConfirmTerritory(t);
+                              setDeleteConfirmInput('');
+                            }}
+                            title="Permanently delete territory"
+                          >
+                            <Trash2 size={13} className="shrink-0" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </CardContent>

@@ -1340,8 +1340,16 @@ export function StudioGoogleMap({
           return '#16A34A'; // Green
         case 'not_home':
           return '#D97706'; // Amber / Orange
+        case 'busy':
+          return '#F97316'; // Orange
         case 'return_visit':
           return '#2563EB'; // Vibrant Blue
+        case 'foreign_language':
+          return '#06B6D4'; // Cyan
+        case 'inaccessible':
+          return '#78716C'; // Stone
+        case 'vacant':
+          return '#64748B'; // Slate
         case 'do_not_visit':
           return '#DC2626'; // Crimson Red
         case 'moved':
@@ -1357,11 +1365,7 @@ export function StudioGoogleMap({
 
     const filteredHouseholds = households.filter((h) => {
       if (!layerSettings.householdFilter || layerSettings.householdFilter === 'all') return true;
-      if (layerSettings.householdFilter === 'return_visit') return h.status === 'return_visit';
-      if (layerSettings.householdFilter === 'active') return h.status === 'active';
-      if (layerSettings.householdFilter === 'not_home') return h.status === 'not_home';
-      if (layerSettings.householdFilter === 'do_not_visit') return h.status === 'do_not_visit';
-      return true;
+      return h.status === layerSettings.householdFilter;
     });
 
     filteredHouseholds.forEach((h) => {

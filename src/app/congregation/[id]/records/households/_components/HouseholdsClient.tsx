@@ -40,18 +40,28 @@ const statusLabels: Record<string, string> = {
   new: 'New Record',
   active: 'Active',
   not_home: 'Not Home',
+  busy: 'Busy / Call Back',
   return_visit: 'Return Visit',
+  foreign_language: 'Foreign Language',
+  vacant: 'Vacant / Unoccupied',
+  inaccessible: 'Inaccessible / Gated',
   do_not_visit: 'Do Not Visit',
   moved: 'Moved Away',
-  inactive: 'Inactive',
+  inactive: 'Inactive / Archived',
 };
 
 const statusColors: Record<string, string> = {
   new: 'text-muted-foreground border-border bg-muted/30',
   active: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
+  busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
   return_visit:
     'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+  foreign_language:
+    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
+  vacant: 'text-slate-700 border-slate-200 bg-slate-50 dark:bg-slate-950/40 dark:text-slate-400',
+  inaccessible:
+    'text-stone-700 border-stone-200 bg-stone-50 dark:bg-stone-950/40 dark:text-stone-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   inactive: 'text-muted-foreground border-border bg-muted/30',

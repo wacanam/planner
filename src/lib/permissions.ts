@@ -53,8 +53,8 @@ export function canManageCongregation(role?: string | null): boolean {
   return isServiceOverseer(role);
 }
 
-export function canManageGroups(role?: string | null): boolean {
-  return isServiceOverseer(role);
+export function canManageGroups(role?: string | null, congregationRole?: string | null): boolean {
+  return isServiceOverseer(role) || isServiceOverseer(congregationRole);
 }
 
 export function canApproveMembers(role?: string | null): boolean {
@@ -281,9 +281,8 @@ export function getUserGroupIds(
 }
 
 /**
- * Checks if a user is authorized to return an assignment:
- * - Personal assignment: The assigned user can return it.
- * - Group assignment: Only the Group Overseer (or Service Overseer / Territory Servant) can return it.
+ * Checks if a user is authorized to return an assigned territory:
+ * Only Group Overseers, Territory Servants, and Service Overseers (and Admins) can return assignments.
  */
 export function canReturnAssignment(
   user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
@@ -291,24 +290,17 @@ export function canReturnAssignment(
     | { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null }
     | null
     | undefined,
-  group?: { overseerId?: string | null; members?: { userId: string; role?: string }[] } | null
+  group?: { overseerId?: string | null; members?: { userId?: string | null; role?: string }[] } | null
 ): boolean {
   if (!user?.id || !assignment) return false;
 
-  // Service Overseers & Territory Servants can always return/revoke assignments
+  // Service Overseers & Territory Servants (and Admins) can always return/revoke assignments
   if (isTerritoryServant(user.role)) return true;
 
-  // Personal assignment
-  if (!assignment.serviceGroupId) {
-    const matchesId = Boolean(assignment.userId && user.id && assignment.userId === user.id);
-    const matchesEmail = Boolean(
-      assignment.assigneeEmail && user.email && assignment.assigneeEmail === user.email
-    );
-    return matchesId || matchesEmail;
-  }
+  // Group Overseer can return assignments for their service group
+  if (group && isGroupOverseer(user.id, group)) return true;
 
-  // Group assignment: ONLY the Group Overseer can return
-  return isGroupOverseer(user.id, group);
+  return false;
 }
 
 /**

@@ -75,6 +75,8 @@ export interface LocalEncounter extends FirestoreRecordMetadata {
   literatureAccepted: string | null;
   bibleStudyInterest: boolean;
   returnVisitRequested: boolean;
+  nextVisitDate?: string | null;
+  nextVisitTime?: string | null;
   nextVisitNotes: string | null;
   notes: string | null;
 }

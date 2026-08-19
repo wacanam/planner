@@ -112,6 +112,71 @@ export function useMyEncounters(filters?: {
   return useEncounterRecords(filters);
 }
 
+export function useTerritoryEncounters(territoryId: string | null) {
+  const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
+  const [households, setHouseholds] = useState<LocalHousehold[]>([]);
+  const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const handleError = (err: Error) => {
+      setError(err.message);
+      setIsLoading(false);
+    };
+    const unsubscribeEncounters = watchEncounters(
+      undefined,
+      (records) => {
+        setEncounters(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
+    const unsubscribeHouseholds = watchHouseholds(
+      territoryId ? { territoryId } : undefined,
+      (records) => {
+        setHouseholds(records);
+        setError(null);
+        setIsLoading(false);
+      },
+      handleError
+    );
+    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    return () => {
+      unsubscribeEncounters();
+      unsubscribeHouseholds();
+      unsubscribeVisits();
+    };
+  }, [territoryId]);
+
+  const householdMap = useMemo(
+    () => new Map(households.map((household) => [household.id, household] as const)),
+    [households]
+  );
+  const visitMap = useMemo(
+    () => new Map(visits.map((visit) => [visit.id, visit] as const)),
+    [visits]
+  );
+
+  const mappedEncounters = useMemo(() => {
+    return sortEncounters(
+      encounters
+        .filter((e) => e.householdId && householdMap.has(e.householdId))
+        .map((encounter) =>
+          toEncounterView(
+            encounter,
+            encounter.householdId ? householdMap.get(encounter.householdId) : null,
+            encounter.visitId ? visitMap.get(encounter.visitId) : null
+          )
+        )
+    );
+  }, [encounters, householdMap, visitMap]);
+
+  return { encounters: mappedEncounters, households, isLoading, error };
+}
+
 export function useAddEncounter() {
   const addEncounter = async (data: Record<string, unknown>, visitId?: string | null) => {
     const encounter = await createEncounter({

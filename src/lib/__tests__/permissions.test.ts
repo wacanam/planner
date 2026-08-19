@@ -133,22 +133,23 @@ describe('Group Roles and Territory Return Permissions', () => {
     expect(isGroupOverseerAssistant('user-publisher', group)).toBe(false);
   });
 
-  it('allows assignee to return personal assignment', () => {
+  it('only allows Group Overseer, Territory Servant, and Service Overseer to return assigned territory', () => {
     const personalAssignment = {
       userId: 'user-publisher',
       serviceGroupId: null,
     };
-    expect(canReturnAssignment({ id: 'user-publisher', role: 'USER' }, personalAssignment)).toBe(
-      true
-    );
-    expect(canReturnAssignment({ id: 'user-other', role: 'USER' }, personalAssignment)).toBe(false);
-  });
-
-  it('only allows Group Overseer (or Service Overseer/Servant) to return group assigned territory', () => {
     const groupAssignment = {
       userId: null,
       serviceGroupId: 'g-1',
     };
+
+    // Regular publisher CANNOT return personal or group assignments
+    expect(canReturnAssignment({ id: 'user-publisher', role: 'USER' }, personalAssignment)).toBe(
+      false
+    );
+    expect(
+      canReturnAssignment({ id: 'user-publisher', role: 'USER' }, groupAssignment, group)
+    ).toBe(false);
 
     // Group Overseer CAN return
     expect(canReturnAssignment({ id: 'user-overseer', role: 'USER' }, groupAssignment, group)).toBe(
@@ -160,12 +161,13 @@ describe('Group Roles and Territory Return Permissions', () => {
       canReturnAssignment({ id: 'user-assistant', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
 
-    // Regular Publisher in group CANNOT return
-    expect(
-      canReturnAssignment({ id: 'user-publisher', role: 'USER' }, groupAssignment, group)
-    ).toBe(false);
-
     // Service Overseer / Territory Servant CAN return
+    expect(
+      canReturnAssignment({ id: 'user-so', role: 'SERVICE_OVERSEER' }, personalAssignment)
+    ).toBe(true);
+    expect(
+      canReturnAssignment({ id: 'user-ts', role: 'TERRITORY_SERVANT' }, personalAssignment)
+    ).toBe(true);
     expect(
       canReturnAssignment({ id: 'user-so', role: 'SERVICE_OVERSEER' }, groupAssignment, group)
     ).toBe(true);

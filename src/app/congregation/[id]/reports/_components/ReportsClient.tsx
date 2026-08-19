@@ -5,6 +5,8 @@ import {
   AlertTriangle,
   ArrowUpDown,
   BarChart2,
+  BookOpen,
+  Building,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -15,11 +17,14 @@ import {
   FileText,
   Filter,
   FolderOpen,
+  Globe,
   HelpCircle,
   Home,
   Layers,
+  Lock,
   MapPin,
   PieChart,
+  PhoneCall,
   Printer,
   RefreshCw,
   Search,
@@ -145,17 +150,18 @@ export default function ReportsClient() {
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-28 lg:pb-12 w-full min-w-0">
         {/* Header Title & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">
                 Congregation Reports & Analytics
               </h1>
               <Badge
                 variant="outline"
-                className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/20"
+                className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200 shrink-0 whitespace-nowrap gap-1.5 py-0.5 px-2"
               >
-                Live Data
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Live Data</span>
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -390,86 +396,88 @@ export default function ReportsClient() {
         </div>
 
         {/* Tab Navigation Menu */}
-        <div className="flex flex-wrap gap-1.5 p-1 bg-muted/40 rounded-2xl w-fit border border-border">
-          <button
-            type="button"
-            onClick={() => {
-              setTab('overview');
-              setSearchQuery('');
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === 'overview'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <BarChart2 size={14} />
-            <span>Executive Overview</span>
-          </button>
+        <div className="w-full overflow-x-auto scrollbar-none pb-1">
+          <div className="inline-flex items-center gap-1.5 p-1 bg-muted/40 rounded-2xl border border-border min-w-max">
+            <button
+              type="button"
+              onClick={() => {
+                setTab('overview');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'overview'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BarChart2 size={14} />
+              <span>Executive Overview</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setTab('s13');
-              setSearchQuery('');
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === 's13'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <FileSpreadsheet size={14} />
-            <span>S-13 Territory Record</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('s13');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 's13'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FileSpreadsheet size={14} />
+              <span>S-13 Territory Record</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setTab('groups-publishers');
-              setSearchQuery('');
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === 'groups-publishers'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Users size={14} />
-            <span>Groups & Publishers</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('groups-publishers');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'groups-publishers'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users size={14} />
+              <span>Groups & Publishers</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setTab('doors');
-              setSearchQuery('');
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === 'doors'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Home size={14} />
-            <span>Door Demographics</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('doors');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'doors'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Home size={14} />
+              <span>Door Demographics</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setTab('activity');
-              setSearchQuery('');
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              tab === 'activity'
-                ? 'bg-card text-primary shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Activity size={14} />
-            <span>Audit Timeline</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTab('activity');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'activity'
+                  ? 'bg-card text-primary shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Activity size={14} />
+              <span>Audit Timeline</span>
+            </button>
+          </div>
         </div>
 
         {/* ───────────────────────────────────────────────────────────────────────── */}
@@ -1087,11 +1095,11 @@ export default function ReportsClient() {
                   <CardTitle className="text-base font-bold">Visit Outcomes Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 text-xs">
+                  {/* Contacted & Discussed */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp;
-                        Discussed
+                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp; Discussed
                       </span>
                       <span>{doorData?.outcomeCounts.contacted ?? 0}</span>
                     </div>
@@ -1105,6 +1113,43 @@ export default function ReportsClient() {
                     </div>
                   </div>
 
+                  {/* Bible Study Conducted */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen size={13} className="text-purple-500" /> Bible Study Conducted
+                      </span>
+                      <span>{doorData?.outcomeCounts.studyConducted ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.studyConducted ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Return Visits Made */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <RefreshCw size={13} className="text-indigo-500" /> Return Visits Made
+                      </span>
+                      <span>{doorData?.outcomeCounts.returnVisit ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.returnVisit ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Not Home */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">
@@ -1122,6 +1167,25 @@ export default function ReportsClient() {
                     </div>
                   </div>
 
+                  {/* Busy / Call Back */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <PhoneCall size={13} className="text-orange-500" /> Busy / Call Back
+                      </span>
+                      <span>{doorData?.outcomeCounts.busy ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-orange-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.busy ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Literature Placed */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">
@@ -1139,6 +1203,79 @@ export default function ReportsClient() {
                     </div>
                   </div>
 
+                  {/* Foreign Language */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Globe size={13} className="text-cyan-500" /> Foreign Language Contact
+                      </span>
+                      <span>{doorData?.outcomeCounts.foreignLanguage ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-cyan-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.foreignLanguage ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Minor / Youth Only */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Users size={13} className="text-violet-400" /> Minor / Youth Only
+                      </span>
+                      <span>{doorData?.outcomeCounts.minorOnly ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-400 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.minorOnly ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Inaccessible / Gated */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Lock size={13} className="text-stone-500" /> Inaccessible / Gated / Dog
+                      </span>
+                      <span>{doorData?.outcomeCounts.inaccessible ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-stone-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.inaccessible ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Vacant / Unoccupied */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Building size={13} className="text-slate-500" /> Vacant / Unoccupied
+                      </span>
+                      <span>{doorData?.outcomeCounts.vacant ?? 0}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-slate-500 rounded-full"
+                        style={{
+                          width: `${((doorData?.outcomeCounts.vacant ?? 0) / Math.max(1, doorData?.workedDoors ?? 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Do Not Call (DNC) */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1.5">

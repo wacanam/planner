@@ -48,8 +48,8 @@ export function canManageCongregation(role?: string | null): boolean {
   return isServiceOverseer(role);
 }
 
-export function canManageGroups(role?: string | null): boolean {
-  return isServiceOverseer(role);
+export function canManageGroups(role?: string | null, congregationRole?: string | null): boolean {
+  return isServiceOverseer(role) || isServiceOverseer(congregationRole);
 }
 
 export function canApproveMembers(role?: string | null): boolean {

@@ -80,7 +80,13 @@ export function useCreateGroup(congregationId: string) {
   const [isCreating, setIsCreating] = useState(false);
 
   const create = useCallback(
-    async (name: string, overseerId?: string | null, overseerName?: string | null) => {
+    async (
+      name: string,
+      overseerId?: string | null,
+      overseerName?: string | null,
+      assistantOverseerId?: string | null,
+      assistantOverseerName?: string | null
+    ) => {
       setIsCreating(true);
       try {
         const now = nowIso();
@@ -91,8 +97,8 @@ export function useCreateGroup(congregationId: string) {
           name: name.trim(),
           overseerId: overseerId || null,
           overseerName: overseerName || null,
-          assistantOverseerId: null,
-          assistantOverseerName: null,
+          assistantOverseerId: assistantOverseerId || null,
+          assistantOverseerName: assistantOverseerName || null,
           createdAt: now,
           members: [],
         };
@@ -106,6 +112,37 @@ export function useCreateGroup(congregationId: string) {
   );
 
   return { create, isCreating };
+}
+
+export function useUpdateGroup() {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const update = useCallback(
+    async (
+      id: string,
+      updates: {
+        name?: string;
+        overseerId?: string | null;
+        overseerName?: string | null;
+        assistantOverseerId?: string | null;
+        assistantOverseerName?: string | null;
+      }
+    ) => {
+      setIsUpdating(true);
+      try {
+        const payload: Record<string, unknown> = {
+          ...updates,
+          updatedAt: nowIso(),
+        };
+        await updateDoc(groupDocument(id), payload);
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    []
+  );
+
+  return { update, isUpdating };
 }
 
 export function useDeleteGroup() {
