@@ -264,7 +264,7 @@ export default function HouseholdsClient() {
                 key={h.id}
                 className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
               >
-                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
@@ -360,89 +360,96 @@ export default function HouseholdsClient() {
                     </div>
                   </div>
 
-                  {/* Actions (Permitted by role & ownership) */}
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                    {(!h.latitude || !h.longitude) && canEdit && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 text-xs px-2.5 gap-1 bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl font-bold border border-amber-300 dark:border-amber-900"
-                        onClick={() => {
-                          const targetTerritoryId = h.territoryId || territories[0]?.id;
-                          if (targetTerritoryId && congregationId) {
-                            router.push(
-                              `/congregation/${congregationId}/territories/${targetTerritoryId}?pinHouseholdId=${h.id}`
-                            );
-                          } else if (congregationId) {
-                            router.push(
-                              `/congregation/${congregationId}/territories?pinHouseholdId=${h.id}`
-                            );
-                          }
-                        }}
-                        title="Pin coordinates on map"
-                      >
-                        <MapPin size={13} />
-                        <span>Pin on Map</span>
-                      </Button>
-                    )}
+                  {/* Bottom Action Bar: Management icons on left, Primary actions on right */}
+                  <div className="pt-3 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap w-full">
+                    {/* Management / Record actions */}
+                    <div className="flex items-center gap-1">
+                      {(!h.latitude || !h.longitude) && canEdit && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 text-xs px-2.5 gap-1 bg-amber-100 hover:bg-amber-200 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 rounded-xl font-bold border border-amber-300 dark:border-amber-900"
+                          onClick={() => {
+                            const targetTerritoryId = h.territoryId || territories[0]?.id;
+                            if (targetTerritoryId && congregationId) {
+                              router.push(
+                                `/congregation/${congregationId}/territories/${targetTerritoryId}?pinHouseholdId=${h.id}`
+                              );
+                            } else if (congregationId) {
+                              router.push(
+                                `/congregation/${congregationId}/territories?pinHouseholdId=${h.id}`
+                              );
+                            }
+                          }}
+                          title="Pin coordinates on map"
+                        >
+                          <MapPin size={13} />
+                          <span>Pin on Map</span>
+                        </Button>
+                      )}
 
-                    {canShare && (
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => setEditHousehold(h)}
+                          title="Edit household"
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      )}
+
+                      {canShare && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShareHousehold(h)}
+                          title="Share or transfer record"
+                        >
+                          <Share2 size={14} />
+                        </Button>
+                      )}
+
+                      {canDelete && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteConfirmId(h.id)}
+                          title="Delete record"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Primary actions: View and Log Visit */}
+                    <div className="flex items-center gap-2 ml-auto">
                       <Button
+                        asChild
                         size="sm"
                         variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0"
-                        onClick={() => setShareHousehold(h)}
-                        title="Share or transfer record"
-                      >
-                        <Share2 size={14} />
-                      </Button>
-                    )}
-
-                    {canEdit && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0"
-                        onClick={() => setEditHousehold(h)}
-                        title="Edit household"
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                    )}
-
-                    <Button
-                      asChild
-                      size="sm"
-                      variant="ghost"
-                      className="rounded-xl text-xs h-8 font-semibold"
-                    >
-                      <Link href={`/congregation/${congregationId}/records/households/${h.id}`}>
-                        View
-                      </Link>
-                    </Button>
-
-                    {canLog && (
-                      <Button
-                        size="sm"
-                        variant="outline"
                         className="rounded-xl text-xs h-8 font-semibold"
-                        onClick={() => setLogVisitHousehold(h)}
                       >
-                        Log Visit
+                        <Link href={`/congregation/${congregationId}/records/households/${h.id}`}>
+                          View
+                        </Link>
                       </Button>
-                    )}
 
-                    {canDelete && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteConfirmId(h.id)}
-                        title="Delete record"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    )}
+                      {canLog && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs h-8 font-semibold gap-1.5"
+                          onClick={() => setLogVisitHousehold(h)}
+                        >
+                          <Plus size={13} />
+                          <span>Log Visit</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

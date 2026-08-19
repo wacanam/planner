@@ -275,7 +275,7 @@ export default function VisitsClient() {
                 key={v.id}
                 className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
               >
-                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
                   <div className="min-w-0 flex-1 space-y-1.5">
                     {/* Household Details */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -392,45 +392,51 @@ export default function VisitsClient() {
                     )}
                   </div>
 
-                  {/* Actions: Add Encounter, Edit & Delete */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {(canLogVisitOrEncounter(user, household) || v.userId === user?.id) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
-                        onClick={() => setAddEncounterVisit(v)}
-                        title="Record person met during this visit"
-                      >
-                        <UserPlus size={13} />
-                        <span>+ Person Met</span>
-                      </Button>
-                    )}
+                  {/* Bottom Action Bar: Management icons on left, Primary actions on right */}
+                  <div className="pt-3 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap w-full">
+                    {/* Management / Record actions */}
+                    <div className="flex items-center gap-1">
+                      {canEditVisit(user, v, household) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => setEditVisit(v)}
+                          title="Edit visit record"
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      )}
 
-                    {canEditVisit(user, v, household) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                        onClick={() => setEditVisit(v)}
-                        title="Edit visit record"
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                    )}
+                      {canDeleteVisit(user, v, household) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteConfirmId(v.id)}
+                          disabled={deletingId === v.id}
+                          title="Delete visit record"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
+                    </div>
 
-                    {canDeleteVisit(user, v, household) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteConfirmId(v.id)}
-                        disabled={deletingId === v.id}
-                        title="Delete visit record"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    )}
+                    {/* Primary actions: Add Person Met */}
+                    <div className="flex items-center gap-2 ml-auto">
+                      {(canLogVisitOrEncounter(user, household) || v.userId === user?.id) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
+                          onClick={() => setAddEncounterVisit(v)}
+                          title="Record person met during this visit"
+                        >
+                          <UserPlus size={13} />
+                          <span>+ Person Met</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
