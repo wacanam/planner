@@ -838,9 +838,16 @@ export default function EncountersClient() {
                   name: presetContact.name,
                   gender: presetContact.gender,
                   ageGroup: presetContact.ageGroup,
+                  role: presetContact.role,
                   language: presetContact.language,
+                  phoneNumber: presetContact.phoneNumber,
+                  email: presetContact.email,
+                  bestTimeToCall: presetContact.bestTimeToCall,
+                  locationDescription: presetContact.locationDescription,
                   householdId: presetContact.latestEncounter?.householdId || null,
                   bibleStudyInterest: presetContact.bibleStudyInterest,
+                  bibleStudyPublication: presetContact.bibleStudyPublication,
+                  bibleStudyLesson: presetContact.bibleStudyLesson,
                 }
               : undefined
           }
