@@ -211,7 +211,9 @@ export function ContactAutocompleteInput({
                 const visitCount =
                   'encountersCount' in contact ? contact.encountersCount : undefined;
                 const creator =
-                  'creatorName' in contact && contact.creatorName ? contact.creatorName : undefined;
+                  ('creatorName' in contact && contact.creatorName) ||
+                  ('latestEncounter' in contact && contact.latestEncounter?.publisherName) ||
+                  undefined;
 
                 return (
                   <button
@@ -233,7 +235,7 @@ export function ContactAutocompleteInput({
                         <span className="truncate block font-semibold text-foreground">
                           {contact.name}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate">
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
                           {contact.gender && contact.gender !== 'unknown' && (
                             <span className="capitalize">{contact.gender}</span>
                           )}
@@ -242,13 +244,20 @@ export function ContactAutocompleteInput({
                           )}
                           {contact.language && <span>· {contact.language}</span>}
                           {creator &&
+                          'matchScope' in contact &&
+                          (contact.matchScope === 'territory' ||
+                            contact.matchScope === 'congregation') ? (
+                            <span className="text-primary font-semibold">
+                              · First met by {creator}
+                            </span>
+                          ) : contact.householdAddress &&
                             'matchScope' in contact &&
                             (contact.matchScope === 'territory' ||
-                              contact.matchScope === 'congregation') && (
-                              <span className="text-primary/90 font-medium">
-                                · First by {creator}
-                              </span>
-                            )}
+                              contact.matchScope === 'congregation') ? (
+                            <span className="text-muted-foreground font-medium">
+                              · At {contact.householdAddress}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>

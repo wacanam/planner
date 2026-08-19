@@ -122,6 +122,8 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
             status: 'active',
             bibleStudyInterest: Boolean(data.bibleStudyInterest),
             createdById: (data.userId as string | null | undefined) ?? null,
+            creatorName:
+              ((data.publisherName ?? data.creatorName) as string | null | undefined) ?? null,
           });
           contactId = newContact.id;
         }
@@ -136,6 +138,7 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
 
   const encounter = await createEncounter({
     userId: (data.userId as string | null | undefined) ?? null,
+    publisherName: ((data.publisherName ?? data.creatorName) as string | null | undefined) ?? null,
     visitId: (data.visitId as string | null | undefined) ?? null,
     householdId,
     contactId,

@@ -367,6 +367,7 @@ export function HouseholdLogVisitSheet({
           notes: data.notes || undefined,
           visitDate: new Date().toISOString(),
           userId: user?.id || null,
+          publisherName: user?.name || null,
         });
       }
 
@@ -872,6 +873,7 @@ export function HouseholdEncounterSheet({
         bibleStudyInterest: values.bibleStudyInterest,
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
+        publisherName: user?.name || null,
       });
       onSaved?.();
       onOpenChange(false);

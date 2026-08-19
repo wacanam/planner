@@ -566,6 +566,7 @@ export interface CreateContactInput {
   bibleStudyInterest?: boolean;
   notes?: string | null;
   createdById?: string | null;
+  creatorName?: string | null;
 }
 
 export interface UpdateContactInput {

@@ -102,6 +102,7 @@ export default function EncountersClient() {
         bibleStudyInterest: values.bibleStudyInterest,
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
+        publisherName: user?.name || null,
       });
       toast.success(`Encounter with ${values.name} recorded`);
       setAddDialogOpen(false);

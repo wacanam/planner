@@ -22,6 +22,7 @@ import { getAllVisits } from './visits';
 
 export interface CreateEncounterInput {
   userId?: string | null;
+  publisherName?: string | null;
   visitId?: string | null;
   householdId?: string | null;
   contactId?: string | null;
@@ -30,12 +31,12 @@ export interface CreateEncounterInput {
   gender?: string | null;
   ageGroup?: string | null;
   role?: string | null;
-  response: string;
+  response: Encounter['response'];
   languageSpoken?: string | null;
   topicDiscussed?: string | null;
   literatureAccepted?: string | null;
-  bibleStudyInterest?: boolean | null;
-  returnVisitRequested?: boolean | null;
+  bibleStudyInterest?: boolean;
+  returnVisitRequested?: boolean;
   nextVisitDate?: string | null;
   nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
@@ -62,23 +63,40 @@ function encounterFromSnapshot(snapshot: QueryDocumentSnapshot): LocalEncounter 
   return snapshot.data() as LocalEncounter;
 }
 
-export function filterEncounter(record: LocalEncounter, filters?: EncounterFilters) {
+export interface EncounterFilters {
+  visitId?: string | null;
+  householdId?: string | null;
+  userId?: string | null;
+  userRole?: string | null;
+  groupMateUserIds?: string[] | Set<string> | null;
+}
+
+export function filterEncounter(
+  record: LocalEncounter,
+  filters?: EncounterFilters
+): boolean {
   if (record.deletedAt) return false;
-  if (filters?.visitId && record.visitId !== filters.visitId) return false;
-  if (filters?.householdId && record.householdId !== filters.householdId) return false;
-  if (filters?.userId && !isTerritoryServant(filters.userRole)) {
-    const isOwn = record.userId === filters.userId;
-    const isGroupMate = Boolean(
+  if (!filters) return true;
+  if (filters.visitId && record.visitId !== filters.visitId) return false;
+  if (filters.householdId && record.householdId !== filters.householdId) return false;
+  if (
+    filters.userId &&
+    !isTerritoryServant(filters.userRole) &&
+    record.userId !== filters.userId &&
+    !Boolean(
       filters.groupMateUserIds &&
         record.userId &&
         (filters.groupMateUserIds instanceof Set
           ? filters.groupMateUserIds.has(record.userId)
           : filters.groupMateUserIds.includes(record.userId))
-    );
-    if (!isOwn && !isGroupMate) return false;
+    )
+  ) {
+    return false;
   }
   return true;
 }
+
+export const matchesEncounterFilters = filterEncounter;
 
 export function toEncounterView(
   record: LocalEncounter,
@@ -90,6 +108,7 @@ export function toEncounterView(
     visitId: record.visitId,
     householdId: record.householdId,
     userId: record.userId ?? '',
+    publisherName: record.publisherName ?? household?.creatorName ?? null,
     name: record.name,
     gender: record.gender,
     ageGroup: record.ageGroup,
@@ -126,6 +145,7 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
     id: existingId ?? encounter.id,
     serverId: encounter.id,
     userId: encounter.userId ?? null,
+    publisherName: encounter.publisherName ?? null,
     visitId: encounter.visitId,
     visitServerId: encounter.visitId,
     householdId: encounter.householdId,
@@ -164,6 +184,7 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     id: createClientId(),
     serverId: null,
     userId: nullableString(input.userId),
+    publisherName: nullableString(input.publisherName) ?? household?.creatorName ?? null,
     visitId: nullableString(input.visitId),
     visitServerId: visit?.serverId ?? null,
     householdId,

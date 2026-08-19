@@ -191,6 +191,7 @@ export default function VisitsClient() {
         bibleStudyInterest: values.bibleStudyInterest,
         visitDate: addEncounterVisit.visitDate || new Date().toISOString(),
         userId: user?.id || null,
+        publisherName: user?.name || null,
       });
       toast.success(`Encounter with ${values.name} added to visit`);
       setAddEncounterVisit(null);

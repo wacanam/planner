@@ -41,6 +41,7 @@ export interface LocalHousehold extends FirestoreRecordMetadata {
 
 export interface LocalVisit extends FirestoreRecordMetadata {
   userId: string | null;
+  publisherName?: string | null;
   householdId: string;
   householdServerId: string | null;
   visitDate: string;
@@ -73,11 +74,13 @@ export interface LocalContact extends FirestoreRecordMetadata {
   bibleStudyInterest: boolean;
   notes: string | null;
   createdById: string | null;
+  creatorName?: string | null;
   updatedById: string | null;
 }
 
 export interface LocalEncounter extends FirestoreRecordMetadata {
   userId: string | null;
+  publisherName?: string | null;
   visitId: string | null;
   visitServerId: string | null;
   householdId: string | null;
