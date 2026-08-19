@@ -44,6 +44,8 @@ interface LogVisitSheetProps {
   onOpenChange: (open: boolean) => void;
   household: Household | null;
   assignmentId?: string | null;
+  initialOutcome?: LogVisitFormData['outcome'];
+  initialContact?: Partial<Encounter> | null;
   onSaved?: () => void;
 }
 
@@ -52,6 +54,8 @@ export function HouseholdLogVisitSheet({
   onOpenChange,
   household,
   assignmentId,
+  initialOutcome,
+  initialContact,
   onSaved,
 }: LogVisitSheetProps) {
   const { user } = useCurrentUser();
@@ -87,7 +91,7 @@ export function HouseholdLogVisitSheet({
     defaultValues: {
       householdId: household?.id ?? '',
       assignmentId: assignmentId ?? undefined,
-      outcome: 'answered',
+      outcome: initialOutcome || 'answered',
       notes: '',
       literaturePlaced: '',
       returnVisitDate: undefined,
@@ -95,19 +99,51 @@ export function HouseholdLogVisitSheet({
     },
   });
 
+  // Automatically sync initial values when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    if (initialOutcome) {
+      form.setValue('outcome', initialOutcome);
+      if (initialOutcome === 'return_visit' || initialOutcome === 'study_conducted') {
+        form.setValue('status', 'return_visit');
+        form.setValue('returnVisitPlanned', true);
+        setRecordEncounter(true);
+        setEncounterReturnVisitRequested(true);
+      }
+    }
+    if (initialContact) {
+      setRecordEncounter(true);
+      if (initialContact.name) setEncounterName(initialContact.name);
+      if (initialContact.gender) setEncounterGender(initialContact.gender as any);
+      if (initialContact.ageGroup) setEncounterAgeGroup(initialContact.ageGroup as any);
+      if (initialContact.language || (initialContact as any).languageSpoken) {
+        setEncounterLanguage(
+          initialContact.language || (initialContact as any).languageSpoken || ''
+        );
+      }
+      if (initialContact.topicsDiscussed || (initialContact as any).topicDiscussed) {
+        setEncounterTopic(
+          initialContact.topicsDiscussed || (initialContact as any).topicDiscussed || ''
+        );
+      }
+      if (initialContact.bibleStudyInterest) {
+        setEncounterBibleStudyInterest(true);
+      }
+    }
+  }, [open, initialOutcome, initialContact, form]);
+
   // Automatically suggest enabling encounter recording if outcome is conversation-oriented
   const outcome = form.watch('outcome');
   useEffect(() => {
     if (outcome === 'answered' || outcome === 'return_visit' || outcome === 'study_conducted') {
-      // Keep user preference or default to true if contacts exist
-      if (knownContacts.length > 0) {
+      if (knownContacts.length > 0 || initialContact) {
         setRecordEncounter(true);
       }
       if (outcome === 'return_visit' || outcome === 'study_conducted') {
         setEncounterReturnVisitRequested(true);
       }
     }
-  }, [outcome, knownContacts.length]);
+  }, [outcome, knownContacts.length, initialContact]);
 
   const handleSelectContact = (contact: HouseholdContactSummary) => {
     setSelectedContact(contact);

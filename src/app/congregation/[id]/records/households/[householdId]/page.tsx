@@ -82,6 +82,7 @@ export default function HouseholdDetailPage() {
 
   // Dialog states
   const [logVisitOpen, setLogVisitOpen] = useState(false);
+  const [initialLogVisitOutcome, setInitialLogVisitOutcome] = useState<string | undefined>();
   const [encounterOpen, setEncounterOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [initialEncounterValues, setInitialEncounterValues] = useState<
@@ -139,6 +140,7 @@ export default function HouseholdDetailPage() {
   };
 
   const handleStartFollowUp = (contact: HouseholdContactSummary) => {
+    setInitialLogVisitOutcome('return_visit');
     setInitialEncounterValues({
       householdId: householdView?.id,
       name: contact.name,
@@ -148,7 +150,13 @@ export default function HouseholdDetailPage() {
       topicsDiscussed: contact.nextVisitPlannedTopic || undefined,
       bibleStudyInterest: contact.bibleStudyInterest,
     });
-    setEncounterOpen(true);
+    setLogVisitOpen(true);
+  };
+
+  const handleOpenGeneralLogVisit = () => {
+    setInitialLogVisitOutcome(undefined);
+    setInitialEncounterValues(undefined);
+    setLogVisitOpen(true);
   };
 
   const handleOpenGeneralEncounter = () => {
@@ -192,7 +200,7 @@ export default function HouseholdDetailPage() {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => setLogVisitOpen(true)}
+                  onClick={handleOpenGeneralLogVisit}
                   className="h-8 rounded-xl text-xs font-semibold gap-1.5"
                 >
                   <Clock size={13} />
@@ -578,6 +586,8 @@ export default function HouseholdDetailPage() {
             open={logVisitOpen}
             onOpenChange={setLogVisitOpen}
             household={householdView}
+            initialOutcome={initialLogVisitOutcome as any}
+            initialContact={initialEncounterValues}
             onSaved={reload}
           />
 
