@@ -102,48 +102,141 @@ export function HouseholdLogVisitSheet({
   // Automatically sync initial values when dialog opens
   useEffect(() => {
     if (!open) return;
-    if (initialOutcome) {
-      form.setValue('outcome', initialOutcome);
-      if (initialOutcome === 'return_visit' || initialOutcome === 'study_conducted') {
-        form.setValue('status', 'return_visit');
+    const defaultOutcome = initialOutcome || 'answered';
+    const defaultStatus =
+      defaultOutcome === 'return_visit' || defaultOutcome === 'study_conducted'
+        ? 'return_visit'
+        : defaultOutcome === 'not_home'
+          ? 'not_home'
+          : defaultOutcome === 'busy'
+            ? 'busy'
+            : (household?.status as LogVisitFormData['status']) || 'active';
+
+    form.reset({
+      householdId: household?.id ?? '',
+      assignmentId: assignmentId ?? undefined,
+      outcome: defaultOutcome,
+      notes: '',
+      literaturePlaced: '',
+      returnVisitDate: undefined,
+      status: defaultStatus,
+    });
+
+    const isConversation =
+      defaultOutcome === 'answered' ||
+      defaultOutcome === 'return_visit' ||
+      defaultOutcome === 'study_conducted';
+
+    setRecordEncounter(Boolean(initialContact || (isConversation && knownContacts.length > 0)));
+    setEncounterReturnVisitRequested(
+      defaultOutcome === 'return_visit' || defaultOutcome === 'study_conducted'
+    );
+    setEncounterNextVisitDate('');
+    setEncounterNextVisitTime('');
+    setEncounterNextVisitNotes('');
+    setEncounterTopic('');
+    setEncounterLiterature('');
+
+    if (initialContact) {
+      setEncounterName(initialContact.name || '');
+      setEncounterGender((initialContact.gender as any) || 'unknown');
+      setEncounterAgeGroup((initialContact.ageGroup as any) || 'adult');
+      setEncounterLanguage(initialContact.language || (initialContact as any).languageSpoken || '');
+      setEncounterTopic(
+        initialContact.topicsDiscussed || (initialContact as any).topicDiscussed || ''
+      );
+      setEncounterBibleStudyInterest(Boolean(initialContact.bibleStudyInterest));
+    } else {
+      setEncounterName('');
+      setEncounterGender('unknown');
+      setEncounterAgeGroup('adult');
+      setEncounterLanguage('');
+      setEncounterBibleStudyInterest(false);
+      setSelectedContact(null);
+    }
+  }, [open, household, assignmentId, initialOutcome, initialContact]);
+
+  const handleOutcomeChange = (val: LogVisitFormData['outcome']) => {
+    form.setValue('outcome', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+
+    switch (val) {
+      case 'not_home':
+        form.setValue('status', 'not_home', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'busy':
+        form.setValue('status', 'busy', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'vacant':
+        form.setValue('status', 'vacant', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'inaccessible':
+        form.setValue('status', 'inaccessible', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'moved':
+        form.setValue('status', 'moved', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'do_not_visit':
+        form.setValue('status', 'do_not_visit', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'foreign_language':
+        form.setValue('status', 'foreign_language', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'minor_only':
+        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(false);
+        setEncounterReturnVisitRequested(false);
+        break;
+      case 'return_visit':
+        form.setValue('status', 'return_visit', { shouldValidate: true, shouldDirty: true });
         form.setValue('returnVisitPlanned', true);
         setRecordEncounter(true);
         setEncounterReturnVisitRequested(true);
-      }
-    }
-    if (initialContact) {
-      setRecordEncounter(true);
-      if (initialContact.name) setEncounterName(initialContact.name);
-      if (initialContact.gender) setEncounterGender(initialContact.gender as any);
-      if (initialContact.ageGroup) setEncounterAgeGroup(initialContact.ageGroup as any);
-      if (initialContact.language || (initialContact as any).languageSpoken) {
-        setEncounterLanguage(
-          initialContact.language || (initialContact as any).languageSpoken || ''
-        );
-      }
-      if (initialContact.topicsDiscussed || (initialContact as any).topicDiscussed) {
-        setEncounterTopic(
-          initialContact.topicsDiscussed || (initialContact as any).topicDiscussed || ''
-        );
-      }
-      if (initialContact.bibleStudyInterest) {
-        setEncounterBibleStudyInterest(true);
-      }
-    }
-  }, [open, initialOutcome, initialContact, form]);
-
-  // Automatically suggest enabling encounter recording if outcome is conversation-oriented
-  const outcome = form.watch('outcome');
-  useEffect(() => {
-    if (outcome === 'answered' || outcome === 'return_visit' || outcome === 'study_conducted') {
-      if (knownContacts.length > 0 || initialContact) {
+        break;
+      case 'study_conducted':
+        form.setValue('status', 'return_visit', { shouldValidate: true, shouldDirty: true });
+        form.setValue('returnVisitPlanned', true);
         setRecordEncounter(true);
-      }
-      if (outcome === 'return_visit' || outcome === 'study_conducted') {
+        setEncounterBibleStudyInterest(true);
         setEncounterReturnVisitRequested(true);
-      }
+        break;
+      case 'answered':
+        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
+        setRecordEncounter(true);
+        break;
+      default:
+        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
+        break;
     }
-  }, [outcome, knownContacts.length, initialContact]);
+  };
+
+  const handleStatusChange = (val: LogVisitFormData['status']) => {
+    form.setValue('status', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    if (val === 'return_visit') {
+      setEncounterReturnVisitRequested(true);
+    } else if (
+      val === 'do_not_visit' ||
+      val === 'moved' ||
+      val === 'vacant' ||
+      val === 'not_home' ||
+      val === 'inaccessible'
+    ) {
+      setEncounterReturnVisitRequested(false);
+    }
+  };
 
   const handleSelectContact = (contact: HouseholdContactSummary) => {
     setSelectedContact(contact);
@@ -245,24 +338,7 @@ export function HouseholdLogVisitSheet({
           <Label className="text-xs font-semibold">Visit Outcome *</Label>
           <Select
             value={form.watch('outcome')}
-            onValueChange={(val) => {
-              const outcomeVal = val as LogVisitFormData['outcome'];
-              form.setValue('outcome', outcomeVal);
-              if (outcomeVal === 'do_not_visit') form.setValue('status', 'do_not_visit');
-              else if (outcomeVal === 'moved') form.setValue('status', 'moved');
-              else if (outcomeVal === 'vacant') form.setValue('status', 'vacant');
-              else if (outcomeVal === 'foreign_language')
-                form.setValue('status', 'foreign_language');
-              else if (outcomeVal === 'inaccessible') form.setValue('status', 'inaccessible');
-              else if (outcomeVal === 'not_home') form.setValue('status', 'not_home');
-              else if (outcomeVal === 'busy') form.setValue('status', 'busy');
-              else if (outcomeVal === 'return_visit' || outcomeVal === 'study_conducted') {
-                form.setValue('status', 'return_visit');
-                form.setValue('returnVisitPlanned', true);
-              } else if (outcomeVal === 'answered' || outcomeVal === 'minor_only') {
-                form.setValue('status', 'active');
-              }
-            }}
+            onValueChange={(val) => handleOutcomeChange(val as LogVisitFormData['outcome'])}
           >
             <SelectTrigger className="h-9 rounded-xl text-xs">
               <SelectValue placeholder="Outcome" />
@@ -289,7 +365,7 @@ export function HouseholdLogVisitSheet({
             <Label className="text-xs font-semibold">Update Household Status</Label>
             <Select
               value={form.watch('status')}
-              onValueChange={(val) => form.setValue('status', val as LogVisitFormData['status'])}
+              onValueChange={(val) => handleStatusChange(val as LogVisitFormData['status'])}
             >
               <SelectTrigger className="h-9 rounded-xl text-xs">
                 <SelectValue placeholder="Status" />
