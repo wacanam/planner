@@ -1,11 +1,16 @@
+'use client';
+
 import {
+  ArrowRight,
   BarChart3,
   BookOpen,
   ChevronRight,
   ClipboardCheck,
+  Compass,
   Layers,
   Map as MapIcon,
   MapPin,
+  Shield,
   ShieldCheck,
   Smartphone,
   UserCog,
@@ -13,8 +18,12 @@ import {
   WifiOff,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { isSystemAdmin } from '@/lib/permissions';
 
 const features = [
   {
@@ -139,6 +148,69 @@ const userTypes = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { user, loading, isAuthenticated } = useCurrentUser();
+  const [isPwaRedirecting, setIsPwaRedirecting] = useState(false);
+
+  const isAdmin = isSystemAdmin(user?.role);
+
+  // ── 1. Determine Target Dashboard URL ──────────────────────────────────────
+  const dashboardHref = useMemo(() => {
+    if (isAdmin) return '/admin/dashboard';
+    if (user?.congregationId) return `/congregation/${user.congregationId}/dashboard`;
+    return '/onboarding';
+  }, [isAdmin, user?.congregationId]);
+
+  // ── 2. PWA Standalone Detection & Redirection ──────────────────────────────
+  useEffect(() => {
+    if (loading) return;
+
+    const isStandalone =
+      typeof window !== 'undefined' &&
+      (window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true ||
+        document.referrer.includes('android-app://'));
+
+    if (isStandalone && isAuthenticated) {
+      setIsPwaRedirecting(true);
+      router.replace(dashboardHref);
+    }
+  }, [loading, isAuthenticated, dashboardHref, router]);
+
+  // If launching inside standalone PWA and redirecting, display clean loading screen
+  if (isPwaRedirecting) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center animate-pulse">
+            <Compass size={28} className="text-primary" />
+          </div>
+          <div className="space-y-1 text-center">
+            <p className="text-sm font-semibold text-foreground">Opening Kanataran…</p>
+            <p className="text-xs text-muted-foreground">Redirecting to your dashboard</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 3. Dynamic CTA Button Labels ───────────────────────────────────────────
+  const heroButtonLabel = isAuthenticated
+    ? isAdmin
+      ? 'Go to Admin Dashboard'
+      : user?.congregationId
+        ? 'Go to Dashboard'
+        : 'Go to Workspace'
+    : 'Get Started Free';
+
+  const bottomButtonLabel = isAuthenticated
+    ? isAdmin
+      ? 'Open Admin Dashboard'
+      : user?.congregationId
+        ? 'Open Congregation Dashboard'
+        : 'Continue to Workspace'
+    : 'Sign Up Free';
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -166,13 +238,24 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" asChild>
-                <Link href="/auth/register">
-                  Get Started Free
-                  <ChevronRight size={16} />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
+              {isAuthenticated ? (
+                <Button size="lg" asChild className="rounded-2xl gap-2 font-semibold shadow-md">
+                  <Link href={dashboardHref}>
+                    {isAdmin ? <Shield size={18} /> : <Compass size={18} />}
+                    <span>{heroButtonLabel}</span>
+                    <ArrowRight size={16} />
+                  </Link>
+                </Button>
+              ) : (
+                <Button size="lg" asChild className="rounded-2xl font-semibold shadow-md">
+                  <Link href="/auth/register">
+                    <span>{heroButtonLabel}</span>
+                    <ChevronRight size={16} />
+                  </Link>
+                </Button>
+              )}
+
+              <Button size="lg" variant="outline" asChild className="rounded-2xl">
                 <Link href="#how-it-works">Learn More</Link>
               </Button>
             </div>
@@ -328,15 +411,27 @@ export default function LandingPage() {
             get started.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button size="lg" asChild>
-              <Link href="/auth/register">
-                Sign Up Free
-                <ChevronRight size={16} />
-              </Link>
-            </Button>
-            <Button size="lg" variant="ghost" asChild>
-              <Link href="/auth/login">Already have an account?</Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button size="lg" asChild className="rounded-2xl gap-2 font-semibold shadow-md">
+                <Link href={dashboardHref}>
+                  {isAdmin ? <Shield size={18} /> : <Compass size={18} />}
+                  <span>{bottomButtonLabel}</span>
+                  <ArrowRight size={16} />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button size="lg" asChild className="rounded-2xl font-semibold shadow-md">
+                  <Link href="/auth/register">
+                    <span>{bottomButtonLabel}</span>
+                    <ChevronRight size={16} />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="ghost" asChild className="rounded-2xl">
+                  <Link href="/auth/login">Already have an account?</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>
