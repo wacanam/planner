@@ -22,9 +22,12 @@ import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   useCongregationGroups,
   useCongregationMembers,
@@ -35,6 +38,7 @@ import {
   useReturnAssignment,
 } from '@/hooks';
 import {
+  canAdjustAssignmentDates,
   canReturnAssignment,
   filterActiveAssignments,
   getUserGroupIds,
@@ -57,6 +61,8 @@ export default function MyAssignmentsClient() {
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmAssignment, setReturnConfirmAssignment] = useState<Assignment | null>(null);
+  const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const canAdjust = canAdjustAssignmentDates(user?.role);
 
   // Find user's service group
   const myGroup = useMemo(() => {
@@ -408,30 +414,79 @@ export default function MyAssignmentsClient() {
         )}
 
         {/* Return Territory Confirmation Modal */}
-        <ConfirmDialog
+        <ResponsiveDialog
           open={!!returnConfirmAssignment}
-          onOpenChange={(op) => !op && setReturnConfirmAssignment(null)}
+          onOpenChange={(op) => {
+            if (!op) {
+              setReturnConfirmAssignment(null);
+              setReturnDate(new Date().toISOString().slice(0, 10));
+            }
+          }}
           title="Return Territory Assignment"
           description={
             returnConfirmAssignment
-              ? `Are you sure you want to return Territory #${
+              ? `Return Territory #${
                   territoryMap.get(returnConfirmAssignment.territoryId)?.number ||
                   returnConfirmAssignment.territoryNumber ||
                   ''
-                } to the congregation? This will mark your assignment as completed and make the territory available.`
-              : ''
+                } to the congregation`
+              : 'Return Territory'
           }
-          confirmLabel="Return Territory"
-          variant="default"
-          onConfirm={async () => {
-            if (returnConfirmAssignment) {
-              await returnTerritory(returnConfirmAssignment.id);
-              toast.success('Territory returned to congregation');
-              setReturnConfirmAssignment(null);
-            }
-          }}
-          loading={returning}
-        />
+        >
+          {returnConfirmAssignment && (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This will mark your assignment for Territory #
+                {territoryMap.get(returnConfirmAssignment.territoryId)?.number ||
+                  returnConfirmAssignment.territoryNumber ||
+                  ''}{' '}
+                as completed and make the territory available.
+              </p>
+
+              {canAdjust && (
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Effective Return Date *</Label>
+                  <Input
+                    type="date"
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => {
+                    setReturnConfirmAssignment(null);
+                    setReturnDate(new Date().toISOString().slice(0, 10));
+                  }}
+                  disabled={returning}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold"
+                  disabled={returning || (canAdjust && !returnDate)}
+                  onClick={async () => {
+                    if (returnConfirmAssignment) {
+                      await returnTerritory(returnConfirmAssignment.id, canAdjust ? returnDate : undefined);
+                      toast.success('Territory returned to congregation');
+                      setReturnConfirmAssignment(null);
+                      setReturnDate(new Date().toISOString().slice(0, 10));
+                    }
+                  }}
+                >
+                  {returning ? 'Returning…' : 'Confirm Return'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </ResponsiveDialog>
       </main>
       <BottomTabBar />
     </ProtectedPage>

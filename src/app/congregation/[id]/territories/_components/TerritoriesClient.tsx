@@ -3,7 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
+  Calendar,
+  Clock,
   FolderOpen,
+  History,
   Map as MapIcon,
   MapPin,
   Pencil,
@@ -49,18 +52,20 @@ import {
   useDeleteTerritory,
   useHouseholds,
   useRevokeTerritory,
+  useTerritoryAssignments,
+  useUpdateAssignment,
   useUpdateCongregation,
   useUpdateTerritory,
 } from '@/hooks';
-import { canDeleteTerritory, isTerritoryServant } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canDeleteTerritory, isTerritoryServant } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import type { Assignment, Household, Territory } from '@/types/api';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,
   type UpdateTerritoryFormData,
   updateTerritorySchema,
 } from '@/schemas';
-import type { Household, Territory } from '@/types/api';
 
 const statusColors: Record<string, string> = {
   available:
@@ -115,7 +120,10 @@ export default function TerritoriesClient() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editTerritory, setEditTerritory] = useState<Territory | null>(null);
   const [assignTerritory, setAssignTerritory] = useState<Territory | null>(null);
+  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [revokeConfirmTerritory, setRevokeConfirmTerritory] = useState<Territory | null>(null);
+  const [revokeDate, setRevokeDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [historyTerritory, setHistoryTerritory] = useState<Territory | null>(null);
   const [deleteConfirmTerritory, setDeleteConfirmTerritory] = useState<Territory | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [assignType, setAssignType] = useState<'publisher' | 'group'>('publisher');
@@ -206,6 +214,7 @@ export default function TerritoriesClient() {
   const handleAssignSubmit = async () => {
     if (!assignTerritory) return;
     const endorserName = user.name || user.email || 'Territory Servant';
+    const effectiveAssignedAt = assignDate || new Date().toISOString();
     if (assignType === 'publisher') {
       if (!assignUserId) {
         toast.error('Please select a publisher');
@@ -221,7 +230,7 @@ export default function TerritoriesClient() {
         userId: assignUserId,
         assigneeName: selectedMember?.user?.name || selectedMember?.user?.email || null,
         assigneeEmail: selectedMember?.user?.email || null,
-        assignedAt: new Date().toISOString(),
+        assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
       });
@@ -242,7 +251,7 @@ export default function TerritoriesClient() {
         territoryName: assignTerritory.name,
         serviceGroupId: assignGroupId,
         groupName: selectedGroup?.name || null,
-        assignedAt: new Date().toISOString(),
+        assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
       });
@@ -254,6 +263,7 @@ export default function TerritoriesClient() {
     setAssignTerritory(null);
     setAssignUserId('');
     setAssignGroupId('');
+    setAssignDate(new Date().toISOString().slice(0, 10));
   };
 
   const handleSaveMapCenter = async () => {
@@ -522,6 +532,17 @@ export default function TerritoriesClient() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="rounded-xl text-xs gap-1 h-8 px-2.5 hover:border-primary/50 hover:bg-primary/5 shrink-0"
+                          onClick={() => setHistoryTerritory(t)}
+                          title="View assignment history and adjust dates"
+                        >
+                          <History size={12} className="shrink-0" />
+                          <span>History</span>
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
                           className="rounded-xl text-xs gap-1 h-8 px-3 hover:border-primary/50 hover:bg-primary/5 shrink-0"
                           onClick={() => handleOpenEdit(t)}
                           title="Edit territory details"
@@ -727,6 +748,7 @@ export default function TerritoriesClient() {
               setAssignTerritory(null);
               setAssignUserId('');
               setAssignGroupId('');
+              setAssignDate(new Date().toISOString().slice(0, 10));
             }
           }}
           title="Assign Territory Card"
@@ -761,6 +783,17 @@ export default function TerritoriesClient() {
                 <Users size={13} />
                 <span>Service Group</span>
               </button>
+            </div>
+
+            {/* Assignment Date Selector */}
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Assignment Date *</Label>
+              <Input
+                type="date"
+                value={assignDate}
+                onChange={(e) => setAssignDate(e.target.value)}
+                className="h-9 rounded-xl text-xs"
+              />
             </div>
 
             {assignType === 'publisher' ? (
@@ -814,6 +847,7 @@ export default function TerritoriesClient() {
                   setAssignTerritory(null);
                   setAssignUserId('');
                   setAssignGroupId('');
+                  setAssignDate(new Date().toISOString().slice(0, 10));
                 }}
               >
                 Cancel
@@ -825,7 +859,8 @@ export default function TerritoriesClient() {
                 disabled={
                   (assignType === 'publisher' && !assignUserId) ||
                   (assignType === 'group' && !assignGroupId) ||
-                  assigningTerritory
+                  assigningTerritory ||
+                  !assignDate
                 }
               >
                 {assigningTerritory ? 'Assigning…' : 'Confirm Assignment'}
@@ -907,28 +942,83 @@ export default function TerritoriesClient() {
           </div>
         </ResponsiveDialog>
 
-        {/* Revoke / Return Territory Confirmation */}
-        <ConfirmDialog
+        {/* Revoke / Return Territory Confirmation Dialog with Date Adjustment */}
+        <ResponsiveDialog
           open={!!revokeConfirmTerritory}
-          onOpenChange={(op) => !op && setRevokeConfirmTerritory(null)}
+          onOpenChange={(op) => {
+            if (!op) {
+              setRevokeConfirmTerritory(null);
+              setRevokeDate(new Date().toISOString().slice(0, 10));
+            }
+          }}
           title="Revoke / Return Territory"
           description={
             revokeConfirmTerritory
-              ? `Are you sure you want to revoke the assignment for Territory #${revokeConfirmTerritory.number} — ${revokeConfirmTerritory.name}? This will immediately return the territory to Available status for new assignments.`
-              : ''
+              ? `Revoke assignment for Territory #${revokeConfirmTerritory.number} — ${revokeConfirmTerritory.name}`
+              : 'Revoke Territory'
           }
-          confirmLabel="Revoke Assignment"
-          variant="destructive"
-          onConfirm={async () => {
-            if (revokeConfirmTerritory) {
-              await revokeTerritory(revokeConfirmTerritory.id);
-              toast.success(
-                `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
-              );
-              setRevokeConfirmTerritory(null);
-            }
-          }}
-          loading={revokingTerritory}
+        >
+          {revokeConfirmTerritory && (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This will mark the current assignment as completed and return{' '}
+                <strong className="text-foreground">
+                  Territory #{revokeConfirmTerritory.number}
+                </strong>{' '}
+                to Available status.
+              </p>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Effective Revocation / Return Date *</Label>
+                <Input
+                  type="date"
+                  value={revokeDate}
+                  onChange={(e) => setRevokeDate(e.target.value)}
+                  className="h-9 rounded-xl text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => {
+                    setRevokeConfirmTerritory(null);
+                    setRevokeDate(new Date().toISOString().slice(0, 10));
+                  }}
+                  disabled={revokingTerritory}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="rounded-xl text-xs font-semibold"
+                  disabled={revokingTerritory || !revokeDate}
+                  onClick={async () => {
+                    if (revokeConfirmTerritory) {
+                      await revokeTerritory(revokeConfirmTerritory.id, revokeDate);
+                      toast.success(
+                        `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                      );
+                      setRevokeConfirmTerritory(null);
+                      setRevokeDate(new Date().toISOString().slice(0, 10));
+                    }
+                  }}
+                >
+                  {revokingTerritory ? 'Revoking…' : 'Confirm Revocation'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </ResponsiveDialog>
+
+        {/* Territory Assignment History & Dates Dialog */}
+        <TerritoryHistoryDialog
+          territory={historyTerritory}
+          onClose={() => setHistoryTerritory(null)}
+          canAdjustDates={canAdjustAssignmentDates(user.role)}
         />
 
         {/* Delete Territory Strong Warning Dialog */}
@@ -1053,5 +1143,251 @@ export default function TerritoriesClient() {
       </main>
       <BottomTabBar />
     </ProtectedPage>
+  );
+}
+
+function TerritoryHistoryDialog({
+  territory,
+  onClose,
+  canAdjustDates,
+}: {
+  territory: Territory | null;
+  onClose: () => void;
+  canAdjustDates: boolean;
+}) {
+  const { assignments = [], isLoading } = useTerritoryAssignments(territory?.id);
+  const { update: updateAssignment, isPending: isUpdating } = useUpdateAssignment();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [assignedAt, setAssignedAt] = useState('');
+  const [returnedAt, setReturnedAt] = useState('');
+  const [dueAt, setDueAt] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const startEdit = (a: Assignment) => {
+    setEditingId(a.id);
+    setAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
+    setReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
+    setDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
+    setNotes(a.notes || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setAssignedAt('');
+    setReturnedAt('');
+    setDueAt('');
+    setNotes('');
+  };
+
+  const handleSave = async (a: Assignment) => {
+    try {
+      await updateAssignment({
+        id: a.id,
+        assignedAt: assignedAt || null,
+        returnedAt: returnedAt || null,
+        dueAt: dueAt || null,
+        notes: notes.trim() || null,
+      });
+      toast.success('Assignment dates and details updated');
+      cancelEdit();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update assignment dates');
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={Boolean(territory)}
+      onOpenChange={(op) => !op && onClose()}
+      title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
+      description={territory ? `${territory.name} — Adjust assignment and return dates` : ''}
+    >
+      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        {isLoading ? (
+          <div className="py-12 text-center text-xs text-muted-foreground">
+            Loading assignment history…
+          </div>
+        ) : assignments.length === 0 ? (
+          <div className="py-12 text-center space-y-2">
+            <Clock size={32} className="text-muted-foreground/40 mx-auto" />
+            <p className="text-sm font-semibold text-foreground">No assignment history</p>
+            <p className="text-xs text-muted-foreground">
+              This territory has not been assigned yet.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {assignments.map((a) => {
+              const isEditing = editingId === a.id;
+              const isReturned = Boolean(a.returnedAt);
+              const isActive = a.status === 'assigned' || a.status === 'active';
+
+              return (
+                <div
+                  key={a.id}
+                  className={`p-3.5 rounded-2xl border transition-all text-xs space-y-2.5 ${
+                    isActive
+                      ? 'border-primary/40 bg-primary/5'
+                      : 'border-border bg-card'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        {a.serviceGroupId ? (
+                          <Users size={13} className="text-blue-500 shrink-0" />
+                        ) : (
+                          <User size={13} className="text-primary shrink-0" />
+                        )}
+                        <span>{a.groupName || a.assigneeName || 'Publisher / Group'}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {a.serviceGroupId ? 'Service Group Assignment' : 'Personal Assignment'}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] uppercase font-bold ${
+                        isActive
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : isReturned
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {a.status}
+                    </Badge>
+                  </div>
+
+                  {!isEditing ? (
+                    <div className="space-y-2 pt-1 border-t border-border/50">
+                      <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                        <div>
+                          <span className="font-semibold text-foreground">Assigned:</span>{' '}
+                          {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-foreground">Returned / Revoked:</span>{' '}
+                          {a.returnedAt ? (
+                            <span className="text-foreground font-medium">
+                              {new Date(a.returnedAt).toLocaleDateString()}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">
+                              Active in Field
+                            </span>
+                          )}
+                        </div>
+                        {a.dueAt && (
+                          <div>
+                            <span className="font-semibold text-foreground">Due:</span>{' '}
+                            {new Date(a.dueAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+
+                      {a.notes && (
+                        <p className="text-muted-foreground italic text-[11px]">
+                          Note: &ldquo;{a.notes}&rdquo;
+                        </p>
+                      )}
+
+                      {canAdjustDates && (
+                        <div className="flex justify-end pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-xl text-xs gap-1 font-semibold hover:border-primary/50 hover:bg-primary/5"
+                            onClick={() => startEdit(a)}
+                          >
+                            <Pencil size={11} />
+                            <span>Adjust Dates</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3 pt-2 border-t border-border/80 bg-muted/20 p-2.5 rounded-xl">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold">Date Assigned *</Label>
+                          <Input
+                            type="date"
+                            value={assignedAt}
+                            onChange={(e) => setAssignedAt(e.target.value)}
+                            className="h-8 rounded-xl text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold">
+                            Date Returned / Revoked
+                          </Label>
+                          <Input
+                            type="date"
+                            value={returnedAt}
+                            onChange={(e) => setReturnedAt(e.target.value)}
+                            className="h-8 rounded-xl text-xs"
+                            placeholder="Leave empty if active"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold">Due Date (Optional)</Label>
+                          <Input
+                            type="date"
+                            value={dueAt}
+                            onChange={(e) => setDueAt(e.target.value)}
+                            className="h-8 rounded-xl text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold">Notes (Optional)</Label>
+                          <Input
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="Reason for adjustment / notes"
+                            className="h-8 rounded-xl text-xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 rounded-xl text-xs"
+                          onClick={cancelEdit}
+                          disabled={isUpdating}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 rounded-xl text-xs font-semibold"
+                          onClick={() => handleSave(a)}
+                          disabled={isUpdating || !assignedAt}
+                        >
+                          {isUpdating ? 'Saving…' : 'Save Dates'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-xl text-xs"
+            onClick={onClose}
+          >
+            Close
+          </Button>
+        </div>
+      </div>
+    </ResponsiveDialog>
   );
 }

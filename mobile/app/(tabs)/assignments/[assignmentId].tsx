@@ -47,6 +47,7 @@ import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useLocation } from '@/hooks/useLocation';
 import { useTerritoryDetail } from '@/hooks/useTerritories';
 import { useCreateVisit } from '@/hooks/useVisits';
+import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Household } from '@/types/api';
 
@@ -101,6 +102,8 @@ export default function AssignmentDetailScreen() {
 
   // Return Territory Modal
   const [returnModalVisible, setReturnModalVisible] = useState(false);
+  const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const canAdjust = canAdjustAssignmentDates(user?.role);
 
   const activeAssignment =
     assignments.find((a) => a.status === 'assigned' || a.status === 'active') || assignments[0];
@@ -277,9 +280,10 @@ export default function AssignmentDetailScreen() {
   const handleReturnTerritory = async () => {
     if (!activeAssignment) return;
     try {
-      await returnTerritory(activeAssignment.id);
+      await returnTerritory(activeAssignment.id, canAdjust ? returnDate : undefined);
       await triggerHaptic('success');
       setReturnModalVisible(false);
+      setReturnDate(new Date().toISOString().slice(0, 10));
       router.replace('/(tabs)/assignments');
     } catch {
       triggerHaptic('error');
@@ -704,18 +708,32 @@ export default function AssignmentDetailScreen() {
                 color: colors.mutedForeground,
                 fontSize: typography.sm,
                 marginTop: 6,
-                marginBottom: 16,
+                marginBottom: 12,
               }}
             >
               This will mark your assignment as completed and return the territory to the
               congregation pool.
             </Text>
 
+            {canAdjust && (
+              <View style={{ marginBottom: 16 }}>
+                <Input
+                  label="Effective Return Date"
+                  value={returnDate}
+                  onChangeText={setReturnDate}
+                  placeholder="YYYY-MM-DD"
+                />
+              </View>
+            )}
+
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Button
                 title="Cancel"
                 variant="ghost"
-                onPress={() => setReturnModalVisible(false)}
+                onPress={() => {
+                  setReturnModalVisible(false);
+                  setReturnDate(new Date().toISOString().slice(0, 10));
+                }}
                 style={{ flex: 1 }}
               />
               <Button
@@ -723,6 +741,7 @@ export default function AssignmentDetailScreen() {
                 variant="destructive"
                 onPress={handleReturnTerritory}
                 loading={isReturning}
+                disabled={canAdjust && !returnDate.trim()}
                 style={{ flex: 1 }}
               />
             </View>

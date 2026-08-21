@@ -7,8 +7,10 @@ import {
   Clock,
   Download,
   FileText,
+  History,
   Home,
   MapPin,
+  Pencil,
   RotateCcw,
   Send,
   Share2,
@@ -40,7 +42,9 @@ import { useTheme } from '@/context/ThemeContext';
 import {
   useCreateAssignment,
   useReturnAssignment,
+  useRevokeTerritory,
   useTerritoryAssignments,
+  useUpdateAssignment,
 } from '@/hooks/useAssignments';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
@@ -51,8 +55,9 @@ import {
   useTerritoryDetail,
 } from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
-import { canEditTerritory, isTerritoryServant } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canEditTerritory, isTerritoryServant } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
+import type { Assignment } from '@/types/api';
 
 export default function TerritoryDetailScreen() {
   const router = useRouter();
@@ -73,6 +78,8 @@ export default function TerritoryDetailScreen() {
   );
   const { create: assignTerritory, isCreating: isAssigning } = useCreateAssignment();
   const { returnTerritory, isReturning } = useReturnAssignment();
+  const { revoke: revokeTerritory, isRevoking } = useRevokeTerritory();
+  const { update: updateAssignment, isUpdating: isUpdatingAssignment } = useUpdateAssignment();
   const { remove: deleteTerritory, isDeleting } = useDeleteTerritory();
 
   const [requestModalVisible, setRequestModalVisible] = useState(false);
@@ -80,8 +87,20 @@ export default function TerritoryDetailScreen() {
 
   const [assignModalVisible, setAssignModalVisible] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [assignDate, setAssignDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const [returnRevokeModalVisible, setReturnRevokeModalVisible] = useState(false);
+  const [returnRevokeDate, setReturnRevokeDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editAssignedAt, setEditAssignedAt] = useState('');
+  const [editReturnedAt, setEditReturnedAt] = useState('');
+  const [editDueAt, setEditDueAt] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
   const isServant = isTerritoryServant(user?.role);
+  const canAdjust = canAdjustAssignmentDates(user?.role);
   const activeAssignment = assignments.find(
     (a) => a.status === 'assigned' || a.status === 'active'
   );
@@ -160,29 +179,74 @@ export default function TerritoryDetailScreen() {
         assigneeEmail: member?.user?.email || null,
         endorsedByUserId: user?.id || null,
         endorsedByUserName: user?.name || null,
+        assignedAt: assignDate || new Date().toISOString(),
         territoryName: territory.name,
         territoryNumber: territory.number,
       });
       await triggerHaptic('success');
       setAssignModalVisible(false);
+      setAssignDate(new Date().toISOString().slice(0, 10));
     } catch {
       triggerHaptic('error');
     }
   };
 
-  const handleReturn = async () => {
+  const handleReturn = () => {
     if (!activeAssignment) return;
-    Alert.alert('Return Territory', `Return Territory #${territory?.number} to available pool?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Return',
-        style: 'destructive',
-        onPress: async () => {
-          await returnTerritory(activeAssignment.id);
-          await triggerHaptic('success');
+    if (canAdjust) {
+      setReturnRevokeDate(new Date().toISOString().slice(0, 10));
+      setReturnRevokeModalVisible(true);
+    } else {
+      Alert.alert('Return Territory', `Return Territory #${territory?.number} to available pool?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Return',
+          style: 'destructive',
+          onPress: async () => {
+            await returnTerritory(activeAssignment.id);
+            await triggerHaptic('success');
+          },
         },
-      },
-    ]);
+      ]);
+    }
+  };
+
+  const handleConfirmReturnRevoke = async () => {
+    if (!activeAssignment) return;
+    try {
+      await returnTerritory(activeAssignment.id, returnRevokeDate);
+      await triggerHaptic('success');
+      setReturnRevokeModalVisible(false);
+    } catch {
+      triggerHaptic('error');
+    }
+  };
+
+  const handleOpenEditAssignment = (a: Assignment) => {
+    setEditingAssignment(a);
+    setEditAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
+    setEditReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
+    setEditDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
+    setEditNotes(a.notes || '');
+  };
+
+  const handleSaveAssignmentDates = async () => {
+    if (!editingAssignment) return;
+    try {
+      await updateAssignment({
+        id: editingAssignment.id,
+        assignedAt: editAssignedAt ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString() : editingAssignment.assignedAt,
+        returnedAt: editReturnedAt ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString() : null,
+        dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
+        notes: editNotes.trim() || undefined,
+      });
+      await triggerHaptic('success');
+      Alert.alert('Success', 'Assignment dates updated successfully.');
+      setEditingAssignment(null);
+    } catch (err: any) {
+      triggerHaptic('error');
+      Alert.alert('Error', err?.message || 'Failed to update assignment dates');
+    }
   };
 
   const handleExportCard = async () => {
@@ -425,7 +489,7 @@ export default function TerritoryDetailScreen() {
             </View>
           )}
 
-          {/* Servant Actions */}
+          {/* Servant Actions & History */}
           {isServant && !territory.publisherName && !territory.groupName && (
             <Button
               title="Assign to Publisher"
@@ -435,6 +499,14 @@ export default function TerritoryDetailScreen() {
               style={{ marginTop: spacing.md }}
             />
           )}
+
+          <Button
+            title="Assignment History & Dates"
+            variant="ghost"
+            size="sm"
+            onPress={() => setHistoryModalVisible(true)}
+            style={{ marginTop: spacing.sm }}
+          />
         </Card>
       </ScrollView>
 
@@ -477,7 +549,7 @@ export default function TerritoryDetailScreen() {
       {/* Assign to Publisher Modal */}
       <Modal visible={assignModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <Card style={[styles.modalCard, { width: '90%', maxHeight: '75%' }]}>
+          <Card style={[styles.modalCard, { width: '90%', maxHeight: '80%' }]}>
             <View style={styles.modalHeaderRow}>
               <Text
                 style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
@@ -489,17 +561,26 @@ export default function TerritoryDetailScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={{ marginBottom: spacing.sm }}>
+              <Input
+                label="Assignment Date (YYYY-MM-DD)"
+                value={assignDate}
+                onChangeText={setAssignDate}
+                placeholder="YYYY-MM-DD"
+              />
+            </View>
+
             <Text
               style={{
                 color: colors.mutedForeground,
                 fontSize: typography.xs,
-                marginBottom: spacing.md,
+                marginBottom: spacing.xs,
               }}
             >
               Select a publisher from your congregation:
             </Text>
 
-            <ScrollView style={{ maxHeight: 240 }}>
+            <ScrollView style={{ maxHeight: 200 }}>
               {members.map((m) => {
                 const isSelected = selectedMemberId === m.userId;
                 return (
@@ -537,11 +618,189 @@ export default function TerritoryDetailScreen() {
             <Button
               title="Confirm Assignment"
               onPress={handleAssignToMember}
-              disabled={!selectedMemberId}
+              disabled={!selectedMemberId || !assignDate.trim()}
               loading={isAssigning}
               size="lg"
               style={{ marginTop: spacing.md }}
             />
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Return / Revoke Territory Modal */}
+      <Modal visible={returnRevokeModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Card style={[styles.modalCard, { width: '88%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+                Return Territory #{territory.number}
+              </Text>
+              <TouchableOpacity onPress={() => setReturnRevokeModalVisible(false)}>
+                <X size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, marginBottom: 12 }}>
+              This will mark the current assignment as completed and return the territory to available status.
+            </Text>
+
+            <View style={{ marginBottom: 16 }}>
+              <Input
+                label="Effective Return / Revocation Date"
+                value={returnRevokeDate}
+                onChangeText={setReturnRevokeDate}
+                placeholder="YYYY-MM-DD"
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                onPress={() => setReturnRevokeModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Confirm Return"
+                variant="destructive"
+                onPress={handleConfirmReturnRevoke}
+                loading={isReturning}
+                disabled={!returnRevokeDate.trim()}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Territory Assignment History Modal */}
+      <Modal visible={historyModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <Card style={[styles.modalCard, { width: '92%', maxHeight: '80%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+                Territory #{territory.number} History
+              </Text>
+              <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
+                <X size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }}>
+              {assignmentsLoading ? (
+                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+              ) : assignments.length === 0 ? (
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, textAlign: 'center', marginVertical: 20 }}>
+                  No assignment records for this territory.
+                </Text>
+              ) : (
+                assignments.map((a) => (
+                  <View
+                    key={a.id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      marginBottom: 10,
+                      backgroundColor: colors.card,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                        {a.groupName || a.assigneeName || 'Publisher / Group'}
+                      </Text>
+                      <Badge label={a.status} variant={a.status === 'completed' ? 'success' : 'primary'} size="sm" />
+                    </View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 4 }}>
+                      Assigned: {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                      Returned: {a.returnedAt ? new Date(a.returnedAt).toLocaleDateString() : 'Active in Field'}
+                    </Text>
+                    {a.dueAt && (
+                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                        Due: {new Date(a.dueAt).toLocaleDateString()}
+                      </Text>
+                    )}
+                    {a.notes ? (
+                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic', marginTop: 2 }}>
+                        Note: {a.notes}
+                      </Text>
+                    ) : null}
+
+                    {canAdjust && (
+                      <Button
+                        title="Adjust Dates"
+                        variant="outline"
+                        size="sm"
+                        onPress={() => handleOpenEditAssignment(a)}
+                        style={{ marginTop: 8 }}
+                      />
+                    )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Adjust Assignment Dates Sub-Modal */}
+      <Modal visible={Boolean(editingAssignment)} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Card style={[styles.modalCard, { width: '90%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.md }]}>
+                Adjust Assignment Dates
+              </Text>
+              <TouchableOpacity onPress={() => setEditingAssignment(null)}>
+                <X size={20} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 10, marginVertical: 10 }}>
+              <Input
+                label="Date Assigned (YYYY-MM-DD)"
+                value={editAssignedAt}
+                onChangeText={setEditAssignedAt}
+                placeholder="YYYY-MM-DD"
+              />
+              <Input
+                label="Date Returned (YYYY-MM-DD)"
+                value={editReturnedAt}
+                onChangeText={setEditReturnedAt}
+                placeholder="Leave blank if active"
+              />
+              <Input
+                label="Due Date (YYYY-MM-DD)"
+                value={editDueAt}
+                onChangeText={setEditDueAt}
+                placeholder="Optional"
+              />
+              <Input
+                label="Notes"
+                value={editNotes}
+                onChangeText={setEditNotes}
+                placeholder="Reason for adjustment"
+              />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                onPress={() => setEditingAssignment(null)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleSaveAssignmentDates}
+                loading={isUpdatingAssignment}
+                disabled={!editAssignedAt.trim()}
+                style={{ flex: 1 }}
+              />
+            </View>
           </Card>
         </View>
       </Modal>

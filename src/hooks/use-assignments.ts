@@ -167,6 +167,17 @@ export function usePendingEndorsements(congregationId?: string | null) {
   return { pending, endorsements: pending, count: pending.length, isLoading };
 }
 
+export function normalizeDateToIso(dateStr?: string | null): string {
+  if (!dateStr || !dateStr.trim()) return nowIso();
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const d = new Date(`${trimmed}T12:00:00.000Z`);
+    return !isNaN(d.getTime()) ? d.toISOString() : nowIso();
+  }
+  const parsed = new Date(trimmed);
+  return !isNaN(parsed.getTime()) ? parsed.toISOString() : nowIso();
+}
+
 export function useCreateAssignment() {
   const [isCreating, setIsCreating] = useState(false);
 
@@ -205,6 +216,9 @@ export function useCreateAssignment() {
         const territoryNumber = arg.territoryNumber || territoryData?.number || territoryId;
         const territoryName = arg.territoryName || territoryData?.name || '';
 
+        const effectiveAssignedAt = arg.assignedAt ? normalizeDateToIso(arg.assignedAt) : now;
+        const effectiveDueAt = arg.dueAt ? normalizeDateToIso(arg.dueAt) : null;
+
         const assignmentDoc: Assignment = {
           id,
           territoryId,
@@ -223,8 +237,8 @@ export function useCreateAssignment() {
           rejectedByName: null,
           rejectedAt: null,
           rejectionReason: null,
-          assignedAt: arg.assignedAt ?? now,
-          dueAt: arg.dueAt ?? null,
+          assignedAt: effectiveAssignedAt,
+          dueAt: effectiveDueAt,
           returnedAt: null,
           notes: arg.notes ?? null,
           coverageAtAssignment: '0',
@@ -499,13 +513,23 @@ export function useUpdateAssignment() {
     const { id, ...body } = arg;
     setIsUpdating(true);
     try {
-      await updateDoc(assignmentDocument(id), { ...body, updatedAt: nowIso() });
+      const payload: Record<string, unknown> = { ...body, updatedAt: nowIso() };
+      if ('assignedAt' in payload && typeof payload.assignedAt === 'string') {
+        payload.assignedAt = normalizeDateToIso(payload.assignedAt);
+      }
+      if ('returnedAt' in payload && typeof payload.returnedAt === 'string' && payload.returnedAt) {
+        payload.returnedAt = normalizeDateToIso(payload.returnedAt);
+      }
+      if ('dueAt' in payload && typeof payload.dueAt === 'string' && payload.dueAt) {
+        payload.dueAt = normalizeDateToIso(payload.dueAt);
+      }
+      await updateDoc(assignmentDocument(id), payload);
     } finally {
       setIsUpdating(false);
     }
   }, []);
 
-  return { update, isUpdating };
+  return { update, isUpdating, isPending: isUpdating };
 }
 
 export function useDeleteAssignment() {
@@ -540,14 +564,16 @@ export function useDeleteAssignment() {
 
 /**
  * Assignee or Group member checks in / returns the assigned territory.
+ * Allows custom returnedAt date for Service Overseer and Territory Servant adjustments.
  */
 export function useReturnAssignment() {
   const [isReturning, setIsReturning] = useState(false);
 
-  const returnTerritory = useCallback(async (assignmentId: string) => {
+  const returnTerritory = useCallback(async (assignmentId: string, returnedAt?: string | null) => {
     setIsReturning(true);
     try {
       const now = nowIso();
+      const effectiveReturnedAt = returnedAt ? normalizeDateToIso(returnedAt) : now;
       const firestore = getPlannerFirestore();
 
       // Handle synthesized territory assignment (when assignment only exists on territory doc)
@@ -591,7 +617,7 @@ export function useReturnAssignment() {
 
       await updateDoc(assignmentDocument(assignmentId), {
         status: AssignmentStatus.COMPLETED,
-        returnedAt: now,
+        returnedAt: effectiveReturnedAt,
         updatedAt: now,
       });
 
@@ -650,14 +676,16 @@ export function useReturnAssignment() {
 
 /**
  * Service Overseer / Territory Servant revokes the active/pending territory assignment.
+ * Allows specifying custom revokedAt/returnedAt date.
  */
 export function useRevokeTerritory() {
   const [isRevoking, setIsRevoking] = useState(false);
 
-  const revoke = useCallback(async (territoryId: string) => {
+  const revoke = useCallback(async (territoryId: string, revokedAt?: string | null) => {
     setIsRevoking(true);
     try {
       const now = nowIso();
+      const effectiveReturnedAt = revokedAt ? normalizeDateToIso(revokedAt) : now;
       const firestore = getPlannerFirestore();
 
       const assignmentsSnap = await getDocs(
@@ -679,7 +707,7 @@ export function useRevokeTerritory() {
         ) {
           batch.update(d.ref, {
             status: AssignmentStatus.COMPLETED,
-            returnedAt: now,
+            returnedAt: effectiveReturnedAt,
             updatedAt: now,
           });
         }

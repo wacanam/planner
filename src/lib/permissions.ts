@@ -101,6 +101,10 @@ export function canEndorseAssignment(role?: string | null): boolean {
   return isTerritoryServant(role);
 }
 
+export function canAdjustAssignmentDates(role?: string | null): boolean {
+  return isTerritoryServant(role);
+}
+
 export function canViewReports(role?: string | null): boolean {
   return isTerritoryServant(role) || isCircuitOverseer(role);
 }

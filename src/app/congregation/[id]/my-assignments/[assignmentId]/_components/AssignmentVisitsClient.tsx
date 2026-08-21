@@ -29,10 +29,12 @@ import { DashboardHeader } from '@/components/dashboard-header';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   useCongregationGroups,
   useCongregationMembers,
@@ -44,7 +46,7 @@ import {
   useTerritoryEncounters,
   useTerritoryVisits,
 } from '@/hooks';
-import { canLogVisitOrEncounter, canReturnAssignment } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canLogVisitOrEncounter, canReturnAssignment } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
@@ -101,9 +103,12 @@ export default function AssignmentVisitsClient() {
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
+  const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [doorSearch, setDoorSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const canAdjust = canAdjustAssignmentDates(user?.role);
 
   const _loading =
     territoryLoading ||
@@ -352,9 +357,10 @@ export default function AssignmentVisitsClient() {
 
   const handleReturn = async () => {
     if (!activeAssignment) return;
-    await returnTerritory(activeAssignment.id);
+    await returnTerritory(activeAssignment.id, canAdjust ? returnDate : undefined);
     toast.success('Territory returned to congregation');
     setReturnConfirmOpen(false);
+    setReturnDate(new Date().toISOString().slice(0, 10));
     router.push(backHref);
   };
 
@@ -891,16 +897,59 @@ export default function AssignmentVisitsClient() {
         />
 
         {/* Return Territory Confirmation Modal */}
-        <ConfirmDialog
+        <ResponsiveDialog
           open={returnConfirmOpen}
-          onOpenChange={setReturnConfirmOpen}
+          onOpenChange={(op) => {
+            if (!op) {
+              setReturnConfirmOpen(false);
+              setReturnDate(new Date().toISOString().slice(0, 10));
+            }
+          }}
           title="Return Territory Assignment"
-          description={`Are you sure you want to return Territory #${territory?.number || ''} to the congregation? This will make the territory available for new assignments.`}
-          confirmLabel="Return Territory"
-          variant="default"
-          onConfirm={handleReturn}
-          loading={returning}
-        />
+          description={`Are you sure you want to return Territory #${territory?.number || ''} to the congregation?`}
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              This will mark your assignment for Territory #{territory?.number || ''} as completed and
+              return the territory to Available status.
+            </p>
+
+            {canAdjust && (
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Effective Return Date *</Label>
+                <Input
+                  type="date"
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="h-9 rounded-xl text-xs"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => {
+                  setReturnConfirmOpen(false);
+                  setReturnDate(new Date().toISOString().slice(0, 10));
+                }}
+                disabled={returning}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold"
+                disabled={returning || (canAdjust && !returnDate)}
+                onClick={handleReturn}
+              >
+                {returning ? 'Returning…' : 'Confirm Return'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
       </main>
       <BottomTabBar />
     </ProtectedPage>

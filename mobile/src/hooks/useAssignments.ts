@@ -127,13 +127,25 @@ export function useMyAssignments(congregationId?: string | null) {
   return { assignments, data: assignments, isLoading };
 }
 
+export function normalizeDateToIso(dateStr?: string | null): string {
+  if (!dateStr || !dateStr.trim()) return nowIso();
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const d = new Date(`${trimmed}T12:00:00.000Z`);
+    return !isNaN(d.getTime()) ? d.toISOString() : nowIso();
+  }
+  const parsed = new Date(trimmed);
+  return !isNaN(parsed.getTime()) ? parsed.toISOString() : nowIso();
+}
+
 export function useReturnAssignment() {
   const [isReturning, setIsReturning] = useState(false);
 
-  const returnTerritory = useCallback(async (assignmentId: string) => {
+  const returnTerritory = useCallback(async (assignmentId: string, returnedAt?: string | null) => {
     setIsReturning(true);
     try {
       const now = nowIso();
+      const effectiveReturnedAt = returnedAt ? normalizeDateToIso(returnedAt) : now;
       const firestore = getPlannerFirestore();
 
       if (assignmentId.startsWith('territory-')) {
@@ -156,7 +168,7 @@ export function useReturnAssignment() {
 
       await updateDoc(assignmentDocument(assignmentId), {
         status: AssignmentStatus.COMPLETED,
-        returnedAt: now,
+        returnedAt: effectiveReturnedAt,
         updatedAt: now,
       });
 
@@ -181,6 +193,85 @@ export function useReturnAssignment() {
   }, []);
 
   return { returnTerritory, isReturning, isPending: isReturning };
+}
+
+export function useRevokeTerritory() {
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  const revoke = useCallback(async (territoryId: string, revokedAt?: string | null) => {
+    setIsRevoking(true);
+    try {
+      const now = nowIso();
+      const effectiveReturnedAt = revokedAt ? normalizeDateToIso(revokedAt) : now;
+      const firestore = getPlannerFirestore();
+
+      const assignmentsSnap = await getDocs(
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+          where('territoryId', '==', territoryId)
+        )
+      );
+
+      const batch = writeBatch(firestore);
+      for (const d of assignmentsSnap.docs) {
+        const data = d.data() as Assignment;
+        if (
+          data.status === 'assigned' ||
+          data.status === 'active' ||
+          data.status === 'pending_approval' ||
+          data.status === AssignmentStatus.PENDING_APPROVAL ||
+          data.status === AssignmentStatus.ACTIVE
+        ) {
+          batch.update(d.ref, {
+            status: AssignmentStatus.COMPLETED,
+            returnedAt: effectiveReturnedAt,
+            updatedAt: now,
+          });
+        }
+      }
+
+      batch.update(doc(firestore, FIRESTORE_COLLECTIONS.territories, territoryId), {
+        status: 'available',
+        publisherId: null,
+        publisherName: null,
+        groupId: null,
+        groupName: null,
+        updatedAt: now,
+      });
+
+      await batch.commit();
+    } finally {
+      setIsRevoking(false);
+    }
+  }, []);
+
+  return { revoke, isRevoking, isPending: isRevoking };
+}
+
+export function useUpdateAssignment() {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const update = useCallback(async (arg: { id: string } & Record<string, unknown>) => {
+    const { id, ...body } = arg;
+    setIsUpdating(true);
+    try {
+      const payload: Record<string, unknown> = { ...body, updatedAt: nowIso() };
+      if ('assignedAt' in payload && typeof payload.assignedAt === 'string') {
+        payload.assignedAt = normalizeDateToIso(payload.assignedAt);
+      }
+      if ('returnedAt' in payload && typeof payload.returnedAt === 'string' && payload.returnedAt) {
+        payload.returnedAt = normalizeDateToIso(payload.returnedAt);
+      }
+      if ('dueAt' in payload && typeof payload.dueAt === 'string' && payload.dueAt) {
+        payload.dueAt = normalizeDateToIso(payload.dueAt);
+      }
+      await updateDoc(assignmentDocument(id), payload);
+    } finally {
+      setIsUpdating(false);
+    }
+  }, []);
+
+  return { update, isUpdating, isPending: isUpdating };
 }
 
 export function useCreateAssignment() {
@@ -209,6 +300,9 @@ export function useCreateAssignment() {
         const id = createClientId();
         const firestore = getPlannerFirestore();
 
+        const effectiveAssignedAt = arg.assignedAt ? normalizeDateToIso(arg.assignedAt) : now;
+        const effectiveDueAt = arg.dueAt ? normalizeDateToIso(arg.dueAt) : null;
+
         const assignmentDoc: Assignment = {
           id,
           territoryId: arg.territoryId,
@@ -227,8 +321,8 @@ export function useCreateAssignment() {
           rejectedByName: null,
           rejectedAt: null,
           rejectionReason: null,
-          assignedAt: arg.assignedAt ?? now,
-          dueAt: arg.dueAt ?? null,
+          assignedAt: effectiveAssignedAt,
+          dueAt: effectiveDueAt,
           returnedAt: null,
           notes: arg.notes ?? null,
           coverageAtAssignment: '0',

@@ -23,6 +23,7 @@ import {
   Layers,
   Lock,
   MapPin,
+  Pencil,
   PhoneCall,
   PieChart,
   Printer,
@@ -37,9 +38,11 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
+import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,16 +53,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   useActivityReport,
   useCongregation,
   useCoverageReport,
+  useCurrentUser,
   useDoorAnalyticsReport,
   useGroupsReport,
   usePublishersReport,
   useS13Report,
+  useUpdateAssignment,
 } from '@/hooks';
 import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
+import { canAdjustAssignmentDates } from '@/lib/permissions';
 import {
   exportCoverageToCSV,
   exportGroupsToCSV,
@@ -76,6 +83,7 @@ export default function ReportsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
 
+  const { user } = useCurrentUser();
   const { congregation } = useCongregation(congregationId);
   const [tab, setTab] = useState<Tab>('overview');
 
@@ -84,6 +92,15 @@ export default function ReportsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [healthFilter, setHealthFilter] = useState<string>('all');
   const [s13Filter, setS13Filter] = useState<string>('all');
+
+  // S-13 Date Adjustment state
+  const [editingS13Record, setEditingS13Record] = useState<S13AssignmentRecord | null>(null);
+  const [editAssignedAt, setEditAssignedAt] = useState('');
+  const [editReturnedAt, setEditReturnedAt] = useState('');
+  const [editDueAt, setEditDueAt] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const { update: updateAssignment, isPending: isUpdatingAssignment } = useUpdateAssignment();
+  const canAdjust = canAdjustAssignmentDates(user?.role);
 
   // Hooks for reports
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
@@ -95,6 +112,31 @@ export default function ReportsClient() {
   const { data: activityData, isLoading: activityLoading } = useActivityReport(congregationId);
 
   const congregationName = congregation?.name || 'Congregation';
+
+  const handleOpenEditS13 = (rec: S13AssignmentRecord) => {
+    setEditingS13Record(rec);
+    setEditAssignedAt(rec.assignedAt ? rec.assignedAt.slice(0, 10) : '');
+    setEditReturnedAt(rec.returnedAt ? rec.returnedAt.slice(0, 10) : '');
+    setEditDueAt(rec.dueAt ? rec.dueAt.slice(0, 10) : '');
+    setEditNotes('');
+  };
+
+  const handleSaveS13Dates = async () => {
+    if (!editingS13Record) return;
+    try {
+      await updateAssignment({
+        id: editingS13Record.id,
+        assignedAt: editAssignedAt ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString() : editingS13Record.assignedAt,
+        returnedAt: editReturnedAt ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString() : null,
+        dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
+        notes: editNotes.trim() || undefined,
+      });
+      toast.success('Assignment dates updated successfully');
+      setEditingS13Record(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update assignment dates');
+    }
+  };
 
   // Filtered Territories for Overview
   const filteredTerritories = useMemo(() => {
@@ -789,6 +831,7 @@ export default function ReportsClient() {
                         <th className="py-2.5 px-3 text-center">Duration</th>
                         <th className="py-2.5 px-3 text-center">Coverage</th>
                         <th className="py-2.5 px-3 text-right">Status</th>
+                        {canAdjust && <th className="py-2.5 px-3 text-right">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
@@ -805,7 +848,7 @@ export default function ReportsClient() {
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 {rec.isGroupAssignment ? (
-                                  <Badge
+                                   <Badge
                                     variant="outline"
                                     className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
                                   >
@@ -850,6 +893,20 @@ export default function ReportsClient() {
                                 {rec.status}
                               </Badge>
                             </td>
+                            {canAdjust && (
+                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                  onClick={() => handleOpenEditS13(rec)}
+                                  title="Adjust assignment / return dates"
+                                >
+                                  <Pencil size={12} />
+                                  <span className="sr-only">Edit Dates</span>
+                                </Button>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -860,6 +917,93 @@ export default function ReportsClient() {
             </CardContent>
           </Card>
         )}
+
+        {/* S-13 Adjust Dates Dialog */}
+        <ResponsiveDialog
+          open={Boolean(editingS13Record)}
+          onOpenChange={(op) => !op && setEditingS13Record(null)}
+          title={
+            editingS13Record
+              ? `Adjust S-13 Dates — Territory #${editingS13Record.territoryNumber}`
+              : 'Adjust Assignment Dates'
+          }
+          description={
+            editingS13Record
+              ? `${editingS13Record.territoryName} (${editingS13Record.assigneeName || 'Publisher'})`
+              : ''
+          }
+        >
+          {editingS13Record && (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Service Overseers and Territory Servants can adjust the official assignment, return, or due dates.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Date Assigned *</Label>
+                  <Input
+                    type="date"
+                    value={editAssignedAt}
+                    onChange={(e) => setEditAssignedAt(e.target.value)}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Date Returned / Revoked</Label>
+                  <Input
+                    type="date"
+                    value={editReturnedAt}
+                    onChange={(e) => setEditReturnedAt(e.target.value)}
+                    className="h-9 rounded-xl text-xs"
+                    placeholder="Leave empty if active"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Due Date (Optional)</Label>
+                  <Input
+                    type="date"
+                    value={editDueAt}
+                    onChange={(e) => setEditDueAt(e.target.value)}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Notes (Optional)</Label>
+                  <Input
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Reason for adjustment / notes"
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => setEditingS13Record(null)}
+                  disabled={isUpdatingAssignment}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={handleSaveS13Dates}
+                  disabled={isUpdatingAssignment || !editAssignedAt}
+                >
+                  {isUpdatingAssignment ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </ResponsiveDialog>
 
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {/* TAB 3: SERVICE GROUPS & PUBLISHERS PERFORMANCE */}
