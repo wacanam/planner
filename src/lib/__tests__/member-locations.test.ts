@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { canViewMemberLocations, filterVisibleMemberLocations } from '@/lib/permissions';
+import { canViewMemberLocations, filterVisibleMemberLocations, isLocationActive } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { Group, SharedMemberLocation } from '@/types/api';
 
-describe('Member Real-Time and Last Known Location Scoping', () => {
+describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
+  const baseTime = 1755763200000; // Fixed timestamp for tests
+
   const mockGroups: Group[] = [
     {
       id: 'group-1',
@@ -17,6 +19,7 @@ describe('Member Real-Time and Last Known Location Scoping', () => {
       members: [
         { id: 'member-1', userId: 'member-1', role: 'member', user: { name: 'Publisher One', email: null } },
         { id: 'member-2', userId: 'member-2', role: 'member', user: { name: 'Publisher Two', email: null } },
+        { id: 'member-expired', userId: 'member-expired', role: 'member', user: { name: 'Publisher Expired', email: null } },
       ],
     },
     {
@@ -45,8 +48,10 @@ describe('Member Real-Time and Last Known Location Scoping', () => {
       accuracy: 10,
       heading: 90,
       isSharing: true,
-      updatedAt: '2026-08-21T10:00:00Z',
-      lastSeenAt: '2026-08-21T10:00:00Z',
+      durationMinutes: 120,
+      expiresAt: new Date(baseTime + 60 * 60 * 1000).toISOString(), // 1 hr in future
+      updatedAt: new Date(baseTime).toISOString(),
+      lastSeenAt: new Date(baseTime).toISOString(),
     },
     {
       id: 'cong-1_member-2',
@@ -59,9 +64,26 @@ describe('Member Real-Time and Last Known Location Scoping', () => {
       longitude: 120.9845,
       accuracy: 15,
       heading: null,
-      isSharing: false,
-      updatedAt: '2026-08-21T09:30:00Z',
-      lastSeenAt: '2026-08-21T09:30:00Z',
+      isSharing: false, // Stopped sharing -> must disappear from map
+      updatedAt: new Date(baseTime - 30 * 60 * 1000).toISOString(),
+      lastSeenAt: new Date(baseTime - 30 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'cong-1_member-expired',
+      userId: 'member-expired',
+      congregationId: 'cong-1',
+      userName: 'Publisher Expired',
+      groupId: 'group-1',
+      groupName: 'Group 1 - Downtown',
+      latitude: 14.6000,
+      longitude: 120.9850,
+      accuracy: 12,
+      heading: null,
+      isSharing: true,
+      durationMinutes: 30,
+      expiresAt: new Date(baseTime - 5 * 60 * 1000).toISOString(), // Expired 5 mins ago
+      updatedAt: new Date(baseTime - 35 * 60 * 1000).toISOString(),
+      lastSeenAt: new Date(baseTime - 35 * 60 * 1000).toISOString(),
     },
     {
       id: 'cong-1_member-3',
@@ -75,10 +97,26 @@ describe('Member Real-Time and Last Known Location Scoping', () => {
       accuracy: 8,
       heading: 180,
       isSharing: true,
-      updatedAt: '2026-08-21T10:05:00Z',
-      lastSeenAt: '2026-08-21T10:05:00Z',
+      durationMinutes: 60,
+      expiresAt: new Date(baseTime + 30 * 60 * 1000).toISOString(), // 30 mins in future
+      updatedAt: new Date(baseTime).toISOString(),
+      lastSeenAt: new Date(baseTime).toISOString(),
     },
   ];
+
+  describe('isLocationActive', () => {
+    it('returns true for active, non-expired location', () => {
+      expect(isLocationActive(mockLocations[0], baseTime)).toBe(true);
+    });
+
+    it('returns false when user stopped sharing (isSharing = false)', () => {
+      expect(isLocationActive(mockLocations[1], baseTime)).toBe(false);
+    });
+
+    it('returns false when duration has expired (expiresAt <= now)', () => {
+      expect(isLocationActive(mockLocations[2], baseTime)).toBe(false);
+    });
+  });
 
   describe('canViewMemberLocations', () => {
     it('allows Service Overseer to view member locations', () => {
@@ -113,45 +151,51 @@ describe('Member Real-Time and Last Known Location Scoping', () => {
   });
 
   describe('filterVisibleMemberLocations', () => {
-    it('returns all congregation locations for Service Overseer', () => {
+    it('returns only active, non-expired locations across congregation for Service Overseer', () => {
       const user = { id: 'so-user', role: UserRole.SERVICE_OVERSEER };
-      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations);
-      expect(visible).toHaveLength(3);
-      expect(visible.map((l) => l.userId)).toEqual(['member-1', 'member-2', 'member-3']);
-    });
-
-    it('returns all congregation locations for Territory Servant', () => {
-      const user = { id: 'ts-user', role: UserRole.TERRITORY_SERVANT };
-      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations);
-      expect(visible).toHaveLength(3);
-    });
-
-    it('scopes visibility for Group Overseer to only their group members and self', () => {
-      const user = { id: 'overseer-user-1', role: UserRole.USER };
-      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations);
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
+      // member-2 (stopped) and member-expired (expired) must not appear!
       expect(visible).toHaveLength(2);
-      expect(visible.map((l) => l.userId)).toContain('member-1');
-      expect(visible.map((l) => l.userId)).toContain('member-2');
-      expect(visible.map((l) => l.userId)).not.toContain('member-3');
+      expect(visible.map((l) => l.userId)).toEqual(['member-1', 'member-3']);
     });
 
-    it('scopes visibility for Group 2 Overseer to only Group 2 members', () => {
-      const user = { id: 'overseer-user-2', role: UserRole.USER };
-      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations);
-      expect(visible).toHaveLength(1);
-      expect(visible[0].userId).toBe('member-3');
+    it('returns only active, non-expired locations across congregation for Territory Servant', () => {
+      const user = { id: 'ts-user', role: UserRole.TERRITORY_SERVANT };
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
+      expect(visible).toHaveLength(2);
+      expect(visible.map((l) => l.userId)).toEqual(['member-1', 'member-3']);
     });
 
-    it('scopes visibility for regular Publisher to only their own shared location', () => {
-      const user = { id: 'member-1', role: UserRole.USER };
-      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations);
+    it('scopes visibility for Group Overseer to only active, non-expired group members', () => {
+      const user = { id: 'overseer-user-1', role: UserRole.USER };
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
       expect(visible).toHaveLength(1);
       expect(visible[0].userId).toBe('member-1');
     });
 
+    it('scopes visibility for Group 2 Overseer to only Group 2 active members', () => {
+      const user = { id: 'overseer-user-2', role: UserRole.USER };
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
+      expect(visible).toHaveLength(1);
+      expect(visible[0].userId).toBe('member-3');
+    });
+
+    it('scopes visibility for regular Publisher to only their own active location', () => {
+      const user = { id: 'member-1', role: UserRole.USER };
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
+      expect(visible).toHaveLength(1);
+      expect(visible[0].userId).toBe('member-1');
+    });
+
+    it('returns empty array when user stopped sharing their location', () => {
+      const user = { id: 'member-2', role: UserRole.USER };
+      const visible = filterVisibleMemberLocations(user, mockGroups, mockLocations, baseTime);
+      expect(visible).toHaveLength(0);
+    });
+
     it('handles empty inputs safely', () => {
-      expect(filterVisibleMemberLocations(null, mockGroups, mockLocations)).toEqual([]);
-      expect(filterVisibleMemberLocations({ id: 'user-1', role: UserRole.USER }, [], [])).toEqual([]);
+      expect(filterVisibleMemberLocations(null, mockGroups, mockLocations, baseTime)).toEqual([]);
+      expect(filterVisibleMemberLocations({ id: 'user-1', role: UserRole.USER }, [], [], baseTime)).toEqual([]);
     });
   });
 });

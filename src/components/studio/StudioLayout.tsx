@@ -225,6 +225,11 @@ export function StudioLayout({
     isSharing: isSharingLocation,
     isLocating: isSharingLocating,
     currentCoords: sharedLocationCoords,
+    durationMinutes: sharingDurationMinutes,
+    expiresAt: sharingExpiresAt,
+    startSharing: startLocationSharing,
+    stopSharing: stopLocationSharing,
+    extendDuration: extendLocationDuration,
     toggleShareLocation,
   } = useLocationSharing({
     congregationId,
@@ -649,7 +654,12 @@ export function StudioLayout({
           roads={territory?.annotations?.roads}
           isSharingLocation={isSharingLocation}
           onToggleShareLocation={toggleShareLocation}
+          onStartShareLocation={startLocationSharing}
+          onStopShareLocation={stopLocationSharing}
+          onExtendShareLocation={extendLocationDuration}
           isSharingPending={isSharingLocating}
+          sharingDurationMinutes={sharingDurationMinutes}
+          sharingExpiresAt={sharingExpiresAt}
           visibleMemberLocations={memberLocations}
           onSelectMemberLocation={(loc) => {
             dismissAllFloatingCards();

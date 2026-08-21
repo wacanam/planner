@@ -682,6 +682,8 @@ export interface SharedMemberLocation {
   accuracy?: number | null;
   heading?: number | null;
   isSharing: boolean;
+  durationMinutes?: number | null;
+  expiresAt?: string | null;
   updatedAt: string;
   lastSeenAt: string;
 }

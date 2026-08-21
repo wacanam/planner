@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Check,
   ChevronDown,
   Clock,
   Eye,
@@ -10,11 +11,13 @@ import {
   Menu,
   Milestone,
   MousePointer,
+  Plus,
   Printer,
   Radio,
   Redo2,
   Search,
   Square,
+  Timer,
   Undo2,
   Users,
   X,
@@ -51,8 +54,13 @@ interface StudioTopBarProps {
   onSelectRoad?: (road: MapRoad) => void;
   isReadOnly?: boolean;
   isSharingLocation?: boolean;
-  onToggleShareLocation?: () => void;
+  onToggleShareLocation?: (durationMinutes?: number) => void;
+  onStartShareLocation?: (durationMinutes: number) => void;
+  onStopShareLocation?: () => void;
+  onExtendShareLocation?: (additionalMinutes: number) => void;
   isSharingPending?: boolean;
+  sharingDurationMinutes?: number;
+  sharingExpiresAt?: string | null;
   visibleMemberLocations?: SharedMemberLocation[];
   onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
   canViewMembers?: boolean;
@@ -124,7 +132,12 @@ export function StudioTopBar({
   isReadOnly = false,
   isSharingLocation = false,
   onToggleShareLocation,
+  onStartShareLocation,
+  onStopShareLocation,
+  onExtendShareLocation,
   isSharingPending = false,
+  sharingDurationMinutes = 120,
+  sharingExpiresAt,
   visibleMemberLocations = [],
   onSelectMemberLocation,
   canViewMembers = false,
@@ -133,8 +146,41 @@ export function StudioTopBar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [membersMenuOpen, setMembersMenuOpen] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [selectedDurationPreset, setSelectedDurationPreset] = useState<number>(120); // 2 hours default
+  const [customHours, setCustomHours] = useState<string>('2');
+  const [customMinutes, setCustomMinutes] = useState<string>('0');
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Periodic tick for live expiration countdown
+  useEffect(() => {
+    if (!isSharingLocation) return;
+    const interval = setInterval(() => {
+      setNowTick(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isSharingLocation]);
+
+  const remainingTimeStr = useMemo(() => {
+    if (!isSharingLocation || !sharingExpiresAt) return '';
+    const diffMs = new Date(sharingExpiresAt).getTime() - nowTick;
+    if (diffMs <= 0) return 'Expiring…';
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  }, [isSharingLocation, sharingExpiresAt, nowTick]);
 
   const activeSharingMembersCount = useMemo(() => {
     return visibleMemberLocations.filter((m) => m.isSharing && m.userId !== user?.id).length;
@@ -331,31 +377,231 @@ export function StudioTopBar({
 
         <div className="h-5 w-px bg-border mx-1 shrink-0" />
 
-        {/* Location Sharing Toggle Button */}
-        {onToggleShareLocation && (
-          <button
-            type="button"
-            onClick={onToggleShareLocation}
-            disabled={isSharingPending}
-            title={
-              isSharingLocation
-                ? 'Live location sharing is ON (Visible to Group Overseer & Servants). Click to stop sharing.'
-                : 'Share your live location with Group Overseer & Territory Servants'
-            }
-            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-200 cursor-pointer ${
-              isSharingLocation
-                ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:scale-95'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            }`}
-          >
-            <Radio
-              size={14}
-              className={isSharingLocation ? 'animate-pulse text-white' : ''}
-            />
-            <span className="hidden md:inline">
-              {isSharingLocation ? 'Sharing Live' : 'Share Location'}
-            </span>
-          </button>
+        {/* Location Sharing Popover & Button */}
+        {(onToggleShareLocation || onStartShareLocation) && (
+          <Popover open={shareMenuOpen} onOpenChange={setShareMenuOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={isSharingPending}
+                title={
+                  isSharingLocation
+                    ? `Live location sharing is ON (${remainingTimeStr} left). Click to manage or stop.`
+                    : 'Share your live location with Group Overseer & Territory Servants'
+                }
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-200 cursor-pointer ${
+                  isSharingLocation
+                    ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:scale-95'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <Radio
+                  size={14}
+                  className={isSharingLocation ? 'animate-pulse text-white' : ''}
+                />
+                <span className="hidden sm:inline">
+                  {isSharingLocation ? 'Sharing Live' : 'Share Location'}
+                </span>
+                {isSharingLocation && remainingTimeStr && (
+                  <span className="text-[10px] font-mono bg-emerald-800/80 text-emerald-100 px-1.5 py-0.5 rounded-md">
+                    {remainingTimeStr}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="center"
+              side="bottom"
+              sideOffset={8}
+              className="w-80 p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3.5 pointer-events-auto"
+            >
+              {isSharingLocation ? (
+                /* Active Sharing Management View */
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Radio size={14} className="animate-pulse" />
+                        <span>Live Location Sharing Active</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-tight">
+                        Visible to your Group Overseer, Territory Servants, and Service Overseer.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/60 border border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Timer size={15} className="text-primary" />
+                      <span className="text-muted-foreground">Time Remaining:</span>
+                    </div>
+                    <span className="text-xs font-bold font-mono text-foreground">
+                      {remainingTimeStr || 'Calculating…'}
+                    </span>
+                  </div>
+
+                  {/* Quick Extend Buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Extend Duration
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[15, 30, 60].map((mins) => (
+                        <Button
+                          key={mins}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs rounded-lg font-semibold gap-1"
+                          onClick={() => {
+                            if (onExtendShareLocation) {
+                              onExtendShareLocation(mins);
+                            } else if (onToggleShareLocation) {
+                              onToggleShareLocation(mins);
+                            }
+                          }}
+                        >
+                          <Plus size={11} />
+                          <span>{mins < 60 ? `${mins}m` : '1h'}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Stop Sharing Button */}
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="w-full rounded-xl text-xs font-bold gap-1.5"
+                    onClick={() => {
+                      if (onStopShareLocation) {
+                        onStopShareLocation();
+                      } else if (onToggleShareLocation) {
+                        onToggleShareLocation();
+                      }
+                      setShareMenuOpen(false);
+                    }}
+                  >
+                    <X size={14} />
+                    <span>Stop Sharing Location</span>
+                  </Button>
+                </div>
+              ) : (
+                /* Inactive: Setup Sharing Duration & Start View */
+                <div className="space-y-3.5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Radio size={14} className="text-primary" />
+                      <span>Share Your Location</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Choose how long to share your position with your Group Overseer & Servants.
+                    </p>
+                  </div>
+
+                  {/* Presets */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Duration
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { label: '15 mins', value: 15 },
+                        { label: '30 mins', value: 30 },
+                        { label: '1 hour', value: 60 },
+                        { label: '2 hours', value: 120 },
+                        { label: '4 hours', value: 240 },
+                        { label: '8 hours', value: 480 },
+                      ].map((preset) => {
+                        const isSelected = !isCustomDuration && selectedDurationPreset === preset.value;
+                        return (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => {
+                              setIsCustomDuration(false);
+                              setSelectedDurationPreset(preset.value);
+                            }}
+                            className={`py-1.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer ${
+                              isSelected
+                                ? 'bg-primary text-primary-foreground border-primary shadow-xs'
+                                : 'bg-background hover:bg-muted/60 border-border text-foreground'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom Duration Toggle & Inputs */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomDuration(!isCustomDuration)}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {isCustomDuration ? '← Back to Presets' : 'Custom Duration (Hours / Mins)…'}
+                    </button>
+
+                    {isCustomDuration && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-muted/40 border border-border flex items-center gap-2">
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-semibold text-muted-foreground">Hours</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="24"
+                            value={customHours}
+                            onChange={(e) => setCustomHours(e.target.value)}
+                            className="w-full h-7 px-2 text-xs bg-background border border-input rounded-lg"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] font-semibold text-muted-foreground">Minutes</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            step="5"
+                            value={customMinutes}
+                            onChange={(e) => setCustomMinutes(e.target.value)}
+                            className="w-full h-7 px-2 text-xs bg-background border border-input rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Start Sharing CTA Button */}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full rounded-xl text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => {
+                      let totalMins = selectedDurationPreset;
+                      if (isCustomDuration) {
+                        const h = Math.max(0, parseInt(customHours, 10) || 0);
+                        const m = Math.max(0, parseInt(customMinutes, 10) || 0);
+                        totalMins = Math.max(5, h * 60 + m);
+                      }
+                      if (onStartShareLocation) {
+                        onStartShareLocation(totalMins);
+                      } else if (onToggleShareLocation) {
+                        onToggleShareLocation(totalMins);
+                      }
+                      setShareMenuOpen(false);
+                    }}
+                  >
+                    <Radio size={14} />
+                    <span>Start Sharing Location</span>
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         )}
 
         {/* Group & Congregation Members Locations Selector (Overseers & Servants) */}

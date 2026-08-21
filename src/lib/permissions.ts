@@ -685,10 +685,25 @@ export function canViewMemberLocations(
 }
 
 /**
+ * Checks if a member location is currently actively shared and has not expired.
+ */
+export function isLocationActive(loc: SharedMemberLocation, now: number = Date.now()): boolean {
+  if (!loc || !loc.isSharing) return false;
+  if (loc.expiresAt) {
+    const expTime = new Date(loc.expiresAt).getTime();
+    if (!Number.isNaN(expTime) && expTime <= now) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Filters member locations based on the current user's role and group assignments:
- * - Territory Servants / Service Overseers / Admins: Can view all shared member locations in the congregation.
- * - Group Overseers & Assistants: Can view members belonging to their service group(s).
- * - Regular publishers: Can only see their own shared location.
+ * - Only currently active, non-expired shared locations are visible (inactive locations disappear).
+ * - Territory Servants / Service Overseers / Admins: Can view all actively shared member locations in the congregation.
+ * - Group Overseers & Assistants: Can view active members belonging to their service group(s).
+ * - Regular publishers: Can only see their own active shared location.
  */
 export function filterVisibleMemberLocations(
   user: { id?: string | null; role?: string | null; congregationRole?: string | null; email?: string | null; groupId?: string | null } | null | undefined,
@@ -698,13 +713,18 @@ export function filterVisibleMemberLocations(
     assistantOverseerId?: string | null;
     members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
   }> = [],
-  locations: SharedMemberLocation[] = []
+  locations: SharedMemberLocation[] = [],
+  now: number = Date.now()
 ): SharedMemberLocation[] {
   if (!user?.id || !locations || locations.length === 0) return [];
 
-  // Territory Servants, Service Overseers, and Admins can view all congregation members
+  // Filter out any locations that are not actively sharing or have expired
+  const activeLocations = locations.filter((loc) => isLocationActive(loc, now));
+  if (activeLocations.length === 0) return [];
+
+  // Territory Servants, Service Overseers, and Admins can view all active congregation members
   if (isTerritoryServant(user.role) || isTerritoryServant(user.congregationRole)) {
-    return locations;
+    return activeLocations;
   }
 
   // Check if user is an overseer/assistant of any group
@@ -722,7 +742,7 @@ export function filterVisibleMemberLocations(
       }
     }
 
-    return locations.filter((loc) => {
+    return activeLocations.filter((loc) => {
       if (loc.userId === user.id) return true;
       if (overseenMemberIds.has(loc.userId)) return true;
       if (loc.groupId && overseenGroupIds.has(loc.groupId)) return true;
@@ -731,5 +751,5 @@ export function filterVisibleMemberLocations(
   }
 
   // Regular publisher: only see self
-  return locations.filter((loc) => loc.userId === user.id);
+  return activeLocations.filter((loc) => loc.userId === user.id);
 }

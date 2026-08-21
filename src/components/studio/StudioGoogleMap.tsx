@@ -546,7 +546,6 @@ export function StudioGoogleMap({
         id: string;
         marker: google.maps.marker.AdvancedMarkerElement;
         accuracyCircle?: google.maps.Circle | null;
-        beamDiv?: HTMLDivElement | null;
         pinContainer: HTMLDivElement;
         labelEl?: HTMLDivElement | null;
       }
@@ -2404,15 +2403,6 @@ export function StudioGoogleMap({
         if (entry.marker.map !== map) entry.marker.map = map;
         entry.marker.zIndex = isSelected ? 80 : isLive ? 60 : 35;
 
-        if (entry.beamDiv) {
-          if (heading != null && isLive) {
-            entry.beamDiv.style.display = 'block';
-            entry.beamDiv.style.transform = `rotate(${heading}deg)`;
-          } else {
-            entry.beamDiv.style.display = 'none';
-          }
-        }
-
         if (entry.accuracyCircle) {
           if (isLive && accuracy && accuracy > 5 && accuracy < 1000) {
             entry.accuracyCircle.setCenter({ lat, lng });
@@ -2436,33 +2426,6 @@ export function StudioGoogleMap({
         container.style.width = '0px';
         container.style.height = '0px';
         container.style.cursor = 'pointer';
-
-        // Flashlight beam for member
-        const beamDiv = document.createElement('div');
-        beamDiv.style.position = 'absolute';
-        beamDiv.style.left = '-70px';
-        beamDiv.style.bottom = '-70px';
-        beamDiv.style.width = '140px';
-        beamDiv.style.height = '140px';
-        beamDiv.style.transformOrigin = '70px 70px';
-        beamDiv.style.pointerEvents = 'none';
-        beamDiv.style.zIndex = '1';
-        beamDiv.style.display = heading != null && isLive ? 'block' : 'none';
-        if (heading != null) beamDiv.style.transform = `rotate(${heading}deg)`;
-
-        beamDiv.innerHTML = `
-          <svg width="140" height="140" viewBox="0 0 140 140" style="overflow: visible;">
-            <defs>
-              <radialGradient id="memberBeamGradient_${locId}" cx="70" cy="70" r="70" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#10B981" stop-opacity="0.6"/>
-                <stop offset="45%" stop-color="#34D399" stop-opacity="0.25"/>
-                <stop offset="80%" stop-color="#6EE7B7" stop-opacity="0.08"/>
-                <stop offset="100%" stop-color="#A7F3D0" stop-opacity="0"/>
-              </radialGradient>
-            </defs>
-            <path d="M 70,70 L 32,10.9 A 70,70 0 0,1 108,10.9 Z" fill="url(#memberBeamGradient_${locId})" />
-          </svg>
-        `;
 
         // Pulsing Live Halo
         const haloDiv = document.createElement('div');
@@ -2545,7 +2508,6 @@ export function StudioGoogleMap({
         labelEl.textContent = loc.userName + (isCurrentUser ? ' (You)' : '');
         labelWrapper.appendChild(labelEl);
 
-        container.appendChild(beamDiv);
         container.appendChild(haloDiv);
         container.appendChild(pinContainer);
         container.appendChild(labelWrapper);
@@ -2584,7 +2546,6 @@ export function StudioGoogleMap({
           id: locId,
           marker,
           accuracyCircle,
-          beamDiv,
           pinContainer,
           labelEl,
         });
