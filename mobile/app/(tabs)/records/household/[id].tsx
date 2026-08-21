@@ -222,7 +222,11 @@ export default function HouseholdDetailScreen() {
       <Header
         showBack
         title="Household Details"
-        subtitle={household.address}
+        subtitle={
+          household.streetName
+            ? `${household.houseNumber ? `${household.houseNumber} ` : ''}${household.streetName}`
+            : household.address
+        }
         rightAction={
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {canShare && (
@@ -252,22 +256,23 @@ export default function HouseholdDetailScreen() {
               <Text
                 style={[styles.addressTitle, { color: colors.foreground, fontSize: typography.lg }]}
               >
-                {household.address}
+                {household.houseNumber ? `${household.houseNumber} ` : ''}
+                {household.streetName || household.address}
               </Text>
-              {household.city ? (
-                <View style={styles.locRow}>
-                  <MapPin size={12} color={colors.mutedForeground} />
-                  <Text
-                    style={{
-                      color: colors.mutedForeground,
-                      fontSize: typography.xs,
-                      marginLeft: 4,
-                    }}
-                  >
-                    {household.city} {household.postalCode ? `• ${household.postalCode}` : ''}
-                  </Text>
-                </View>
-              ) : null}
+              <View style={styles.locRow}>
+                <MapPin size={12} color={colors.mutedForeground} />
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: typography.xs,
+                    marginLeft: 4,
+                  }}
+                >
+                  {household.address}
+                  {household.city ? `, ${household.city}` : ''}
+                  {household.postalCode ? ` • ${household.postalCode}` : ''}
+                </Text>
+              </View>
             </View>
             <Badge
               label={household.status.replace('_', ' ')}

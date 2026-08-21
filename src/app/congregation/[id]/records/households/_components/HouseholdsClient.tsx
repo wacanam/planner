@@ -247,11 +247,11 @@ export default function HouseholdsClient() {
             const isOwner = Boolean(user?.id && h.createdById === user.id);
             const isGroupMateRecord = Boolean(
               user?.id &&
-                h.createdById &&
-                h.createdById !== user.id &&
-                !isCollaborator &&
-                !isReadOnly &&
-                groupMateUserIds.has(h.createdById)
+              h.createdById &&
+              h.createdById !== user.id &&
+              !isCollaborator &&
+              !isReadOnly &&
+              groupMateUserIds.has(h.createdById)
             );
 
             const canShare = canShareHousehold(user, h);
@@ -272,8 +272,8 @@ export default function HouseholdsClient() {
                         className="font-bold text-sm text-foreground hover:text-primary hover:underline transition-colors truncate inline-flex items-center gap-1.5 group"
                       >
                         <span>
-                          {h.houseNumber ? `${h.houseNumber} ` : ''}
-                          {h.address}
+                          {h.houseNumber ? `#${h.houseNumber} ` : ''}
+                          {h.streetName || h.address}
                         </span>
                         <ChevronRight
                           size={14}
@@ -339,7 +339,7 @@ export default function HouseholdsClient() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 truncate">
-                      {h.streetName}, {h.city} {h.postalCode ? `(${h.postalCode})` : ''}
+                      {h.address}, {h.city} {h.postalCode ? `(${h.postalCode})` : ''}
                     </p>
                     {h.notes && (
                       <p className="text-xs text-muted-foreground/80 mt-1 italic line-clamp-1">

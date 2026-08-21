@@ -25,6 +25,7 @@ export interface HouseholdContactSummary {
   notes?: string;
   bibleStudyInterest?: boolean;
   householdAddress?: string;
+  streetName?: string;
   territoryId?: string;
   matchScope?: 'household' | 'territory' | 'congregation';
   creatorName?: string | null;
@@ -135,6 +136,7 @@ export function extractHouseholdContacts(
       bibleStudyInterest:
         Boolean(latest.bibleStudyInterest) || contactEncounters.some((e) => e.bibleStudyInterest),
       householdAddress: latest.householdAddress || undefined,
+      streetName: latest.streetName || undefined,
       territoryId: latest.territoryId || undefined,
       matchScope: 'household',
       creatorName,

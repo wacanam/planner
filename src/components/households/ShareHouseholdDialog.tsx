@@ -140,7 +140,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
       title="Record Sharing & Access Control"
       description={
         household
-          ? `${household.address} (${household.city})`
+          ? `${household.streetName ? `${household.streetName} · ` : ''}${household.address} (${household.city})`
           : 'Collaborate with fellow publishers'
       }
     >

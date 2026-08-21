@@ -275,10 +275,12 @@ export default function HouseholdDetailPage() {
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                    {householdView.address}
+                    {householdView.houseNumber ? `${householdView.houseNumber} ` : ''}
+                    {householdView.streetName || householdView.address}
                   </h1>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {householdView.streetName}, {householdView.city}
+                    {householdView.address}, {householdView.city}
+                    {householdView.postalCode ? ` (${householdView.postalCode})` : ''}
                     {householdView.creatorName ? ` · Added by: ${householdView.creatorName}` : ''}
                   </p>
                 </div>

@@ -283,14 +283,14 @@ export default function VisitsClient() {
                         href={
                           v.householdId
                             ? `/congregation/${congregationId}/records/households/${v.householdId}`
-                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.householdAddress || '')}`
+                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.streetName || household?.streetName || v.householdAddress || '')}`
                         }
                         className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
                       >
                         <Home size={14} className="text-primary shrink-0" />
                         <span>
-                          {v.houseNumber ? `${v.houseNumber} ` : ''}
-                          {v.householdAddress || 'Household Record'}
+                          {v.houseNumber ? `#${v.houseNumber} ` : ''}
+                          {v.streetName || household?.streetName || v.householdAddress || 'Household Record'}
                           {v.unitNumber ? ` (Unit ${v.unitNumber})` : ''}
                         </span>
                       </Link>

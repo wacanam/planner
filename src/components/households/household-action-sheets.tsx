@@ -469,7 +469,11 @@ export function HouseholdLogVisitSheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Log Visit Record"
-      description={household ? `${household.address} (${household.city})` : 'Record visit details'}
+      description={
+        household
+          ? `${household.streetName ? `${household.streetName} · ` : ''}${household.address} (${household.city})`
+          : 'Record visit details'
+      }
     >
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1">
@@ -1087,7 +1091,11 @@ export function HouseholdEncounterSheet({
       open={open}
       onOpenChange={onOpenChange}
       title="Record Person Encounter"
-      description={household ? `${household.address} (${household.city})` : 'Conversation details'}
+      description={
+        household
+          ? `${household.streetName ? `${household.streetName} · ` : ''}${household.address} (${household.city})`
+          : 'Conversation details'
+      }
     >
       <AddEncounterForm
         household={household}

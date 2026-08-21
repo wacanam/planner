@@ -307,19 +307,20 @@ export default function RecordsScreen() {
                         { color: colors.foreground, fontSize: typography.base },
                       ]}
                     >
-                      {item.address}
+                      {item.houseNumber ? `${item.houseNumber} ` : ''}
+                      {item.streetName || item.address}
                     </Text>
-                    {item.city ? (
-                      <Text
-                        style={{
-                          color: colors.mutedForeground,
-                          fontSize: typography.xs,
-                          marginTop: 2,
-                        }}
-                      >
-                        {item.city}
-                      </Text>
-                    ) : null}
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 2,
+                      }}
+                    >
+                      {item.address}
+                      {item.city ? `, ${item.city}` : ''}
+                      {item.postalCode ? ` (${item.postalCode})` : ''}
+                    </Text>
                   </View>
                   <Badge label={item.status} variant={getStatusBadgeVariant(item.status)} />
                 </View>
@@ -380,7 +381,8 @@ export default function RecordsScreen() {
                         { color: colors.foreground, fontSize: typography.sm + 1 },
                       ]}
                     >
-                      {item.householdAddress || 'Household Record'}
+                      {item.houseNumber ? `${item.houseNumber} ` : ''}
+                      {item.streetName || item.householdAddress || 'Household Record'}
                     </Text>
                     <Text
                       style={{

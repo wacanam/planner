@@ -704,11 +704,10 @@ export default function AssignmentVisitsClient() {
                   key={f.key}
                   type="button"
                   onClick={() => setStatusFilter(f.key)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    statusFilter === f.key
-                      ? 'bg-card text-primary shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === f.key
+                    ? 'bg-card text-primary shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -736,7 +735,10 @@ export default function AssignmentVisitsClient() {
                 >
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="font-bold text-xs text-foreground truncate">{h.address}</p>
+                      <p className="font-bold text-xs text-foreground truncate">
+                        {h.houseNumber ? `#${h.houseNumber} ` : ''}
+                        {h.streetName || h.address}
+                      </p>
                       <Badge
                         variant="outline"
                         className={`text-[9px] capitalize py-0 ${statusBadgeColors[h.status] ?? statusBadgeColors.new}`}
@@ -746,7 +748,8 @@ export default function AssignmentVisitsClient() {
                     </div>
 
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
-                      {h.city && <span>{h.city}</span>}
+                      {h.streetName && h.address && <span>{h.address}</span>}
+                      {h.city && <span>• {h.city}</span>}
                       {h.lastVisitDate ? (
                         <span>• Last visit {timeAgo(h.lastVisitDate)}</span>
                       ) : (
@@ -802,7 +805,8 @@ export default function AssignmentVisitsClient() {
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-xs text-foreground">
-                        {v.householdAddress || 'Mapped Door'}
+                        {v.houseNumber ? `#${v.houseNumber} ` : ''}
+                        {v.streetName || v.householdAddress || 'Mapped Door'}
                       </span>
                       <Badge
                         variant="outline"
