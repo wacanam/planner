@@ -691,6 +691,7 @@ export function StudioLayout({
             }
             toast.success(`Found road: ${road.name || 'Road Corridor'}`);
           }}
+          congregationId={congregationId}
         />
       )}
 

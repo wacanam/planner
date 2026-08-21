@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
   FolderOpen,
+  Map as MapIcon,
   MapPin,
   Pencil,
   Plus,
@@ -307,37 +308,49 @@ export default function TerritoriesClient() {
               Congregation territory cards, boundaries, and publisher assignments
             </p>
           </div>
-          {isServant && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCenterLat(
-                    typeof congregation?.defaultLatitude === 'number'
-                      ? String(congregation.defaultLatitude)
-                      : '8.3683'
-                  );
-                  setCenterLng(
-                    typeof congregation?.defaultLongitude === 'number'
-                      ? String(congregation.defaultLongitude)
-                      : '124.8644'
-                  );
-                  setMapCenterOpen(true);
-                }}
-                className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5"
-              >
-                <MapPin size={14} />
-                <span>Map Center</span>
-              </Button>
-              <Button
-                onClick={() => setCreateDialogOpen(true)}
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
-              >
-                <Plus size={15} />
-                <span>Create Territory</span>
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5 bg-background shadow-xs hover:border-primary/50 hover:bg-primary/5"
+            >
+              <Link href={`/congregation/${congregationId}/territories/overview`}>
+                <MapIcon size={15} className="text-primary" />
+                <span>Congregation Map</span>
+              </Link>
+            </Button>
+            {isServant && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCenterLat(
+                      typeof congregation?.defaultLatitude === 'number'
+                        ? String(congregation.defaultLatitude)
+                        : '8.3683'
+                    );
+                    setCenterLng(
+                      typeof congregation?.defaultLongitude === 'number'
+                        ? String(congregation.defaultLongitude)
+                        : '124.8644'
+                    );
+                    setMapCenterOpen(true);
+                  }}
+                  className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5"
+                >
+                  <MapPin size={14} />
+                  <span>Map Center</span>
+                </Button>
+                <Button
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
+                >
+                  <Plus size={15} />
+                  <span>Create Territory</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Filters */}

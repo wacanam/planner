@@ -9,6 +9,7 @@ import {
   Globe,
   Layers,
   LogOut,
+  Map as MapIcon,
   MapPin,
   Shield,
   User,
@@ -329,6 +330,15 @@ export function DashboardHeader() {
                         </Link>
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                      <Link
+                        href={`/congregation/${id}/territories/overview`}
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                      >
+                        <MapIcon size={14} className="text-primary" />
+                        <span>Congregation Map</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}

@@ -10,6 +10,7 @@ import {
   Globe,
   Layers,
   LogOut,
+  Map as MapIcon,
   MapPin,
   Menu,
   Shield,
@@ -110,6 +111,16 @@ export function BottomTabBar() {
             label: 'Congregation Reports',
             description: 'Coverage analytics & S-13 summaries',
             icon: BarChart2,
+          },
+        ]
+      : []),
+    ...(isServantRole || isOverseerRole
+      ? [
+          {
+            href: `/congregation/${id}/territories/overview`,
+            label: 'Congregation Map',
+            description: 'All territories, boundaries & live publishers',
+            icon: MapIcon,
           },
         ]
       : []),

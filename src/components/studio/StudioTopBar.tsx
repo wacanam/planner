@@ -7,6 +7,7 @@ import {
   Eye,
   Flag,
   Home,
+  Map as MapIcon,
   MapPin,
   Menu,
   Milestone,
@@ -22,6 +23,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -64,6 +66,7 @@ interface StudioTopBarProps {
   visibleMemberLocations?: SharedMemberLocation[];
   onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
   canViewMembers?: boolean;
+  congregationId?: string;
 }
 
 const getLandmarkEmoji = (type?: string) => {
@@ -141,6 +144,7 @@ export function StudioTopBar({
   visibleMemberLocations = [],
   onSelectMemberLocation,
   canViewMembers = false,
+  congregationId,
 }: StudioTopBarProps) {
   const { user } = useCurrentUser();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -341,6 +345,22 @@ export function StudioTopBar({
             <Eye size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
             <span className="hidden sm:inline">Read-Only</span>
           </div>
+        )}
+
+        {/* Shortcut to Congregation Overview Map */}
+        {congregationId && (
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="hidden sm:inline-flex h-8 px-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 gap-1.5 shrink-0"
+            title="View entire congregation territory overview"
+          >
+            <Link href={`/congregation/${congregationId}/territories/overview`}>
+              <MapIcon size={14} className="text-primary" />
+              <span className="hidden lg:inline">Congregation Map</span>
+            </Link>
+          </Button>
         )}
 
         <div className="hidden sm:block h-5 w-px bg-border mx-1 shrink-0" />
