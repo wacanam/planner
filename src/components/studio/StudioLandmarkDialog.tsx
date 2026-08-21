@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, MapPin, Trash2 } from 'lucide-react';
+import { Check, MapPin, Trash2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
@@ -274,11 +274,21 @@ export function StudioLandmarkDialog({
         </div>
 
         {targetCoords && (
-          <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] text-muted-foreground flex items-center gap-2">
-            <MapPin size={13} className="shrink-0 text-primary" />
-            <span>
-              Location: {targetCoords.lat.toFixed(5)}, {targetCoords.lng.toFixed(5)}
-            </span>
+          <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] text-muted-foreground flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <MapPin size={13} className="shrink-0 text-primary" />
+              <span>
+                {targetCoords.lat.toFixed(5)}, {targetCoords.lng.toFixed(5)}
+              </span>
+            </div>
+            {initialData?.creatorName && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <User size={12} className="shrink-0 text-muted-foreground/70" />
+                <span>
+                  Contributor: <strong className="font-semibold text-foreground">{initialData.creatorName}</strong>
+                </span>
+              </div>
+            )}
           </div>
         )}
 

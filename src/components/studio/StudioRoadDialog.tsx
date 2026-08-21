@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Milestone, Trash2 } from 'lucide-react';
+import { Check, Milestone, Trash2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
@@ -230,6 +230,15 @@ export function StudioRoadDialog({
             })}
           </div>
         </div>
+
+        {initialData?.creatorName && (
+          <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] text-muted-foreground flex items-center gap-2">
+            <User size={13} className="shrink-0 text-muted-foreground/70" />
+            <span>
+              Contributor: <strong className="font-semibold text-foreground">{initialData.creatorName}</strong>
+            </span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
           {isEdit && onDelete ? (

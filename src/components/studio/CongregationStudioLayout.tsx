@@ -11,6 +11,7 @@ import {
   Navigation,
   Radio,
   Search,
+  User,
   Users,
   X,
 } from 'lucide-react';
@@ -500,8 +501,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Territory Info */}
       {selectedTerritory && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
@@ -602,8 +604,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Household Quick Info */}
       {selectedHousehold && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
@@ -646,6 +649,13 @@ export function CongregationStudioLayout({
               )}
             </div>
 
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-0.5">
+              <User size={12} className="text-muted-foreground/70 shrink-0" />
+              <span>
+                Added by <strong className="font-semibold text-foreground">{selectedHousehold.creatorName || findParentTerritory(selectedHousehold.territoryId || '')?.publisherName || 'Territory Contributor'}</strong>
+              </span>
+            </div>
+
             {selectedHousehold.notes && (
               <p className="text-xs bg-muted/40 p-2.5 rounded-xl text-muted-foreground border border-border leading-relaxed">
                 {selectedHousehold.notes}
@@ -673,8 +683,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Landmark Quick Info */}
       {selectedLandmark && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
@@ -687,6 +698,12 @@ export function CongregationStudioLayout({
                   <p className="text-xs text-muted-foreground capitalize">
                     {selectedLandmark.landmark.type} • Territory #{selectedLandmark.territory.number}
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Added by <strong className="font-semibold text-foreground">{selectedLandmark.landmark.creatorName || (selectedLandmark.landmark as any).createdByName || selectedLandmark.territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -718,8 +735,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Road Quick Info */}
       {selectedRoad && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 shrink-0 mt-0.5">
@@ -732,6 +750,12 @@ export function CongregationStudioLayout({
                   <p className="text-xs text-muted-foreground capitalize">
                     {selectedRoad.road.color || 'street'} • Territory #{selectedRoad.territory.number}
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Drawn by <strong className="font-semibold text-foreground">{selectedRoad.road.creatorName || (selectedRoad.road as any).createdByName || selectedRoad.territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -763,8 +787,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Start Meeting Flag Quick Info */}
       {selectedStartFlagTerritory && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 shrink-0 mt-0.5">
@@ -777,6 +802,12 @@ export function CongregationStudioLayout({
                   <p className="text-xs text-muted-foreground">
                     Territory #{selectedStartFlagTerritory.number}: {selectedStartFlagTerritory.name}
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Set by <strong className="font-semibold text-foreground">{selectedStartFlagTerritory.annotations?.startFlag?.creatorName || (selectedStartFlagTerritory.annotations?.startFlag as any)?.createdByName || selectedStartFlagTerritory.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -808,8 +839,9 @@ export function CongregationStudioLayout({
 
       {/* Floating Card: Selected Member Location Quick Info */}
       {selectedMemberLocation && (
-        <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5 min-w-0">
                 <Avatar className="h-10 w-10 rounded-2xl border border-border shrink-0">

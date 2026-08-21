@@ -25,6 +25,12 @@ export interface MapRoad {
   name?: string;
   color?: string;
   points: MapPoint[];
+  createdById?: string | null;
+  creatorName?: string | null;
+  createdAt?: string | number | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string | number | null;
 }
 
 export type LandmarkType =
@@ -53,12 +59,24 @@ export interface MapLandmark {
   lat: number;
   lng: number;
   label?: string;
+  createdById?: string | null;
+  creatorName?: string | null;
+  createdAt?: string | number | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string | number | null;
 }
 
 export interface MapStartFlag {
   lat: number;
   lng: number;
   label?: string;
+  createdById?: string | null;
+  creatorName?: string | null;
+  createdAt?: string | number | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string | number | null;
 }
 
 export interface MapBoundaryPolygon {
@@ -66,6 +84,12 @@ export interface MapBoundaryPolygon {
   name?: string;
   points: MapPoint[];
   color?: string;
+  createdById?: string | null;
+  creatorName?: string | null;
+  createdAt?: string | number | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string | number | null;
 }
 
 export interface BoundaryDisplaySettings {

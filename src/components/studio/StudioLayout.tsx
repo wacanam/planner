@@ -12,6 +12,7 @@ import {
   Navigation,
   Radio,
   Trash2,
+  User,
   Users,
   X,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ import type {
   MapLandmark,
   MapPoint,
   MapRoad,
+  MapStartFlag,
   SharedMemberLocation,
   Territory,
   TerritoryAnnotations,
@@ -187,7 +189,8 @@ export function StudioLayout({
     }
   }, [territory?.annotations?.boundaryDisplay]);
 
-  // Start flag dialog
+  // Start flag dialog & selection
+  const [selectedStartFlag, setSelectedStartFlag] = useState<MapStartFlag | null>(null);
   const [startFlagDialogOpen, setStartFlagDialogOpen] = useState(false);
   const [startFlagLabel, setStartFlagLabel] = useState('');
 
@@ -288,6 +291,7 @@ export function StudioLayout({
     setSelectedBoundary(null);
     setSelectedLandmark(null);
     setSelectedRoad(null);
+    setSelectedStartFlag(null);
     setSelectedMemberLocation(null);
     setBoundaryDialogOpen(false);
     setLandmarkDialogOpen(false);
@@ -477,6 +481,9 @@ export function StudioLayout({
           name:
             existingBoundaries.length > 0 ? `Zone ${existingBoundaries.length + 1}` : 'Boundary',
           points: drawnPoints,
+          createdById: user?.id || null,
+          creatorName: user?.name || null,
+          createdAt: new Date().toISOString(),
         };
         const nextBoundaries = [...existingBoundaries, newBoundary];
         await saveAnnotations({
@@ -797,9 +804,8 @@ export function StudioLayout({
           }}
           onSelectStartFlag={() => {
             dismissAllFloatingCards();
-            if (!isReadOnly) {
-              setStartFlagLabel(territory?.annotations?.startFlag?.label || 'Start Meeting Point');
-              setStartFlagDialogOpen(true);
+            if (territory?.annotations?.startFlag) {
+              setSelectedStartFlag(territory.annotations.startFlag);
             }
           }}
           onMoveStartFlag={async (lat, lng) => {
@@ -850,6 +856,9 @@ export function StudioLayout({
                   lat,
                   lng,
                   label: 'Start Meeting Point',
+                  createdById: user?.id || null,
+                  creatorName: user?.name || null,
+                  createdAt: new Date().toISOString(),
                 },
               });
               toast.success('Territory start meeting flag placed!');
@@ -1002,8 +1011,9 @@ export function StudioLayout({
 
       {/* Household Quick Info Modal */}
       {selectedHousehold && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
@@ -1044,6 +1054,13 @@ export function StudioLayout({
                   {selectedHousehold.occupantsCount} occupants
                 </Badge>
               )}
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-0.5">
+              <User size={12} className="text-muted-foreground/70 shrink-0" />
+              <span>
+                Added by <strong className="font-semibold text-foreground">{selectedHousehold.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+              </span>
             </div>
 
             {selectedHousehold.notes && (
@@ -1109,8 +1126,9 @@ export function StudioLayout({
 
       {/* Selected Boundary Quick Info Card */}
       {selectedBoundary && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
@@ -1123,6 +1141,12 @@ export function StudioLayout({
                   <p className="text-xs text-muted-foreground">
                     {selectedBoundary.points.length} vertices • Independent Polygon Zone
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Mapped by <strong className="font-semibold text-foreground">{selectedBoundary.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -1179,8 +1203,9 @@ export function StudioLayout({
 
       {/* Selected Landmark Quick Info Card */}
       {selectedLandmark && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
@@ -1193,6 +1218,12 @@ export function StudioLayout({
                   <p className="text-xs text-muted-foreground capitalize">
                     {selectedLandmark.type} • Landmark Point of Interest
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Added by <strong className="font-semibold text-foreground">{selectedLandmark.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -1251,8 +1282,9 @@ export function StudioLayout({
 
       {/* Selected Road Quick Info Card */}
       {selectedRoad && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
@@ -1265,6 +1297,12 @@ export function StudioLayout({
                   <p className="text-xs text-muted-foreground capitalize">
                     {selectedRoad.color || 'street'} • {selectedRoad.points?.length || 0} vertices
                   </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Drawn by <strong className="font-semibold text-foreground">{selectedRoad.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
@@ -1319,10 +1357,85 @@ export function StudioLayout({
         </div>
       )}
 
+      {/* Selected Start Flag Quick Info Card / Bottom Sheet */}
+      {selectedStartFlag && (
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                  <Flag size={16} />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-foreground leading-snug">
+                    {territory?.annotations?.startFlag?.label || selectedStartFlag.label || 'Territory Start Meeting Point'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Meeting Point • Start Alignment
+                  </p>
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
+                    <User size={11} className="text-muted-foreground/70 shrink-0" />
+                    <span>
+                      Set by <strong className="font-semibold text-foreground">{territory?.annotations?.startFlag?.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground"
+                onClick={() => setSelectedStartFlag(null)}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+
+            {!isReadOnly && (
+              <div className="flex items-center gap-1.5 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                  onClick={() => {
+                    setStartFlagLabel(territory?.annotations?.startFlag?.label || selectedStartFlag.label || 'Start Meeting Point');
+                    setStartFlagDialogOpen(true);
+                    setSelectedStartFlag(null);
+                  }}
+                >
+                  <Edit size={13} />
+                  <span>Edit Meeting Point</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                  title="Remove Start Meeting Flag"
+                  onClick={async () => {
+                    if (!territory?.id) return;
+                    if (window.confirm('Remove start meeting flag from territory?')) {
+                      const ann = { ...territory.annotations };
+                      delete ann.startFlag;
+                      await saveAnnotations(ann);
+                      toast.success('Start flag removed');
+                      setSelectedStartFlag(null);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Selected Member Location Quick Info Card / Mobile Popup */}
       {selectedMemberLocation && (
-        <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5 min-w-0">
                 <div className="relative shrink-0 mt-0.5">
@@ -1458,7 +1571,16 @@ export function StudioLayout({
               // Update existing
               const updated = existingLandmarks.map((lm) =>
                 lm.id === data.id
-                  ? { ...lm, label: data.label, type: data.type, lat: data.lat, lng: data.lng }
+                  ? {
+                      ...lm,
+                      label: data.label,
+                      type: data.type,
+                      lat: data.lat,
+                      lng: data.lng,
+                      updatedById: user?.id || null,
+                      updatedByName: user?.name || null,
+                      updatedAt: new Date().toISOString(),
+                    }
                   : lm
               );
               await saveAnnotations({
@@ -1468,12 +1590,15 @@ export function StudioLayout({
               toast.success(`Landmark "${data.label}" updated!`);
             } else {
               // Create new
-              const newLandmark = {
+              const newLandmark: MapLandmark = {
                 id: createClientId(),
                 type: data.type,
                 lat: data.lat,
                 lng: data.lng,
                 label: data.label,
+                createdById: user?.id || null,
+                creatorName: user?.name || null,
+                createdAt: new Date().toISOString(),
               };
               await saveAnnotations({
                 ...territory.annotations,
@@ -1519,7 +1644,16 @@ export function StudioLayout({
             if (data.id) {
               // Update existing road
               const updated = existingRoads.map((r) =>
-                r.id === data.id ? { ...r, name: data.name, color: data.type } : r
+                r.id === data.id
+                  ? {
+                      ...r,
+                      name: data.name,
+                      color: data.type,
+                      updatedById: user?.id || null,
+                      updatedByName: user?.name || null,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : r
               );
               await saveAnnotations({
                 ...territory.annotations,
@@ -1528,11 +1662,14 @@ export function StudioLayout({
               toast.success(`Road "${data.name}" updated!`);
             } else {
               // Create new road
-              const newRoad = {
+              const newRoad: MapRoad = {
                 id: createClientId(),
                 points: drawnPoints,
                 name: data.name,
                 color: data.type,
+                createdById: user?.id || null,
+                creatorName: user?.name || null,
+                createdAt: new Date().toISOString(),
               };
               await saveAnnotations({
                 ...territory.annotations,
@@ -1584,6 +1721,15 @@ export function StudioLayout({
             />
           </div>
 
+          {territory?.annotations?.startFlag?.creatorName && (
+            <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] text-muted-foreground flex items-center gap-2">
+              <User size={13} className="shrink-0 text-muted-foreground/70" />
+              <span>
+                Contributor: <strong className="font-semibold text-foreground">{territory.annotations.startFlag.creatorName}</strong>
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
             <Button
               type="button"
@@ -1628,6 +1774,9 @@ export function StudioLayout({
                       startFlag: {
                         ...territory.annotations.startFlag,
                         label: startFlagLabel.trim() || 'Start Meeting Point',
+                        updatedById: user?.id || null,
+                        updatedByName: user?.name || null,
+                        updatedAt: new Date().toISOString(),
                       },
                     });
                     toast.success('Start flag updated');
@@ -1653,7 +1802,17 @@ export function StudioLayout({
         onSave={async (id, name) => {
           if (!territory?.id) return;
           const existingBoundaries = getTerritoryBoundaries(territory);
-          const updated = existingBoundaries.map((b) => (b.id === id ? { ...b, name } : b));
+          const updated = existingBoundaries.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  name,
+                  updatedById: user?.id || null,
+                  updatedByName: user?.name || null,
+                  updatedAt: new Date().toISOString(),
+                }
+              : b
+          );
           await saveAnnotations({
             ...territory.annotations,
             boundaries: updated,
