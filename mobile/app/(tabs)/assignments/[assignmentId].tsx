@@ -34,7 +34,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TerritoryMapView, type TerritoryMapViewRef, type MapMarkerItem } from '@/components/map';
+import { type MapMarkerItem, TerritoryMapView, type TerritoryMapViewRef } from '@/components/map';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -102,7 +102,8 @@ export default function AssignmentDetailScreen() {
   // Return Territory Modal
   const [returnModalVisible, setReturnModalVisible] = useState(false);
 
-  const activeAssignment = assignments.find((a) => a.status === 'assigned' || a.status === 'active') || assignments[0];
+  const activeAssignment =
+    assignments.find((a) => a.status === 'assigned' || a.status === 'active') || assignments[0];
 
   // Parse boundary polygon coordinates for map
   const boundaryCoords = useMemo(() => {
@@ -238,7 +239,8 @@ export default function AssignmentDetailScreen() {
         notes: notes || null,
         bibleTopicDiscussed: topicDiscussed || null,
         literatureLeft: literatureLeft || null,
-        returnVisitPlanned: returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
+        returnVisitPlanned:
+          returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
       });
       await triggerHaptic('success');
       setVisitModalVisible(false);
@@ -347,7 +349,10 @@ export default function AssignmentDetailScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setReturnModalVisible(true)}
-              style={[styles.modeToggle, { backgroundColor: colors.secondary + '25', marginLeft: 8 }]}
+              style={[
+                styles.modeToggle,
+                { backgroundColor: colors.secondary + '25', marginLeft: 8 },
+              ]}
             >
               <RotateCcw size={16} color={colors.secondaryForeground} />
             </TouchableOpacity>
@@ -378,7 +383,10 @@ export default function AssignmentDetailScreen() {
             {boundaryCoords.length > 0 && (
               <TouchableOpacity
                 onPress={handleFitBoundary}
-                style={[styles.mapFab, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 }]}
+                style={[
+                  styles.mapFab,
+                  { backgroundColor: colors.card, borderColor: colors.border, marginTop: 8 },
+                ]}
               >
                 <Compass size={20} color={colors.foreground} />
               </TouchableOpacity>
@@ -386,7 +394,10 @@ export default function AssignmentDetailScreen() {
 
             <TouchableOpacity
               onPress={() => setAddDoorModalVisible(true)}
-              style={[styles.mapFab, { backgroundColor: colors.primary, borderColor: colors.primary, marginTop: 8 }]}
+              style={[
+                styles.mapFab,
+                { backgroundColor: colors.primary, borderColor: colors.primary, marginTop: 8 },
+              ]}
             >
               <Plus size={22} color="#ffffff" />
             </TouchableOpacity>
@@ -397,11 +408,24 @@ export default function AssignmentDetailScreen() {
             <Card style={[styles.selectedCard, { bottom: insets.bottom + spacing.md }]}>
               <View style={styles.selectedHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.selectedAddress, { color: colors.foreground, fontSize: typography.base }]}>
+                  <Text
+                    style={[
+                      styles.selectedAddress,
+                      { color: colors.foreground, fontSize: typography.base },
+                    ]}
+                  >
                     {selectedHousehold.address}
                   </Text>
-                  <Text style={[styles.selectedStatus, { color: colors.mutedForeground, fontSize: typography.xs }]}>
-                    Status: {selectedHousehold.status.toUpperCase()} &bull; Last: {selectedHousehold.lastVisitDate ? new Date(selectedHousehold.lastVisitDate).toLocaleDateString() : 'Never'}
+                  <Text
+                    style={[
+                      styles.selectedStatus,
+                      { color: colors.mutedForeground, fontSize: typography.xs },
+                    ]}
+                  >
+                    Status: {selectedHousehold.status.toUpperCase()} &bull; Last:{' '}
+                    {selectedHousehold.lastVisitDate
+                      ? new Date(selectedHousehold.lastVisitDate).toLocaleDateString()
+                      : 'Never'}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedHousehold(null)}>
@@ -410,7 +434,12 @@ export default function AssignmentDetailScreen() {
               </View>
 
               {selectedHousehold.notes && (
-                <Text style={[styles.selectedNotes, { color: colors.foreground, fontSize: typography.xs }]}>
+                <Text
+                  style={[
+                    styles.selectedNotes,
+                    { color: colors.foreground, fontSize: typography.xs },
+                  ]}
+                >
                   "{selectedHousehold.notes}"
                 </Text>
               )}
@@ -431,10 +460,22 @@ export default function AssignmentDetailScreen() {
         <FlatList
           data={households}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+          contentContainerStyle={{
+            padding: spacing.md,
+            paddingBottom: insets.bottom + spacing.xxl,
+          }}
           ListHeaderComponent={
-            <View style={{ marginBottom: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}>
+            <View
+              style={{
+                marginBottom: spacing.md,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}
+              >
                 Doors in Territory ({households.length})
               </Text>
               <Button
@@ -450,11 +491,20 @@ export default function AssignmentDetailScreen() {
               <View style={styles.doorListRow}>
                 <View style={[styles.statusDot, { backgroundColor: getMarkerColor(item) }]} />
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text style={[styles.doorAddress, { color: colors.foreground, fontSize: typography.base }]}>
+                  <Text
+                    style={[
+                      styles.doorAddress,
+                      { color: colors.foreground, fontSize: typography.base },
+                    ]}
+                  >
                     {item.address}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    Last Visit: {item.lastVisitDate ? new Date(item.lastVisitDate).toLocaleDateString() : 'Never'} ({item.lastVisitOutcome || 'None'})
+                    Last Visit:{' '}
+                    {item.lastVisitDate
+                      ? new Date(item.lastVisitDate).toLocaleDateString()
+                      : 'Never'}{' '}
+                    ({item.lastVisitOutcome || 'None'})
                   </Text>
                 </View>
                 <Button
@@ -474,7 +524,9 @@ export default function AssignmentDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.visitModalCard, { width: '92%', maxHeight: '85%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Log Visit
               </Text>
               <TouchableOpacity onPress={() => setVisitModalVisible(false)}>
@@ -482,12 +534,20 @@ export default function AssignmentDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
               {selectedHousehold?.address}
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.formLabel, { color: colors.foreground, fontSize: typography.sm }]}>
+              <Text
+                style={[styles.formLabel, { color: colors.foreground, fontSize: typography.sm }]}
+              >
                 Outcome
               </Text>
               <View style={styles.outcomesGrid}>
@@ -583,7 +643,9 @@ export default function AssignmentDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.visitModalCard, { width: '90%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Add Door to Territory
               </Text>
               <TouchableOpacity onPress={() => setAddDoorModalVisible(false)}>
@@ -605,8 +667,17 @@ export default function AssignmentDetailScreen() {
               onChangeText={setNewDoorNotes}
             />
 
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
-              GPS Location: {location ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : 'Capturing...'}
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
+              GPS Location:{' '}
+              {location
+                ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+                : 'Capturing...'}
             </Text>
 
             <Button
@@ -623,11 +694,21 @@ export default function AssignmentDetailScreen() {
       <Modal visible={returnModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <Card style={[styles.visitModalCard, { width: '85%' }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+            <Text
+              style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+            >
               Return Territory #{territory?.number}?
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, marginTop: 6, marginBottom: 16 }}>
-              This will mark your assignment as completed and return the territory to the congregation pool.
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.sm,
+                marginTop: 6,
+                marginBottom: 16,
+              }}
+            >
+              This will mark your assignment as completed and return the territory to the
+              congregation pool.
             </Text>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>

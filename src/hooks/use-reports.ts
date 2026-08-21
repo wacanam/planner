@@ -13,8 +13,8 @@ import type {
   GroupReportStats,
   Household,
   Member,
-  PublishersReport,
   PublisherStats,
+  PublishersReport,
   S13AssignmentRecord,
   Territory,
   TerritoryHealthStatus,
@@ -656,7 +656,7 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
   const { households, visits, isLoading, error } = useReportSources(congregationId);
 
   const data = useMemo<DoorAnalyticsReport>(() => {
-    let totalDoors = households.length;
+    const totalDoors = households.length;
     let workedDoors = 0;
     let doNotCallCount = 0;
     let returnVisitsCount = 0;
@@ -765,7 +765,8 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       } else if (
         outcome.includes('place') ||
         outcome.includes('literature') ||
-        Boolean(v.literaturePlaced || v.literatureLeft)
+        v.literaturePlaced ||
+        v.literatureLeft
       ) {
         outcomeCounts.placedLiterature += 1;
       } else if (outcome.includes('return') || outcome.includes('revisit')) {

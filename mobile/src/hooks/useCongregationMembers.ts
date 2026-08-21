@@ -10,12 +10,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Member } from '@/types/api';
 
 function memberCollection() {
@@ -120,19 +115,22 @@ export function useJoinCongregation() {
 export function useUpdateMemberRole() {
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const updateRole = useCallback(async (memberId: string, role: string, groupId?: string | null) => {
-    setIsUpdating(true);
-    try {
-      const updates: Record<string, unknown> = {
-        congregationRole: role,
-        updatedAt: nowIso(),
-      };
-      if (groupId !== undefined) updates.groupId = groupId;
-      await updateDoc(memberDocument(memberId), updates);
-    } finally {
-      setIsUpdating(false);
-    }
-  }, []);
+  const updateRole = useCallback(
+    async (memberId: string, role: string, groupId?: string | null) => {
+      setIsUpdating(true);
+      try {
+        const updates: Record<string, unknown> = {
+          congregationRole: role,
+          updatedAt: nowIso(),
+        };
+        if (groupId !== undefined) updates.groupId = groupId;
+        await updateDoc(memberDocument(memberId), updates);
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    []
+  );
 
   return { updateRole, isUpdating };
 }

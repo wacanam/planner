@@ -44,7 +44,9 @@ export async function setNotificationSoundStyle(style: NotificationSoundStyle): 
 /**
  * Triggers light haptic tactile feedback.
  */
-export async function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light') {
+export async function triggerHaptic(
+  type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' = 'light'
+) {
   try {
     switch (type) {
       case 'medium':
@@ -75,7 +77,10 @@ export async function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'succes
 /**
  * Plays an in-app notification sound chime.
  */
-export async function playNotificationSound(style?: NotificationSoundStyle, forcePlay = false): Promise<void> {
+export async function playNotificationSound(
+  style?: NotificationSoundStyle,
+  forcePlay = false
+): Promise<void> {
   try {
     if (!forcePlay) {
       const enabled = await isNotificationSoundEnabled();

@@ -15,14 +15,7 @@ import {
   Users,
 } from 'lucide-react-native';
 import React from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -31,7 +24,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregation } from '@/hooks/useCongregations';
-import { canManageCongregation, canViewReports, isSystemAdmin, isUserInGroup } from '@/lib/permissions';
+import {
+  canManageCongregation,
+  canViewReports,
+  isSystemAdmin,
+  isUserInGroup,
+} from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function MoreMenuScreen() {
@@ -84,9 +82,7 @@ export default function MoreMenuScreen() {
       }}
       style={[styles.menuItem, { borderBottomColor: colors.border }]}
     >
-      <View style={[styles.menuIconBox, { backgroundColor: colors.muted + '50' }]}>
-        {icon}
-      </View>
+      <View style={[styles.menuIconBox, { backgroundColor: colors.muted + '50' }]}>{icon}</View>
       <View style={{ flex: 1, marginLeft: spacing.sm }}>
         <Text
           style={[
@@ -100,7 +96,12 @@ export default function MoreMenuScreen() {
           {title}
         </Text>
         {subtitle && (
-          <Text style={[styles.menuSubtitle, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+          <Text
+            style={[
+              styles.menuSubtitle,
+              { color: colors.mutedForeground, fontSize: typography.xs },
+            ]}
+          >
             {subtitle}
           </Text>
         )}
@@ -130,10 +131,17 @@ export default function MoreMenuScreen() {
             </View>
 
             <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={[styles.userName, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.userName, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {user?.name || 'Publisher'}
               </Text>
-              <Text style={[styles.userEmail, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+              <Text
+                style={[
+                  styles.userEmail,
+                  { color: colors.mutedForeground, fontSize: typography.xs },
+                ]}
+              >
                 {user?.email}
               </Text>
               <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
@@ -141,16 +149,16 @@ export default function MoreMenuScreen() {
                 {user?.congregationRole && (
                   <Badge label={user.congregationRole} variant="secondary" size="sm" />
                 )}
-                {myGroup && (
-                  <Badge label={myGroup.name} variant="outline" size="sm" />
-                )}
+                {myGroup && <Badge label={myGroup.name} variant="outline" size="sm" />}
               </View>
             </View>
           </View>
         </Card>
 
         {/* Section 1: Congregation & Ministry */}
-        <Text style={[styles.sectionHeader, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.mutedForeground, fontSize: typography.xs }]}
+        >
           CONGREGATION & MINISTRY
         </Text>
         <Card style={[styles.menuGroupCard, { marginBottom: spacing.lg }]}>
@@ -184,7 +192,9 @@ export default function MoreMenuScreen() {
         </Card>
 
         {/* Section 2: App & Preferences */}
-        <Text style={[styles.sectionHeader, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+        <Text
+          style={[styles.sectionHeader, { color: colors.mutedForeground, fontSize: typography.xs }]}
+        >
           PREFERENCES & TOOLS
         </Text>
         <Card style={[styles.menuGroupCard, { marginBottom: spacing.lg }]}>
@@ -196,7 +206,11 @@ export default function MoreMenuScreen() {
           })}
 
           {renderMenuItem({
-            icon: isDark ? <Sun size={18} color={colors.warning} /> : <Moon size={18} color={colors.primary} />,
+            icon: isDark ? (
+              <Sun size={18} color={colors.warning} />
+            ) : (
+              <Moon size={18} color={colors.primary} />
+            ),
             title: 'Appearance',
             subtitle: isDark ? 'Pastel Dark Theme' : 'Pastel Light Theme',
             onPress: toggleTheme,

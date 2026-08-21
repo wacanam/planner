@@ -1,11 +1,6 @@
 // mobile/src/components/ui/Card.tsx
 import React from 'react';
-import {
-  StyleSheet,
-  TouchableOpacity,
-  type ViewProps,
-  View,
-} from 'react-native';
+import { StyleSheet, TouchableOpacity, View, type ViewProps } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';
 
@@ -14,13 +9,7 @@ interface CardProps extends ViewProps {
   variant?: 'default' | 'elevated' | 'outline' | 'flat';
 }
 
-export function Card({
-  children,
-  onPress,
-  variant = 'default',
-  style,
-  ...rest
-}: CardProps) {
+export function Card({ children, onPress, variant = 'default', style, ...rest }: CardProps) {
   const { colors, radius, spacing, isDark } = useTheme();
 
   const handlePress = () => {

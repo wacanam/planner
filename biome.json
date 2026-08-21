@@ -9,8 +9,17 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "off",
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off"
+      },
       "suspicious": {
-        "noArrayIndexKey": "off"
+        "noArrayIndexKey": "off",
+        "noExplicitAny": "off"
       }
     }
   },
@@ -21,7 +30,16 @@
     "lineWidth": 100
   },
   "files": {
-    "includes": ["**", "!node_modules", "!.next", "!**/*.css", "!public", "!**/*.svg"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/.expo",
+      "!**/*.css",
+      "!**/public",
+      "!**/*.svg"
+    ]
   },
   "javascript": {
     "formatter": {

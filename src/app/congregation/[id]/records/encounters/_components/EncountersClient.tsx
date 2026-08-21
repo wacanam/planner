@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
-import { type HouseholdContactSummary, extractHouseholdContacts } from '@/lib/household-contacts';
+import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { canDeleteEncounter, canEditEncounter, isTerritoryServant } from '@/lib/permissions';
 import {
   deleteEncounterRecord,

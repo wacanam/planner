@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
@@ -45,7 +46,6 @@ import {
 } from '@/hooks';
 import { canManageGroups, isUserInGroup } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
-import { toast } from 'sonner';
 import type { Group, GroupMember } from '@/types/api';
 
 export default function GroupsClient() {

@@ -46,7 +46,8 @@ export default function ReportsScreen() {
   const [activeSegment, setActiveSegment] = useState<'overview' | 's13'>('overview');
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(activeCongregationId);
+  const { data: coverageData, isLoading: coverageLoading } =
+    useCoverageReport(activeCongregationId);
   const { data: s13Records = [], isLoading: s13Loading } = useS13Report(activeCongregationId);
 
   const congregationName = congregation?.name || 'Congregation';
@@ -75,7 +76,11 @@ export default function ReportsScreen() {
         title="Congregation Reports"
         subtitle="S-13 Assignment record & coverage analytics"
         rightAction={
-          <TouchableOpacity onPress={handleExportS13Pdf} disabled={isExporting} style={styles.exportBtn}>
+          <TouchableOpacity
+            onPress={handleExportS13Pdf}
+            disabled={isExporting}
+            style={styles.exportBtn}
+          >
             {isExporting ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -86,7 +91,12 @@ export default function ReportsScreen() {
       />
 
       {/* Segment Switcher */}
-      <View style={[styles.segmentContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.segmentContainer,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
@@ -94,7 +104,10 @@ export default function ReportsScreen() {
           }}
           style={[
             styles.segmentItem,
-            activeSegment === 'overview' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeSegment === 'overview' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
           <Text
@@ -115,7 +128,10 @@ export default function ReportsScreen() {
           }}
           style={[
             styles.segmentItem,
-            activeSegment === 's13' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeSegment === 's13' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
           <Text
@@ -163,28 +179,45 @@ export default function ReportsScreen() {
 
           {/* Status Breakdown Card */}
           <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
-            <Text style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}>
+            <Text
+              style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}
+            >
               Territory Distribution
             </Text>
 
             <View style={styles.breakdownGrid}>
               <View style={styles.breakdownItem}>
                 <Badge label="Available" variant="success" size="sm" />
-                <Text style={[styles.breakdownVal, { color: colors.foreground, fontSize: typography.lg }]}>
+                <Text
+                  style={[
+                    styles.breakdownVal,
+                    { color: colors.foreground, fontSize: typography.lg },
+                  ]}
+                >
                   {coverageData.byStatus.available}
                 </Text>
               </View>
 
               <View style={styles.breakdownItem}>
                 <Badge label="Assigned" variant="primary" size="sm" />
-                <Text style={[styles.breakdownVal, { color: colors.foreground, fontSize: typography.lg }]}>
+                <Text
+                  style={[
+                    styles.breakdownVal,
+                    { color: colors.foreground, fontSize: typography.lg },
+                  ]}
+                >
                   {coverageData.byStatus.assigned}
                 </Text>
               </View>
 
               <View style={styles.breakdownItem}>
                 <Badge label="Completed" variant="secondary" size="sm" />
-                <Text style={[styles.breakdownVal, { color: colors.foreground, fontSize: typography.lg }]}>
+                <Text
+                  style={[
+                    styles.breakdownVal,
+                    { color: colors.foreground, fontSize: typography.lg },
+                  ]}
+                >
                   {coverageData.byStatus.completed}
                 </Text>
               </View>
@@ -192,11 +225,22 @@ export default function ReportsScreen() {
           </Card>
 
           {/* S-13 PDF Download Action Card */}
-          <Card style={[styles.sectionCard, { marginTop: spacing.md, backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' }]}>
+          <Card
+            style={[
+              styles.sectionCard,
+              {
+                marginTop: spacing.md,
+                backgroundColor: colors.primary + '12',
+                borderColor: colors.primary + '35',
+              },
+            ]}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <FileText size={28} color={colors.primary} />
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}>
+                <Text
+                  style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}
+                >
                   Export Form S-13 (8/19)
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -225,12 +269,20 @@ export default function ReportsScreen() {
             <Card style={[styles.s13Card, { marginBottom: spacing.sm }]}>
               <View style={styles.s13Header}>
                 <View style={styles.numberBox}>
-                  <Text style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}>
+                  <Text
+                    style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}
+                  >
                     #{item.territoryNumber}
                   </Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm + 1 }}>
+                  <Text
+                    style={{
+                      fontWeight: '700',
+                      color: colors.foreground,
+                      fontSize: typography.sm + 1,
+                    }}
+                  >
                     {item.territoryName}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -249,7 +301,9 @@ export default function ReportsScreen() {
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
                     ASSIGNED
                   </Text>
-                  <Text style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}>
+                  <Text
+                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                  >
                     {item.assignedAt ? new Date(item.assignedAt).toLocaleDateString() : '—'}
                   </Text>
                 </View>
@@ -258,7 +312,9 @@ export default function ReportsScreen() {
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
                     RETURNED
                   </Text>
-                  <Text style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}>
+                  <Text
+                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                  >
                     {item.returnedAt ? new Date(item.returnedAt).toLocaleDateString() : 'In Field'}
                   </Text>
                 </View>
@@ -267,7 +323,9 @@ export default function ReportsScreen() {
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
                     DURATION
                   </Text>
-                  <Text style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}>
+                  <Text
+                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                  >
                     {item.durationDays !== null ? `${item.durationDays}d` : '—'}
                   </Text>
                 </View>
@@ -276,7 +334,9 @@ export default function ReportsScreen() {
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
                     COVERAGE
                   </Text>
-                  <Text style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}>
+                  <Text
+                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}
+                  >
                     {Math.round(item.coverageAtReturn)}%
                   </Text>
                 </View>

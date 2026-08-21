@@ -2,14 +2,7 @@
 import { useRouter } from 'expo-router';
 import { Bell, Moon, Shield, Smartphone, Sun, Volume2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
@@ -68,7 +61,9 @@ export default function SettingsScreen() {
         }}
       >
         {/* Appearance Section */}
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+        <Text
+          style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: typography.xs }]}
+        >
           APPEARANCE & THEME
         </Text>
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
@@ -87,7 +82,12 @@ export default function SettingsScreen() {
               ]}
             >
               <Sun size={20} color={mode === 'light' ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.themeBtnText, { color: colors.foreground, fontSize: typography.xs + 1 }]}>
+              <Text
+                style={[
+                  styles.themeBtnText,
+                  { color: colors.foreground, fontSize: typography.xs + 1 },
+                ]}
+              >
                 Light
               </Text>
             </TouchableOpacity>
@@ -106,7 +106,12 @@ export default function SettingsScreen() {
               ]}
             >
               <Moon size={20} color={mode === 'dark' ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.themeBtnText, { color: colors.foreground, fontSize: typography.xs + 1 }]}>
+              <Text
+                style={[
+                  styles.themeBtnText,
+                  { color: colors.foreground, fontSize: typography.xs + 1 },
+                ]}
+              >
                 Dark
               </Text>
             </TouchableOpacity>
@@ -124,8 +129,16 @@ export default function SettingsScreen() {
                 },
               ]}
             >
-              <Smartphone size={20} color={mode === 'system' ? colors.primary : colors.mutedForeground} />
-              <Text style={[styles.themeBtnText, { color: colors.foreground, fontSize: typography.xs + 1 }]}>
+              <Smartphone
+                size={20}
+                color={mode === 'system' ? colors.primary : colors.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.themeBtnText,
+                  { color: colors.foreground, fontSize: typography.xs + 1 },
+                ]}
+              >
                 System
               </Text>
             </TouchableOpacity>
@@ -133,13 +146,20 @@ export default function SettingsScreen() {
         </Card>
 
         {/* Audio & Haptics Section */}
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+        <Text
+          style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: typography.xs }]}
+        >
           AUDIO & SOUND CHIMES
         </Text>
         <Card style={[styles.card, { marginBottom: spacing.lg }]}>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.settingLabel, { color: colors.foreground, fontSize: typography.base }]}>
+              <Text
+                style={[
+                  styles.settingLabel,
+                  { color: colors.foreground, fontSize: typography.base },
+                ]}
+              >
                 Notification Sounds
               </Text>
               <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -154,8 +174,22 @@ export default function SettingsScreen() {
           </View>
 
           {soundEnabled && (
-            <View style={{ marginTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: spacing.md }}>
-              <Text style={{ fontWeight: '600', color: colors.foreground, fontSize: typography.sm, marginBottom: 8 }}>
+            <View
+              style={{
+                marginTop: spacing.md,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderTopColor: colors.border,
+                paddingTop: spacing.md,
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: '600',
+                  color: colors.foreground,
+                  fontSize: typography.sm,
+                  marginBottom: 8,
+                }}
+              >
                 Sound Chime Style
               </Text>
               {SOUND_STYLES.map((s) => {
@@ -172,11 +206,32 @@ export default function SettingsScreen() {
                       },
                     ]}
                   >
-                    <Volume2 size={16} color={isSelected ? colors.primary : colors.mutedForeground} />
-                    <Text style={{ color: colors.foreground, fontSize: typography.sm, marginLeft: 8, flex: 1, fontWeight: isSelected ? '700' : '500' }}>
+                    <Volume2
+                      size={16}
+                      color={isSelected ? colors.primary : colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        color: colors.foreground,
+                        fontSize: typography.sm,
+                        marginLeft: 8,
+                        flex: 1,
+                        fontWeight: isSelected ? '700' : '500',
+                      }}
+                    >
                       {s.label}
                     </Text>
-                    {isSelected && <Text style={{ color: colors.primary, fontSize: typography.xs, fontWeight: '700' }}>PLAY</Text>}
+                    {isSelected && (
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontSize: typography.xs,
+                          fontWeight: '700',
+                        }}
+                      >
+                        PLAY
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}

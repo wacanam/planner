@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { queueWelcomeEmail } from '@/lib/mail';
 import { createInAppNotification } from '@/lib/notifications';
 import { CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
 import type { JoinRequest, Member } from '@/types/api';
@@ -166,6 +167,20 @@ export function useReviewJoinRequest(congregationId: string) {
         const finalStatus = isApproved ? MemberStatus.ACTIVE : MemberStatus.REJECTED;
 
         const db = getPlannerFirestore();
+
+        // Fetch congregation details for notifications & email
+        let congregationName = 'the congregation';
+        try {
+          const congSnap = await getDoc(
+            doc(db, FIRESTORE_COLLECTIONS.congregations, congregationId)
+          );
+          if (congSnap.exists()) {
+            congregationName = congSnap.data()?.name || 'the congregation';
+          }
+        } catch {
+          // fallback to default name
+        }
+
         const memberRef = memberDocument(arg.requestId);
         const memberSnap = await getDoc(memberRef);
         const memberData = memberSnap.exists() ? (memberSnap.data() as Partial<Member>) : undefined;
@@ -211,6 +226,31 @@ export function useReviewJoinRequest(congregationId: string) {
             },
             { merge: true }
           );
+
+          // Queue welcome email if user email is available
+          if (userEmail) {
+            try {
+              await queueWelcomeEmail(db, {
+                toEmail: userEmail,
+                userName,
+                congregationName,
+                congregationId,
+                roleName: 'Publisher',
+              });
+            } catch (emailErr) {
+              console.warn('[useReviewJoinRequest] Failed to queue welcome email:', emailErr);
+            }
+          }
+        } else {
+          // If rejected, ensure congregationId on user document is cleared
+          await setDoc(
+            userRef,
+            {
+              congregationId: null,
+              updatedAt: now,
+            },
+            { merge: true }
+          );
         }
 
         const notificationId = createClientId();
@@ -218,11 +258,17 @@ export function useReviewJoinRequest(congregationId: string) {
           id: notificationId,
           userId: targetUserId,
           type: isApproved ? NotificationType.JOIN_APPROVED : NotificationType.JOIN_REJECTED,
-          title: isApproved ? 'Join request approved' : 'Join request rejected',
+          title: isApproved
+            ? `Welcome to ${congregationName}!`
+            : 'Congregation request not approved',
           body: isApproved
-            ? 'Your congregation access request was approved.'
-            : 'Your congregation access request was not approved.',
-          data: JSON.stringify({ congregationId }),
+            ? `Your request to join ${congregationName} has been approved by the Service Overseer.`
+            : `Your request to join ${congregationName} was not approved.${arg.reviewNote ? ` Note: ${arg.reviewNote}` : ''}`,
+          data: JSON.stringify({
+            congregationId,
+            congregationName,
+            reviewNote: arg.reviewNote || null,
+          }),
           isRead: false,
           createdAt: now,
         });

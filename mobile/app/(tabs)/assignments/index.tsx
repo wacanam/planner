@@ -47,7 +47,8 @@ export default function MyAssignmentsScreen() {
   const { colors, typography, spacing, radius } = useTheme();
 
   const { assignments, isLoading: assignmentsLoading } = useMyAssignments(activeCongregationId);
-  const { territories, isLoading: territoriesLoading } = useCongregationTerritories(activeCongregationId);
+  const { territories, isLoading: territoriesLoading } =
+    useCongregationTerritories(activeCongregationId);
   const { groups = [], isLoading: groupsLoading } = useCongregationGroups(activeCongregationId);
   const { members = [] } = useCongregationMembers(activeCongregationId);
   const { households = [] } = useHouseholds({ congregationId: activeCongregationId });
@@ -71,7 +72,13 @@ export default function MyAssignmentsScreen() {
   }, [members, myGroup]);
 
   const activeAssignments = useMemo(() => {
-    const resolved = resolveUserAssignments(user, assignments, territories, userGroupIds, activeCongregationId);
+    const resolved = resolveUserAssignments(
+      user,
+      assignments,
+      territories,
+      userGroupIds,
+      activeCongregationId
+    );
     return resolved.filter((a) => a.status === 'assigned' || a.status === 'active' || !a.status);
   }, [user, assignments, territories, userGroupIds, activeCongregationId]);
 
@@ -93,7 +100,12 @@ export default function MyAssignmentsScreen() {
         }}
         style={{ marginBottom: spacing.md }}
       >
-        <Card style={[styles.groupBanner, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+        <Card
+          style={[
+            styles.groupBanner,
+            { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' },
+          ]}
+        >
           <View style={styles.groupBannerRow}>
             <View style={[styles.groupIconBox, { backgroundColor: colors.primary }]}>
               <Users size={18} color="#ffffff" />
@@ -101,7 +113,12 @@ export default function MyAssignmentsScreen() {
 
             <View style={{ flex: 1, marginLeft: spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.groupBannerTitle, { color: colors.foreground, fontSize: typography.sm }]}>
+                <Text
+                  style={[
+                    styles.groupBannerTitle,
+                    { color: colors.foreground, fontSize: typography.sm },
+                  ]}
+                >
                   {myGroup.name}
                 </Text>
                 <Badge label={`${groupmateCount} Publishers`} variant="outline" size="sm" />
@@ -122,10 +139,7 @@ export default function MyAssignmentsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header
-        title="My Assignments"
-        subtitle="Your assigned territories and active field work"
-      />
+      <Header title="My Assignments" subtitle="Your assigned territories and active field work" />
 
       {isLoading ? (
         <View style={styles.centerContainer}>
@@ -159,7 +173,9 @@ export default function MyAssignmentsScreen() {
           ListHeaderComponent={renderGroupBanner}
           renderItem={({ item }) => {
             const territory = territories.find((t) => t.id === item.territoryId);
-            const territoryHouseholds = households.filter((h) => h.territoryId === item.territoryId);
+            const territoryHouseholds = households.filter(
+              (h) => h.territoryId === item.territoryId
+            );
             const totalDoors = territoryHouseholds.length || territory?.householdsCount || 0;
             const workedDoors = territoryHouseholds.filter((h) => h.lastVisitDate).length;
             const coverage = totalDoors > 0 ? Math.round((workedDoors / totalDoors) * 100) : 0;
@@ -171,17 +187,32 @@ export default function MyAssignmentsScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.numberBadge}>
-                    <Text style={[styles.numberText, { color: colors.primary, fontSize: typography.lg }]}>
+                    <Text
+                      style={[
+                        styles.numberText,
+                        { color: colors.primary, fontSize: typography.lg },
+                      ]}
+                    >
                       #{item.territoryNumber || territory?.number || '—'}
                     </Text>
                   </View>
 
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                    <Text style={[styles.territoryName, { color: colors.foreground, fontSize: typography.base }]}>
+                    <Text
+                      style={[
+                        styles.territoryName,
+                        { color: colors.foreground, fontSize: typography.base },
+                      ]}
+                    >
                       {item.territoryName || territory?.name || 'Territory'}
                     </Text>
                     {territory?.city && (
-                      <Text style={[styles.territoryCity, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                      <Text
+                        style={[
+                          styles.territoryCity,
+                          { color: colors.mutedForeground, fontSize: typography.xs },
+                        ]}
+                      >
                         {territory.city}
                       </Text>
                     )}
@@ -197,14 +228,29 @@ export default function MyAssignmentsScreen() {
                 {/* Progress bar */}
                 <View style={styles.progressContainer}>
                   <View style={styles.progressLabels}>
-                    <Text style={[styles.progressLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.progressLabel,
+                        { color: colors.mutedForeground, fontSize: typography.xs },
+                      ]}
+                    >
                       Coverage ({workedDoors}/{totalDoors} doors)
                     </Text>
-                    <Text style={[styles.progressPercent, { color: colors.foreground, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.progressPercent,
+                        { color: colors.foreground, fontSize: typography.xs },
+                      ]}
+                    >
                       {coverage}%
                     </Text>
                   </View>
-                  <View style={[styles.progressBarBg, { backgroundColor: colors.muted, borderRadius: radius.round }]}>
+                  <View
+                    style={[
+                      styles.progressBarBg,
+                      { backgroundColor: colors.muted, borderRadius: radius.round },
+                    ]}
+                  >
                     <View
                       style={[
                         styles.progressBarFill,
@@ -223,14 +269,24 @@ export default function MyAssignmentsScreen() {
                   {item.assignedAt && (
                     <View style={styles.footerItem}>
                       <Calendar size={13} color={colors.mutedForeground} />
-                      <Text style={[styles.footerText, { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 }]}>
+                      <Text
+                        style={[
+                          styles.footerText,
+                          { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 },
+                        ]}
+                      >
                         Assigned {new Date(item.assignedAt).toLocaleDateString()}
                       </Text>
                     </View>
                   )}
 
                   <View style={styles.actionRow}>
-                    <Text style={[styles.actionText, { color: colors.primary, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.actionText,
+                        { color: colors.primary, fontSize: typography.xs },
+                      ]}
+                    >
                       Open Map & Doors
                     </Text>
                     <ChevronRight size={14} color={colors.primary} />

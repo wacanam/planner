@@ -47,7 +47,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   const marginBottom = 14;
   const contentWidth = pageWidth - marginLeft - marginRight; // 269mm
 
-  let totalPages = 0;
+  const totalPages = 0;
 
   const drawPageFooter = (pageNum: number, totalExpected: string) => {
     doc.setFont('helvetica', 'normal');

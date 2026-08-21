@@ -395,7 +395,7 @@ export default function AssignmentVisitsClient() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
                 {territory?.city && <span>{territory.city}</span>}
                 {territory?.city && <span>•</span>}
-                {Boolean(activeAssignment?.serviceGroupId || activeAssignment?.groupName) ? (
+                {activeAssignment?.serviceGroupId || activeAssignment?.groupName ? (
                   <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
                     <Crown size={12} />
                     <span>

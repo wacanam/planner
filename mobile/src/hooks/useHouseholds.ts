@@ -5,19 +5,14 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
-  type QueryConstraint,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Household } from '@/types/api';
 
 function householdCollection() {
@@ -93,7 +88,10 @@ export function useHouseholds(filters?: HouseholdFilters) {
       constraints.push(where('congregationId', '==', congregationId));
     }
 
-    const q = constraints.length > 0 ? query(householdCollection(), ...constraints) : query(householdCollection());
+    const q =
+      constraints.length > 0
+        ? query(householdCollection(), ...constraints)
+        : query(householdCollection());
 
     return onSnapshot(
       q,

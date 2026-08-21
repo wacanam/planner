@@ -36,7 +36,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         where('congregationId', '==', congregationId)
       ),
       (snap) => {
-        setTerritories(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Territory)));
+        setTerritories(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Territory));
       }
     );
 
@@ -46,14 +46,14 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         where('congregationId', '==', congregationId)
       ),
       (snap) => {
-        setHouseholds(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Household)));
+        setHouseholds(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Household));
       }
     );
 
     const unsubAssignments = onSnapshot(
       query(collection(firestore, FIRESTORE_COLLECTIONS.assignments)),
       (snap) => {
-        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Assignment)));
+        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Assignment));
         setIsLoading(false);
       }
     );
@@ -77,19 +77,21 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       totalDoors += tDoors;
       workedDoors += tWorked;
 
-      const coveragePercent = tDoors > 0 ? (tWorked / tDoors) * 100 : parseFloat(t.coveragePercent || '0');
+      const coveragePercent =
+        tDoors > 0 ? (tWorked / tDoors) * 100 : parseFloat(t.coveragePercent || '0');
 
       let healthStatus: TerritoryHealthStatus = 'fresh';
       let daysSinceWorked: number | null = null;
 
       // Calculate days since worked
-      const recentDates = tHouseholds
-        .map((h) => h.lastVisitDate)
-        .filter(Boolean) as string[];
+      const recentDates = tHouseholds.map((h) => h.lastVisitDate).filter(Boolean) as string[];
       if (recentDates.length > 0) {
         recentDates.sort((a, b) => b.localeCompare(a));
         const lastDate = new Date(recentDates[0]);
-        daysSinceWorked = Math.max(0, Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24)));
+        daysSinceWorked = Math.max(
+          0,
+          Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+        );
         if (daysSinceWorked > 180) healthStatus = 'stale';
         else if (daysSinceWorked > 90) healthStatus = 'dormant';
         else if (daysSinceWorked > 30) healthStatus = 'active';
@@ -155,14 +157,12 @@ export function useS13Report(congregationId: string | null | undefined) {
     }
 
     setIsLoading(true);
-    const q = query(
-      collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments)
-    );
+    const q = query(collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments));
     return onSnapshot(
       q,
       (snap) => {
         const list = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Assignment))
+          .map((d) => ({ id: d.id, ...d.data() }) as Assignment)
           .filter((a) => !a.congregationId || a.congregationId === congregationId)
           .sort((a, b) => (b.assignedAt || '').localeCompare(a.assignedAt || ''));
         setAssignments(list);

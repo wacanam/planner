@@ -47,8 +47,8 @@ import { Input } from '@/components/ui/input';
 import {
   useClearAllNotifications,
   useDeleteNotification,
-  useMarkNotificationUnread,
   useMarkNotificationsRead,
+  useMarkNotificationUnread,
   useNotificationSound,
   useNotifications,
 } from '@/hooks';

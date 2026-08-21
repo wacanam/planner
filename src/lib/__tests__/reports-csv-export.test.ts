@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  exportCoverageToCSV,
-  exportGroupsToCSV,
-  exportPublishersToCSV,
-  exportS13ToCSV,
-} from '../reports-csv-export';
 import type {
   CoverageTerritory,
   GroupReportStats,
   PublisherStats,
   S13AssignmentRecord,
 } from '@/types/api';
+import {
+  exportCoverageToCSV,
+  exportGroupsToCSV,
+  exportPublishersToCSV,
+  exportS13ToCSV,
+} from '../reports-csv-export';
 
 describe('Reports CSV Export Utilities', () => {
   it('exports S-13 Territory Records to CSV format correctly', () => {

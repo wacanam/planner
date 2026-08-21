@@ -13,12 +13,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import { AssignmentStatus, EndorsementStatus } from '@/lib/roles';
 import type { Assignment } from '@/types/api';
 

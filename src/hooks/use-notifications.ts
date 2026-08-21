@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
-import { FIRESTORE_COLLECTIONS, createClientId, nowIso } from '@/lib/firebase/schema';
+import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { playNotificationSound } from '@/lib/sound';
 import type { Notification, NotificationDataPayload } from '@/types/api';
 

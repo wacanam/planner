@@ -1,5 +1,6 @@
 // mobile/src/components/ui/Input.tsx
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import {
   StyleSheet,
   Text,

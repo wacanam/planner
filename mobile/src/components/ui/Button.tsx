@@ -1,5 +1,5 @@
 // mobile/src/components/ui/Button.tsx
-import React from 'react';
+import type React from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -11,7 +11,13 @@ import {
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'outline' | 'ghost' | 'destructive';
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'accent'
+  | 'outline'
+  | 'ghost'
+  | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends TouchableOpacityProps {

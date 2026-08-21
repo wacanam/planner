@@ -20,7 +20,7 @@ import {
   Layers,
   Lightbulb,
   Lock,
-  Map,
+  Map as LucideMap,
   MapPin,
   Maximize2,
   PlusCircle,
@@ -69,7 +69,7 @@ function renderTourIcon(iconName: string, className = 'w-5 h-5'): React.ReactNod
     case 'Users':
       return <Users className={className} />;
     case 'Map':
-      return <Map className={className} />;
+      return <LucideMap className={className} />;
     case 'Clock':
       return <Clock className={className} />;
     case 'CheckCircle2':

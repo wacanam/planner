@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { StudioLayout } from '@/components/studio/StudioLayout';

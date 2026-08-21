@@ -37,7 +37,12 @@ import { useTheme } from '@/context/ThemeContext';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useDeleteHousehold, useHouseholdDetail, useUpdateHousehold } from '@/hooks/useHouseholds';
 import { useCreateVisit, useVisits } from '@/hooks/useVisits';
-import { canDeleteHousehold, canEditHousehold, canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
+import {
+  canDeleteHousehold,
+  canEditHousehold,
+  canLogVisitOrEncounter,
+  canShareHousehold,
+} from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 
 const OUTCOME_OPTIONS = [
@@ -124,7 +129,8 @@ export default function HouseholdDetailScreen() {
         notes: visitNotes || null,
         bibleTopicDiscussed: topicDiscussed || null,
         literatureLeft: literatureLeft || null,
-        returnVisitPlanned: returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
+        returnVisitPlanned:
+          returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
       });
       await triggerHaptic('success');
       setVisitModalVisible(false);
@@ -192,7 +198,9 @@ export default function HouseholdDetailScreen() {
 
   if (householdLoading) {
     return (
-      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -241,23 +249,39 @@ export default function HouseholdDetailScreen() {
         <Card style={styles.card}>
           <View style={styles.profileHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.addressTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.addressTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {household.address}
               </Text>
               {household.city ? (
                 <View style={styles.locRow}>
                   <MapPin size={12} color={colors.mutedForeground} />
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 }}>
+                  <Text
+                    style={{
+                      color: colors.mutedForeground,
+                      fontSize: typography.xs,
+                      marginLeft: 4,
+                    }}
+                  >
                     {household.city} {household.postalCode ? `• ${household.postalCode}` : ''}
                   </Text>
                 </View>
               ) : null}
             </View>
-            <Badge label={household.status.replace('_', ' ')} variant={getBadgeVariant(household.status)} />
+            <Badge
+              label={household.status.replace('_', ' ')}
+              variant={getBadgeVariant(household.status)}
+            />
           </View>
 
           {household.notes && (
-            <View style={[styles.notesBox, { backgroundColor: colors.muted + '30', borderColor: colors.border }]}>
+            <View
+              style={[
+                styles.notesBox,
+                { backgroundColor: colors.muted + '30', borderColor: colors.border },
+              ]}
+            >
               <Text style={{ color: colors.foreground, fontSize: typography.sm }}>
                 "{household.notes}"
               </Text>
@@ -275,7 +299,17 @@ export default function HouseholdDetailScreen() {
         </Card>
 
         {/* Visit History Section */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: typography.base, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: colors.foreground,
+              fontSize: typography.base,
+              marginTop: spacing.lg,
+              marginBottom: spacing.sm,
+            },
+          ]}
+        >
           Visit History ({visits.length})
         </Text>
 
@@ -292,27 +326,54 @@ export default function HouseholdDetailScreen() {
             <Card key={v.id} style={[styles.card, { marginBottom: spacing.sm }]}>
               <View style={styles.visitHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.foreground, fontWeight: '700', fontSize: typography.sm }}>
-                    {new Date(v.visitDate).toLocaleDateString()} &bull; {v.publisherName || 'Publisher'}
+                  <Text
+                    style={{ color: colors.foreground, fontWeight: '700', fontSize: typography.sm }}
+                  >
+                    {new Date(v.visitDate).toLocaleDateString()} &bull;{' '}
+                    {v.publisherName || 'Publisher'}
                   </Text>
                 </View>
-                <Badge label={v.outcome.replace('_', ' ')} variant={getBadgeVariant(v.outcome)} size="sm" />
+                <Badge
+                  label={v.outcome.replace('_', ' ')}
+                  variant={getBadgeVariant(v.outcome)}
+                  size="sm"
+                />
               </View>
 
               {v.bibleTopicDiscussed && (
-                <Text style={{ color: colors.primary, fontSize: typography.xs, marginTop: 4, fontWeight: '600' }}>
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: typography.xs,
+                    marginTop: 4,
+                    fontWeight: '600',
+                  }}
+                >
                   Topic: {v.bibleTopicDiscussed}
                 </Text>
               )}
 
               {v.literatureLeft && (
-                <Text style={{ color: colors.secondaryForeground, fontSize: typography.xs, marginTop: 2 }}>
+                <Text
+                  style={{
+                    color: colors.secondaryForeground,
+                    fontSize: typography.xs,
+                    marginTop: 2,
+                  }}
+                >
                   Literature: {v.literatureLeft}
                 </Text>
               )}
 
               {v.notes && (
-                <Text style={{ color: colors.foreground, fontSize: typography.xs, marginTop: 4, fontStyle: 'italic' }}>
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontSize: typography.xs,
+                    marginTop: 4,
+                    fontStyle: 'italic',
+                  }}
+                >
                   "{v.notes}"
                 </Text>
               )}
@@ -326,7 +387,9 @@ export default function HouseholdDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '92%', maxHeight: '85%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Log Visit
               </Text>
               <TouchableOpacity onPress={() => setVisitModalVisible(false)}>
@@ -427,7 +490,9 @@ export default function HouseholdDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '88%', maxHeight: '70%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Share Household Record
               </Text>
               <TouchableOpacity onPress={() => setShareModalVisible(false)}>
@@ -435,7 +500,13 @@ export default function HouseholdDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
               Select a publisher to collaborate on this return visit / door:
             </Text>
 
@@ -459,7 +530,9 @@ export default function HouseholdDetailScreen() {
                         },
                       ]}
                     >
-                      <Text style={{ color: colors.foreground, fontWeight: isSelected ? '700' : '500' }}>
+                      <Text
+                        style={{ color: colors.foreground, fontWeight: isSelected ? '700' : '500' }}
+                      >
                         {m.user?.name || 'Publisher'}
                       </Text>
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>

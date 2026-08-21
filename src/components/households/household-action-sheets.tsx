@@ -30,8 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCurrentUser } from '@/hooks/use-current-user';
 import { useHouseholdContacts } from '@/hooks/use-contacts';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useMyEncounters } from '@/hooks/use-encounters';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';

@@ -4,19 +4,14 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
-  type QueryConstraint,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Encounter } from '@/types/api';
 
 function encounterCollection() {
@@ -66,7 +61,11 @@ function encounterFromData(id: string, data: Partial<Encounter>): Encounter {
   };
 }
 
-export function useEncounters(filters?: { householdId?: string; visitId?: string; userId?: string }) {
+export function useEncounters(filters?: {
+  householdId?: string;
+  visitId?: string;
+  userId?: string;
+}) {
   const [encounters, setEncounters] = useState<Encounter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +83,10 @@ export function useEncounters(filters?: { householdId?: string; visitId?: string
       constraints.push(where('visitId', '==', visitId));
     }
 
-    const q = constraints.length > 0 ? query(encounterCollection(), ...constraints) : query(encounterCollection());
+    const q =
+      constraints.length > 0
+        ? query(encounterCollection(), ...constraints)
+        : query(encounterCollection());
 
     return onSnapshot(
       q,

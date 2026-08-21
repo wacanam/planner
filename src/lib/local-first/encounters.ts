@@ -78,12 +78,12 @@ export function filterEncounter(record: LocalEncounter, filters?: EncounterFilte
     filters.userId &&
     !isTerritoryServant(filters.userRole) &&
     record.userId !== filters.userId &&
-    !Boolean(
+    !(
       filters.groupMateUserIds &&
-        record.userId &&
-        (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.userId)
-          : filters.groupMateUserIds.includes(record.userId))
+      record.userId &&
+      (filters.groupMateUserIds instanceof Set
+        ? filters.groupMateUserIds.has(record.userId)
+        : filters.groupMateUserIds.includes(record.userId))
     )
   ) {
     return false;

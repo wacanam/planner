@@ -80,7 +80,12 @@ export default function ProfileScreen() {
       map.set(uid, {
         id: uid,
         userId: uid,
-        name: gm.user?.name || memberDoc?.user?.name || (gm as any).name || memberDoc?.user?.email || 'Publisher',
+        name:
+          gm.user?.name ||
+          memberDoc?.user?.name ||
+          (gm as any).name ||
+          memberDoc?.user?.email ||
+          'Publisher',
         email: gm.user?.email || memberDoc?.user?.email || '',
         role:
           gm.role ||
@@ -204,15 +209,27 @@ export default function ProfileScreen() {
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </Text>
             </View>
-            <Text style={[styles.profileName, { color: colors.foreground, fontSize: typography.lg }]}>
+            <Text
+              style={[styles.profileName, { color: colors.foreground, fontSize: typography.lg }]}
+            >
               {user?.name || 'Publisher'}
             </Text>
             <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
               {user?.email}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 6,
+                marginTop: 8,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+              }}
+            >
               <Badge label={user?.role || 'PUBLISHER'} variant="primary" />
-              {user?.congregationRole && <Badge label={user.congregationRole} variant="secondary" />}
+              {user?.congregationRole && (
+                <Badge label={user.congregationRole} variant="secondary" />
+              )}
               {congregation && <Badge label={congregation.name} variant="outline" />}
             </View>
           </View>
@@ -220,7 +237,14 @@ export default function ProfileScreen() {
           {successMsg && (
             <View style={[styles.successBox, { backgroundColor: colors.success + '15' }]}>
               <Check size={16} color={colors.success} />
-              <Text style={{ color: colors.success, fontSize: typography.xs, fontWeight: '600', marginLeft: 6 }}>
+              <Text
+                style={{
+                  color: colors.success,
+                  fontSize: typography.xs,
+                  fontWeight: '600',
+                  marginLeft: 6,
+                }}
+              >
                 Profile updated successfully!
               </Text>
             </View>
@@ -253,7 +277,12 @@ export default function ProfileScreen() {
         </Card>
 
         {/* My Service Group Section */}
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs, marginTop: spacing.lg }]}>
+        <Text
+          style={[
+            styles.sectionLabel,
+            { color: colors.mutedForeground, fontSize: typography.xs, marginTop: spacing.lg },
+          ]}
+        >
           MY SERVICE GROUP & LEADERSHIP
         </Text>
         <Card style={styles.card}>
@@ -265,7 +294,12 @@ export default function ProfileScreen() {
                   <Users size={20} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text style={[styles.groupName, { color: colors.foreground, fontSize: typography.base }]}>
+                  <Text
+                    style={[
+                      styles.groupName,
+                      { color: colors.foreground, fontSize: typography.base },
+                    ]}
+                  >
                     {myGroup.name}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -273,34 +307,71 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 {userGroupRole && (
-                  <Badge label={`${userGroupRole.icon} ${userGroupRole.label}`} variant="primary" size="sm" />
+                  <Badge
+                    label={`${userGroupRole.icon} ${userGroupRole.label}`}
+                    variant="primary"
+                    size="sm"
+                  />
                 )}
               </View>
 
               {/* Leadership details */}
-              <View style={[styles.leadershipBox, { backgroundColor: colors.muted + '35', borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.leadershipBox,
+                  { backgroundColor: colors.muted + '35', borderColor: colors.border },
+                ]}
+              >
                 {/* Overseer */}
                 <View style={styles.leaderRow}>
                   <View style={[styles.miniIcon, { backgroundColor: '#f59e0b20' }]}>
                     <Crown size={13} color="#d97706" />
                   </View>
-                  <Text style={{ fontSize: typography.xs, color: colors.mutedForeground, width: 90 }}>
+                  <Text
+                    style={{ fontSize: typography.xs, color: colors.mutedForeground, width: 90 }}
+                  >
                     Overseer:
                   </Text>
-                  <Text style={{ fontSize: typography.xs, fontWeight: '700', color: colors.foreground, flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: '700',
+                      color: colors.foreground,
+                      flex: 1,
+                    }}
+                  >
                     {myGroup.overseerName || 'Unassigned'}
                   </Text>
                 </View>
 
                 {/* Assistant Overseer */}
-                <View style={[styles.leaderRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 8, marginTop: 8 }]}>
+                <View
+                  style={[
+                    styles.leaderRow,
+                    {
+                      borderTopWidth: StyleSheet.hairlineWidth,
+                      borderTopColor: colors.border,
+                      paddingTop: 8,
+                      marginTop: 8,
+                    },
+                  ]}
+                >
                   <View style={[styles.miniIcon, { backgroundColor: '#3b82f620' }]}>
                     <Shield size={13} color="#2563eb" />
                   </View>
-                  <Text style={{ fontSize: typography.xs, color: colors.mutedForeground, width: 90 }}>
+                  <Text
+                    style={{ fontSize: typography.xs, color: colors.mutedForeground, width: 90 }}
+                  >
                     Assistant:
                   </Text>
-                  <Text style={{ fontSize: typography.xs, fontWeight: '700', color: colors.foreground, flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      fontWeight: '700',
+                      color: colors.foreground,
+                      flex: 1,
+                    }}
+                  >
                     {myGroup.assistantOverseerName || 'Unassigned'}
                   </Text>
                 </View>
@@ -309,12 +380,22 @@ export default function ProfileScreen() {
               {/* Groupmates preview */}
               {groupmates.length > 0 && (
                 <View style={{ marginTop: spacing.md }}>
-                  <Text style={{ fontSize: typography.xs, color: colors.mutedForeground, fontWeight: '600', marginBottom: 6 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: colors.mutedForeground,
+                      fontWeight: '600',
+                      marginBottom: 6,
+                    }}
+                  >
                     Groupmates ({groupmates.length}):
                   </Text>
                   <View style={styles.groupmateChips}>
                     {groupmates.slice(0, 6).map((gm) => (
-                      <View key={gm.id} style={[styles.chip, { backgroundColor: colors.muted + '50' }]}>
+                      <View
+                        key={gm.id}
+                        style={[styles.chip, { backgroundColor: colors.muted + '50' }]}
+                      >
                         <Text style={{ fontSize: 11, color: colors.foreground, fontWeight: '500' }}>
                           {gm.name || gm.email?.split('@')[0] || 'Publisher'}
                         </Text>
@@ -348,8 +429,15 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={{ paddingVertical: 10 }}>
-              <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic' }}>
-                You are not currently assigned to a service group. Contact your service overseer to be assigned.
+              <Text
+                style={{
+                  color: colors.mutedForeground,
+                  fontSize: typography.xs,
+                  fontStyle: 'italic',
+                }}
+              >
+                You are not currently assigned to a service group. Contact your service overseer to
+                be assigned.
               </Text>
             </View>
           )}
@@ -357,12 +445,7 @@ export default function ProfileScreen() {
 
         {/* Sign Out Card */}
         <Card style={[styles.card, { marginTop: spacing.lg }]}>
-          <Button
-            title="Sign Out"
-            variant="destructive"
-            onPress={handleSignOut}
-            size="lg"
-          />
+          <Button title="Sign Out" variant="destructive" onPress={handleSignOut} size="lg" />
         </Card>
       </ScrollView>
     </KeyboardAvoidingView>

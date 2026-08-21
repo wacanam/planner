@@ -161,7 +161,12 @@ export default function RecordsScreen() {
       />
 
       {/* Tab Segment Controller */}
-      <View style={[styles.tabBarContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.tabBarContainer,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
@@ -169,10 +174,16 @@ export default function RecordsScreen() {
           }}
           style={[
             styles.tabItem,
-            activeTab === 'households' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeTab === 'households' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
-          <Home size={15} color={activeTab === 'households' ? colors.primary : colors.mutedForeground} />
+          <Home
+            size={15}
+            color={activeTab === 'households' ? colors.primary : colors.mutedForeground}
+          />
           <Text
             style={[
               styles.tabText,
@@ -197,7 +208,10 @@ export default function RecordsScreen() {
             activeTab === 'visits' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
           ]}
         >
-          <Calendar size={15} color={activeTab === 'visits' ? colors.primary : colors.mutedForeground} />
+          <Calendar
+            size={15}
+            color={activeTab === 'visits' ? colors.primary : colors.mutedForeground}
+          />
           <Text
             style={[
               styles.tabText,
@@ -219,10 +233,16 @@ export default function RecordsScreen() {
           }}
           style={[
             styles.tabItem,
-            activeTab === 'encounters' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeTab === 'encounters' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
-          <MessageSquare size={15} color={activeTab === 'encounters' ? colors.primary : colors.mutedForeground} />
+          <MessageSquare
+            size={15}
+            color={activeTab === 'encounters' ? colors.primary : colors.mutedForeground}
+          />
           <Text
             style={[
               styles.tabText,
@@ -250,8 +270,8 @@ export default function RecordsScreen() {
       </View>
 
       {/* Tab 1: Households List */}
-      {activeTab === 'households' && (
-        householdsLoading ? (
+      {activeTab === 'households' &&
+        (householdsLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
@@ -267,7 +287,10 @@ export default function RecordsScreen() {
           <FlatList
             data={filteredHouseholds}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
             renderItem={({ item }) => (
               <Card
                 onPress={() => {
@@ -278,11 +301,22 @@ export default function RecordsScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.addressText, { color: colors.foreground, fontSize: typography.base }]}>
+                    <Text
+                      style={[
+                        styles.addressText,
+                        { color: colors.foreground, fontSize: typography.base },
+                      ]}
+                    >
                       {item.address}
                     </Text>
                     {item.city ? (
-                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
+                      <Text
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          marginTop: 2,
+                        }}
+                      >
                         {item.city}
                       </Text>
                     ) : null}
@@ -291,26 +325,34 @@ export default function RecordsScreen() {
                 </View>
 
                 {item.notes ? (
-                  <Text style={[styles.notesSnippet, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                  <Text
+                    style={[
+                      styles.notesSnippet,
+                      { color: colors.mutedForeground, fontSize: typography.xs },
+                    ]}
+                  >
                     "{item.notes}"
                   </Text>
                 ) : null}
 
                 <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    Last Visit: {item.lastVisitDate ? new Date(item.lastVisitDate).toLocaleDateString() : 'Never'} ({item.lastVisitOutcome || 'None'})
+                    Last Visit:{' '}
+                    {item.lastVisitDate
+                      ? new Date(item.lastVisitDate).toLocaleDateString()
+                      : 'Never'}{' '}
+                    ({item.lastVisitOutcome || 'None'})
                   </Text>
                   <ChevronRight size={14} color={colors.primary} />
                 </View>
               </Card>
             )}
           />
-        )
-      )}
+        ))}
 
       {/* Tab 2: Visits List */}
-      {activeTab === 'visits' && (
-        visitsLoading ? (
+      {activeTab === 'visits' &&
+        (visitsLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
@@ -324,41 +366,70 @@ export default function RecordsScreen() {
           <FlatList
             data={filteredVisits}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
             renderItem={({ item }) => (
               <Card style={[styles.recordCard, { marginBottom: spacing.sm }]}>
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.addressText, { color: colors.foreground, fontSize: typography.sm + 1 }]}>
+                    <Text
+                      style={[
+                        styles.addressText,
+                        { color: colors.foreground, fontSize: typography.sm + 1 },
+                      ]}
+                    >
                       {item.householdAddress || 'Household Record'}
                     </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
-                      {new Date(item.visitDate).toLocaleDateString()} &bull; {item.publisherName || 'Publisher'}
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 2,
+                      }}
+                    >
+                      {new Date(item.visitDate).toLocaleDateString()} &bull;{' '}
+                      {item.publisherName || 'Publisher'}
                     </Text>
                   </View>
-                  <Badge label={item.outcome.replace('_', ' ')} variant={getStatusBadgeVariant(item.outcome)} />
+                  <Badge
+                    label={item.outcome.replace('_', ' ')}
+                    variant={getStatusBadgeVariant(item.outcome)}
+                  />
                 </View>
 
                 {item.bibleTopicDiscussed && (
-                  <Text style={{ color: colors.primary, fontSize: typography.xs, marginTop: 6, fontWeight: '600' }}>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontSize: typography.xs,
+                      marginTop: 6,
+                      fontWeight: '600',
+                    }}
+                  >
                     Topic: {item.bibleTopicDiscussed}
                   </Text>
                 )}
 
                 {item.notes && (
-                  <Text style={[styles.notesSnippet, { color: colors.foreground, fontSize: typography.xs }]}>
+                  <Text
+                    style={[
+                      styles.notesSnippet,
+                      { color: colors.foreground, fontSize: typography.xs },
+                    ]}
+                  >
                     "{item.notes}"
                   </Text>
                 )}
               </Card>
             )}
           />
-        )
-      )}
+        ))}
 
       {/* Tab 3: Encounters List */}
-      {activeTab === 'encounters' && (
-        encountersLoading ? (
+      {activeTab === 'encounters' &&
+        (encountersLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
@@ -372,46 +443,84 @@ export default function RecordsScreen() {
           <FlatList
             data={filteredEncounters}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
             renderItem={({ item }) => (
               <Card style={[styles.recordCard, { marginBottom: spacing.sm }]}>
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.addressText, { color: colors.foreground, fontSize: typography.base }]}>
+                    <Text
+                      style={[
+                        styles.addressText,
+                        { color: colors.foreground, fontSize: typography.base },
+                      ]}
+                    >
                       {item.name || 'Anonymous Person'}
                     </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
-                      {item.gender ? `${item.gender} • ` : ''}{item.ageGroup ? `${item.ageGroup} • ` : ''}{new Date(item.createdAt).toLocaleDateString()}
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 2,
+                      }}
+                    >
+                      {item.gender ? `${item.gender} • ` : ''}
+                      {item.ageGroup ? `${item.ageGroup} • ` : ''}
+                      {new Date(item.createdAt).toLocaleDateString()}
                     </Text>
                   </View>
-                  <Badge label={item.response} variant={item.bibleStudyInterest ? 'success' : 'primary'} />
+                  <Badge
+                    label={item.response}
+                    variant={item.bibleStudyInterest ? 'success' : 'primary'}
+                  />
                 </View>
 
                 {item.topicDiscussed && (
-                  <Text style={{ color: colors.primary, fontSize: typography.xs, marginTop: 6, fontWeight: '600' }}>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontSize: typography.xs,
+                      marginTop: 6,
+                      fontWeight: '600',
+                    }}
+                  >
                     Discussed: {item.topicDiscussed}
                   </Text>
                 )}
 
                 {item.notes && (
-                  <Text style={[styles.notesSnippet, { color: colors.foreground, fontSize: typography.xs }]}>
+                  <Text
+                    style={[
+                      styles.notesSnippet,
+                      { color: colors.foreground, fontSize: typography.xs },
+                    ]}
+                  >
                     "{item.notes}"
                   </Text>
                 )}
               </Card>
             )}
           />
-        )
-      )}
+        ))}
 
       {/* Add Household Modal */}
       <Modal visible={addHouseholdModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '90%' }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+            <Text
+              style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+            >
               Add Household
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
               Create a new household record in congregation
             </Text>
 

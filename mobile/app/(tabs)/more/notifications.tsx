@@ -1,13 +1,6 @@
 // mobile/app/(tabs)/more/notifications.tsx
 import { useRouter } from 'expo-router';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { Bell, Check, Clock, Sparkles } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -55,7 +48,7 @@ export default function NotificationsScreen() {
       q,
       (snap) => {
         const list = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Notification))
+          .map((d) => ({ id: d.id, ...d.data() }) as Notification)
           .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
         setNotifications(list);
         setIsLoading(false);
@@ -113,14 +106,26 @@ export default function NotificationsScreen() {
               ]}
             >
               <View style={styles.notifHeader}>
-                <View style={[styles.iconBox, { backgroundColor: item.isRead ? colors.muted : colors.primary + '20' }]}>
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: item.isRead ? colors.muted : colors.primary + '20' },
+                  ]}
+                >
                   <Bell size={16} color={item.isRead ? colors.mutedForeground : colors.primary} />
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text style={[styles.notifTitle, { color: colors.foreground, fontSize: typography.sm + 1 }]}>
+                  <Text
+                    style={[
+                      styles.notifTitle,
+                      { color: colors.foreground, fontSize: typography.sm + 1 },
+                    ]}
+                  >
                     {item.title}
                   </Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 1 }}>
+                  <Text
+                    style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 1 }}
+                  >
                     {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Just now'}
                   </Text>
                 </View>
@@ -130,7 +135,12 @@ export default function NotificationsScreen() {
                 )}
               </View>
 
-              <Text style={[styles.notifBody, { color: colors.foreground, fontSize: typography.xs + 1 }]}>
+              <Text
+                style={[
+                  styles.notifBody,
+                  { color: colors.foreground, fontSize: typography.xs + 1 },
+                ]}
+              >
                 {item.body}
               </Text>
             </Card>

@@ -1,7 +1,8 @@
 'use client';
 
 import { Check, ChevronRight, Sparkles, User, UserPlus, X } from 'lucide-react';
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type React from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import type { HouseholdContactSummary } from '@/lib/household-contacts';

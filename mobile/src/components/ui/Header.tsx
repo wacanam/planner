@@ -1,13 +1,8 @@
 // mobile/src/components/ui/Header.tsx
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import type React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';

@@ -37,8 +37,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useHouseholdContacts, useMyEncounters } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { timeAgo } from '@/lib/time-ago';
-import { ContactAutocompleteInput } from './contact-autocomplete-input';
 import type { Encounter, Household } from '@/types/api';
+import { ContactAutocompleteInput } from './contact-autocomplete-input';
 
 const responseBadgeColors: Record<string, string> = {
   receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',

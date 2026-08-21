@@ -5,20 +5,15 @@ import {
   doc,
   getDocs,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
   writeBatch,
-  type QueryConstraint,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
 
 function territoryCollection() {
@@ -39,10 +34,7 @@ function requestDocument(id: string) {
 
 export function parseBoundaryCoordinates(
   raw: unknown
-):
-  | Array<{ lat: number; lng: number }>
-  | Array<Array<{ lat: number; lng: number }>>
-  | null {
+): Array<{ lat: number; lng: number }> | Array<Array<{ lat: number; lng: number }>> | null {
   if (!raw) return null;
 
   if (Array.isArray(raw) && raw.length > 0) {

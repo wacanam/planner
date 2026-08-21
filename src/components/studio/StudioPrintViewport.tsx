@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +26,6 @@ import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Congregation, Household, Territory } from '@/types/api';
 import type { BasemapMode } from './StudioBasemapPopup';
 import type { CardDimensionSettings } from './StudioSidebar';
-import { toast } from 'sonner';
 
 export interface StudioPrintViewportProps {
   active: boolean;

@@ -60,10 +60,11 @@ export function ProtectedPage({
     }
 
     // Congregation scoping: if a congregationId is required and user is not
-    // a global admin, verify they belong to it once membership is resolved.
+    // a global admin, verify they are an active member of this congregation.
     if (congregationId && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
-      if (user.congregationId && user.congregationId !== congregationId) {
+      if (!user.congregationId || user.congregationId !== congregationId) {
         router.replace(roleRedirect);
+        return;
       }
     }
   }, [

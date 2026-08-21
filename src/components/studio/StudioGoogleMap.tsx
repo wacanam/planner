@@ -975,11 +975,10 @@ export function StudioGoogleMap({
     const startTime = performance.now();
 
     // Smooth Quintic Ease-In-Out for natural acceleration & cushioned deceleration
-    const easeInOutQuint = (t: number) =>
-      t < 0.5 ? 16 * Math.pow(t, 5) : 1 - Math.pow(-2 * t + 2, 5) / 2;
+    const easeInOutQuint = (t: number) => (t < 0.5 ? 16 * t ** 5 : 1 - (-2 * t + 2) ** 5 / 2);
 
     // Cubic Ease-Out for shorter local flights
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -1078,7 +1077,7 @@ export function StudioGoogleMap({
     const startTime = performance.now();
     const duration = 120; // ms
 
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;

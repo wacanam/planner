@@ -1,19 +1,7 @@
 // mobile/src/hooks/useCongregations.ts
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, updateDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Congregation } from '@/types/api';
 
 function congregationCollection() {
@@ -87,9 +75,7 @@ export function useCongregation(congregationId: string | null | undefined) {
       { includeMetadataChanges: true },
       (snap) => {
         setCongregation(
-          snap.exists()
-            ? congregationFromData(snap.id, snap.data() as Partial<Congregation>)
-            : null
+          snap.exists() ? congregationFromData(snap.id, snap.data() as Partial<Congregation>) : null
         );
         setError(null);
         setIsLoading(false);

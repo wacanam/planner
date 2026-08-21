@@ -328,8 +328,7 @@ export function resolveUserAssignments(
     const aGroupId = a.serviceGroupId?.trim();
 
     const isDirectPersonal =
-      Boolean(uid && a.userId === uid) ||
-      Boolean(userEmail && aEmail && aEmail === userEmail);
+      Boolean(uid && a.userId === uid) || Boolean(userEmail && aEmail && aEmail === userEmail);
 
     const isGroupInherited = Boolean(aGroupId && groupSet.has(aGroupId));
 

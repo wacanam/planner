@@ -13,6 +13,7 @@ export const FIRESTORE_COLLECTIONS = {
   notifications: 'notifications',
   shares: 'shares',
   accountRequests: 'accountRequests',
+  mail: 'mail',
 } as const;
 
 export type FirestoreCollectionName = keyof typeof FIRESTORE_COLLECTIONS;

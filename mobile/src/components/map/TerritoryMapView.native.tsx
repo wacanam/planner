@@ -5,7 +5,13 @@ import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polygon, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';
-import type { FitOptions, MapCoordinate, MapRegion, TerritoryMapViewProps, TerritoryMapViewRef } from './types';
+import type {
+  FitOptions,
+  MapCoordinate,
+  MapRegion,
+  TerritoryMapViewProps,
+  TerritoryMapViewRef,
+} from './types';
 
 const defaultRegion: MapRegion = {
   latitude: 14.5995,
@@ -16,8 +22,7 @@ const defaultRegion: MapRegion = {
 
 // Check if running inside Expo Go on Android (where native Google Maps API keys are deprecated/unbundled by Expo)
 const isExpoGoOnAndroid =
-  Platform.OS === 'android' &&
-  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapViewProps>(
   (

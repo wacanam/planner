@@ -2,7 +2,13 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
-import type { FitOptions, MapCoordinate, MapRegion, TerritoryMapViewProps, TerritoryMapViewRef } from './types';
+import type {
+  FitOptions,
+  MapCoordinate,
+  MapRegion,
+  TerritoryMapViewProps,
+  TerritoryMapViewRef,
+} from './types';
 
 const defaultRegion: MapRegion = {
   latitude: 14.5995,
@@ -142,7 +148,9 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
       return () => {
         isMounted = false;
         if (polygonRef.current) polygonRef.current.setMap(null);
-        markersRef.current.forEach((m) => m.setMap(null));
+        markersRef.current.forEach((m) => {
+          m.setMap(null);
+        });
         markersRef.current = [];
       };
     }, [apiKey]);
@@ -152,7 +160,15 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
         {/* @ts-ignore */}
         <div
           ref={mapContainerRef}
-          style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
         />
         {children}
       </View>

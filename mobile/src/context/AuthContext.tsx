@@ -1,29 +1,17 @@
 // mobile/src/context/AuthContext.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  type User as FirebaseUser,
   createUserWithEmailAndPassword,
+  type User as FirebaseUser,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  setDoc,
-  where,
-} from 'firebase/firestore';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  FIRESTORE_COLLECTIONS,
-  getPlannerAuth,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { collection, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import type React from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { FIRESTORE_COLLECTIONS, getPlannerAuth, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import { UserRole } from '@/lib/roles';
 import type { User } from '@/types/api';
 
@@ -136,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const memberQuery = query(
       collection(firestore, FIRESTORE_COLLECTIONS.congregationMembers),
       where('userId', '==', uid),
-      where('status', '==', 'active')
+      where('status', 'in', ['active', 'approved'])
     );
     const unsubMember = onSnapshot(
       memberQuery,
@@ -180,15 +168,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return UserRole.PUBLISHER;
   }, [userProfile?.role, membershipRole]);
 
-  const congregationId =
-    activeCongId || userProfile?.congregationId || membershipCongregationId || null;
-  const groupId = userProfile?.groupId || membershipGroupId || null;
+  const isGlobalAdmin = effectiveRole === UserRole.SUPER_ADMIN || effectiveRole === UserRole.ADMIN;
+
+  const congregationId = isGlobalAdmin
+    ? activeCongId || userProfile?.congregationId || membershipCongregationId || null
+    : membershipCongregationId || null;
+  const groupId = membershipCongregationId
+    ? userProfile?.groupId || membershipGroupId || null
+    : null;
 
   const sessionUser: SessionUser | null = useMemo(() => {
     if (!firebaseUser) return null;
     return {
       id: firebaseUser.uid,
-      name: userProfile?.name || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      name:
+        userProfile?.name ||
+        firebaseUser.displayName ||
+        firebaseUser.email?.split('@')[0] ||
+        'User',
       email: firebaseUser.email || userProfile?.email || null,
       role: effectiveRole,
       congregationId,
@@ -196,7 +193,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       groupId,
       avatarUrl: userProfile?.avatarUrl || null,
     };
-  }, [firebaseUser, userProfile, effectiveRole, congregationId, membershipRole, groupId]);
+  }, [
+    firebaseUser,
+    userProfile?.name,
+    userProfile?.email,
+    userProfile?.avatarUrl,
+    effectiveRole,
+    congregationId,
+    membershipRole,
+    groupId,
+  ]);
 
   const setActiveCongregationId = async (id: string | null) => {
     setActiveCongId(id);

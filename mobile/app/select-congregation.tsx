@@ -1,7 +1,17 @@
 // mobile/app/select-congregation.tsx
 import { useRouter } from 'expo-router';
-import { Building2, Check, MapPin, Plus, Search, UserCheck } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import {
+  Building2,
+  Check,
+  Clock,
+  MapPin,
+  Plus,
+  Search,
+  UserCheck,
+  XCircle,
+} from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,8 +30,9 @@ import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useCongregations, useCreateCongregation } from '@/hooks/useCongregations';
 import { useJoinCongregation } from '@/hooks/useCongregationMembers';
+import { useCongregations, useCreateCongregation } from '@/hooks/useCongregations';
+import { FIRESTORE_COLLECTIONS, getPlannerFirestore } from '@/lib/firebase';
 import { triggerHaptic } from '@/lib/sound';
 import type { Congregation } from '@/types/api';
 
@@ -41,10 +52,32 @@ export default function SelectCongregationScreen() {
   const [joinMessage, setJoinMessage] = useState('');
   const [joinSuccess, setJoinSuccess] = useState(false);
 
+  // Track memberships for current user: congregationId -> status
+  const [memberships, setMemberships] = useState<Map<string, string>>(new Map());
+
   // New Congregation modal
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newCongName, setNewCongName] = useState('');
   const [newCongCity, setNewCongCity] = useState('');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const firestore = getPlannerFirestore();
+    const q = query(
+      collection(firestore, FIRESTORE_COLLECTIONS.congregationMembers),
+      where('userId', '==', user.id)
+    );
+    return onSnapshot(q, (snap) => {
+      const map = new Map<string, string>();
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.congregationId) {
+          map.set(data.congregationId, data.status || 'active');
+        }
+      }
+      setMemberships(map);
+    });
+  }, [user?.id]);
 
   const filtered = congregations.filter((c) => {
     const q = searchQuery.toLowerCase().trim();
@@ -57,6 +90,15 @@ export default function SelectCongregationScreen() {
   });
 
   const handleSelectCongregation = async (c: Congregation) => {
+    const status = memberships.get(c.id);
+    const isApproved = status === 'active' || status === 'approved';
+    const isGlobalAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+
+    if (!isApproved && !isGlobalAdmin) {
+      handleOpenJoin(c);
+      return;
+    }
+
     await triggerHaptic('medium');
     await setActiveCongregationId(c.id);
     router.replace('/(tabs)/assignments');
@@ -83,8 +125,7 @@ export default function SelectCongregationScreen() {
       setJoinSuccess(true);
       setTimeout(() => {
         setJoinModalVisible(false);
-        handleSelectCongregation(selectedCong);
-      }, 1200);
+      }, 1500);
     } catch {
       triggerHaptic('error');
     }
@@ -144,9 +185,17 @@ export default function SelectCongregationScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.xxl }}
+          contentContainerStyle={{
+            padding: spacing.md,
+            paddingBottom: insets.bottom + spacing.xxl,
+          }}
           renderItem={({ item }) => {
-            const isActive = activeCongregationId === item.id;
+            const memberStatus = memberships.get(item.id);
+            const isApproved = memberStatus === 'active' || memberStatus === 'approved';
+            const isPending = memberStatus === 'pending';
+            const isRejected = memberStatus === 'rejected';
+            const isActive = isApproved && activeCongregationId === item.id;
+
             return (
               <Card
                 onPress={() => handleSelectCongregation(item)}
@@ -162,13 +211,27 @@ export default function SelectCongregationScreen() {
                   </View>
 
                   <View style={{ flex: 1, marginLeft: spacing.md }}>
-                    <Text style={[styles.congName, { color: colors.foreground, fontSize: typography.base }]}>
+                    <Text
+                      style={[
+                        styles.congName,
+                        { color: colors.foreground, fontSize: typography.base },
+                      ]}
+                    >
                       {item.name}
                     </Text>
                     {item.city && (
                       <View style={styles.locationRow}>
                         <MapPin size={12} color={colors.mutedForeground} />
-                        <Text style={[styles.congCity, { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 }]}>
+                        <Text
+                          style={[
+                            styles.congCity,
+                            {
+                              color: colors.mutedForeground,
+                              fontSize: typography.xs,
+                              marginLeft: 4,
+                            },
+                          ]}
+                        >
                           {item.city} {item.country ? `• ${item.country}` : ''}
                         </Text>
                       </View>
@@ -177,6 +240,22 @@ export default function SelectCongregationScreen() {
 
                   {isActive ? (
                     <Badge label="Active" variant="primary" />
+                  ) : isApproved ? (
+                    <Button
+                      title="Open"
+                      variant="outline"
+                      size="sm"
+                      onPress={() => handleSelectCongregation(item)}
+                    />
+                  ) : isPending ? (
+                    <Badge label="Pending Review" variant="warning" />
+                  ) : isRejected ? (
+                    <Button
+                      title="Re-apply"
+                      variant="outline"
+                      size="sm"
+                      onPress={() => handleOpenJoin(item)}
+                    />
                   ) : (
                     <Button
                       title="Join"
@@ -199,20 +278,42 @@ export default function SelectCongregationScreen() {
             {joinSuccess ? (
               <View style={styles.successBox}>
                 <Check size={40} color={colors.success} />
-                <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg, marginTop: spacing.md }]}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    { color: colors.foreground, fontSize: typography.lg, marginTop: spacing.md },
+                  ]}
+                >
                   Request Submitted!
                 </Text>
-                <Text style={{ color: colors.mutedForeground, textAlign: 'center', marginTop: 4 }}>
-                  Joining {selectedCong?.name}...
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    textAlign: 'center',
+                    marginTop: 6,
+                    fontSize: typography.xs,
+                    lineHeight: 18,
+                  }}
+                >
+                  Your request has been sent to the Service Overseer of {selectedCong?.name}. You
+                  will gain access once approved.
                 </Text>
               </View>
             ) : (
               <>
-                <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+                <Text
+                  style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+                >
                   Join {selectedCong?.name}
                 </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, marginBottom: spacing.md }}>
-                  Send a request to the congregation service overseers.
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: typography.sm,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  Send a request to the congregation service overseers for publisher access.
                 </Text>
 
                 <Input
@@ -249,10 +350,18 @@ export default function SelectCongregationScreen() {
       <Modal visible={createModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '88%' }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+            <Text
+              style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+            >
               Create Congregation
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.sm,
+                marginBottom: spacing.md,
+              }}
+            >
               Set up a new workspace for your congregation
             </Text>
 

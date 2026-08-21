@@ -28,7 +28,12 @@ export default function IndexScreen() {
         <Text style={[styles.logoText, { color: colors.primary, fontSize: typography.title }]}>
           Kanataran
         </Text>
-        <Text style={[styles.subText, { color: colors.mutedForeground, fontSize: typography.sm, marginTop: spacing.xs }]}>
+        <Text
+          style={[
+            styles.subText,
+            { color: colors.mutedForeground, fontSize: typography.sm, marginTop: spacing.xs },
+          ]}
+        >
           Ministry & Territory Planner
         </Text>
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />

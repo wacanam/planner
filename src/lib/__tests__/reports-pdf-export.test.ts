@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { S13AssignmentRecord } from '@/types/api';
 import { exportFullCongregationReportPDF } from '../full-report-pdf-export';
 import { exportS13ToPDF } from '../s13-pdf-export';
-import type { S13AssignmentRecord } from '@/types/api';
 
 describe('PDF Export Utilities', () => {
   it('generates official S-13 PDF without throwing errors', () => {

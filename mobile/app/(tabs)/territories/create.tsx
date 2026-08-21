@@ -77,11 +77,7 @@ export default function CreateTerritoryScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <Header
-        showBack
-        title="New Territory"
-        subtitle="Create territory in congregation"
-      />
+      <Header showBack title="New Territory" subtitle="Create territory in congregation" />
 
       <ScrollView
         contentContainerStyle={{
@@ -92,8 +88,15 @@ export default function CreateTerritoryScreen() {
       >
         <Card style={styles.card}>
           {errorMessage && (
-            <View style={[styles.errorBox, { backgroundColor: colors.destructive + '15', marginBottom: spacing.md }]}>
-              <Text style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}>
+            <View
+              style={[
+                styles.errorBox,
+                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+              ]}
+            >
+              <Text
+                style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}
+              >
                 {errorMessage}
               </Text>
             </View>

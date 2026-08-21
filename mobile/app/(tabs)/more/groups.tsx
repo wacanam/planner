@@ -9,8 +9,8 @@ import {
   Plus,
   Shield,
   Trash2,
-  User as UserIcon,
   UserCheck,
+  User as UserIcon,
   Users,
   X,
 } from 'lucide-react-native';
@@ -69,7 +69,10 @@ export default function ServiceGroupsScreen() {
   const [selectedAssistantId, setSelectedAssistantId] = useState<string | null>(null);
 
   const canManage = canManageGroups(user?.role, user?.congregationRole);
-  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active' || !m.status), [members]);
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.status === 'active' || !m.status),
+    [members]
+  );
 
   // Find the current user's group
   const myGroup = useMemo(() => {
@@ -207,7 +210,12 @@ export default function ServiceGroupsScreen() {
           ListHeaderComponent={
             myGroup ? (
               <View style={{ marginBottom: spacing.md }}>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.mutedForeground, fontSize: typography.xs },
+                  ]}
+                >
                   YOUR ASSIGNED GROUP
                 </Text>
                 <Card
@@ -215,7 +223,10 @@ export default function ServiceGroupsScreen() {
                     triggerHaptic('light');
                     setSelectedGroupDetail(myGroup);
                   }}
-                  style={[styles.myGroupCard, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' }]}
+                  style={[
+                    styles.myGroupCard,
+                    { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' },
+                  ]}
                 >
                   <View style={styles.groupHeader}>
                     <View style={[styles.iconBox, { backgroundColor: colors.primary }]}>
@@ -223,20 +234,42 @@ export default function ServiceGroupsScreen() {
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.groupTitle, { color: colors.foreground, fontSize: typography.base }]}>
+                        <Text
+                          style={[
+                            styles.groupTitle,
+                            { color: colors.foreground, fontSize: typography.base },
+                          ]}
+                        >
                           {myGroup.name}
                         </Text>
                         <Badge label="Your Group" variant="primary" size="sm" />
                       </View>
-                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
+                      <Text
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          marginTop: 2,
+                        }}
+                      >
                         Overseer: {myGroup.overseerName || 'Unassigned'}
-                        {myGroup.assistantOverseerName ? ` • Asst: ${myGroup.assistantOverseerName}` : ''}
+                        {myGroup.assistantOverseerName
+                          ? ` • Asst: ${myGroup.assistantOverseerName}`
+                          : ''}
                       </Text>
                     </View>
                     <ChevronRight size={18} color={colors.primary} />
                   </View>
                 </Card>
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs, marginTop: spacing.md }]}>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    {
+                      color: colors.mutedForeground,
+                      fontSize: typography.xs,
+                      marginTop: spacing.md,
+                    },
+                  ]}
+                >
                   ALL CONGREGATION GROUPS
                 </Text>
               </View>
@@ -264,16 +297,33 @@ export default function ServiceGroupsScreen() {
                   </View>
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.groupTitle, { color: colors.foreground, fontSize: typography.base }]}>
+                      <Text
+                        style={[
+                          styles.groupTitle,
+                          { color: colors.foreground, fontSize: typography.base },
+                        ]}
+                      >
                         {item.name}
                       </Text>
                       {isCurrentMyGroup && <Badge label="Your Group" variant="primary" size="sm" />}
                     </View>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 2,
+                      }}
+                    >
                       Overseer: {item.overseerName || 'Unassigned'}
                       {item.assistantOverseerName ? ` • Asst: ${item.assistantOverseerName}` : ''}
                     </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 1 }}>
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 1,
+                      }}
+                    >
                       {groupMembers.length} publishers assigned
                     </Text>
                   </View>
@@ -318,7 +368,12 @@ export default function ServiceGroupsScreen() {
               <>
                 <View style={styles.detailHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+                    <Text
+                      style={[
+                        styles.modalTitle,
+                        { color: colors.foreground, fontSize: typography.lg },
+                      ]}
+                    >
                       {selectedGroupDetail.name}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -335,20 +390,42 @@ export default function ServiceGroupsScreen() {
 
                 <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: spacing.md }}>
                   {/* Leadership Section */}
-                  <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                  <Text
+                    style={[
+                      styles.sectionLabel,
+                      { color: colors.mutedForeground, fontSize: typography.xs },
+                    ]}
+                  >
                     GROUP LEADERSHIP
                   </Text>
 
                   {/* Group Overseer */}
-                  <View style={[styles.roleCard, { backgroundColor: colors.muted + '40', borderColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.roleCard,
+                      { backgroundColor: colors.muted + '40', borderColor: colors.border },
+                    ]}
+                  >
                     <View style={[styles.roleIconCircle, { backgroundColor: '#f59e0b20' }]}>
                       <Crown size={16} color="#d97706" />
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontSize: typography.xs, color: colors.mutedForeground, fontWeight: '600' }}>
+                      <Text
+                        style={{
+                          fontSize: typography.xs,
+                          color: colors.mutedForeground,
+                          fontWeight: '600',
+                        }}
+                      >
                         GROUP OVERSEER
                       </Text>
-                      <Text style={{ fontSize: typography.sm, fontWeight: '700', color: colors.foreground }}>
+                      <Text
+                        style={{
+                          fontSize: typography.sm,
+                          fontWeight: '700',
+                          color: colors.foreground,
+                        }}
+                      >
                         {selectedGroupDetail.overseerName || 'Unassigned'}
                       </Text>
                     </View>
@@ -356,15 +433,36 @@ export default function ServiceGroupsScreen() {
                   </View>
 
                   {/* Assistant Group Overseer */}
-                  <View style={[styles.roleCard, { backgroundColor: colors.muted + '40', borderColor: colors.border, marginTop: 8 }]}>
+                  <View
+                    style={[
+                      styles.roleCard,
+                      {
+                        backgroundColor: colors.muted + '40',
+                        borderColor: colors.border,
+                        marginTop: 8,
+                      },
+                    ]}
+                  >
                     <View style={[styles.roleIconCircle, { backgroundColor: '#3b82f620' }]}>
                       <Shield size={16} color="#2563eb" />
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontSize: typography.xs, color: colors.mutedForeground, fontWeight: '600' }}>
+                      <Text
+                        style={{
+                          fontSize: typography.xs,
+                          color: colors.mutedForeground,
+                          fontWeight: '600',
+                        }}
+                      >
                         ASSISTANT OVERSEER
                       </Text>
-                      <Text style={{ fontSize: typography.sm, fontWeight: '700', color: colors.foreground }}>
+                      <Text
+                        style={{
+                          fontSize: typography.sm,
+                          fontWeight: '700',
+                          color: colors.foreground,
+                        }}
+                      >
                         {selectedGroupDetail.assistantOverseerName || 'Unassigned'}
                       </Text>
                     </View>
@@ -376,18 +474,31 @@ export default function ServiceGroupsScreen() {
                     const groupmates = getGroupMembers(selectedGroupDetail.id);
                     return (
                       <View style={{ marginTop: spacing.lg }}>
-                        <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                        <Text
+                          style={[
+                            styles.sectionLabel,
+                            { color: colors.mutedForeground, fontSize: typography.xs },
+                          ]}
+                        >
                           GROUPMATES & PUBLISHERS ({groupmates.length})
                         </Text>
 
                         {groupmates.length === 0 ? (
-                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic', marginVertical: 8 }}>
+                          <Text
+                            style={{
+                              color: colors.mutedForeground,
+                              fontSize: typography.xs,
+                              fontStyle: 'italic',
+                              marginVertical: 8,
+                            }}
+                          >
                             No publishers currently assigned to this group.
                           </Text>
                         ) : (
                           groupmates.map((gm) => {
                             const isOverseer = gm.userId === selectedGroupDetail.overseerId;
-                            const isAssistant = gm.userId === selectedGroupDetail.assistantOverseerId;
+                            const isAssistant =
+                              gm.userId === selectedGroupDetail.assistantOverseerId;
 
                             return (
                               <View
@@ -395,21 +506,45 @@ export default function ServiceGroupsScreen() {
                                 style={[
                                   styles.groupmateRow,
                                   { borderBottomColor: colors.border },
-                                  (isOverseer || isAssistant) && { backgroundColor: colors.muted + '25' },
+                                  (isOverseer || isAssistant) && {
+                                    backgroundColor: colors.muted + '25',
+                                  },
                                 ]}
                               >
-                                <View style={[styles.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
-                                  <Text style={{ fontWeight: '700', color: colors.primary, fontSize: 12 }}>
+                                <View
+                                  style={[
+                                    styles.avatarCircle,
+                                    { backgroundColor: colors.primary + '20' },
+                                  ]}
+                                >
+                                  <Text
+                                    style={{
+                                      fontWeight: '700',
+                                      color: colors.primary,
+                                      fontSize: 12,
+                                    }}
+                                  >
                                     {gm.user?.name ? gm.user.name.charAt(0).toUpperCase() : 'P'}
                                   </Text>
                                 </View>
 
                                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                                  <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                                  <Text
+                                    style={{
+                                      fontWeight: '700',
+                                      color: colors.foreground,
+                                      fontSize: typography.sm,
+                                    }}
+                                  >
                                     {gm.user?.name || 'Publisher'}
                                   </Text>
                                   {gm.user?.email && (
-                                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                                    <Text
+                                      style={{
+                                        color: colors.mutedForeground,
+                                        fontSize: typography.xs,
+                                      }}
+                                    >
                                       {gm.user.email}
                                     </Text>
                                   )}
@@ -420,7 +555,11 @@ export default function ServiceGroupsScreen() {
                                 ) : isAssistant ? (
                                   <Badge label="Assistant" variant="secondary" size="sm" />
                                 ) : (
-                                  <Badge label={gm.congregationRole || 'Publisher'} variant="outline" size="sm" />
+                                  <Badge
+                                    label={gm.congregationRole || 'Publisher'}
+                                    variant="outline"
+                                    size="sm"
+                                  />
                                 )}
                               </View>
                             );
@@ -436,7 +575,12 @@ export default function ServiceGroupsScreen() {
                     if (groupTerritories.length === 0) return null;
                     return (
                       <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
-                        <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                        <Text
+                          style={[
+                            styles.sectionLabel,
+                            { color: colors.mutedForeground, fontSize: typography.xs },
+                          ]}
+                        >
                           GROUP TERRITORIES ({groupTerritories.length})
                         </Text>
                         {groupTerritories.map((t) => (
@@ -446,19 +590,31 @@ export default function ServiceGroupsScreen() {
                               setSelectedGroupDetail(null);
                               router.push(`/(tabs)/territories/${t.id}`);
                             }}
-                            style={[styles.territoryRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                            style={[
+                              styles.territoryRow,
+                              { backgroundColor: colors.card, borderColor: colors.border },
+                            ]}
                           >
                             <View style={styles.numberBadge}>
-                              <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 13 }}>
+                              <Text
+                                style={{ color: colors.primary, fontWeight: '800', fontSize: 13 }}
+                              >
                                 #{t.number}
                               </Text>
                             </View>
                             <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                              <Text style={{ fontWeight: '600', color: colors.foreground, fontSize: typography.xs }}>
+                              <Text
+                                style={{
+                                  fontWeight: '600',
+                                  color: colors.foreground,
+                                  fontSize: typography.xs,
+                                }}
+                              >
                                 {t.name}
                               </Text>
                               <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
-                                {t.householdsCount || 0} doors &bull; {t.coveragePercent || 0}% worked
+                                {t.householdsCount || 0} doors &bull; {t.coveragePercent || 0}%
+                                worked
                               </Text>
                             </View>
                             <ChevronRight size={14} color={colors.mutedForeground} />
@@ -496,10 +652,18 @@ export default function ServiceGroupsScreen() {
       <Modal visible={createModalVisible || !!editGroup} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '92%', maxHeight: '85%' }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+            <Text
+              style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+            >
               {editGroup ? 'Edit Service Group' : 'Create Service Group'}
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
               {editGroup
                 ? 'Update group leadership and publishers'
                 : 'Add a new service group and designate overseers'}
@@ -514,7 +678,12 @@ export default function ServiceGroupsScreen() {
               />
 
               {/* Select Overseer */}
-              <Text style={[styles.fieldLabel, { color: colors.foreground, fontSize: typography.xs, marginTop: spacing.sm }]}>
+              <Text
+                style={[
+                  styles.fieldLabel,
+                  { color: colors.foreground, fontSize: typography.xs, marginTop: spacing.sm },
+                ]}
+              >
                 Group Overseer
               </Text>
               <View style={[styles.pickerBox, { borderColor: colors.border }]}>
@@ -525,7 +694,12 @@ export default function ServiceGroupsScreen() {
                     !selectedOverseerId && { backgroundColor: colors.primary + '15' },
                   ]}
                 >
-                  <Text style={{ fontSize: typography.xs, color: !selectedOverseerId ? colors.primary : colors.mutedForeground }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: !selectedOverseerId ? colors.primary : colors.mutedForeground,
+                    }}
+                  >
                     None (Unassigned)
                   </Text>
                 </TouchableOpacity>
@@ -552,7 +726,12 @@ export default function ServiceGroupsScreen() {
               </View>
 
               {/* Select Assistant Overseer */}
-              <Text style={[styles.fieldLabel, { color: colors.foreground, fontSize: typography.xs, marginTop: spacing.md }]}>
+              <Text
+                style={[
+                  styles.fieldLabel,
+                  { color: colors.foreground, fontSize: typography.xs, marginTop: spacing.md },
+                ]}
+              >
                 Assistant Group Overseer
               </Text>
               <View style={[styles.pickerBox, { borderColor: colors.border }]}>
@@ -563,7 +742,14 @@ export default function ServiceGroupsScreen() {
                     !selectedAssistantId && { backgroundColor: colors.secondary + '20' },
                   ]}
                 >
-                  <Text style={{ fontSize: typography.xs, color: !selectedAssistantId ? colors.secondaryForeground : colors.mutedForeground }}>
+                  <Text
+                    style={{
+                      fontSize: typography.xs,
+                      color: !selectedAssistantId
+                        ? colors.secondaryForeground
+                        : colors.mutedForeground,
+                    }}
+                  >
                     None (Unassigned)
                   </Text>
                 </TouchableOpacity>
@@ -573,14 +759,19 @@ export default function ServiceGroupsScreen() {
                     onPress={() => setSelectedAssistantId(m.userId)}
                     style={[
                       styles.pickerOption,
-                      selectedAssistantId === m.userId && { backgroundColor: colors.secondary + '20' },
+                      selectedAssistantId === m.userId && {
+                        backgroundColor: colors.secondary + '20',
+                      },
                     ]}
                   >
                     <Text
                       style={{
                         fontSize: typography.xs,
                         fontWeight: selectedAssistantId === m.userId ? '700' : '400',
-                        color: selectedAssistantId === m.userId ? colors.secondaryForeground : colors.foreground,
+                        color:
+                          selectedAssistantId === m.userId
+                            ? colors.secondaryForeground
+                            : colors.foreground,
                       }}
                     >
                       {m.user?.name || m.user?.email || 'Publisher'}

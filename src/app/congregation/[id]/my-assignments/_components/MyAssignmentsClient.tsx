@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
@@ -41,7 +42,6 @@ import {
   resolveUserAssignments,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import { toast } from 'sonner';
 import type { Assignment, Household } from '@/types/api';
 
 export default function MyAssignmentsClient() {

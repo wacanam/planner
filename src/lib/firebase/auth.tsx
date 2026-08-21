@@ -117,12 +117,18 @@ async function activeMembershipCongregationId(userId: string) {
     );
     if (directDoc.exists()) {
       const data = directDoc.data();
-      if (data.congregationId) return String(data.congregationId);
+      const isActive =
+        data.status === 'active' ||
+        data.status === 'approved' ||
+        data.status === MemberStatus.ACTIVE;
+      if (isActive && data.congregationId) return String(data.congregationId);
+      return null;
     }
     const snapshot = await getDocs(
       query(
         collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
         where('userId', '==', userId),
+        where('status', 'in', ['active', 'approved']),
         limit(1)
       )
     );
@@ -155,6 +161,10 @@ async function ensureUserDocument(firebaseUser: FirebaseUser, preferredName?: st
   );
   const { password: _password, id: _id, ...existingData } = existing ?? {};
   const name = preferredName?.trim() || firebaseUser.displayName || existing?.name || email;
+  const userRole = existing?.role ?? UserRole.USER;
+  const isAdminUser = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.ADMIN;
+  const congregationId =
+    membershipCongregationId ?? (isAdminUser ? (existing?.congregationId ?? null) : null);
 
   await setDoc(
     ref,
@@ -163,10 +173,10 @@ async function ensureUserDocument(firebaseUser: FirebaseUser, preferredName?: st
       id: firebaseUser.uid,
       name,
       email,
-      role: existing?.role ?? UserRole.USER,
+      role: userRole,
       isActive: existing?.isActive ?? true,
       avatarUrl: firebaseUser.photoURL ?? existing?.avatarUrl ?? null,
-      congregationId: existing?.congregationId ?? membershipCongregationId ?? null,
+      congregationId,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       lastLoginAt: now,

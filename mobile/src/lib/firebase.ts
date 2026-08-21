@@ -1,12 +1,11 @@
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import {
   type Auth,
   getAuth,
-  initializeAuth,
-  // @ts-ignore - Exported by firebase/auth react-native build
+  // @ts-expect-error - Exported by firebase/auth react-native build
   getReactNativePersistence,
+  initializeAuth,
 } from 'firebase/auth';
 import {
   type Firestore,
@@ -16,6 +15,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
+import { Platform } from 'react-native';
 
 export const FIRESTORE_COLLECTIONS = {
   users: 'users',

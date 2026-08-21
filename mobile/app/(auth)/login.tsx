@@ -70,15 +70,27 @@ export default function LoginScreen() {
           <Text style={[styles.title, { color: colors.primary, fontSize: typography.title }]}>
             Kanataran
           </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs }]}>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs },
+            ]}
+          >
             Sign in to access your territories & ministry records
           </Text>
         </View>
 
         <Card style={{ marginTop: spacing.xl }}>
           {errorMessage && (
-            <View style={[styles.errorBanner, { backgroundColor: colors.destructive + '15', marginBottom: spacing.md }]}>
-              <Text style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}>
+            <View
+              style={[
+                styles.errorBanner,
+                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+              ]}
+            >
+              <Text
+                style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}
+              >
                 {errorMessage}
               </Text>
             </View>
@@ -123,7 +135,9 @@ export default function LoginScreen() {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.mutedForeground, fontSize: typography.sm }]}>
+          <Text
+            style={[styles.footerText, { color: colors.mutedForeground, fontSize: typography.sm }]}
+          >
             Don't have an account?{' '}
           </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>

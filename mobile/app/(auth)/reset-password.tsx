@@ -72,7 +72,12 @@ export default function ResetPasswordScreen() {
           style={[styles.backRow, { marginBottom: spacing.lg }]}
         >
           <ArrowLeft size={20} color={colors.foreground} />
-          <Text style={[styles.backText, { color: colors.foreground, fontSize: typography.base, marginLeft: spacing.xs }]}>
+          <Text
+            style={[
+              styles.backText,
+              { color: colors.foreground, fontSize: typography.base, marginLeft: spacing.xs },
+            ]}
+          >
             Back to Sign In
           </Text>
         </TouchableOpacity>
@@ -81,23 +86,42 @@ export default function ResetPasswordScreen() {
           <Text style={[styles.title, { color: colors.primary, fontSize: typography.title }]}>
             Reset Password
           </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs }]}>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs },
+            ]}
+          >
             Enter your email to receive recovery instructions
           </Text>
         </View>
 
         <Card style={{ marginTop: spacing.xl }}>
           {errorMessage && (
-            <View style={[styles.errorBanner, { backgroundColor: colors.destructive + '15', marginBottom: spacing.md }]}>
-              <Text style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}>
+            <View
+              style={[
+                styles.errorBanner,
+                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+              ]}
+            >
+              <Text
+                style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}
+              >
                 {errorMessage}
               </Text>
             </View>
           )}
 
           {successMessage && (
-            <View style={[styles.successBanner, { backgroundColor: colors.success + '15', marginBottom: spacing.md }]}>
-              <Text style={[styles.successText, { color: colors.success, fontSize: typography.sm }]}>
+            <View
+              style={[
+                styles.successBanner,
+                { backgroundColor: colors.success + '15', marginBottom: spacing.md },
+              ]}
+            >
+              <Text
+                style={[styles.successText, { color: colors.success, fontSize: typography.sm }]}
+              >
                 {successMessage}
               </Text>
             </View>

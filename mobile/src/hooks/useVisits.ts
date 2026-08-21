@@ -5,19 +5,14 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  type QueryConstraint,
   query,
   setDoc,
   updateDoc,
   where,
-  type QueryConstraint,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  createClientId,
-  FIRESTORE_COLLECTIONS,
-  getPlannerFirestore,
-  nowIso,
-} from '@/lib/firebase';
+import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Visit } from '@/types/api';
 
 function visitCollection() {
@@ -59,7 +54,11 @@ function visitFromData(id: string, data: Partial<Visit>): Visit {
   };
 }
 
-export function useVisits(filters?: { householdId?: string; assignmentId?: string; userId?: string }) {
+export function useVisits(filters?: {
+  householdId?: string;
+  assignmentId?: string;
+  userId?: string;
+}) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +76,8 @@ export function useVisits(filters?: { householdId?: string; assignmentId?: strin
       constraints.push(where('assignmentId', '==', assignmentId));
     }
 
-    const q = constraints.length > 0 ? query(visitCollection(), ...constraints) : query(visitCollection());
+    const q =
+      constraints.length > 0 ? query(visitCollection(), ...constraints) : query(visitCollection());
 
     return onSnapshot(
       q,

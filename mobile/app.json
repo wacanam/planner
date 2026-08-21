@@ -33,10 +33,7 @@
           "apiKey": "AIzaSyD0a4cvum24vx9xduk8kV7KHnUDQPIpsog"
         }
       },
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ]
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "plugins": [
       "expo-router",

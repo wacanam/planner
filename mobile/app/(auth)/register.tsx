@@ -84,15 +84,27 @@ export default function RegisterScreen() {
           <Text style={[styles.title, { color: colors.primary, fontSize: typography.title }]}>
             Create Account
           </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs }]}>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.mutedForeground, fontSize: typography.base, marginTop: spacing.xs },
+            ]}
+          >
             Join your congregation & start territory planning
           </Text>
         </View>
 
         <Card style={{ marginTop: spacing.xl }}>
           {errorMessage && (
-            <View style={[styles.errorBanner, { backgroundColor: colors.destructive + '15', marginBottom: spacing.md }]}>
-              <Text style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}>
+            <View
+              style={[
+                styles.errorBanner,
+                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+              ]}
+            >
+              <Text
+                style={[styles.errorText, { color: colors.destructive, fontSize: typography.sm }]}
+              >
                 {errorMessage}
               </Text>
             </View>
@@ -146,7 +158,9 @@ export default function RegisterScreen() {
         </Card>
 
         <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.mutedForeground, fontSize: typography.sm }]}>
+          <Text
+            style={[styles.footerText, { color: colors.mutedForeground, fontSize: typography.sm }]}
+          >
             Already have an account?{' '}
           </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>

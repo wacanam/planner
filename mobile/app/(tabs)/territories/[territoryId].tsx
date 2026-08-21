@@ -37,11 +37,19 @@ import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useCreateAssignment, useReturnAssignment, useTerritoryAssignments } from '@/hooks/useAssignments';
+import {
+  useCreateAssignment,
+  useReturnAssignment,
+  useTerritoryAssignments,
+} from '@/hooks/useAssignments';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useHouseholds } from '@/hooks/useHouseholds';
-import { useCreateTerritoryRequest, useDeleteTerritory, useTerritoryDetail } from '@/hooks/useTerritories';
+import {
+  useCreateTerritoryRequest,
+  useDeleteTerritory,
+  useTerritoryDetail,
+} from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
 import { canEditTerritory, isTerritoryServant } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
@@ -60,7 +68,9 @@ export default function TerritoryDetailScreen() {
   const { members = [] } = useCongregationMembers(activeCongregationId);
   const { groups = [] } = useCongregationGroups(activeCongregationId);
 
-  const { request: requestTerritory, isRequesting } = useCreateTerritoryRequest(activeCongregationId || '');
+  const { request: requestTerritory, isRequesting } = useCreateTerritoryRequest(
+    activeCongregationId || ''
+  );
   const { create: assignTerritory, isCreating: isAssigning } = useCreateAssignment();
   const { returnTerritory, isReturning } = useReturnAssignment();
   const { remove: deleteTerritory, isDeleting } = useDeleteTerritory();
@@ -72,7 +82,9 @@ export default function TerritoryDetailScreen() {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const isServant = isTerritoryServant(user?.role);
-  const activeAssignment = assignments.find((a) => a.status === 'assigned' || a.status === 'active');
+  const activeAssignment = assignments.find(
+    (a) => a.status === 'assigned' || a.status === 'active'
+  );
 
   const boundaryCoords = useMemo(() => {
     if (!territory?.boundaryCoordinates) return [];
@@ -160,21 +172,17 @@ export default function TerritoryDetailScreen() {
 
   const handleReturn = async () => {
     if (!activeAssignment) return;
-    Alert.alert(
-      'Return Territory',
-      `Return Territory #${territory?.number} to available pool?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Return',
-          style: 'destructive',
-          onPress: async () => {
-            await returnTerritory(activeAssignment.id);
-            await triggerHaptic('success');
-          },
+    Alert.alert('Return Territory', `Return Territory #${territory?.number} to available pool?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Return',
+        style: 'destructive',
+        onPress: async () => {
+          await returnTerritory(activeAssignment.id);
+          await triggerHaptic('success');
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleExportCard = async () => {
@@ -189,7 +197,9 @@ export default function TerritoryDetailScreen() {
 
   if (territoryLoading) {
     return (
-      <View style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -241,60 +251,104 @@ export default function TerritoryDetailScreen() {
         <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
           <View style={styles.titleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.terrName, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.terrName, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {territory.name}
               </Text>
               {territory.city && (
                 <View style={styles.locRow}>
                   <MapPin size={13} color={colors.mutedForeground} />
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 }}>
+                  <Text
+                    style={{
+                      color: colors.mutedForeground,
+                      fontSize: typography.xs,
+                      marginLeft: 4,
+                    }}
+                  >
                     {territory.city}
                   </Text>
                 </View>
               )}
             </View>
-            <Badge label={territory.status} variant={territory.status === 'available' ? 'success' : 'primary'} />
+            <Badge
+              label={territory.status}
+              variant={territory.status === 'available' ? 'success' : 'primary'}
+            />
           </View>
 
           {/* Quick Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
               <Home size={16} color={colors.primary} />
-              <Text style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {totalDoors}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: colors.mutedForeground, fontSize: typography.xs },
+                ]}
+              >
                 Total Doors
               </Text>
             </View>
 
             <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
               <CheckCircle2 size={16} color={colors.success} />
-              <Text style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {workedDoors}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: colors.mutedForeground, fontSize: typography.xs },
+                ]}
+              >
                 Worked Doors
               </Text>
             </View>
 
             <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
               <Clock size={16} color={colors.secondaryForeground} />
-              <Text style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 {coverage}%
               </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: colors.mutedForeground, fontSize: typography.xs },
+                ]}
+              >
                 Coverage
               </Text>
             </View>
           </View>
 
           {territory.notes && (
-            <View style={[styles.notesBox, { backgroundColor: colors.muted + '30', borderColor: colors.border }]}>
-              <Text style={[styles.notesLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+            <View
+              style={[
+                styles.notesBox,
+                { backgroundColor: colors.muted + '30', borderColor: colors.border },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.notesLabel,
+                  { color: colors.mutedForeground, fontSize: typography.xs },
+                ]}
+              >
                 TERRITORY NOTES & INSTRUCTIONS
               </Text>
-              <Text style={[styles.notesContent, { color: colors.foreground, fontSize: typography.sm }]}>
+              <Text
+                style={[styles.notesContent, { color: colors.foreground, fontSize: typography.sm }]}
+              >
                 {territory.notes}
               </Text>
             </View>
@@ -303,7 +357,9 @@ export default function TerritoryDetailScreen() {
 
         {/* Current Assignment Details */}
         <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground, fontSize: typography.base }]}>
+          <Text
+            style={[styles.sectionTitle, { color: colors.foreground, fontSize: typography.base }]}
+          >
             Assignment Information
           </Text>
 
@@ -313,7 +369,12 @@ export default function TerritoryDetailScreen() {
                 <UserCheck size={20} color={colors.primary} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                <Text style={[styles.assigneeName, { color: colors.foreground, fontSize: typography.base }]}>
+                <Text
+                  style={[
+                    styles.assigneeName,
+                    { color: colors.foreground, fontSize: typography.base },
+                  ]}
+                >
                   {territory.publisherName}
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -337,7 +398,12 @@ export default function TerritoryDetailScreen() {
                 <Users size={20} color={colors.secondaryForeground} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                <Text style={[styles.assigneeName, { color: colors.foreground, fontSize: typography.base }]}>
+                <Text
+                  style={[
+                    styles.assigneeName,
+                    { color: colors.foreground, fontSize: typography.base },
+                  ]}
+                >
                   {territory.groupName}
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -377,7 +443,9 @@ export default function TerritoryDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '88%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Request Territory #{territory.number}
               </Text>
               <TouchableOpacity onPress={() => setRequestModalVisible(false)}>
@@ -411,7 +479,9 @@ export default function TerritoryDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '90%', maxHeight: '75%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Assign Territory #{territory.number}
               </Text>
               <TouchableOpacity onPress={() => setAssignModalVisible(false)}>
@@ -419,7 +489,13 @@ export default function TerritoryDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginBottom: spacing.md }}>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
               Select a publisher from your congregation:
             </Text>
 
@@ -441,7 +517,13 @@ export default function TerritoryDetailScreen() {
                       },
                     ]}
                   >
-                    <Text style={{ color: colors.foreground, fontWeight: isSelected ? '700' : '500', fontSize: typography.sm }}>
+                    <Text
+                      style={{
+                        color: colors.foreground,
+                        fontWeight: isSelected ? '700' : '500',
+                        fontSize: typography.sm,
+                      }}
+                    >
                       {m.user?.name || 'Publisher'}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>

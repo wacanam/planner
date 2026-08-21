@@ -199,7 +199,10 @@ export default function TerritoriesDirectoryScreen() {
             const territoryHouseholds = households.filter((h) => h.territoryId === item.id);
             const totalDoors = territoryHouseholds.length || item.householdsCount || 0;
             const workedDoors = territoryHouseholds.filter((h) => h.lastVisitDate).length;
-            const coverage = totalDoors > 0 ? Math.round((workedDoors / totalDoors) * 100) : parseFloat(item.coveragePercent || '0');
+            const coverage =
+              totalDoors > 0
+                ? Math.round((workedDoors / totalDoors) * 100)
+                : parseFloat(item.coveragePercent || '0');
 
             return (
               <Card
@@ -208,17 +211,32 @@ export default function TerritoriesDirectoryScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.numberBadge}>
-                    <Text style={[styles.numberText, { color: colors.primary, fontSize: typography.lg }]}>
+                    <Text
+                      style={[
+                        styles.numberText,
+                        { color: colors.primary, fontSize: typography.lg },
+                      ]}
+                    >
                       #{item.number}
                     </Text>
                   </View>
 
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                    <Text style={[styles.territoryName, { color: colors.foreground, fontSize: typography.base }]}>
+                    <Text
+                      style={[
+                        styles.territoryName,
+                        { color: colors.foreground, fontSize: typography.base },
+                      ]}
+                    >
                       {item.name}
                     </Text>
                     {item.city && (
-                      <Text style={[styles.territoryCity, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                      <Text
+                        style={[
+                          styles.territoryCity,
+                          { color: colors.mutedForeground, fontSize: typography.xs },
+                        ]}
+                      >
                         {item.city}
                       </Text>
                     )}
@@ -230,14 +248,29 @@ export default function TerritoriesDirectoryScreen() {
                 {/* Progress bar */}
                 <View style={styles.progressContainer}>
                   <View style={styles.progressLabels}>
-                    <Text style={[styles.progressLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.progressLabel,
+                        { color: colors.mutedForeground, fontSize: typography.xs },
+                      ]}
+                    >
                       {workedDoors}/{totalDoors} doors worked
                     </Text>
-                    <Text style={[styles.progressPercent, { color: colors.foreground, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.progressPercent,
+                        { color: colors.foreground, fontSize: typography.xs },
+                      ]}
+                    >
                       {coverage}%
                     </Text>
                   </View>
-                  <View style={[styles.progressBarBg, { backgroundColor: colors.muted, borderRadius: radius.round }]}>
+                  <View
+                    style={[
+                      styles.progressBarBg,
+                      { backgroundColor: colors.muted, borderRadius: radius.round },
+                    ]}
+                  >
                     <View
                       style={[
                         styles.progressBarFill,
@@ -256,25 +289,55 @@ export default function TerritoriesDirectoryScreen() {
                   {item.publisherName ? (
                     <View style={styles.footerItem}>
                       <Users size={13} color={colors.primary} />
-                      <Text style={[styles.footerText, { color: colors.foreground, fontSize: typography.xs, marginLeft: 4, fontWeight: '600' }]}>
+                      <Text
+                        style={[
+                          styles.footerText,
+                          {
+                            color: colors.foreground,
+                            fontSize: typography.xs,
+                            marginLeft: 4,
+                            fontWeight: '600',
+                          },
+                        ]}
+                      >
                         {item.publisherName}
                       </Text>
                     </View>
                   ) : item.groupName ? (
                     <View style={styles.footerItem}>
                       <Users size={13} color={colors.secondaryForeground} />
-                      <Text style={[styles.footerText, { color: colors.foreground, fontSize: typography.xs, marginLeft: 4, fontWeight: '600' }]}>
+                      <Text
+                        style={[
+                          styles.footerText,
+                          {
+                            color: colors.foreground,
+                            fontSize: typography.xs,
+                            marginLeft: 4,
+                            fontWeight: '600',
+                          },
+                        ]}
+                      >
                         {item.groupName}
                       </Text>
                     </View>
                   ) : (
-                    <Text style={[styles.footerText, { color: colors.success, fontSize: typography.xs, fontWeight: '600' }]}>
+                    <Text
+                      style={[
+                        styles.footerText,
+                        { color: colors.success, fontSize: typography.xs, fontWeight: '600' },
+                      ]}
+                    >
                       Ready for assignment
                     </Text>
                   )}
 
                   <View style={styles.actionRow}>
-                    <Text style={[styles.actionText, { color: colors.primary, fontSize: typography.xs }]}>
+                    <Text
+                      style={[
+                        styles.actionText,
+                        { color: colors.primary, fontSize: typography.xs },
+                      ]}
+                    >
                       Details
                     </Text>
                     <ChevronRight size={14} color={colors.primary} />

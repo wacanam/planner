@@ -71,9 +71,9 @@ import {
   isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
-import type { NotificationSoundStyle } from '@/types/api';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
+import type { NotificationSoundStyle } from '@/types/api';
 
 export default function ProfilePage() {
   const router = useRouter();

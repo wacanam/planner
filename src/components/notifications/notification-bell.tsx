@@ -23,6 +23,7 @@ import {
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { NotificationSettingsDialog } from '@/components/notifications/notification-settings-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,12 +37,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { NotificationSettingsDialog } from '@/components/notifications/notification-settings-dialog';
 import {
   useClearAllNotifications,
   useDeleteNotification,
-  useMarkNotificationUnread,
   useMarkNotificationsRead,
+  useMarkNotificationUnread,
   useNotificationSettings,
   useNotifications,
 } from '@/hooks';

@@ -6,17 +6,24 @@ import type { S13AssignmentRecord, Territory } from '@/types/api';
 /**
  * Generates an official S-13 Congregation Territory Assignment Record HTML document.
  */
-export function generateS13Html(records: S13AssignmentRecord[], congregationName = 'Congregation'): string {
+export function generateS13Html(
+  records: S13AssignmentRecord[],
+  congregationName = 'Congregation'
+): string {
   const dateStr = new Date().toLocaleDateString();
   const activeCount = records.filter((r) => !r.returnedAt).length;
-  const completedCount = records.filter((r) => Boolean(r.returnedAt) || r.status === 'completed').length;
+  const completedCount = records.filter(
+    (r) => Boolean(r.returnedAt) || r.status === 'completed'
+  ).length;
 
   const rowsHtml = records
     .map((r, index) => {
       const isEven = index % 2 === 0;
       const bg = isEven ? '#ffffff' : '#f8fafc';
       const assignedStr = r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—';
-      const returnedStr = r.returnedAt ? new Date(r.returnedAt).toLocaleDateString() : '<span style="color:#2563eb;font-weight:bold;">Active</span>';
+      const returnedStr = r.returnedAt
+        ? new Date(r.returnedAt).toLocaleDateString()
+        : '<span style="color:#2563eb;font-weight:bold;">Active</span>';
       const isComp = r.status === 'completed' || Boolean(r.returnedAt);
       const statusBadge = isComp
         ? '<span style="color:#16a34a;font-weight:bold;">COMPLETED</span>'
@@ -97,9 +104,15 @@ export function generateS13Html(records: S13AssignmentRecord[], congregationName
 /**
  * Generates and shares an S-13 PDF using native Expo Print & Sharing.
  */
-export async function exportS13Pdf(records: S13AssignmentRecord[], congregationName = 'Congregation'): Promise<void> {
+export async function exportS13Pdf(
+  records: S13AssignmentRecord[],
+  congregationName = 'Congregation'
+): Promise<void> {
   const html = generateS13Html(records, congregationName);
-  const { uri } = await Print.printToFileAsync({ html, margins: { left: 20, top: 20, right: 20, bottom: 20 } });
+  const { uri } = await Print.printToFileAsync({
+    html,
+    margins: { left: 20, top: 20, right: 20, bottom: 20 },
+  });
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
   }
@@ -108,7 +121,10 @@ export async function exportS13Pdf(records: S13AssignmentRecord[], congregationN
 /**
  * Generates and shares a Territory Card PDF.
  */
-export async function exportTerritoryCardPdf(territory: Territory, congregationName = 'Congregation'): Promise<void> {
+export async function exportTerritoryCardPdf(
+  territory: Territory,
+  congregationName = 'Congregation'
+): Promise<void> {
   const html = `
     <!DOCTYPE html>
     <html>

@@ -5,7 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
-import { UserRole } from '@/lib/roles';
+import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
+
+export interface PendingMembershipInfo {
+  congregationId: string;
+  status: 'pending' | 'rejected';
+  joinedAt?: string | null;
+  joinMessage?: string | null;
+  reviewNote?: string | null;
+}
 
 export interface SessionUser {
   id: string;
@@ -23,10 +31,16 @@ export function useCurrentUser(): {
   user: SessionUser;
   loading: boolean;
   isAuthenticated: boolean;
+  membershipStatus: 'active' | 'pending' | 'rejected' | 'none';
+  pendingMembership: PendingMembershipInfo | null;
 } {
   const { data: session, status } = useSession();
   const userId = session?.user?.id;
 
+  const [membershipStatus, setMembershipStatus] = useState<
+    'active' | 'pending' | 'rejected' | 'none'
+  >('none');
+  const [pendingMembership, setPendingMembership] = useState<PendingMembershipInfo | null>(null);
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
   const [membershipCongregationId, setMembershipCongregationId] = useState<string | null>(null);
   const [membershipGroupId, setMembershipGroupId] = useState<string | null>(null);
@@ -34,6 +48,8 @@ export function useCurrentUser(): {
 
   useEffect(() => {
     if (!userId) {
+      setMembershipStatus('none');
+      setPendingMembership(null);
       setMembershipRole(null);
       setMembershipCongregationId(null);
       setMembershipGroupId(null);
@@ -54,9 +70,56 @@ export function useCurrentUser(): {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          if (data.congregationRole) setMembershipRole(String(data.congregationRole));
-          if (data.congregationId) setMembershipCongregationId(String(data.congregationId));
-          if (data.groupId) setMembershipGroupId(String(data.groupId));
+          const rawStatus = data.status ?? 'active';
+          const isActive =
+            rawStatus === 'active' || rawStatus === 'approved' || rawStatus === MemberStatus.ACTIVE;
+          const isPending = rawStatus === 'pending' || rawStatus === MemberStatus.PENDING;
+          const isRejected = rawStatus === 'rejected' || rawStatus === MemberStatus.REJECTED;
+
+          if (isActive && data.congregationId) {
+            setMembershipStatus('active');
+            setPendingMembership(null);
+            setMembershipRole(
+              data.congregationRole ? String(data.congregationRole) : CongregationRole.PUBLISHER
+            );
+            setMembershipCongregationId(String(data.congregationId));
+            setMembershipGroupId(data.groupId ? String(data.groupId) : null);
+          } else if (isPending) {
+            setMembershipStatus('pending');
+            setMembershipRole(null);
+            setMembershipCongregationId(null);
+            setMembershipGroupId(null);
+            setPendingMembership({
+              congregationId: data.congregationId ? String(data.congregationId) : '',
+              status: 'pending',
+              joinedAt: data.joinedAt || null,
+              joinMessage: data.joinMessage || null,
+            });
+          } else if (isRejected) {
+            setMembershipStatus('rejected');
+            setMembershipRole(null);
+            setMembershipCongregationId(null);
+            setMembershipGroupId(null);
+            setPendingMembership({
+              congregationId: data.congregationId ? String(data.congregationId) : '',
+              status: 'rejected',
+              joinedAt: data.joinedAt || null,
+              joinMessage: data.joinMessage || null,
+              reviewNote: data.reviewNote || null,
+            });
+          } else {
+            setMembershipStatus('none');
+            setPendingMembership(null);
+            setMembershipRole(null);
+            setMembershipCongregationId(null);
+            setMembershipGroupId(null);
+          }
+        } else {
+          setMembershipStatus('none');
+          setPendingMembership(null);
+          setMembershipRole(null);
+          setMembershipCongregationId(null);
+          setMembershipGroupId(null);
         }
         setMembershipLoading(false);
       },
@@ -68,20 +131,24 @@ export function useCurrentUser(): {
     const q = query(
       collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
       where('userId', '==', userId),
-      where('status', '==', 'active')
+      where('status', 'in', ['active', 'approved'])
     );
     const unsubQuery = onSnapshot(
       q,
       (snapshot) => {
-        const docData = snapshot.docs[0]?.data();
-        if (docData?.congregationRole) {
-          setMembershipRole(String(docData.congregationRole));
-        }
-        if (docData?.congregationId) {
-          setMembershipCongregationId(String(docData.congregationId));
-        }
-        if (docData?.groupId) {
-          setMembershipGroupId(String(docData.groupId));
+        if (!snapshot.empty) {
+          const docData = snapshot.docs[0]?.data();
+          if (docData?.congregationId) {
+            setMembershipStatus('active');
+            setPendingMembership(null);
+            setMembershipRole(
+              docData.congregationRole
+                ? String(docData.congregationRole)
+                : CongregationRole.PUBLISHER
+            );
+            setMembershipCongregationId(String(docData.congregationId));
+            setMembershipGroupId(docData.groupId ? String(docData.groupId) : null);
+          }
         }
         setMembershipLoading(false);
       },
@@ -96,24 +163,29 @@ export function useCurrentUser(): {
     };
   }, [userId]);
 
+  const rawGlobalRole = (session?.user?.role || '').toUpperCase();
+  const isGlobalAdmin = rawGlobalRole === 'SUPER_ADMIN' || rawGlobalRole === 'ADMIN';
+
   const effectiveRole = (() => {
-    const rawRole = (session?.user?.role || '').toUpperCase();
-    if (rawRole === 'SUPER_ADMIN' || rawRole === 'ADMIN') {
+    if (isGlobalAdmin) {
       return (session?.user?.role as UserRole) || UserRole.ADMIN;
     }
-    if (membershipRole) {
+    if (membershipStatus === 'active' && membershipRole) {
       const normalized = membershipRole.toUpperCase().replace(/\s+/g, '_');
       if (normalized === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
       if (normalized === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
       if (normalized === 'PUBLISHER' || normalized === 'USER') return UserRole.PUBLISHER;
     }
-    if (rawRole === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
-    if (rawRole === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
-    return UserRole.PUBLISHER;
+    return UserRole.USER;
   })();
 
-  const congregationId = session?.user?.congregationId || membershipCongregationId || null;
-  const groupId = (session?.user as any)?.groupId || membershipGroupId || null;
+  const congregationId = isGlobalAdmin
+    ? session?.user?.congregationId || membershipCongregationId || null
+    : membershipStatus === 'active'
+      ? membershipCongregationId
+      : null;
+
+  const groupId = membershipStatus === 'active' ? membershipGroupId : null;
 
   const user = useMemo((): SessionUser => {
     return {
@@ -122,7 +194,7 @@ export function useCurrentUser(): {
       email: session?.user?.email || null,
       role: effectiveRole,
       congregationId,
-      congregationRole: membershipRole,
+      congregationRole: membershipStatus === 'active' ? membershipRole : null,
       groupId,
       avatarUrl: session?.user?.avatarUrl || null,
     };
@@ -133,6 +205,7 @@ export function useCurrentUser(): {
     session?.user?.avatarUrl,
     effectiveRole,
     congregationId,
+    membershipStatus,
     membershipRole,
     groupId,
   ]);
@@ -145,8 +218,10 @@ export function useCurrentUser(): {
       user,
       loading,
       isAuthenticated,
+      membershipStatus,
+      pendingMembership,
     }),
-    [user, loading, isAuthenticated]
+    [user, loading, isAuthenticated, membershipStatus, pendingMembership]
   );
 }
 

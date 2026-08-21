@@ -6,8 +6,8 @@ import {
   Crown,
   Search,
   Shield,
-  User as UserIcon,
   UserCheck,
+  User as UserIcon,
   Users,
   X,
 } from 'lucide-react-native';
@@ -31,7 +31,11 @@ import { Header } from '@/components/ui/Header';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
-import { useApproveMember, useCongregationMembers, useUpdateMemberRole } from '@/hooks/useCongregationMembers';
+import {
+  useApproveMember,
+  useCongregationMembers,
+  useUpdateMemberRole,
+} from '@/hooks/useCongregationMembers';
 import { canApproveMembers, isUserInGroup } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Member } from '@/types/api';
@@ -55,7 +59,10 @@ export default function CongregationMembersScreen() {
   const canApprove = canApproveMembers(user?.role);
   const isLoading = membersLoading || groupsLoading;
 
-  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active' || !m.status), [members]);
+  const activeMembers = useMemo(
+    () => members.filter((m) => m.status === 'active' || !m.status),
+    [members]
+  );
   const pendingMembers = useMemo(() => members.filter((m) => m.status === 'pending'), [members]);
 
   // Current user's group
@@ -74,9 +81,7 @@ export default function CongregationMembersScreen() {
     if (!searchQuery.trim()) return activeMembers;
     const q = searchQuery.toLowerCase();
     return activeMembers.filter(
-      (m) =>
-        m.user?.name?.toLowerCase().includes(q) ||
-        m.user?.email?.toLowerCase().includes(q)
+      (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [activeMembers, searchQuery]);
 
@@ -84,9 +89,7 @@ export default function CongregationMembersScreen() {
     if (!searchQuery.trim()) return myGroupMembers;
     const q = searchQuery.toLowerCase();
     return myGroupMembers.filter(
-      (m) =>
-        m.user?.name?.toLowerCase().includes(q) ||
-        m.user?.email?.toLowerCase().includes(q)
+      (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [myGroupMembers, searchQuery]);
 
@@ -117,7 +120,12 @@ export default function CongregationMembersScreen() {
       />
 
       {/* Tabs Switcher */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          styles.tabContainer,
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
@@ -146,7 +154,10 @@ export default function CongregationMembersScreen() {
           }}
           style={[
             styles.tabBtn,
-            activeTab === 'my_group' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeTab === 'my_group' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
           <Text
@@ -167,7 +178,10 @@ export default function CongregationMembersScreen() {
           }}
           style={[
             styles.tabBtn,
-            activeTab === 'pending' && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
+            activeTab === 'pending' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
           ]}
         >
           <Text
@@ -184,10 +198,19 @@ export default function CongregationMembersScreen() {
 
       {/* Search Bar for member lists */}
       {activeTab !== 'pending' && (
-        <View style={[styles.searchBox, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+          ]}
+        >
           <Search size={16} color={colors.mutedForeground} />
           <TextInput
-            placeholder={activeTab === 'my_group' ? 'Search groupmates…' : 'Search publishers by name or email…'}
+            placeholder={
+              activeTab === 'my_group'
+                ? 'Search groupmates…'
+                : 'Search publishers by name or email…'
+            }
             placeholderTextColor={colors.mutedForeground}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -224,13 +247,24 @@ export default function CongregationMembersScreen() {
             ListHeaderComponent={
               <View style={{ marginBottom: spacing.md }}>
                 {/* Group Banner */}
-                <Card style={[styles.myGroupBanner, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+                <Card
+                  style={[
+                    styles.myGroupBanner,
+                    { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' },
+                  ]}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={[styles.avatarBox, { backgroundColor: colors.primary }]}>
                       <Users size={20} color="#ffffff" />
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontWeight: '800', color: colors.foreground, fontSize: typography.base }}>
+                      <Text
+                        style={{
+                          fontWeight: '800',
+                          color: colors.foreground,
+                          fontSize: typography.base,
+                        }}
+                      >
                         {myGroup.name}
                       </Text>
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -241,21 +275,43 @@ export default function CongregationMembersScreen() {
                 </Card>
 
                 {/* Group Leadership Cards */}
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs, marginTop: spacing.md }]}>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    {
+                      color: colors.mutedForeground,
+                      fontSize: typography.xs,
+                      marginTop: spacing.md,
+                    },
+                  ]}
+                >
                   GROUP LEADERSHIP
                 </Text>
 
                 {/* Overseer Card */}
-                <Card style={[styles.leadershipCard, { marginBottom: spacing.xs, borderColor: '#f59e0b40' }]}>
+                <Card
+                  style={[
+                    styles.leadershipCard,
+                    { marginBottom: spacing.xs, borderColor: '#f59e0b40' },
+                  ]}
+                >
                   <View style={styles.memberRow}>
                     <View style={[styles.avatarBox, { backgroundColor: '#f59e0b20' }]}>
                       <Crown size={18} color="#d97706" />
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: '700' }}>
+                      <Text
+                        style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: '700' }}
+                      >
                         GROUP OVERSEER
                       </Text>
-                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: colors.foreground,
+                          fontSize: typography.sm,
+                        }}
+                      >
                         {myGroup.overseerName || 'Unassigned'}
                       </Text>
                     </View>
@@ -264,16 +320,29 @@ export default function CongregationMembersScreen() {
                 </Card>
 
                 {/* Assistant Overseer Card */}
-                <Card style={[styles.leadershipCard, { marginBottom: spacing.md, borderColor: '#3b82f640' }]}>
+                <Card
+                  style={[
+                    styles.leadershipCard,
+                    { marginBottom: spacing.md, borderColor: '#3b82f640' },
+                  ]}
+                >
                   <View style={styles.memberRow}>
                     <View style={[styles.avatarBox, { backgroundColor: '#3b82f620' }]}>
                       <Shield size={18} color="#2563eb" />
                     </View>
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: '700' }}>
+                      <Text
+                        style={{ fontSize: 10, color: colors.mutedForeground, fontWeight: '700' }}
+                      >
                         ASSISTANT OVERSEER
                       </Text>
-                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: colors.foreground,
+                          fontSize: typography.sm,
+                        }}
+                      >
                         {myGroup.assistantOverseerName || 'Unassigned'}
                       </Text>
                     </View>
@@ -281,7 +350,12 @@ export default function CongregationMembersScreen() {
                   </View>
                 </Card>
 
-                <Text style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: typography.xs }]}>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.mutedForeground, fontSize: typography.xs },
+                  ]}
+                >
                   GROUPMATES ({filteredGroupMembers.length})
                 </Text>
               </View>
@@ -300,7 +374,13 @@ export default function CongregationMembersScreen() {
                     </View>
 
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: colors.foreground,
+                          fontSize: typography.sm,
+                        }}
+                      >
                         {item.user?.name || 'Publisher'}
                       </Text>
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -354,14 +434,27 @@ export default function CongregationMembersScreen() {
                     </View>
 
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}>
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: colors.foreground,
+                          fontSize: typography.base,
+                        }}
+                      >
                         {item.user?.name || 'Publisher'}
                       </Text>
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                         {item.user?.email || 'No email provided'}
                       </Text>
                       {memberGroup && (
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '600', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            color: colors.primary,
+                            fontSize: 11,
+                            fontWeight: '600',
+                            marginTop: 2,
+                          }}
+                        >
                           {memberGroup.name}
                         </Text>
                       )}
@@ -369,7 +462,9 @@ export default function CongregationMembersScreen() {
 
                     <Badge
                       label={item.congregationRole || 'publisher'}
-                      variant={item.congregationRole === 'service_overseer' ? 'primary' : 'secondary'}
+                      variant={
+                        item.congregationRole === 'service_overseer' ? 'primary' : 'secondary'
+                      }
                       size="sm"
                     />
                   </View>
@@ -378,66 +473,77 @@ export default function CongregationMembersScreen() {
             }}
           />
         )
+      ) : /* PENDING REQUESTS TAB */
+      pendingMembers.length === 0 ? (
+        <EmptyState
+          icon={<Clock size={44} color={colors.mutedForeground} />}
+          title="No Pending Requests"
+          description="New requests to join your congregation will appear here."
+        />
       ) : (
-        /* PENDING REQUESTS TAB */
-        pendingMembers.length === 0 ? (
-          <EmptyState
-            icon={<Clock size={44} color={colors.mutedForeground} />}
-            title="No Pending Requests"
-            description="New requests to join your congregation will appear here."
-          />
-        ) : (
-          <FlatList
-            data={pendingMembers}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              padding: spacing.md,
-              paddingBottom: insets.bottom + spacing.xxl,
-            }}
-            renderItem={({ item }) => (
-              <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
-                <View style={styles.memberRow}>
-                  <View style={[styles.avatarBox, { backgroundColor: colors.warning + '20' }]}>
-                    <Clock size={18} color={colors.warning} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                    <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}>
-                      {item.user?.name || 'Publisher'}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                      {item.user?.email}
-                    </Text>
-                  </View>
+        <FlatList
+          data={pendingMembers}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            padding: spacing.md,
+            paddingBottom: insets.bottom + spacing.xxl,
+          }}
+          renderItem={({ item }) => (
+            <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
+              <View style={styles.memberRow}>
+                <View style={[styles.avatarBox, { backgroundColor: colors.warning + '20' }]}>
+                  <Clock size={18} color={colors.warning} />
                 </View>
-
-                {item.joinMessage && (
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 8, fontStyle: 'italic' }}>
-                    "{item.joinMessage}"
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                  <Text
+                    style={{
+                      fontWeight: '700',
+                      color: colors.foreground,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    {item.user?.name || 'Publisher'}
                   </Text>
-                )}
+                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                    {item.user?.email}
+                  </Text>
+                </View>
+              </View>
 
-                {canApprove && (
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                    <Button
-                      title="Decline"
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => handleDecline(item)}
-                      style={{ flex: 1 }}
-                    />
-                    <Button
-                      title="Approve"
-                      variant="primary"
-                      size="sm"
-                      onPress={() => handleApprove(item)}
-                      style={{ flex: 1 }}
-                    />
-                  </View>
-                )}
-              </Card>
-            )}
-          />
-        )
+              {item.joinMessage && (
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: typography.xs,
+                    marginTop: 8,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  "{item.joinMessage}"
+                </Text>
+              )}
+
+              {canApprove && (
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <Button
+                    title="Decline"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => handleDecline(item)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title="Approve"
+                    variant="primary"
+                    size="sm"
+                    onPress={() => handleApprove(item)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
+            </Card>
+          )}
+        />
       )}
     </View>
   );
