@@ -9,6 +9,7 @@ import type {
   MapBoundaryPolygon,
   MapLandmark,
   MapRoad,
+  SharedMemberLocation,
   Territory,
 } from '@/types/api';
 import {
@@ -60,6 +61,10 @@ interface StudioGoogleMapProps {
   selectedRoadId?: string | null;
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   userHeading?: number | null;
+  memberLocations?: SharedMemberLocation[];
+  selectedMemberLocationId?: string | null;
+  onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
+  currentUserId?: string | null;
   fitPrintViewportPadding?: {
     top: number;
     right: number;
@@ -509,6 +514,10 @@ export function StudioGoogleMap({
   selectedRoadId,
   userLocation,
   userHeading,
+  memberLocations = [],
+  selectedMemberLocationId,
+  onSelectMemberLocation,
+  currentUserId,
   fitPrintViewportPadding,
   isPrintViewportActive = false,
   isReadOnly = false,
@@ -528,6 +537,21 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  // Member Shared Locations ref
+  const memberMarkersDataRef = useRef<
+    Map<
+      string,
+      {
+        id: string;
+        marker: google.maps.marker.AdvancedMarkerElement;
+        accuracyCircle?: google.maps.Circle | null;
+        beamDiv?: HTMLDivElement | null;
+        pinContainer: HTMLDivElement;
+        labelEl?: HTMLDivElement | null;
+      }
+    >
+  >(new Map());
 
   const isPrintViewportActiveRef = useRef(isPrintViewportActive);
   isPrintViewportActiveRef.current = isPrintViewportActive;
@@ -577,6 +601,8 @@ export function StudioGoogleMap({
   // User Live Location & Heading Cone refs
   const userLocationMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const userLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
+  const userLocationBeamRef = useRef<HTMLDivElement | null>(null);
+  const lastLocationPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -836,6 +862,20 @@ export function StudioGoogleMap({
         overlayRef.current.setMap(null);
         overlayRef.current = null;
       }
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.map = null;
+        userLocationMarkerRef.current = null;
+      }
+      if (userLocationAccuracyCircleRef.current) {
+        userLocationAccuracyCircleRef.current.setMap(null);
+        userLocationAccuracyCircleRef.current = null;
+      }
+      userLocationBeamRef.current = null;
+      memberMarkersDataRef.current.forEach((entry) => {
+        entry.marker.map = null;
+        entry.accuracyCircle?.setMap(null);
+      });
+      memberMarkersDataRef.current.clear();
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
@@ -2167,98 +2207,404 @@ export function StudioGoogleMap({
     });
   }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
 
-  // 9. Render User Live GPS Location Dot with Compass Heading Flashlight Beam
+  // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
 
-    if (userLocationMarkerRef.current) {
-      userLocationMarkerRef.current.map = null;
-      userLocationMarkerRef.current = null;
-    }
-    if (userLocationAccuracyCircleRef.current) {
-      userLocationAccuracyCircleRef.current.setMap(null);
-      userLocationAccuracyCircleRef.current = null;
-    }
-
     if (!userLocation || layerSettings.showUserLocation === false) {
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.map = null;
+        userLocationMarkerRef.current = null;
+      }
+      if (userLocationAccuracyCircleRef.current) {
+        userLocationAccuracyCircleRef.current.setMap(null);
+        userLocationAccuracyCircleRef.current = null;
+      }
+      userLocationBeamRef.current = null;
+      lastLocationPosRef.current = null;
       return;
     }
 
     const { AdvancedMarkerElement } = google.maps.marker;
     const { lat, lng, accuracy } = userLocation;
-    const effectiveHeading = userHeading ?? 0;
-    const hasHeading = userHeading != null;
 
-    // Accuracy Circle
+    // 1. Accuracy Circle (update center/radius only when position/accuracy changes)
     if (accuracy && accuracy > 5 && accuracy < 2000) {
-      const circle = new google.maps.Circle({
-        center: { lat, lng },
-        radius: accuracy,
-        strokeColor: '#3B82F6',
-        strokeOpacity: 0.25,
-        strokeWeight: 1,
-        fillColor: '#3B82F6',
-        fillOpacity: 0.08,
-        clickable: false,
-        zIndex: 1,
-        map,
-      });
-      userLocationAccuracyCircleRef.current = circle;
+      if (userLocationAccuracyCircleRef.current) {
+        userLocationAccuracyCircleRef.current.setCenter({ lat, lng });
+        userLocationAccuracyCircleRef.current.setRadius(accuracy);
+        if (userLocationAccuracyCircleRef.current.getMap() !== map) {
+          userLocationAccuracyCircleRef.current.setMap(map);
+        }
+      } else {
+        const circle = new google.maps.Circle({
+          center: { lat, lng },
+          radius: accuracy,
+          strokeColor: '#3B82F6',
+          strokeOpacity: 0.25,
+          strokeWeight: 1,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.08,
+          clickable: false,
+          zIndex: 1,
+          map,
+        });
+        userLocationAccuracyCircleRef.current = circle;
+      }
+    } else if (userLocationAccuracyCircleRef.current) {
+      userLocationAccuracyCircleRef.current.setMap(null);
+      userLocationAccuracyCircleRef.current = null;
     }
 
-    // Flashlight cone & GPS dot element
-    const container = document.createElement('div');
-    container.style.position = 'relative';
-    container.style.width = '0px';
-    container.style.height = '0px';
-    container.style.pointerEvents = 'none';
-
-    container.innerHTML = `
-      <!-- Flashlight Heading Beam Cone -->
-      ${
-        hasHeading
-          ? `
-        <div style="position: absolute; left: -75px; bottom: -75px; width: 150px; height: 150px; transform: rotate(${effectiveHeading}deg); transform-origin: 75px 75px; pointer-events: none; transition: transform 0.15s ease-out; z-index: 1;">
-          <svg width="150" height="150" viewBox="0 0 150 150" style="overflow: visible;">
-            <defs>
-              <radialGradient id="flashlightBeam" cx="75" cy="75" r="75" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.65"/>
-                <stop offset="40%" stop-color="#60A5FA" stop-opacity="0.3"/>
-                <stop offset="75%" stop-color="#93C5FD" stop-opacity="0.1"/>
-                <stop offset="100%" stop-color="#BFDBFE" stop-opacity="0"/>
-              </radialGradient>
-            </defs>
-            <!-- 65° Flashlight Beam Sector pointing North (Up) -->
-            <path d="M 75,75 L 34.7,11.7 A 75,75 0 0,1 115.3,11.7 Z" fill="url(#flashlightBeam)" />
-          </svg>
-        </div>
-      `
-          : ''
+    // 2. Flashlight Beam & Core Dot (create or update position without remounting)
+    if (userLocationMarkerRef.current && userLocationBeamRef.current) {
+      const prevPos = lastLocationPosRef.current;
+      if (!prevPos || prevPos.lat !== lat || prevPos.lng !== lng) {
+        lastLocationPosRef.current = { lat, lng };
+        userLocationMarkerRef.current.position = { lat, lng };
+      }
+      if (userLocationMarkerRef.current.map !== map) {
+        userLocationMarkerRef.current.map = map;
+      }
+    } else {
+      if (userLocationMarkerRef.current) {
+        userLocationMarkerRef.current.map = null;
+        userLocationMarkerRef.current = null;
       }
 
-      <!-- Pulsing Blue Location Halo -->
-      <div style="position: absolute; left: -18px; bottom: -18px; width: 36px; height: 36px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.2); border: 1.5px solid rgba(59, 130, 246, 0.5); pointer-events: none; z-index: 2;"></div>
+      // Root marker container anchored precisely at (0, 0)
+      const container = document.createElement('div');
+      container.style.position = 'relative';
+      container.style.width = '0px';
+      container.style.height = '0px';
+      container.style.pointerEvents = 'none';
 
-      <!-- Core Blue GPS Location Dot -->
-      <div style="position: absolute; left: -7px; bottom: -7px; width: 14px; height: 14px; border-radius: 50%; background-color: #2563EB; border: 2.5px solid #FFFFFF; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4); pointer-events: none; z-index: 3;"></div>
-    `;
+      // Flashlight Heading Beam Cone (Hardware-accelerated CSS cone, centered at 0,0)
+      const beamDiv = document.createElement('div');
+      beamDiv.style.position = 'absolute';
+      beamDiv.style.left = '-75px';
+      beamDiv.style.top = '-75px';
+      beamDiv.style.width = '150px';
+      beamDiv.style.height = '150px';
+      beamDiv.style.borderRadius = '50%';
+      beamDiv.style.transformOrigin = '50% 50%';
+      beamDiv.style.pointerEvents = 'none';
+      beamDiv.style.zIndex = '1';
+      beamDiv.style.willChange = 'transform';
+      beamDiv.style.background =
+        'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.65) 0%, rgba(96, 165, 250, 0.25) 45%, rgba(191, 219, 254, 0) 70%)';
+      beamDiv.style.clipPath = 'polygon(50% 50%, 20% 0%, 80% 0%)';
+      beamDiv.style.display = userHeading != null ? 'block' : 'none';
+      beamDiv.style.transform = `rotate(${userHeading ?? 0}deg)`;
 
-    const marker = new AdvancedMarkerElement({
-      map,
-      position: { lat, lng },
-      content: container,
-      zIndex: 100,
-    });
+      // Pulsing Blue Location Halo
+      const haloDiv = document.createElement('div');
+      haloDiv.style.position = 'absolute';
+      haloDiv.style.left = '-18px';
+      haloDiv.style.top = '-18px';
+      haloDiv.style.width = '36px';
+      haloDiv.style.height = '36px';
+      haloDiv.style.borderRadius = '50%';
+      haloDiv.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+      haloDiv.style.border = '1.5px solid rgba(59, 130, 246, 0.5)';
+      haloDiv.style.pointerEvents = 'none';
+      haloDiv.style.zIndex = '2';
 
-    userLocationMarkerRef.current = marker;
+      // Core Blue GPS Location Dot
+      const dotDiv = document.createElement('div');
+      dotDiv.style.position = 'absolute';
+      dotDiv.style.left = '-7px';
+      dotDiv.style.top = '-7px';
+      dotDiv.style.width = '14px';
+      dotDiv.style.height = '14px';
+      dotDiv.style.borderRadius = '50%';
+      dotDiv.style.backgroundColor = '#2563EB';
+      dotDiv.style.border = '2.5px solid #FFFFFF';
+      dotDiv.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.4)';
+      dotDiv.style.pointerEvents = 'none';
+      dotDiv.style.zIndex = '3';
+
+      container.appendChild(beamDiv);
+      container.appendChild(haloDiv);
+      container.appendChild(dotDiv);
+
+      userLocationBeamRef.current = beamDiv;
+      lastLocationPosRef.current = { lat, lng };
+
+      const marker = new AdvancedMarkerElement({
+        map,
+        position: { lat, lng },
+        content: container,
+        zIndex: 100,
+      });
+
+      userLocationMarkerRef.current = marker;
+    }
   }, [
     mapReady,
     userLocation?.lat,
     userLocation?.lng,
     userLocation?.accuracy,
-    userHeading,
     layerSettings.showUserLocation,
+  ]);
+
+  // 9b. Compass Heading Flashlight Beam (Direct GPU style update, decoupled from Google Maps API)
+  useEffect(() => {
+    if (!userLocationBeamRef.current) return;
+    if (userHeading != null && layerSettings.showUserLocation !== false) {
+      userLocationBeamRef.current.style.display = 'block';
+      userLocationBeamRef.current.style.transform = `rotate(${userHeading}deg)`;
+    } else {
+      userLocationBeamRef.current.style.display = 'none';
+    }
+  }, [userHeading, layerSettings.showUserLocation]);
+
+  // 9c. Render Shared Member Locations (Group Overseers & Servants Visibility)
+  const onSelectMemberLocationRef = useRef(onSelectMemberLocation);
+  onSelectMemberLocationRef.current = onSelectMemberLocation;
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
+
+    const { AdvancedMarkerElement } = google.maps.marker;
+    const currentMarkersMap = memberMarkersDataRef.current;
+
+    if (layerSettings.showMemberLocations === false) {
+      // Clear all member markers if layer is hidden
+      currentMarkersMap.forEach((entry) => {
+        entry.marker.map = null;
+        entry.accuracyCircle?.setMap(null);
+      });
+      currentMarkersMap.clear();
+      return;
+    }
+
+    const nextIds = new Set<string>();
+
+    for (const loc of memberLocations) {
+      const locId = loc.id || `${loc.congregationId}_${loc.userId}`;
+      nextIds.add(locId);
+
+      const lat = Number(loc.latitude);
+      const lng = Number(loc.longitude);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
+
+      const isLive = Boolean(loc.isSharing);
+      const isSelected = selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
+      const heading = loc.heading ?? null;
+      const accuracy = loc.accuracy ?? null;
+      const isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
+
+      if (currentMarkersMap.has(locId)) {
+        // Update existing marker in place
+        const entry = currentMarkersMap.get(locId)!;
+        entry.marker.position = { lat, lng };
+        if (entry.marker.map !== map) entry.marker.map = map;
+        entry.marker.zIndex = isSelected ? 80 : isLive ? 60 : 35;
+
+        if (entry.beamDiv) {
+          if (heading != null && isLive) {
+            entry.beamDiv.style.display = 'block';
+            entry.beamDiv.style.transform = `rotate(${heading}deg)`;
+          } else {
+            entry.beamDiv.style.display = 'none';
+          }
+        }
+
+        if (entry.accuracyCircle) {
+          if (isLive && accuracy && accuracy > 5 && accuracy < 1000) {
+            entry.accuracyCircle.setCenter({ lat, lng });
+            entry.accuracyCircle.setRadius(accuracy);
+            if (entry.accuracyCircle.getMap() !== map) entry.accuracyCircle.setMap(map);
+          } else {
+            entry.accuracyCircle.setMap(null);
+          }
+        }
+
+        entry.pinContainer.style.transform = isSelected ? 'scale(1.15)' : 'scale(1)';
+        entry.pinContainer.style.filter = isSelected
+          ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.45))'
+          : isLive
+            ? 'drop-shadow(0 2px 6px rgba(16,185,129,0.45))'
+            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+      } else {
+        // Create new member marker
+        const container = document.createElement('div');
+        container.style.position = 'relative';
+        container.style.width = '0px';
+        container.style.height = '0px';
+        container.style.cursor = 'pointer';
+
+        // Flashlight beam for member
+        const beamDiv = document.createElement('div');
+        beamDiv.style.position = 'absolute';
+        beamDiv.style.left = '-70px';
+        beamDiv.style.bottom = '-70px';
+        beamDiv.style.width = '140px';
+        beamDiv.style.height = '140px';
+        beamDiv.style.transformOrigin = '70px 70px';
+        beamDiv.style.pointerEvents = 'none';
+        beamDiv.style.zIndex = '1';
+        beamDiv.style.display = heading != null && isLive ? 'block' : 'none';
+        if (heading != null) beamDiv.style.transform = `rotate(${heading}deg)`;
+
+        beamDiv.innerHTML = `
+          <svg width="140" height="140" viewBox="0 0 140 140" style="overflow: visible;">
+            <defs>
+              <radialGradient id="memberBeamGradient_${locId}" cx="70" cy="70" r="70" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#10B981" stop-opacity="0.6"/>
+                <stop offset="45%" stop-color="#34D399" stop-opacity="0.25"/>
+                <stop offset="80%" stop-color="#6EE7B7" stop-opacity="0.08"/>
+                <stop offset="100%" stop-color="#A7F3D0" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <path d="M 70,70 L 32,10.9 A 70,70 0 0,1 108,10.9 Z" fill="url(#memberBeamGradient_${locId})" />
+          </svg>
+        `;
+
+        // Pulsing Live Halo
+        const haloDiv = document.createElement('div');
+        haloDiv.style.position = 'absolute';
+        haloDiv.style.left = '-22px';
+        haloDiv.style.bottom = '-22px';
+        haloDiv.style.width = '44px';
+        haloDiv.style.height = '44px';
+        haloDiv.style.borderRadius = '50%';
+        haloDiv.style.backgroundColor = isLive ? 'rgba(16, 185, 129, 0.22)' : 'transparent';
+        haloDiv.style.border = isLive ? '1.5px solid rgba(16, 185, 129, 0.55)' : 'none';
+        haloDiv.style.pointerEvents = 'none';
+        haloDiv.style.zIndex = '2';
+
+        // Pin Container
+        const pinContainer = document.createElement('div');
+        pinContainer.style.position = 'absolute';
+        pinContainer.style.left = '-16px';
+        pinContainer.style.bottom = '-16px';
+        pinContainer.style.width = '32px';
+        pinContainer.style.height = '32px';
+        pinContainer.style.borderRadius = '50%';
+        pinContainer.style.backgroundColor = isLive ? '#10B981' : '#64748B';
+        pinContainer.style.border = isLive ? '2.5px solid #FFFFFF' : '2px solid #FFFFFF';
+        pinContainer.style.display = 'flex';
+        pinContainer.style.alignItems = 'center';
+        pinContainer.style.justifyContent = 'center';
+        pinContainer.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+        pinContainer.style.transition = 'transform 0.15s ease-out';
+        pinContainer.style.zIndex = '3';
+
+        const initials = (loc.userName || 'P')
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2);
+
+        if (loc.avatarUrl) {
+          pinContainer.innerHTML = `<img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
+        } else {
+          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em;">${initials}</span>`;
+        }
+
+        // Live dot badge
+        if (isLive) {
+          const liveBadge = document.createElement('div');
+          liveBadge.style.position = 'absolute';
+          liveBadge.style.top = '-2px';
+          liveBadge.style.right = '-2px';
+          liveBadge.style.width = '9px';
+          liveBadge.style.height = '9px';
+          liveBadge.style.borderRadius = '50%';
+          liveBadge.style.backgroundColor = '#10B981';
+          liveBadge.style.border = '1.5px solid #FFFFFF';
+          liveBadge.style.boxShadow = '0 0 4px #10B981';
+          pinContainer.appendChild(liveBadge);
+        }
+
+        // Name Label Pill
+        const labelWrapper = document.createElement('div');
+        labelWrapper.style.position = 'absolute';
+        labelWrapper.style.top = '34px';
+        labelWrapper.style.left = '50%';
+        labelWrapper.style.transform = 'translateX(-50%)';
+        labelWrapper.style.pointerEvents = 'none';
+        labelWrapper.style.whiteSpace = 'nowrap';
+        labelWrapper.style.zIndex = '4';
+
+        const labelEl = document.createElement('div');
+        labelEl.style.backgroundColor = 'rgba(15, 23, 42, 0.85)';
+        labelEl.style.backdropFilter = 'blur(4px)';
+        labelEl.style.color = '#FFFFFF';
+        labelEl.style.fontSize = '9.5px';
+        labelEl.style.fontWeight = '700';
+        labelEl.style.padding = '1px 5px';
+        labelEl.style.borderRadius = '6px';
+        labelEl.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        labelEl.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+        labelEl.textContent = loc.userName + (isCurrentUser ? ' (You)' : '');
+        labelWrapper.appendChild(labelEl);
+
+        container.appendChild(beamDiv);
+        container.appendChild(haloDiv);
+        container.appendChild(pinContainer);
+        container.appendChild(labelWrapper);
+
+        container.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onSelectMemberLocationRef.current?.(loc);
+        });
+
+        // Accuracy Circle
+        let accuracyCircle: google.maps.Circle | null = null;
+        if (isLive && accuracy && accuracy > 5 && accuracy < 1000) {
+          accuracyCircle = new google.maps.Circle({
+            center: { lat, lng },
+            radius: accuracy,
+            strokeColor: '#10B981',
+            strokeOpacity: 0.3,
+            strokeWeight: 1,
+            fillColor: '#10B981',
+            fillOpacity: 0.07,
+            clickable: false,
+            zIndex: 2,
+            map,
+          });
+        }
+
+        const marker = new AdvancedMarkerElement({
+          map,
+          position: { lat, lng },
+          title: `${loc.userName} (${isLive ? 'Live sharing' : 'Last seen'})`,
+          content: container,
+          zIndex: isSelected ? 80 : isLive ? 60 : 35,
+        });
+
+        currentMarkersMap.set(locId, {
+          id: locId,
+          marker,
+          accuracyCircle,
+          beamDiv,
+          pinContainer,
+          labelEl,
+        });
+      }
+    }
+
+    // Remove deleted / expired member markers
+    currentMarkersMap.forEach((entry, id) => {
+      if (!nextIds.has(id)) {
+        entry.marker.map = null;
+        entry.accuracyCircle?.setMap(null);
+        currentMarkersMap.delete(id);
+      }
+    });
+  }, [
+    mapReady,
+    memberLocations,
+    layerSettings.showMemberLocations,
+    selectedMemberLocationId,
+    currentUserId,
   ]);
 
   return (

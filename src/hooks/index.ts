@@ -8,6 +8,7 @@ export * from './use-contacts';
 export * from './use-current-user';
 export * from './use-dashboard-tour';
 export * from './use-encounters';
+export * from './use-member-locations';
 export * from './use-notification-settings';
 export * from './use-notification-sound';
 export * from './use-notifications';

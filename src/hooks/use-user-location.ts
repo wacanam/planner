@@ -33,10 +33,16 @@ export function useUserLocation() {
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
 
-    // Smooth by 30% lerp
+    // Ignore sensor micro-jitter below 0.8 degrees
+    if (Math.abs(diff) < 0.8) {
+      return;
+    }
+
+    // Smooth by 35% lerp
     const smoothed = (prev + diff * 0.35 + 360) % 360;
     lastHeadingRef.current = smoothed;
-    setHeading(Math.round(smoothed));
+    const rounded = Math.round(smoothed);
+    setHeading((prevHeading) => (prevHeading === rounded ? prevHeading : rounded));
   }, []);
 
   const handleDeviceOrientation = useCallback(
@@ -104,11 +110,21 @@ export function useUserLocation() {
     const id = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, accuracy, heading: gpsHeading } = position.coords;
-        setLocation({
-          lat: latitude,
-          lng: longitude,
-          accuracy,
-          heading: gpsHeading ?? lastHeadingRef.current,
+        setLocation((prev) => {
+          if (
+            prev &&
+            prev.lat === latitude &&
+            prev.lng === longitude &&
+            prev.accuracy === accuracy
+          ) {
+            return prev;
+          }
+          return {
+            lat: latitude,
+            lng: longitude,
+            accuracy,
+            heading: gpsHeading ?? lastHeadingRef.current,
+          };
         });
         if (gpsHeading != null && !Number.isNaN(gpsHeading)) {
           updateHeading(gpsHeading);

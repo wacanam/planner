@@ -665,3 +665,23 @@ export interface AccountRequest {
   reviewedByName?: string | null;
   reviewNote?: string | null;
 }
+
+// ─── Shared Member Locations ──────────────────────────────────────────────────
+
+export interface SharedMemberLocation {
+  id: string;
+  userId: string;
+  congregationId: string;
+  userName: string;
+  userEmail?: string | null;
+  avatarUrl?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  heading?: number | null;
+  isSharing: boolean;
+  updatedAt: string;
+  lastSeenAt: string;
+}

@@ -16,6 +16,7 @@ import {
   Satellite,
   Square,
   Tag,
+  Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ export interface StudioLayerSettings {
   showStartFlag: boolean;
   showBoundaries: boolean;
   showUserLocation: boolean;
+  showMemberLocations: boolean;
   householdFilter: HouseholdStatusFilter;
 }
 
@@ -55,6 +57,7 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showStartFlag: true,
   showBoundaries: true,
   showUserLocation: true,
+  showMemberLocations: true,
   householdFilter: 'all',
 };
 
@@ -150,6 +153,7 @@ export function StudioBasemapPopup({
       showStartFlag: true,
       showBoundaries: true,
       showUserLocation: true,
+      showMemberLocations: true,
       householdFilter: 'all',
     });
   };
@@ -163,6 +167,7 @@ export function StudioBasemapPopup({
       showStartFlag: false,
       showBoundaries: false,
       showUserLocation: false,
+      showMemberLocations: false,
       householdFilter: 'all',
     });
   };
@@ -455,6 +460,22 @@ export function StudioBasemapPopup({
                   type="checkbox"
                   checked={layers.showUserLocation}
                   onChange={() => toggleLayer('showUserLocation')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="layer-member-locations"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Users size={14} className="text-emerald-500" />
+                  <span>Member Shared Locations</span>
+                </Label>
+                <input
+                  id="layer-member-locations"
+                  type="checkbox"
+                  checked={layers.showMemberLocations}
+                  onChange={() => toggleLayer('showMemberLocations')}
                   className="h-4 w-4 rounded accent-primary cursor-pointer"
                 />
               </div>

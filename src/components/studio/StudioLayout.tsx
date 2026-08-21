@@ -1,8 +1,21 @@
 'use client';
 
-import { AlertCircle, Edit, Flag, Home, MapPin, Milestone, Square, Trash2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Clock,
+  Edit,
+  Flag,
+  Home,
+  MapPin,
+  Milestone,
+  Radio,
+  Square,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   HouseholdEncounterSheet,
@@ -10,20 +23,29 @@ import {
 } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { useSaveAnnotations, useUpdateTerritory } from '@/hooks/use-territories';
-import { useSaveBoundary } from '@/hooks/use-territory-boundary';
-import { useUserLocation } from '@/hooks/use-user-location';
+import {
+  useCongregationGroups,
+  useCurrentUser,
+  useLocationSharing,
+  useMemberLocations,
+  useSaveAnnotations,
+  useSaveBoundary,
+  useUpdateTerritory,
+  useUserLocation,
+} from '@/hooks';
 import { createClientId } from '@/lib/firebase/schema';
+import { canViewMemberLocations } from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
+import { timeAgo } from '@/lib/time-ago';
 import type {
   Congregation,
   Household,
@@ -31,6 +53,7 @@ import type {
   MapLandmark,
   MapPoint,
   MapRoad,
+  SharedMemberLocation,
   Territory,
   TerritoryAnnotations,
 } from '@/types/api';
@@ -193,6 +216,30 @@ export function StudioLayout({
   );
   const boundaryDisplaySaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Service Groups for permission scoping & location tracking
+  const { groups = [] } = useCongregationGroups(congregationId);
+
+  // Member Locations & Real-Time Sharing
+  const { memberLocations } = useMemberLocations(congregationId, user, groups);
+  const {
+    isSharing: isSharingLocation,
+    isLocating: isSharingLocating,
+    currentCoords: sharedLocationCoords,
+    toggleShareLocation,
+  } = useLocationSharing({
+    congregationId,
+    user,
+    groups,
+  });
+
+  const canViewMembers = useMemo(() => {
+    return canViewMemberLocations(user, groups);
+  }, [user, groups]);
+
+  const [selectedMemberLocation, setSelectedMemberLocation] = useState<SharedMemberLocation | null>(
+    null
+  );
+
   // User GPS Location & Live Compass Heading Flashlight Beam
   const {
     isTracking: isTrackingLocation,
@@ -200,6 +247,20 @@ export function StudioLayout({
     heading: userHeading,
     toggleTracking: toggleUserLocation,
   } = useUserLocation();
+
+  const effectiveUserLocation = useMemo(() => {
+    if (userLocation) return userLocation;
+    if (isSharingLocation && sharedLocationCoords) {
+      return {
+        lat: sharedLocationCoords.lat,
+        lng: sharedLocationCoords.lng,
+        accuracy: sharedLocationCoords.accuracy,
+      };
+    }
+    return null;
+  }, [userLocation, isSharingLocation, sharedLocationCoords]);
+
+  const effectiveUserHeading = userHeading ?? sharedLocationCoords?.heading ?? null;
 
   const hasInitiallyCenteredUserRef = useRef(false);
 
@@ -211,36 +272,26 @@ export function StudioLayout({
     timestamp: number;
   } | null>(null);
 
-  // Pan to user location when tracking activates
+  // Pan to user location when tracking or sharing activates
   useEffect(() => {
-    if (userLocation && isTrackingLocation && !hasInitiallyCenteredUserRef.current) {
+    const loc = effectiveUserLocation;
+    const isTracking = isTrackingLocation || isSharingLocation;
+    if (loc && isTracking && !hasInitiallyCenteredUserRef.current) {
       hasInitiallyCenteredUserRef.current = true;
       setSearchedLocation({
-        lat: userLocation.lat,
-        lng: userLocation.lng,
+        lat: loc.lat,
+        lng: loc.lng,
         zoom: 18,
         timestamp: Date.now(),
       });
     }
-    if (!isTrackingLocation) {
+    if (!isTracking) {
       hasInitiallyCenteredUserRef.current = false;
     }
-  }, [userLocation, isTrackingLocation]);
+  }, [effectiveUserLocation, isTrackingLocation, isSharingLocation]);
 
   const handleLocationButtonClick = () => {
-    if (!isTrackingLocation) {
-      toggleUserLocation();
-    } else if (userLocation) {
-      setSearchedLocation({
-        lat: userLocation.lat,
-        lng: userLocation.lng,
-        zoom: 18,
-        timestamp: Date.now(),
-      });
-      toast.info('Centered to current GPS location');
-    } else {
-      toggleUserLocation();
-    }
+    toggleUserLocation();
   };
 
   const dismissAllFloatingCards = () => {
@@ -248,6 +299,7 @@ export function StudioLayout({
     setSelectedBoundary(null);
     setSelectedLandmark(null);
     setSelectedRoad(null);
+    setSelectedMemberLocation(null);
     setBoundaryDialogOpen(false);
     setLandmarkDialogOpen(false);
     setRoadDialogOpen(false);
@@ -595,6 +647,22 @@ export function StudioLayout({
           households={households}
           landmarks={territory?.annotations?.landmarks}
           roads={territory?.annotations?.roads}
+          isSharingLocation={isSharingLocation}
+          onToggleShareLocation={toggleShareLocation}
+          isSharingPending={isSharingLocating}
+          visibleMemberLocations={memberLocations}
+          onSelectMemberLocation={(loc) => {
+            dismissAllFloatingCards();
+            setSelectedMemberLocation(loc);
+            setSearchedLocation({
+              lat: loc.latitude,
+              lng: loc.longitude,
+              zoom: 19,
+              timestamp: Date.now(),
+            });
+            toast.success(`Found publisher: ${loc.userName}`);
+          }}
+          canViewMembers={canViewMembers}
           onSelectHousehold={(h) => {
             dismissAllFloatingCards();
             setSelectedHousehold(h);
@@ -806,8 +874,15 @@ export function StudioLayout({
           selectedBoundaryId={selectedBoundary?.id}
           selectedLandmarkId={selectedLandmark?.id}
           selectedRoadId={selectedRoad?.id}
-          userLocation={userLocation}
-          userHeading={userHeading}
+          userLocation={effectiveUserLocation}
+          userHeading={effectiveUserHeading}
+          memberLocations={memberLocations}
+          selectedMemberLocationId={selectedMemberLocation?.id}
+          onSelectMemberLocation={(loc) => {
+            dismissAllFloatingCards();
+            setSelectedMemberLocation(loc);
+          }}
+          currentUserId={user.id}
           fitPrintViewportPadding={fitPrintViewportPadding}
           isPrintViewportActive={isPrintViewportActive}
         />
@@ -1249,6 +1324,84 @@ export function StudioLayout({
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Selected Member Location Quick Info Card */}
+      {selectedMemberLocation && (
+        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="relative shrink-0 mt-0.5">
+                  <Avatar className="h-9 w-9 rounded-xl border border-border">
+                    {selectedMemberLocation.avatarUrl && (
+                      <AvatarImage
+                        src={selectedMemberLocation.avatarUrl}
+                        alt={selectedMemberLocation.userName}
+                      />
+                    )}
+                    <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
+                      {(selectedMemberLocation.userName || 'P')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {selectedMemberLocation.isSharing && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white dark:border-slate-900" />
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-foreground leading-snug truncate">
+                    {selectedMemberLocation.userName}
+                    {selectedMemberLocation.userId === user?.id && (
+                      <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                        (You)
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {selectedMemberLocation.groupName || 'Service Group'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => setSelectedMemberLocation(null)}
+              >
+                <X size={14} />
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
+              <div className="flex items-center gap-1.5">
+                {selectedMemberLocation.isSharing ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Radio size={11} className="animate-pulse" />
+                    <span>Live in Field Service</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock size={12} />
+                    <span>Last seen {timeAgo(selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt)}</span>
+                  </span>
+                )}
+              </div>
+              {selectedMemberLocation.accuracy && (
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  ±{Math.round(selectedMemberLocation.accuracy)}m
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}

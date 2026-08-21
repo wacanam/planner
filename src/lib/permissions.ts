@@ -1,5 +1,11 @@
 import { UserRole } from '@/lib/roles';
-import type { Assignment, Household, HouseholdShare, Territory } from '@/types/api';
+import type {
+  Assignment,
+  Household,
+  HouseholdShare,
+  SharedMemberLocation,
+  Territory,
+} from '@/types/api';
 
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [
@@ -659,4 +665,71 @@ export function canDeleteEncounter(
   if (encounter.userId && encounter.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
+}
+
+/**
+ * Checks if a user is authorized to view shared member locations on the map.
+ * Territory Servants, Service Overseers, Admins, Super Admins, and Group Overseers (and assistants) can view member locations.
+ */
+export function canViewMemberLocations(
+  user: { id?: string | null; role?: string | null; congregationRole?: string | null } | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = []
+): boolean {
+  if (!user?.id) return false;
+  if (isTerritoryServant(user.role) || isTerritoryServant(user.congregationRole)) return true;
+  return groups.some((g) => isGroupOverseer(user.id, g) || isGroupOverseerAssistant(user.id, g));
+}
+
+/**
+ * Filters member locations based on the current user's role and group assignments:
+ * - Territory Servants / Service Overseers / Admins: Can view all shared member locations in the congregation.
+ * - Group Overseers & Assistants: Can view members belonging to their service group(s).
+ * - Regular publishers: Can only see their own shared location.
+ */
+export function filterVisibleMemberLocations(
+  user: { id?: string | null; role?: string | null; congregationRole?: string | null; email?: string | null; groupId?: string | null } | null | undefined,
+  groups: Array<{
+    id?: string;
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = [],
+  locations: SharedMemberLocation[] = []
+): SharedMemberLocation[] {
+  if (!user?.id || !locations || locations.length === 0) return [];
+
+  // Territory Servants, Service Overseers, and Admins can view all congregation members
+  if (isTerritoryServant(user.role) || isTerritoryServant(user.congregationRole)) {
+    return locations;
+  }
+
+  // Check if user is an overseer/assistant of any group
+  const isAnyOverseer = groups.some(
+    (g) => isGroupOverseer(user.id, g) || isGroupOverseerAssistant(user.id, g)
+  );
+
+  if (isAnyOverseer) {
+    const overseenMemberIds = getOverseenGroupMateIds(user.id, groups);
+    // Also include groups they are overseer of
+    const overseenGroupIds = new Set<string>();
+    for (const g of groups) {
+      if (g.id && (isGroupOverseer(user.id, g) || isGroupOverseerAssistant(user.id, g))) {
+        overseenGroupIds.add(g.id);
+      }
+    }
+
+    return locations.filter((loc) => {
+      if (loc.userId === user.id) return true;
+      if (overseenMemberIds.has(loc.userId)) return true;
+      if (loc.groupId && overseenGroupIds.has(loc.groupId)) return true;
+      return false;
+    });
+  }
+
+  // Regular publisher: only see self
+  return locations.filter((loc) => loc.userId === user.id);
 }

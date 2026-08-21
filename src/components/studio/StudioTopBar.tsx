@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  ChevronDown,
+  Clock,
   Eye,
   Flag,
   Home,
@@ -9,17 +11,22 @@ import {
   Milestone,
   MousePointer,
   Printer,
+  Radio,
   Redo2,
   Search,
   Square,
   Undo2,
+  Users,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentUser } from '@/hooks';
 import { isTerritoryServant } from '@/lib/permissions';
-import type { Household, MapLandmark, MapRoad } from '@/types/api';
+import { timeAgo } from '@/lib/time-ago';
+import type { Household, MapLandmark, MapRoad, SharedMemberLocation } from '@/types/api';
 
 export type StudioTool = 'pointer' | 'boundary' | 'road' | 'pin' | 'landmark' | 'start';
 
@@ -43,6 +50,12 @@ interface StudioTopBarProps {
   onSelectLandmark?: (landmark: MapLandmark) => void;
   onSelectRoad?: (road: MapRoad) => void;
   isReadOnly?: boolean;
+  isSharingLocation?: boolean;
+  onToggleShareLocation?: () => void;
+  isSharingPending?: boolean;
+  visibleMemberLocations?: SharedMemberLocation[];
+  onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
+  canViewMembers?: boolean;
 }
 
 const getLandmarkEmoji = (type?: string) => {
@@ -109,12 +122,23 @@ export function StudioTopBar({
   onSelectLandmark,
   onSelectRoad,
   isReadOnly = false,
+  isSharingLocation = false,
+  onToggleShareLocation,
+  isSharingPending = false,
+  visibleMemberLocations = [],
+  onSelectMemberLocation,
+  canViewMembers = false,
 }: StudioTopBarProps) {
   const { user } = useCurrentUser();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [membersMenuOpen, setMembersMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const activeSharingMembersCount = useMemo(() => {
+    return visibleMemberLocations.filter((m) => m.isSharing && m.userId !== user?.id).length;
+  }, [visibleMemberLocations, user?.id]);
 
   const canDrawBoundary = isTerritoryServant(user.role);
 
@@ -304,6 +328,160 @@ export function StudioTopBar({
               );
             })}
         </div>
+
+        <div className="h-5 w-px bg-border mx-1 shrink-0" />
+
+        {/* Location Sharing Toggle Button */}
+        {onToggleShareLocation && (
+          <button
+            type="button"
+            onClick={onToggleShareLocation}
+            disabled={isSharingPending}
+            title={
+              isSharingLocation
+                ? 'Live location sharing is ON (Visible to Group Overseer & Servants). Click to stop sharing.'
+                : 'Share your live location with Group Overseer & Territory Servants'
+            }
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-200 cursor-pointer ${
+              isSharingLocation
+                ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:scale-95'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            }`}
+          >
+            <Radio
+              size={14}
+              className={isSharingLocation ? 'animate-pulse text-white' : ''}
+            />
+            <span className="hidden md:inline">
+              {isSharingLocation ? 'Sharing Live' : 'Share Location'}
+            </span>
+          </button>
+        )}
+
+        {/* Group & Congregation Members Locations Selector (Overseers & Servants) */}
+        {canViewMembers && (
+          <Popover open={membersMenuOpen} onOpenChange={setMembersMenuOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-150 cursor-pointer ${
+                  membersMenuOpen
+                    ? 'bg-muted text-foreground'
+                    : activeSharingMembersCount > 0
+                      ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                title="View group members locations"
+              >
+                <Users size={14} />
+                <span className="hidden lg:inline">Members</span>
+                {visibleMemberLocations.length > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      activeSharingMembersCount > 0
+                        ? 'bg-emerald-600 text-white animate-pulse'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {activeSharingMembersCount > 0
+                      ? `${activeSharingMembersCount} live`
+                      : visibleMemberLocations.length}
+                  </span>
+                )}
+                <ChevronDown size={12} className="opacity-60" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="center"
+              side="bottom"
+              sideOffset={8}
+              className="w-80 max-h-96 overflow-y-auto p-2 rounded-2xl bg-card/95 backdrop-blur-md border border-border shadow-2xl space-y-2 pointer-events-auto"
+            >
+              <div className="flex items-center justify-between px-2 py-1 border-b border-border/60">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <Users size={14} className="text-primary" />
+                  <span>Member Locations</span>
+                </div>
+                <span className="text-[10px] font-semibold text-muted-foreground">
+                  {visibleMemberLocations.length} publisher{visibleMemberLocations.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              {visibleMemberLocations.length === 0 ? (
+                <div className="p-4 text-center text-xs text-muted-foreground">
+                  No publishers have shared their location yet in this group or congregation.
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {visibleMemberLocations.map((loc) => {
+                    const initials = (loc.userName || 'P')
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2);
+
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectMemberLocation?.(loc);
+                          setMembersMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-xl text-left hover:bg-muted/70 transition-colors group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative shrink-0">
+                            <Avatar className="h-8 w-8 rounded-xl border border-border">
+                              {loc.avatarUrl && <AvatarImage src={loc.avatarUrl} alt={loc.userName} />}
+                              <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            {loc.isSharing && (
+                              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white dark:border-slate-900" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">
+                              {loc.userName}
+                              {loc.userId === user?.id && (
+                                <span className="ml-1 text-[10px] text-muted-foreground font-normal">
+                                  (You)
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {loc.groupName || 'Service Group'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          {loc.isSharing ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <Radio size={10} className="animate-pulse" />
+                              <span>Live</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                              <Clock size={10} />
+                              <span>{timeAgo(loc.lastSeenAt || loc.updatedAt)}</span>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        )}
 
         <div className="h-5 w-px bg-border mx-1 shrink-0" />
 
