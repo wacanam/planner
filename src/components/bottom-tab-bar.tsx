@@ -39,6 +39,7 @@ import {
 import { signOut } from '@/lib/firebase/auth';
 import {
   canViewReports,
+  isCircuitOverseer,
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
@@ -57,6 +58,7 @@ export function BottomTabBar() {
 
   if (!id) return null;
 
+  const isCircuitRole = isCircuitOverseer(user.role);
   const isOverseerRole = isServiceOverseer(user.role);
   const isServantRole = isTerritoryServant(user.role);
   const isAdminRole = isSystemAdmin(user.role);
@@ -193,31 +195,28 @@ export function BottomTabBar() {
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-[64px]">{isOverseerRole ? 'Oversee' : 'More'}</span>
+              <span className="truncate max-w-[64px]">{isCircuitRole ? 'Circuit' : isOverseerRole ? 'Oversee' : 'More'}</span>
             </button>
           </SheetTrigger>
 
           <SheetContent
             side="bottom"
-            className="p-0 max-h-[85vh] rounded-t-3xl border-t border-border bg-background"
+            className="rounded-t-3xl max-h-[85vh] overflow-y-auto px-4 pb-6 pt-3 border-border bg-background"
           >
-            <div className="p-4 sm:p-6 space-y-4">
-              <SheetHeader className="text-left pb-2 border-b border-border pr-8">
-                <SheetTitle className="text-base font-bold text-foreground">
-                  {isOverseerRole ? 'Overseer Management' : 'More Menu'}
-                </SheetTitle>
-                <SheetDescription className="text-xs text-muted-foreground">
-                  {isOverseerRole
-                    ? 'Quick access to congregation management pages'
-                    : 'Account settings & navigation'}
-                </SheetDescription>
-              </SheetHeader>
+            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+            <SheetHeader className="text-left pb-2">
+              <SheetTitle className="text-base font-bold text-foreground">Menu & Navigation</SheetTitle>
+              <SheetDescription className="text-xs text-muted-foreground">
+                Manage congregation territories, members, reports, and your account.
+              </SheetDescription>
+            </SheetHeader>
 
-              {/* Administration Navigation Links */}
+            <div className="space-y-4 mt-2">
+              {/* Administration Section */}
               {adminLinks.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1">
-                    {isOverseerRole ? 'Congregation Administration' : 'Servant Management'}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
+                    {isCircuitRole ? 'Circuit Overseer Review' : isOverseerRole ? 'Congregation Administration' : 'Servant Management'}
                   </p>
                   {adminLinks.map(({ href, label, description, icon: Icon, badgeCount }) => {
                     const isActive = pathname.startsWith(href);

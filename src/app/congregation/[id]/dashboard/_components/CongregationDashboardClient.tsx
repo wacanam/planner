@@ -93,8 +93,10 @@ export default function CongregationDashboardClient() {
     const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
     if (r === 'SUPER_ADMIN') return 'Super Admin';
     if (r === 'ADMIN') return 'Admin';
+    if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
     if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
     if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
+    if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
     return 'Publisher';
   })();
 

@@ -32,8 +32,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useMemo } from 'react';
 import {
   useCongregation,
+  useCongregations,
   useCurrentUser,
   useNotifications,
   usePendingEndorsements,
@@ -42,6 +44,7 @@ import {
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
 import {
   canViewReports,
+  isCircuitOverseer,
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
@@ -53,11 +56,14 @@ export function DashboardHeader() {
   const params = useParams();
   const id = (params?.id as string) || '';
   const { data: session } = useSession();
-  const { user } = useCurrentUser();
+  const { user, userMemberships, switchCongregation } = useCurrentUser();
   const { congregation } = useCongregation(id);
+  const { congregations = [] } = useCongregations();
   const { count: pendingEndorsementsCount } = usePendingEndorsements(id);
   const { count: pendingSharesCount } = usePendingSharesCount();
   const { unreadCount: unreadNotificationsCount } = useNotifications();
+
+  const congMap = useMemo(() => new Map(congregations.map((c) => [c.id, c.name])), [congregations]);
 
   if (!session?.user) return null;
 
@@ -105,8 +111,10 @@ export function DashboardHeader() {
     const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
     if (r === 'SUPER_ADMIN') return 'Super Admin';
     if (r === 'ADMIN') return 'Admin';
+    if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
     if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
     if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
+    if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
     return 'Publisher';
   })();
 
@@ -142,10 +150,50 @@ export function DashboardHeader() {
                   Kanataran
                 </span>
                 {congregation && (
-                  <span className="text-[11px] font-medium text-muted-foreground truncate leading-tight flex items-center gap-1 mt-0.5 max-w-[130px] sm:max-w-[180px]">
-                    <Building2 size={10} className="shrink-0 text-primary" />
-                    <span className="truncate">{congregation.name}</span>
-                  </span>
+                  userMemberships.length > 1 ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-[11px] font-medium text-muted-foreground hover:text-foreground truncate leading-tight flex items-center gap-1 mt-0.5 max-w-[140px] sm:max-w-[190px] cursor-pointer text-left focus-visible:outline-none"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Building2 size={10} className="shrink-0 text-primary" />
+                          <span className="truncate">{congregation.name}</span>
+                          <ChevronDown size={10} className="shrink-0 opacity-70" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56 p-1 rounded-2xl shadow-lg border-border">
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Circuit Congregations
+                        </div>
+                        {userMemberships.map((m) => (
+                          <DropdownMenuItem
+                            key={m.congregationId}
+                            onClick={() => {
+                              switchCongregation(m.congregationId);
+                              router.push(`/congregation/${m.congregationId}/dashboard`);
+                            }}
+                            className={`rounded-xl text-xs flex items-center justify-between cursor-pointer ${
+                              m.congregationId === id ? 'bg-primary/10 font-bold text-primary' : ''
+                            }`}
+                          >
+                            <span className="truncate">{congMap.get(m.congregationId) || m.congregationId}</span>
+                            {m.congregationRole && (
+                              <Badge variant="outline" className="text-[9px] uppercase font-semibold">
+                                {m.congregationRole.replace(/_/g, ' ')}
+                              </Badge>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <span className="text-[11px] font-medium text-muted-foreground truncate leading-tight flex items-center gap-1 mt-0.5 max-w-[130px] sm:max-w-[180px]">
+                      <Building2 size={10} className="shrink-0 text-primary" />
+                      <span className="truncate">{congregation.name}</span>
+                    </span>
+                  )
                 )}
               </div>
             </Link>
@@ -285,10 +333,14 @@ export function DashboardHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {id && (isServiceOverseer(user.role) || canViewReports(user.role)) && (
+                {id && (isServiceOverseer(user.role) || canViewReports(user.role) || isCircuitOverseer(user.role)) && (
                   <>
                     <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                      {isServiceOverseer(user.role) ? 'Overseer Menu' : 'Servant Menu'}
+                      {isCircuitOverseer(user.role)
+                        ? 'Circuit Overseer Menu'
+                        : isServiceOverseer(user.role)
+                          ? 'Overseer Menu'
+                          : 'Servant Menu'}
                     </div>
                     {isServiceOverseer(user.role) && (
                       <>

@@ -26,8 +26,10 @@ interface ProtectedPageProps {
 
 const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.USER]: 0,
+  [UserRole.VISITING_PUBLISHER]: 0,
   [UserRole.TERRITORY_SERVANT]: 1,
   [UserRole.SERVICE_OVERSEER]: 2,
+  [UserRole.CIRCUIT_OVERSEER]: 2,
   [UserRole.ADMIN]: 3,
   [UserRole.SUPER_ADMIN]: 4,
 };
@@ -39,7 +41,7 @@ export function ProtectedPage({
   loginRedirect = '/auth/login',
   roleRedirect = '/onboarding',
 }: ProtectedPageProps) {
-  const { user, loading, isAuthenticated } = useCurrentUser();
+  const { user, userMemberships, loading, isAuthenticated } = useCurrentUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -60,9 +62,17 @@ export function ProtectedPage({
     }
 
     // Congregation scoping: if a congregationId is required and user is not
-    // a global admin, verify they are an active member of this congregation.
+    // a global admin, verify they are an active member of this congregation
+    // (supporting single or multi-congregation memberships for circuit overseers).
     if (congregationId && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
-      if (!user.congregationId || user.congregationId !== congregationId) {
+      const hasMembership =
+        user.congregationId === congregationId ||
+        userMemberships.some(
+          (m) =>
+            m.congregationId === congregationId &&
+            (m.status === 'active' || m.status === 'approved')
+        );
+      if (!hasMembership) {
         router.replace(roleRedirect);
         return;
       }
@@ -71,6 +81,7 @@ export function ProtectedPage({
     user.id,
     user.role,
     user.congregationId,
+    userMemberships,
     loading,
     isAuthenticated,
     router,

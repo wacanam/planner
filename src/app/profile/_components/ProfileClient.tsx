@@ -313,6 +313,27 @@ export default function ProfilePage() {
     )
       .toUpperCase()
       .replace(/\s+/g, '_');
+    if (rawRole === 'SUPER_ADMIN') {
+      return {
+        title: 'Super Admin',
+        badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
+        icon: '⭐',
+      };
+    }
+    if (rawRole === 'ADMIN') {
+      return {
+        title: 'Admin',
+        badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+        icon: '🛡️',
+      };
+    }
+    if (rawRole === 'CIRCUIT_OVERSEER') {
+      return {
+        title: 'Circuit Overseer',
+        badgeColor: 'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30',
+        icon: '🌐',
+      };
+    }
     if (rawRole === 'SERVICE_OVERSEER') {
       return {
         title: 'Service Overseer',
@@ -327,18 +348,11 @@ export default function ProfilePage() {
         icon: '🛡️',
       };
     }
-    if (rawRole === 'SUPER_ADMIN') {
+    if (rawRole === 'VISITING_PUBLISHER') {
       return {
-        title: 'Super Admin',
-        badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
-        icon: '⭐',
-      };
-    }
-    if (rawRole === 'ADMIN') {
-      return {
-        title: 'Admin',
-        badgeColor: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
-        icon: '🛡️',
+        title: 'Visiting Publisher',
+        badgeColor: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30',
+        icon: '🕊️',
       };
     }
     return {

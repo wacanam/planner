@@ -1,7 +1,7 @@
 'use client';
 
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
@@ -27,12 +27,22 @@ export interface SessionUser {
   image?: string | null;
 }
 
+export interface UserMembership {
+  id: string;
+  congregationId: string;
+  congregationRole: string | null;
+  groupId?: string | null;
+  status: string;
+}
+
 export function useCurrentUser(): {
   user: SessionUser;
   loading: boolean;
   isAuthenticated: boolean;
   membershipStatus: 'active' | 'pending' | 'rejected' | 'none';
   pendingMembership: PendingMembershipInfo | null;
+  userMemberships: UserMembership[];
+  switchCongregation: (congregationId: string) => void;
 } {
   const { data: session, status } = useSession();
   const userId = session?.user?.id;
@@ -44,7 +54,21 @@ export function useCurrentUser(): {
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
   const [membershipCongregationId, setMembershipCongregationId] = useState<string | null>(null);
   const [membershipGroupId, setMembershipGroupId] = useState<string | null>(null);
+  const [userMemberships, setUserMemberships] = useState<UserMembership[]>([]);
+  const [selectedCongId, setSelectedCongId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kanataran_active_congregation') || null;
+    }
+    return null;
+  });
   const [membershipLoading, setMembershipLoading] = useState<boolean>(true);
+
+  const switchCongregation = useCallback((congId: string) => {
+    setSelectedCongId(congId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('kanataran_active_congregation', congId);
+    }
+  }, []);
 
   useEffect(() => {
     if (!userId) {
@@ -53,6 +77,7 @@ export function useCurrentUser(): {
       setMembershipRole(null);
       setMembershipCongregationId(null);
       setMembershipGroupId(null);
+      setUserMemberships([]);
       setMembershipLoading(false);
       return;
     }
@@ -114,12 +139,6 @@ export function useCurrentUser(): {
             setMembershipCongregationId(null);
             setMembershipGroupId(null);
           }
-        } else {
-          setMembershipStatus('none');
-          setPendingMembership(null);
-          setMembershipRole(null);
-          setMembershipCongregationId(null);
-          setMembershipGroupId(null);
         }
         setMembershipLoading(false);
       },
@@ -137,18 +156,29 @@ export function useCurrentUser(): {
       q,
       (snapshot) => {
         if (!snapshot.empty) {
-          const docData = snapshot.docs[0]?.data();
-          if (docData?.congregationId) {
+          const list: UserMembership[] = snapshot.docs.map((d) => {
+            const dData = d.data();
+            return {
+              id: d.id,
+              congregationId: String(dData.congregationId),
+              congregationRole: dData.congregationRole ? String(dData.congregationRole) : null,
+              groupId: dData.groupId ? String(dData.groupId) : null,
+              status: String(dData.status || 'active'),
+            };
+          });
+          setUserMemberships(list);
+
+          // Select matching membership based on selectedCongId preference or fallback to first
+          const target = (selectedCongId && list.find((m) => m.congregationId === selectedCongId)) || list[0];
+          if (target && target.congregationId) {
             setMembershipStatus('active');
             setPendingMembership(null);
-            setMembershipRole(
-              docData.congregationRole
-                ? String(docData.congregationRole)
-                : CongregationRole.PUBLISHER
-            );
-            setMembershipCongregationId(String(docData.congregationId));
-            setMembershipGroupId(docData.groupId ? String(docData.groupId) : null);
+            setMembershipRole(target.congregationRole || CongregationRole.PUBLISHER);
+            setMembershipCongregationId(target.congregationId);
+            setMembershipGroupId(target.groupId || null);
           }
+        } else {
+          setUserMemberships([]);
         }
         setMembershipLoading(false);
       },
@@ -161,7 +191,7 @@ export function useCurrentUser(): {
       unsubDirect();
       unsubQuery();
     };
-  }, [userId]);
+  }, [userId, selectedCongId]);
 
   const rawGlobalRole = (session?.user?.role || '').toUpperCase();
   const isGlobalAdmin = rawGlobalRole === 'SUPER_ADMIN' || rawGlobalRole === 'ADMIN';
@@ -170,10 +200,18 @@ export function useCurrentUser(): {
     if (isGlobalAdmin) {
       return (session?.user?.role as UserRole) || UserRole.ADMIN;
     }
+    if (rawGlobalRole === 'CIRCUIT_OVERSEER') {
+      return UserRole.CIRCUIT_OVERSEER;
+    }
+    if (rawGlobalRole === 'VISITING_PUBLISHER') {
+      return UserRole.VISITING_PUBLISHER;
+    }
     if (membershipStatus === 'active' && membershipRole) {
       const normalized = membershipRole.toUpperCase().replace(/\s+/g, '_');
+      if (normalized === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
       if (normalized === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
       if (normalized === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
+      if (normalized === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
       if (normalized === 'PUBLISHER' || normalized === 'USER') return UserRole.PUBLISHER;
     }
     return UserRole.USER;
@@ -220,8 +258,10 @@ export function useCurrentUser(): {
       isAuthenticated,
       membershipStatus,
       pendingMembership,
+      userMemberships,
+      switchCongregation,
     }),
-    [user, loading, isAuthenticated, membershipStatus, pendingMembership]
+    [user, loading, isAuthenticated, membershipStatus, pendingMembership, userMemberships, switchCongregation]
   );
 }
 
@@ -233,6 +273,10 @@ export function useIsRole(...roles: UserRole[]): boolean {
 
 export function useIsSuperAdmin(): boolean {
   return useIsRole(UserRole.SUPER_ADMIN);
+}
+
+export function useIsCircuitOverseer(): boolean {
+  return useIsRole(UserRole.CIRCUIT_OVERSEER, UserRole.SUPER_ADMIN, UserRole.ADMIN);
 }
 
 export function useIsServiceOverseer(): boolean {

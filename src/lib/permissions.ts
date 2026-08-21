@@ -10,8 +10,10 @@ import type {
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [
   UserRole.USER,
+  UserRole.VISITING_PUBLISHER,
   UserRole.TERRITORY_SERVANT,
   UserRole.SERVICE_OVERSEER,
+  UserRole.CIRCUIT_OVERSEER,
   UserRole.ADMIN,
   UserRole.SUPER_ADMIN,
 ];
@@ -39,6 +41,18 @@ export function isSystemAdmin(role?: string | null): boolean {
     normalized === 'SUPER_ADMIN' ||
     normalized === 'ADMIN'
   );
+}
+
+export function isCircuitOverseer(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return normalized === UserRole.CIRCUIT_OVERSEER || normalized === 'CIRCUIT_OVERSEER';
+}
+
+export function isVisitingPublisher(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return normalized === UserRole.VISITING_PUBLISHER || normalized === 'VISITING_PUBLISHER';
 }
 
 export function isServiceOverseer(role?: string | null): boolean {
@@ -88,7 +102,7 @@ export function canEndorseAssignment(role?: string | null): boolean {
 }
 
 export function canViewReports(role?: string | null): boolean {
-  return isTerritoryServant(role);
+  return isTerritoryServant(role) || isCircuitOverseer(role);
 }
 
 /**
@@ -494,7 +508,7 @@ export function canAccessHouseholdDetails(
     | string[]
     | null
 ): boolean {
-  if (isTerritoryServant(userRole)) return true;
+  if (isTerritoryServant(userRole) || isCircuitOverseer(userRole)) return true;
   if (!userId) return false;
   if (household.createdById === userId) return true;
   if (household.collaboratorIds?.includes(userId)) return true;
@@ -575,7 +589,7 @@ export function canDeleteHousehold(
 
 /**
  * Checks if a user is allowed to log a visit or encounter for a household.
- * Allowed for Owner, Collaborator, or Territory Servant+.
+ * Allowed for Owner, Collaborator, Territory Servant+, or Circuit Overseer.
  * (Read-only viewers cannot log visits/encounters).
  */
 export function canLogVisitOrEncounter(
@@ -583,7 +597,7 @@ export function canLogVisitOrEncounter(
   household?: { createdById?: string | null; collaboratorIds?: string[] | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (isTerritoryServant(user.role) || isCircuitOverseer(user.role)) return true;
   if (!household) return false;
   if (household.createdById === user.id) return true;
   return Boolean(household.collaboratorIds?.includes(user.id));
@@ -680,7 +694,14 @@ export function canViewMemberLocations(
   }> = []
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role) || isTerritoryServant(user.congregationRole)) return true;
+  if (
+    isTerritoryServant(user.role) ||
+    isTerritoryServant(user.congregationRole) ||
+    isCircuitOverseer(user.role) ||
+    isCircuitOverseer(user.congregationRole)
+  ) {
+    return true;
+  }
   return groups.some((g) => isGroupOverseer(user.id, g) || isGroupOverseerAssistant(user.id, g));
 }
 
@@ -701,7 +722,7 @@ export function isLocationActive(loc: SharedMemberLocation, now: number = Date.n
 /**
  * Filters member locations based on the current user's role and group assignments:
  * - Only currently active, non-expired shared locations are visible (inactive locations disappear).
- * - Territory Servants / Service Overseers / Admins: Can view all actively shared member locations in the congregation.
+ * - Territory Servants / Service Overseers / Circuit Overseers / Admins: Can view all actively shared member locations in the congregation.
  * - Group Overseers & Assistants: Can view active members belonging to their service group(s).
  * - Regular publishers: Can only see their own active shared location.
  */
@@ -722,8 +743,13 @@ export function filterVisibleMemberLocations(
   const activeLocations = locations.filter((loc) => isLocationActive(loc, now));
   if (activeLocations.length === 0) return [];
 
-  // Territory Servants, Service Overseers, and Admins can view all active congregation members
-  if (isTerritoryServant(user.role) || isTerritoryServant(user.congregationRole)) {
+  // Territory Servants, Service Overseers, Circuit Overseers, and Admins can view all active congregation members
+  if (
+    isTerritoryServant(user.role) ||
+    isTerritoryServant(user.congregationRole) ||
+    isCircuitOverseer(user.role) ||
+    isCircuitOverseer(user.congregationRole)
+  ) {
     return activeLocations;
   }
 

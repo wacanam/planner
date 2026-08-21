@@ -802,7 +802,15 @@ export default function MembersClient() {
                     <SelectItem value={CongregationRole.TERRITORY_SERVANT}>
                       Territory Servant
                     </SelectItem>
-                    <SelectItem value="publisher">Regular Publisher</SelectItem>
+                    <SelectItem value={CongregationRole.CIRCUIT_OVERSEER}>
+                      Circuit Overseer
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.PUBLISHER}>
+                      Regular Publisher
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.VISITING_PUBLISHER}>
+                      Visiting Publisher
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
