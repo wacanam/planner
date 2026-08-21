@@ -12,6 +12,7 @@ import type {
   SharedMemberLocation,
   Territory,
 } from '@/types/api';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
@@ -1592,7 +1593,7 @@ export function StudioGoogleMap({
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
         labelEl.style.transition = 'color 0.15s ease-out';
-        labelEl.textContent = h.houseNumber ? `#${h.houseNumber}` : h.address.split(',')[0];
+        labelEl.textContent = getHouseholdMapLabel(h);
 
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);

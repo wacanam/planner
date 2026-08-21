@@ -32,6 +32,7 @@ import {
 } from '@/hooks';
 import { canViewMemberLocations } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import type {
   Congregation,
   Household,
@@ -614,11 +615,13 @@ export function CongregationStudioLayout({
                 </div>
                 <div>
                   <p className="font-bold text-sm text-foreground leading-snug">
-                    {selectedHousehold.address}
+                    {getHouseholdMapLabel(selectedHousehold)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {selectedHousehold.streetName}
-                    {selectedHousehold.city ? `, ${selectedHousehold.city}` : ''}
+                    {selectedHousehold.address || selectedHousehold.streetName}
+                    {selectedHousehold.city && !(selectedHousehold.address || '').includes(selectedHousehold.city)
+                      ? `, ${selectedHousehold.city}`
+                      : ''}
                   </p>
                 </div>
               </div>

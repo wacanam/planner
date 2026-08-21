@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractHouseholdContacts } from '@/lib/household-contacts';
+import { extractHouseholdContacts, getHouseholdMapLabel } from '@/lib/household-contacts';
 import type { Encounter } from '@/types/api';
 
 describe('extractHouseholdContacts', () => {
@@ -161,3 +161,73 @@ describe('extractHouseholdContacts', () => {
     expect(contacts[0].bibleStudyLesson).toBe('Lesson 03');
   });
 });
+
+describe('getHouseholdMapLabel', () => {
+  it('formats house number + resident name', () => {
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '104',
+        name: 'Smith',
+        streetName: 'Maple Street',
+        address: '104 Maple Street, City',
+      })
+    ).toBe('#104 Smith');
+  });
+
+  it('formats house number + street name when resident name is missing', () => {
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '104',
+        name: null,
+        streetName: 'Maple Street',
+        address: '104 Maple Street, City',
+      })
+    ).toBe('#104 Maple Street');
+  });
+
+  it('preserves existing # prefix on house number without doubling', () => {
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '#12B',
+        name: 'Johnson',
+      })
+    ).toBe('#12B Johnson');
+  });
+
+  it('avoids duplicating house number if name already begins with it', () => {
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '104',
+        streetName: '104 Maple Street',
+        name: null,
+      })
+    ).toBe('#104 Maple Street');
+  });
+
+  it('falls back to name or street if house number is not set', () => {
+    expect(
+      getHouseholdMapLabel({
+        name: 'Dela Cruz Residence',
+        streetName: 'Pine Ave',
+      })
+    ).toBe('Dela Cruz Residence');
+
+    expect(
+      getHouseholdMapLabel({
+        name: null,
+        streetName: 'Pine Ave',
+      })
+    ).toBe('Pine Ave');
+  });
+
+  it('falls back to address first part or House if all else missing', () => {
+    expect(
+      getHouseholdMapLabel({
+        address: 'Block 2 Lot 5, Zone 3',
+      })
+    ).toBe('Block 2 Lot 5');
+
+    expect(getHouseholdMapLabel({})).toBe('House');
+  });
+});
+

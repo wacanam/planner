@@ -145,3 +145,35 @@ export function extractHouseholdContacts(
 
   return result;
 }
+
+/**
+ * Formats a concise, informative map label for a pinned household (e.g. "#104 Smith" or "#104 Maple St").
+ * Displays house number + name / street name instead of the full multi-part address.
+ */
+export function getHouseholdMapLabel(h: {
+  houseNumber?: string | null;
+  name?: string | null;
+  streetName?: string | null;
+  address?: string | null;
+}): string {
+  const rawNum = (h.houseNumber || '').trim();
+  const rawName = (h.name || '').trim();
+  const rawStreet = (h.streetName || '').trim();
+  const rawAddressFirst = (h.address || '').split(',')[0].trim();
+
+  const num = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
+  const nameOrStreet = rawName || rawStreet || rawAddressFirst;
+
+  if (num && nameOrStreet) {
+    const cleanNum = rawNum.replace(/^#/, '').trim();
+    const cleanName = nameOrStreet.replace(/^#/, '').trim();
+    if (cleanName.toLowerCase().startsWith(cleanNum.toLowerCase())) {
+      return nameOrStreet.startsWith('#') ? nameOrStreet : `#${nameOrStreet}`;
+    }
+    return `${num} ${nameOrStreet}`;
+  }
+
+  if (num) return num;
+  return nameOrStreet || 'House';
+}
+

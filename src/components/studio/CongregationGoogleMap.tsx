@@ -12,6 +12,7 @@ import type {
   SharedMemberLocation,
   Territory,
 } from '@/types/api';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
@@ -998,7 +999,7 @@ export function CongregationGoogleMap({
         labelEl.style.paintOrder = 'stroke fill';
         labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
         labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-        labelEl.textContent = h.houseNumber ? `#${h.houseNumber}` : h.address.split(',')[0];
+        labelEl.textContent = getHouseholdMapLabel(h);
 
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);
