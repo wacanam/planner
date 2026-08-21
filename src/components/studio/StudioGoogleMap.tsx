@@ -2469,10 +2469,6 @@ export function StudioGoogleMap({
       const isSelected = selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
       const accuracy = loc.accuracy ?? null;
       const isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
-      if (isCurrentUser) {
-        // Skip current user in member pins: current user's local location is handled separately by "My Location & Flashlight beam" toggle
-        continue;
-      }
 
       if (currentMarkersMap.has(locId)) {
         // Update existing marker in place
@@ -2491,25 +2487,26 @@ export function StudioGoogleMap({
           }
         }
 
-        entry.pinContainer.style.transform = isSelected ? 'scale(1.15)' : 'scale(1)';
+        entry.pinContainer.style.transform = isSelected ? 'scale(1.18)' : 'scale(1)';
         entry.pinContainer.style.filter = isSelected
-          ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.45))'
+          ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))'
           : isLive
-            ? 'drop-shadow(0 2px 6px rgba(16,185,129,0.45))'
-            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+            ? 'drop-shadow(0 2px 6px rgba(16,185,129,0.5))'
+            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))';
       } else {
         // Create new member marker
         const container = document.createElement('div');
         container.style.position = 'relative';
-        container.style.width = '0px';
-        container.style.height = '0px';
+        container.style.width = '36px';
+        container.style.height = '36px';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
         container.style.cursor = 'pointer';
 
         // Pulsing Live Halo
         const haloDiv = document.createElement('div');
         haloDiv.style.position = 'absolute';
-        haloDiv.style.left = '-22px';
-        haloDiv.style.bottom = '-22px';
         haloDiv.style.width = '44px';
         haloDiv.style.height = '44px';
         haloDiv.style.borderRadius = '50%';
@@ -2518,11 +2515,9 @@ export function StudioGoogleMap({
         haloDiv.style.pointerEvents = 'none';
         haloDiv.style.zIndex = '2';
 
-        // Pin Container
+        // Pin Container (Avatar or Initials)
         const pinContainer = document.createElement('div');
-        pinContainer.style.position = 'absolute';
-        pinContainer.style.left = '-16px';
-        pinContainer.style.bottom = '-16px';
+        pinContainer.style.position = 'relative';
         pinContainer.style.width = '32px';
         pinContainer.style.height = '32px';
         pinContainer.style.borderRadius = '50%';
@@ -2543,9 +2538,9 @@ export function StudioGoogleMap({
           .slice(0, 2);
 
         if (loc.avatarUrl) {
-          pinContainer.innerHTML = `<img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`;
+          pinContainer.innerHTML = `<img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none;" />`;
         } else {
-          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em;">${initials}</span>`;
+          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none;">${initials}</span>`;
         }
 
         // Live dot badge
@@ -2560,35 +2555,12 @@ export function StudioGoogleMap({
           liveBadge.style.backgroundColor = '#10B981';
           liveBadge.style.border = '1.5px solid #FFFFFF';
           liveBadge.style.boxShadow = '0 0 4px #10B981';
+          liveBadge.style.pointerEvents = 'none';
           pinContainer.appendChild(liveBadge);
         }
 
-        // Name Label Pill
-        const labelWrapper = document.createElement('div');
-        labelWrapper.style.position = 'absolute';
-        labelWrapper.style.top = '34px';
-        labelWrapper.style.left = '50%';
-        labelWrapper.style.transform = 'translateX(-50%)';
-        labelWrapper.style.pointerEvents = 'none';
-        labelWrapper.style.whiteSpace = 'nowrap';
-        labelWrapper.style.zIndex = '4';
-
-        const labelEl = document.createElement('div');
-        labelEl.style.backgroundColor = 'rgba(15, 23, 42, 0.85)';
-        labelEl.style.backdropFilter = 'blur(4px)';
-        labelEl.style.color = '#FFFFFF';
-        labelEl.style.fontSize = '9.5px';
-        labelEl.style.fontWeight = '700';
-        labelEl.style.padding = '1px 5px';
-        labelEl.style.borderRadius = '6px';
-        labelEl.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-        labelEl.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
-        labelEl.textContent = loc.userName + (isCurrentUser ? ' (You)' : '');
-        labelWrapper.appendChild(labelEl);
-
         container.appendChild(haloDiv);
         container.appendChild(pinContainer);
-        container.appendChild(labelWrapper);
 
         container.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2620,12 +2592,15 @@ export function StudioGoogleMap({
           zIndex: isSelected ? 80 : isLive ? 60 : 35,
         });
 
+        marker.addListener('gmp-click', () => {
+          onSelectMemberLocationRef.current?.(loc);
+        });
+
         currentMarkersMap.set(locId, {
           id: locId,
           marker,
           accuracyCircle,
           pinContainer,
-          labelEl,
         });
       }
     }

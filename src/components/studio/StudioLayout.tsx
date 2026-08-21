@@ -8,6 +8,7 @@ import {
   Home,
   MapPin,
   Milestone,
+  Navigation,
   Radio,
   Square,
   Trash2,
@@ -1322,14 +1323,14 @@ export function StudioLayout({
         </div>
       )}
 
-      {/* Selected Member Location Quick Info Card */}
+      {/* Selected Member Location Quick Info Card / Mobile Popup */}
       {selectedMemberLocation && (
-        <div className="absolute bottom-6 right-6 z-30 max-w-sm w-full pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="absolute bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div className="p-4 rounded-2xl bg-card border border-border shadow-2xl space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5 min-w-0">
                 <div className="relative shrink-0 mt-0.5">
-                  <Avatar className="h-9 w-9 rounded-xl border border-border">
+                  <Avatar className="h-10 w-10 rounded-xl border border-border">
                     {selectedMemberLocation.avatarUrl && (
                       <AvatarImage
                         src={selectedMemberLocation.avatarUrl}
@@ -1346,9 +1347,9 @@ export function StudioLayout({
                     </AvatarFallback>
                   </Avatar>
                   {selectedMemberLocation.isSharing && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-white dark:border-slate-900" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border border-white dark:border-slate-900" />
                     </span>
                   )}
                 </div>
@@ -1364,6 +1365,11 @@ export function StudioLayout({
                   <p className="text-xs text-muted-foreground truncate">
                     {selectedMemberLocation.groupName || 'Service Group'}
                   </p>
+                  {selectedMemberLocation.userEmail && (
+                    <p className="text-[11px] text-muted-foreground/80 truncate">
+                      {selectedMemberLocation.userEmail}
+                    </p>
+                  )}
                 </div>
               </div>
               <Button
@@ -1392,9 +1398,29 @@ export function StudioLayout({
               </div>
               {selectedMemberLocation.accuracy && (
                 <span className="text-[10px] font-mono text-muted-foreground">
-                  ±{Math.round(selectedMemberLocation.accuracy)}m
+                  ±{Math.round(selectedMemberLocation.accuracy)}m GPS
                 </span>
               )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-1 flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs font-semibold gap-1.5 rounded-xl h-8"
+                onClick={() => {
+                  setSearchedLocation({
+                    lat: selectedMemberLocation.latitude,
+                    lng: selectedMemberLocation.longitude,
+                    zoom: 19,
+                    timestamp: Date.now(),
+                  });
+                }}
+              >
+                <Navigation size={13} className="text-primary" />
+                <span>Center on Map</span>
+              </Button>
             </div>
           </div>
         </div>
