@@ -3,12 +3,12 @@
 import {
   Check,
   Flag,
+  Hexagon,
   Home,
   Info,
   MapPin,
   Milestone,
   MousePointer,
-  Square,
   Undo2,
   X,
 } from 'lucide-react';
@@ -44,7 +44,7 @@ const TOOL_CONFIG: Record<
   boundary: {
     title: 'Draw Territory Boundary',
     instruction: 'Tap around the perimeter on the map to define the polygon boundary.',
-    icon: Square,
+    icon: Hexagon,
     doneLabel: 'Complete Boundary',
   },
   road: {

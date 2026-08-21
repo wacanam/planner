@@ -6,12 +6,12 @@ import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { MapLandmark } from '@/types/api';
+import type { LandmarkType, MapLandmark } from '@/types/api';
 
 export interface LandmarkFormData {
   id?: string;
   label: string;
-  type: 'tree' | 'landmark' | 'school' | 'church' | 'store' | 'gate' | 'hazard' | 'other';
+  type: LandmarkType;
   lat: number;
   lng: number;
 }
@@ -26,7 +26,7 @@ interface StudioLandmarkDialogProps {
 }
 
 const CATEGORIES: Array<{
-  id: LandmarkFormData['type'];
+  id: LandmarkType;
   label: string;
   emoji: string;
   color: string;
@@ -38,10 +38,10 @@ const CATEGORIES: Array<{
     color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
   },
   {
-    id: 'tree',
-    label: 'Tree / Nature',
-    emoji: '🌳',
-    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    id: 'government',
+    label: 'Barangay / Gov',
+    emoji: '🏢',
+    color: 'bg-violet-50 text-violet-700 border-violet-200',
   },
   {
     id: 'school',
@@ -56,10 +56,64 @@ const CATEGORIES: Array<{
     color: 'bg-purple-50 text-purple-700 border-purple-200',
   },
   {
+    id: 'hospital',
+    label: 'Hospital / Clinic',
+    emoji: '🏥',
+    color: 'bg-rose-50 text-rose-700 border-rose-200',
+  },
+  {
     id: 'store',
     label: 'Store / Bakery',
     emoji: '🏪',
     color: 'bg-amber-50 text-amber-700 border-amber-200',
+  },
+  {
+    id: 'restaurant',
+    label: 'Restaurant / Eatery',
+    emoji: '🍽️',
+    color: 'bg-orange-50 text-orange-700 border-orange-200',
+  },
+  {
+    id: 'tree',
+    label: 'Tree / Nature',
+    emoji: '🌳',
+    color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  {
+    id: 'park',
+    label: 'Court / Park',
+    emoji: '🏀',
+    color: 'bg-green-50 text-green-700 border-green-200',
+  },
+  {
+    id: 'water',
+    label: 'Water Tower / Well',
+    emoji: '💧',
+    color: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+  },
+  {
+    id: 'bridge',
+    label: 'Bridge / Crossing',
+    emoji: '🌉',
+    color: 'bg-sky-50 text-sky-700 border-sky-200',
+  },
+  {
+    id: 'gas_station',
+    label: 'Gas Station / Fuel',
+    emoji: '⛽',
+    color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  },
+  {
+    id: 'transit',
+    label: 'Terminal / Bus Stop',
+    emoji: '🚌',
+    color: 'bg-teal-50 text-teal-700 border-teal-200',
+  },
+  {
+    id: 'building',
+    label: 'Condo / Building',
+    emoji: '🏢',
+    color: 'bg-slate-50 text-slate-700 border-slate-200',
   },
   {
     id: 'gate',
@@ -68,10 +122,16 @@ const CATEGORIES: Array<{
     color: 'bg-slate-50 text-slate-700 border-slate-200',
   },
   {
+    id: 'tower',
+    label: 'Tower / Antenna',
+    emoji: '🗼',
+    color: 'bg-stone-50 text-stone-700 border-stone-200',
+  },
+  {
     id: 'hazard',
     label: 'Caution / Dogs',
     emoji: '⚠️',
-    color: 'bg-rose-50 text-rose-700 border-rose-200',
+    color: 'bg-red-50 text-red-700 border-red-200',
   },
   {
     id: 'other',
@@ -81,6 +141,27 @@ const CATEGORIES: Array<{
   },
 ];
 
+const DEFAULT_LANDMARK_NAMES: Record<LandmarkType, string> = {
+  landmark: 'Monument',
+  government: 'Barangay Hall',
+  school: 'School',
+  church: 'Chapel',
+  hospital: 'Clinic',
+  store: 'Store',
+  restaurant: 'Eatery',
+  tree: 'Tree',
+  park: 'Court',
+  water: 'Water Tower',
+  bridge: 'Bridge',
+  gas_station: 'Gas Station',
+  transit: 'Bus Stop',
+  building: 'Building',
+  gate: 'Subdivision Gate',
+  tower: 'Cell Tower',
+  hazard: 'Caution: Dogs',
+  other: 'Landmark',
+};
+
 export function StudioLandmarkDialog({
   open,
   onOpenChange,
@@ -89,20 +170,31 @@ export function StudioLandmarkDialog({
   onSave,
   onDelete,
 }: StudioLandmarkDialogProps) {
-  const [label, setLabel] = useState(initialData?.label || '');
-  const [selectedType, setSelectedType] = useState<LandmarkFormData['type']>(
+  const [label, setLabel] = useState(
+    initialData?.label || DEFAULT_LANDMARK_NAMES[initialData?.type || 'landmark']
+  );
+  const [selectedType, setSelectedType] = useState<LandmarkType>(
     initialData?.type || 'landmark'
   );
 
   useEffect(() => {
     if (initialData) {
-      setLabel(initialData.label || '');
+      setLabel(
+        initialData.label || DEFAULT_LANDMARK_NAMES[initialData.type || 'landmark']
+      );
       setSelectedType(initialData.type || 'landmark');
     } else {
-      setLabel('');
+      setLabel(DEFAULT_LANDMARK_NAMES.landmark);
       setSelectedType('landmark');
     }
   }, [initialData, open]);
+
+  const handleSelectType = (type: LandmarkType) => {
+    setSelectedType(type);
+    if (!label || Object.values(DEFAULT_LANDMARK_NAMES).includes(label)) {
+      setLabel(DEFAULT_LANDMARK_NAMES[type]);
+    }
+  };
 
   const targetCoords =
     coordinates || (initialData ? { lat: initialData.lat, lng: initialData.lng } : null);
@@ -113,7 +205,7 @@ export function StudioLandmarkDialog({
 
     onSave({
       id: initialData?.id,
-      label: label.trim() || 'Landmark',
+      label: label.trim() || DEFAULT_LANDMARK_NAMES[selectedType],
       type: selectedType,
       lat: targetCoords.lat,
       lng: targetCoords.lng,
@@ -149,7 +241,7 @@ export function StudioLandmarkDialog({
           </Label>
           <Input
             id="landmark-label"
-            placeholder="e.g. Barangay Hall, Purok 3 Court, Big Mango Tree"
+            placeholder={`e.g. ${DEFAULT_LANDMARK_NAMES[selectedType]}, Purok 3 Court, Big Mango Tree`}
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             className="text-xs"
@@ -159,22 +251,22 @@ export function StudioLandmarkDialog({
 
         <div className="space-y-2">
           <Label className="text-xs font-semibold text-foreground">Category & Icon</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-60 overflow-y-auto p-0.5">
             {CATEGORIES.map((cat) => {
               const isSelected = selectedType === cat.id;
               return (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setSelectedType(cat.id)}
-                  className={`flex items-center gap-2 p-2 rounded-xl text-xs font-medium border transition-all text-left ${
+                  onClick={() => handleSelectType(cat.id)}
+                  className={`flex items-center gap-1.5 p-2 rounded-xl text-xs font-medium border transition-all text-left ${
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                       : 'bg-card hover:bg-muted/50 border-border text-foreground'
                   }`}
                 >
-                  <span className="text-sm">{cat.emoji}</span>
-                  <span className="truncate">{cat.label}</span>
+                  <span className="text-sm shrink-0">{cat.emoji}</span>
+                  <span className="truncate text-[11px]">{cat.label}</span>
                 </button>
               );
             })}

@@ -4,13 +4,13 @@ import {
   ExternalLink,
   Flag,
   FolderOpen,
+  Hexagon,
   Home,
   MapPin,
   Milestone,
   Navigation,
   Radio,
   Search,
-  Square,
   Users,
   X,
 } from 'lucide-react';
@@ -45,10 +45,9 @@ import {
   DEFAULT_BOUNDARY_DISPLAY,
   DEFAULT_STUDIO_LAYERS,
   resolveBoundaryDisplay,
-  StudioBasemapPopup,
   type StudioLayerSettings,
-} from './StudioBasemapPopup';
-import { StudioCameraControls } from './StudioCameraControls';
+  StudioMapToolbar,
+} from './StudioMapToolbar';
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
 
@@ -369,8 +368,14 @@ export function CongregationStudioLayout({
         />
       </div>
 
-      {/* Floating 3D Tilt & Heading Camera Controls */}
-      <StudioCameraControls
+      {/* Unified Floating Map Toolbar (Camera, Compass, GPS, Layers & Filters) */}
+      <StudioMapToolbar
+        mode={basemapMode}
+        onSelectMode={setBasemapMode}
+        layers={layers}
+        onChangeLayers={setLayers}
+        boundaryDisplay={boundaryDisplay}
+        onChangeBoundaryDisplay={setBoundaryDisplay}
         heading={camera.heading}
         tilt={camera.tilt}
         onSetHeading={handleSetHeading}
@@ -379,23 +384,13 @@ export function CongregationStudioLayout({
         onToggleLocation={toggleUserLocation}
       />
 
-      {/* Basemap & Layer Popup Switcher */}
-      <StudioBasemapPopup
-        mode={basemapMode}
-        onSelectMode={setBasemapMode}
-        layers={layers}
-        onChangeLayers={setLayers}
-        boundaryDisplay={boundaryDisplay}
-        onChangeBoundaryDisplay={setBoundaryDisplay}
-      />
-
       {/* Territory Directory Drawer / Slide-Over Sidebar */}
       {sidebarOpen && (
         <div className="absolute top-16 left-4 bottom-20 sm:bottom-6 w-84 z-30 pointer-events-auto animate-in slide-in-from-left-4 duration-200">
           <div className="h-full flex flex-col bg-card/95 backdrop-blur-md border border-border shadow-2xl rounded-3xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Square size={16} className="text-primary" />
+                <Hexagon size={16} className="text-primary" />
                 <span className="font-bold text-sm text-foreground">Territory Navigator</span>
               </div>
               <Button
@@ -510,7 +505,7 @@ export function CongregationStudioLayout({
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
-                  <Square size={16} />
+                  <Hexagon size={16} />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">

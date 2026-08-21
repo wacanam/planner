@@ -8,6 +8,18 @@ export interface MapPoint {
   lng: number;
 }
 
+export type RoadType =
+  | 'street'
+  | 'avenue'
+  | 'highway'
+  | 'dirt'
+  | 'walkway'
+  | 'alley'
+  | 'bridge'
+  | 'stairs'
+  | 'trail'
+  | 'waterway';
+
 export interface MapRoad {
   id: string;
   name?: string;
@@ -15,9 +27,29 @@ export interface MapRoad {
   points: MapPoint[];
 }
 
+export type LandmarkType =
+  | 'tree'
+  | 'hazard'
+  | 'landmark'
+  | 'gate'
+  | 'school'
+  | 'church'
+  | 'store'
+  | 'hospital'
+  | 'restaurant'
+  | 'park'
+  | 'government'
+  | 'water'
+  | 'bridge'
+  | 'gas_station'
+  | 'transit'
+  | 'tower'
+  | 'building'
+  | 'other';
+
 export interface MapLandmark {
   id: string;
-  type: 'tree' | 'hazard' | 'landmark' | 'gate' | 'school' | 'church' | 'store' | 'other';
+  type: LandmarkType;
   lat: number;
   lng: number;
   label?: string;

@@ -178,6 +178,14 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
           <path d="M10 21v-4a2 2 0 0 1 4 0v4"/>
         </svg>`,
       };
+    case 'hospital':
+      return {
+        bg: '#F43F5E',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M12 6v12M6 12h12"/>
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+        </svg>`,
+      };
     case 'store':
       return {
         bg: '#F59E0B',
@@ -186,6 +194,88 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
           <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
           <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
           <path d="M2 7h20"/>
+        </svg>`,
+      };
+    case 'restaurant':
+      return {
+        bg: '#EA580C',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/>
+          <path d="M15 2v12"/>
+          <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+          <path d="M3 2v20"/>
+        </svg>`,
+      };
+    case 'park':
+      return {
+        bg: '#059669',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+          <path d="M2 12h20"/>
+        </svg>`,
+      };
+    case 'government':
+      return {
+        bg: '#7C3AED',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+          <path d="M10 6h4M10 10h4M10 14h4M10 18h4"/>
+        </svg>`,
+      };
+    case 'water':
+      return {
+        bg: '#06B6D4',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+        </svg>`,
+      };
+    case 'bridge':
+      return {
+        bg: '#0284C7',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
+          <path d="M4 12h16"/>
+          <path d="M12 12v7"/>
+        </svg>`,
+      };
+    case 'gas_station':
+      return {
+        bg: '#D97706',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M3 22h12"/>
+          <path d="M4 22V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v18"/>
+          <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
+          <path d="M8 6h2"/>
+        </svg>`,
+      };
+    case 'transit':
+      return {
+        bg: '#0D9488',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M8 6v6M16 6v6M4 18v3M20 18v3"/>
+          <path d="M4 11V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/>
+          <path d="M4 11h16a2 2 0 0 1 2 2v5H2v-5a2 2 0 0 1 2-2Z"/>
+        </svg>`,
+      };
+    case 'building':
+      return {
+        bg: '#475569',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
+          <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>
+        </svg>`,
+      };
+    case 'tower':
+      return {
+        bg: '#78716C',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M4.93 4.93a10 10 0 0 1 14.14 0"/>
+          <path d="M7.76 7.76a6 6 0 0 1 8.48 0"/>
+          <circle cx="12" cy="12" r="2"/>
+          <path d="M12 14v8"/>
         </svg>`,
       };
     case 'gate':
@@ -206,9 +296,21 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
           <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>`,
       };
-    default:
+    case 'landmark':
       return {
         bg: '#6366F1',
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <line x1="2" x2="22" y1="20" y2="20"/>
+          <path d="M4 16v-6"/>
+          <path d="M9 16v-6"/>
+          <path d="M15 16v-6"/>
+          <path d="M20 16v-6"/>
+          <path d="M2 10l10-6 10 6"/>
+        </svg>`,
+      };
+    default:
+      return {
+        bg: '#F97316',
         svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <circle cx="12" cy="10" r="3"/>
           <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
@@ -425,11 +527,14 @@ export function CongregationGoogleMap({
           isFractionalZoomEnabled: true,
           heading: 0,
           tilt: 0,
+          disableDefaultUI: true,
           rotateControl: false,
           fullscreenControl: false,
           streetViewControl: false,
           mapTypeControl: false,
-          zoomControl: true,
+          zoomControl: false,
+          cameraControl: false,
+          scaleControl: false,
           gestureHandling: 'greedy',
         });
 
@@ -891,8 +996,8 @@ export function CongregationGoogleMap({
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1D4ED8' : '#1E293B';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '3px #FFFFFF';
-        labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.2)';
+        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.textContent = h.houseNumber ? `#${h.houseNumber}` : h.address.split(',')[0];
 
         labelWrapper.appendChild(labelEl);
@@ -1022,8 +1127,8 @@ export function CongregationGoogleMap({
           labelEl.style.fontWeight = '700';
           labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
           labelEl.style.paintOrder = 'stroke fill';
-          labelEl.style.webkitTextStroke = '3px #FFFFFF';
-          labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.2)';
+          labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+          labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
           labelEl.textContent = landmark.label || 'Landmark';
 
           labelWrapper.appendChild(labelEl);
@@ -1051,11 +1156,62 @@ export function CongregationGoogleMap({
         ann.roads.forEach((road) => {
           if (!road.points || road.points.length < 2) return;
           const isSelected = selectedRoadId === road.id;
+          let casingColor = '#334155';
+          let surfaceColor = '#FFFFFF';
+          let casingWeight = isSelected ? 9 : 8;
+          let surfaceWeight = 5;
+
+          if (road.color === 'avenue') {
+            casingColor = '#B45309';
+            surfaceColor = '#FEF08A';
+            casingWeight = isSelected ? 10 : 9;
+            surfaceWeight = 6;
+          } else if (road.color === 'highway') {
+            casingColor = '#1E40AF';
+            surfaceColor = '#BFDBFE';
+            casingWeight = isSelected ? 11 : 10;
+            surfaceWeight = 7;
+          } else if (road.color === 'dirt') {
+            casingColor = '#78350F';
+            surfaceColor = '#FDE68A';
+            casingWeight = isSelected ? 8 : 7;
+            surfaceWeight = 4.5;
+          } else if (road.color === 'walkway') {
+            casingColor = '#134E4A';
+            surfaceColor = '#CCFBF1';
+            casingWeight = isSelected ? 6 : 5;
+            surfaceWeight = 3.5;
+          } else if (road.color === 'alley') {
+            casingColor = '#3F3F46';
+            surfaceColor = '#E4E4E7';
+            casingWeight = isSelected ? 7 : 6;
+            surfaceWeight = 4;
+          } else if (road.color === 'stairs') {
+            casingColor = '#5B21B6';
+            surfaceColor = '#EDE9FE';
+            casingWeight = isSelected ? 6 : 5;
+            surfaceWeight = 3.5;
+          } else if (road.color === 'bridge') {
+            casingColor = '#1E1B4B';
+            surfaceColor = '#E0E7FF';
+            casingWeight = isSelected ? 10 : 9;
+            surfaceWeight = 6;
+          } else if (road.color === 'trail') {
+            casingColor = '#14532D';
+            surfaceColor = '#DCFCE7';
+            casingWeight = isSelected ? 6 : 5;
+            surfaceWeight = 3.5;
+          } else if (road.color === 'waterway') {
+            casingColor = '#075985';
+            surfaceColor = '#E0F2FE';
+            casingWeight = isSelected ? 8 : 7;
+            surfaceWeight = 4.5;
+          }
 
           const casing = new google.maps.Polyline({
             path: road.points,
-            strokeColor: isSelected ? '#1D4ED8' : '#334155',
-            strokeWeight: isSelected ? 9 : 8,
+            strokeColor: isSelected ? '#1D4ED8' : casingColor,
+            strokeWeight: isSelected ? casingWeight + 1 : casingWeight,
             strokeOpacity: 0.95,
             zIndex: isSelected ? 18 : 12,
             map,
@@ -1063,8 +1219,8 @@ export function CongregationGoogleMap({
 
           const pavement = new google.maps.Polyline({
             path: road.points,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 5,
+            strokeColor: surfaceColor,
+            strokeWeight: surfaceWeight,
             strokeOpacity: 1.0,
             zIndex: isSelected ? 19 : 13,
             map,
@@ -1083,21 +1239,25 @@ export function CongregationGoogleMap({
             const midIdx = Math.floor(road.points.length / 2);
             const midPt = road.points[midIdx];
 
-            const callout = document.createElement('div');
-            callout.style.transform = 'translate(-50%, -100%)';
-            callout.style.fontSize = '9.5px';
-            callout.style.fontWeight = '700';
-            callout.style.padding = '1px 5px';
-            callout.style.borderRadius = '4px';
-            callout.style.backgroundColor = isSelected ? '#EFF6FF' : '#FFFFFF';
-            callout.style.color = isSelected ? '#1E3A8A' : '#1E293B';
-            callout.style.border = isSelected ? '1.5px solid #3B82F6' : '1px solid #CBD5E1';
-            callout.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-            callout.style.whiteSpace = 'nowrap';
-            callout.style.cursor = 'pointer';
-            callout.textContent = road.name;
+            const labelText = document.createElement('div');
+            labelText.style.transform = 'translate(-50%, -50%)';
+            labelText.style.fontSize = '11px';
+            labelText.style.fontWeight = '800';
+            labelText.style.color = isSelected ? '#1D4ED8' : '#334155';
+            labelText.style.paintOrder = 'stroke fill';
+            labelText.style.webkitTextStroke = isSelected ? '1.75px #DBEAFE' : '1.75px #FFFFFF';
+            labelText.style.textShadow = isSelected
+              ? '0 0 3px #93C5FD, 0 1px 2px rgba(0,0,0,0.25)'
+              : '0 1px 2px rgba(0,0,0,0.25)';
+            labelText.style.letterSpacing = '0.02em';
+            labelText.style.whiteSpace = 'nowrap';
+            labelText.style.cursor = 'pointer';
+            labelText.style.userSelect = 'none';
+            labelText.style.transition =
+              'color 0.15s ease-out, text-shadow 0.15s ease-out, -webkit-text-stroke 0.15s ease-out';
+            labelText.textContent = road.name;
 
-            callout.addEventListener('click', (e) => {
+            labelText.addEventListener('click', (e) => {
               e.stopPropagation();
               handleSelectRoadRef.current(road, territory);
             });
@@ -1105,7 +1265,7 @@ export function CongregationGoogleMap({
             const marker = new AdvancedMarkerElement({
               map,
               position: { lat: midPt.lat, lng: midPt.lng },
-              content: callout,
+              content: labelText,
               zIndex: isSelected ? 25 : 15,
             });
             roadLabelMarkersRef.current.push(marker);
@@ -1159,8 +1319,8 @@ export function CongregationGoogleMap({
           labelEl.style.fontWeight = '700';
           labelEl.style.color = '#065F46';
           labelEl.style.paintOrder = 'stroke fill';
-          labelEl.style.webkitTextStroke = '3px #FFFFFF';
-          labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.2)';
+          labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+          labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
           labelEl.textContent = sf.label ? `${sf.label} (#${territory.number})` : `Meeting Point #${territory.number}`;
 
           labelWrapper.appendChild(labelEl);

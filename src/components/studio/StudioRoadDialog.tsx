@@ -6,9 +6,9 @@ import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { MapRoad } from '@/types/api';
+import type { MapRoad, RoadType } from '@/types/api';
 
-export type RoadType = 'street' | 'avenue' | 'dirt' | 'walkway';
+export type { RoadType };
 
 export interface RoadFormData {
   id?: string;
@@ -24,6 +24,19 @@ interface StudioRoadDialogProps {
   onSave: (data: RoadFormData) => void;
   onDelete?: (id: string) => void;
 }
+
+const DEFAULT_ROAD_NAMES: Record<RoadType, string> = {
+  street: 'Street',
+  avenue: 'Avenue',
+  highway: 'Highway',
+  alley: 'Alley',
+  dirt: 'Dirt Road',
+  walkway: 'Walkway',
+  stairs: 'Stairs',
+  bridge: 'Bridge',
+  trail: 'Nature Trail',
+  waterway: 'Waterway',
+};
 
 const ROAD_TYPES: Array<{
   id: RoadType;
@@ -47,6 +60,20 @@ const ROAD_TYPES: Array<{
     previewClass: 'bg-amber-500 border-amber-700 text-white',
   },
   {
+    id: 'highway',
+    label: 'Highway / Expressway',
+    emoji: '🔵',
+    description: 'Major multi-lane thoroughfare with blue tint',
+    previewClass: 'bg-blue-600 border-blue-800 text-white',
+  },
+  {
+    id: 'alley',
+    label: 'Alley / Interior Lane',
+    emoji: '🏘️',
+    description: 'Narrow residential interior access corridor',
+    previewClass: 'bg-zinc-600 border-zinc-800 text-white',
+  },
+  {
     id: 'dirt',
     label: 'Dirt Road / Rural Path',
     emoji: '🚜',
@@ -57,8 +84,36 @@ const ROAD_TYPES: Array<{
     id: 'walkway',
     label: 'Walkway / Footpath',
     emoji: '🚶',
-    description: 'Narrow pedestrian access alley or stairs',
+    description: 'Narrow pedestrian access alley or pathway',
     previewClass: 'bg-teal-700 border-teal-900 text-white',
+  },
+  {
+    id: 'stairs',
+    label: 'Stairs / Steps',
+    emoji: '🪜',
+    description: 'Pedestrian steps on hillside or overpass',
+    previewClass: 'bg-purple-700 border-purple-900 text-white',
+  },
+  {
+    id: 'bridge',
+    label: 'Bridge / Flyover',
+    emoji: '🌉',
+    description: 'Elevated roadway or bridge crossing',
+    previewClass: 'bg-indigo-700 border-indigo-900 text-white',
+  },
+  {
+    id: 'trail',
+    label: 'Nature / Forest Trail',
+    emoji: '🌲',
+    description: 'Unpaved green park or mountain hiking trail',
+    previewClass: 'bg-emerald-700 border-emerald-900 text-white',
+  },
+  {
+    id: 'waterway',
+    label: 'River / Ferry Route',
+    emoji: '🚤',
+    description: 'Water corridor or ferry channel',
+    previewClass: 'bg-sky-600 border-sky-800 text-white',
   },
 ];
 
@@ -70,26 +125,39 @@ export function StudioRoadDialog({
   onSave,
   onDelete,
 }: StudioRoadDialogProps) {
-  const [name, setName] = useState(initialData?.name || '');
+  const [name, setName] = useState(
+    initialData?.name || DEFAULT_ROAD_NAMES[(initialData?.color as RoadType) || 'street']
+  );
   const [selectedType, setSelectedType] = useState<RoadType>(
     (initialData?.color as RoadType) || 'street'
   );
 
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || '');
+      setName(
+        initialData.name ||
+          DEFAULT_ROAD_NAMES[(initialData.color as RoadType) || 'street']
+      );
       setSelectedType((initialData.color as RoadType) || 'street');
     } else {
-      setName('');
+      setName(DEFAULT_ROAD_NAMES.street);
       setSelectedType('street');
     }
   }, [initialData, open]);
+
+  const handleSelectType = (type: RoadType) => {
+    setSelectedType(type);
+    // If the name is empty or is currently one of the default road names, update it automatically
+    if (!name || Object.values(DEFAULT_ROAD_NAMES).includes(name)) {
+      setName(DEFAULT_ROAD_NAMES[type]);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       id: initialData?.id,
-      name: name.trim() || 'Street',
+      name: name.trim() || DEFAULT_ROAD_NAMES[selectedType],
       type: selectedType,
     });
     onOpenChange(false);
@@ -122,7 +190,7 @@ export function StudioRoadDialog({
           </Label>
           <Input
             id="road-name"
-            placeholder="e.g. Zone 1 Main Street, Purok 2 Access Road, Mango Lane"
+            placeholder={`e.g. ${DEFAULT_ROAD_NAMES[selectedType]}, Main St, Mango Lane`}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="text-xs"
@@ -132,14 +200,14 @@ export function StudioRoadDialog({
 
         <div className="space-y-2">
           <Label className="text-xs font-semibold text-foreground">Road Style</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-0.5">
             {ROAD_TYPES.map((rt) => {
               const isSelected = selectedType === rt.id;
               return (
                 <button
                   key={rt.id}
                   type="button"
-                  onClick={() => setSelectedType(rt.id)}
+                  onClick={() => handleSelectType(rt.id)}
                   className={`flex flex-col p-2.5 rounded-xl text-xs font-medium border transition-all text-left space-y-1 ${
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary shadow-xs'

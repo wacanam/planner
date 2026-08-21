@@ -6,6 +6,7 @@ import {
   Clock,
   Eye,
   Flag,
+  Hexagon,
   Home,
   Map as MapIcon,
   MapPin,
@@ -17,7 +18,6 @@ import {
   Radio,
   Redo2,
   Search,
-  Square,
   Timer,
   Undo2,
   Users,
@@ -199,7 +199,7 @@ export function StudioTopBar({
     servantOnly?: boolean;
   }> = [
     { id: 'pointer', label: 'Select', icon: MousePointer },
-    { id: 'boundary', label: 'Boundary', icon: Square, servantOnly: true },
+    { id: 'boundary', label: 'Boundary', icon: Hexagon, servantOnly: true },
     { id: 'road', label: 'Road', icon: Milestone },
     { id: 'pin', label: 'House Pin', icon: Home },
     { id: 'landmark', label: 'Landmark', icon: MapPin },

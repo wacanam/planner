@@ -220,6 +220,14 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
           <path d="M10 21v-4a2 2 0 0 1 4 0v4"/>
         </svg>`,
       };
+    case 'hospital':
+      return {
+        bg: '#F43F5E', // Rose
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M12 6v12M6 12h12"/>
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+        </svg>`,
+      };
     case 'store':
       return {
         bg: '#F59E0B', // Amber
@@ -228,6 +236,88 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
           <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
           <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
           <path d="M2 7h20"/>
+        </svg>`,
+      };
+    case 'restaurant':
+      return {
+        bg: '#EA580C', // Orange
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/>
+          <path d="M15 2v12"/>
+          <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+          <path d="M3 2v20"/>
+        </svg>`,
+      };
+    case 'park':
+      return {
+        bg: '#059669', // Emerald Dark
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+          <path d="M2 12h20"/>
+        </svg>`,
+      };
+    case 'government':
+      return {
+        bg: '#7C3AED', // Violet
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+          <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+          <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+          <path d="M10 6h4M10 10h4M10 14h4M10 18h4"/>
+        </svg>`,
+      };
+    case 'water':
+      return {
+        bg: '#06B6D4', // Cyan
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+        </svg>`,
+      };
+    case 'bridge':
+      return {
+        bg: '#0284C7', // Sky
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
+          <path d="M4 12h16"/>
+          <path d="M12 12v7"/>
+        </svg>`,
+      };
+    case 'gas_station':
+      return {
+        bg: '#D97706', // Amber Dark
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M3 22h12"/>
+          <path d="M4 22V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v18"/>
+          <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
+          <path d="M8 6h2"/>
+        </svg>`,
+      };
+    case 'transit':
+      return {
+        bg: '#0D9488', // Teal
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M8 6v6M16 6v6M4 18v3M20 18v3"/>
+          <path d="M4 11V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/>
+          <path d="M4 11h16a2 2 0 0 1 2 2v5H2v-5a2 2 0 0 1 2-2Z"/>
+        </svg>`,
+      };
+    case 'building':
+      return {
+        bg: '#475569', // Slate
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
+          <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>
+        </svg>`,
+      };
+    case 'tower':
+      return {
+        bg: '#78716C', // Stone
+        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <path d="M4.93 4.93a10 10 0 0 1 14.14 0"/>
+          <path d="M7.76 7.76a6 6 0 0 1 8.48 0"/>
+          <circle cx="12" cy="12" r="2"/>
+          <path d="M12 14v8"/>
         </svg>`,
       };
     case 'gate':
@@ -241,7 +331,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
       };
     case 'hazard':
       return {
-        bg: '#EF4444', // Rose
+        bg: '#EF4444', // Rose / Red
         svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
           <line x1="12" y1="9" x2="12" y2="13"/>
@@ -587,8 +677,6 @@ export function StudioGoogleMap({
       centerline: google.maps.Polyline;
       highlightAura?: google.maps.Polyline | null;
       labelMarker?: google.maps.marker.AdvancedMarkerElement | null;
-      labelDot?: HTMLDivElement | null;
-      labelStem?: HTMLDivElement | null;
       labelText?: HTMLDivElement | null;
       casingColor: string;
       surfaceColor: string;
@@ -786,11 +874,14 @@ export function StudioGoogleMap({
           isFractionalZoomEnabled: true,
           heading: 0,
           tilt: 0,
+          disableDefaultUI: true,
           rotateControl: false,
           fullscreenControl: false,
           streetViewControl: false,
           mapTypeControl: false,
-          zoomControl: true,
+          zoomControl: false,
+          cameraControl: false,
+          scaleControl: false,
           gestureHandling: 'greedy',
         });
 
@@ -1496,8 +1587,8 @@ export function StudioGoogleMap({
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1D4ED8' : '#1E293B';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '3px #FFFFFF';
-        labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
+        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
         labelEl.style.transition = 'color 0.15s ease-out';
@@ -1708,8 +1799,14 @@ export function StudioGoogleMap({
           casingColor = '#B45309';
           surfaceColor = '#FEF08A';
           centerColor = '#D97706';
-          casingWeight = 10.5;
-          surfaceWeight = 7;
+          casingWeight = 11;
+          surfaceWeight = 7.5;
+        } else if (road.color === 'highway' || road.color === '#2563EB') {
+          casingColor = '#1E40AF';
+          surfaceColor = '#BFDBFE';
+          centerColor = '#3B82F6';
+          casingWeight = 12;
+          surfaceWeight = 8;
         } else if (road.color === 'dirt' || road.color === '#78350F') {
           casingColor = '#78350F';
           surfaceColor = '#FDE68A';
@@ -1717,11 +1814,41 @@ export function StudioGoogleMap({
           casingWeight = 9;
           surfaceWeight = 5.5;
         } else if (road.color === 'walkway' || road.color === '#0D9488') {
-          casingColor = '#334155';
+          casingColor = '#134E4A';
           surfaceColor = '#CCFBF1';
           centerColor = '#0F766E';
           casingWeight = 6.5;
           surfaceWeight = 4;
+        } else if (road.color === 'alley' || road.color === '#52525B') {
+          casingColor = '#3F3F46';
+          surfaceColor = '#E4E4E7';
+          centerColor = '#71717A';
+          casingWeight = 7.5;
+          surfaceWeight = 4.5;
+        } else if (road.color === 'stairs' || road.color === '#7C3AED') {
+          casingColor = '#5B21B6';
+          surfaceColor = '#EDE9FE';
+          centerColor = '#7C3AED';
+          casingWeight = 6.5;
+          surfaceWeight = 4;
+        } else if (road.color === 'bridge' || road.color === '#4F46E5') {
+          casingColor = '#1E1B4B';
+          surfaceColor = '#E0E7FF';
+          centerColor = '#4338CA';
+          casingWeight = 11.5;
+          surfaceWeight = 7.5;
+        } else if (road.color === 'trail' || road.color === '#15803D') {
+          casingColor = '#14532D';
+          surfaceColor = '#DCFCE7';
+          centerColor = '#16A34A';
+          casingWeight = 6.5;
+          surfaceWeight = 4;
+        } else if (road.color === 'waterway' || road.color === '#0284C7') {
+          casingColor = '#075985';
+          surfaceColor = '#E0F2FE';
+          centerColor = '#0284C7';
+          casingWeight = 8.5;
+          surfaceWeight = 5.5;
         }
 
         const isSelected = selectedRoadId === road.id;
@@ -1831,71 +1958,33 @@ export function StudioGoogleMap({
         roadPolylinesRef.current.push(casing, pavement, centerline);
 
         let labelMarker: google.maps.marker.AdvancedMarkerElement | null = null;
-        let labelDot: HTMLDivElement | null = null;
-        let labelStem: HTMLDivElement | null = null;
         let labelText: HTMLDivElement | null = null;
 
-        // Place road callout that POINTS to the road, floating above without overlaying the pavement
+        // Place clean text-with-stroke road label (no chip box, no stem/pointer)
         if (road.name) {
           const midIdx = Math.floor(road.points.length / 2);
           const midPt = road.points[midIdx];
 
-          // Zero-width/height container rooted at the road point
-          const roadCallout = document.createElement('div');
-          roadCallout.style.position = 'relative';
-          roadCallout.style.width = '0px';
-          roadCallout.style.height = '0px';
-          roadCallout.style.cursor = isPointerMode ? 'pointer' : 'default';
-          roadCallout.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
-
-          labelDot = document.createElement('div');
-          labelDot.style.position = 'absolute';
-          labelDot.style.left = '-3px';
-          labelDot.style.top = '-3px';
-          labelDot.style.width = '6px';
-          labelDot.style.height = '6px';
-          labelDot.style.borderRadius = '50%';
-          labelDot.style.backgroundColor = isSelected ? '#2563EB' : casingColor;
-          labelDot.style.border = '1px solid #FFFFFF';
-          labelDot.style.boxShadow = '0 1px 2px rgba(0,0,0,0.3)';
-          labelDot.style.zIndex = '2';
-          labelDot.style.transition = 'background-color 0.15s ease-out';
-          roadCallout.appendChild(labelDot);
-
-          labelStem = document.createElement('div');
-          labelStem.style.position = 'absolute';
-          labelStem.style.left = '-0.5px';
-          labelStem.style.bottom = '3px';
-          labelStem.style.width = '1px';
-          labelStem.style.height = '12px';
-          labelStem.style.backgroundColor = isSelected ? '#2563EB' : casingColor;
-          labelStem.style.opacity = '0.7';
-          labelStem.style.zIndex = '1';
-          labelStem.style.transition = 'background-color 0.15s ease-out';
-          roadCallout.appendChild(labelStem);
-
           labelText = document.createElement('div');
-          labelText.style.position = 'absolute';
-          labelText.style.left = '50%';
-          labelText.style.bottom = '15px';
-          labelText.style.transform = 'translateX(-50%)';
+          labelText.style.transform = 'translate(-50%, -50%)';
           labelText.style.whiteSpace = 'nowrap';
-          labelText.style.fontSize = '9.5px';
-          labelText.style.fontWeight = '700';
-          labelText.style.color = isSelected ? '#1E3A8A' : '#1E293B';
-          labelText.style.backgroundColor = isSelected ? '#EFF6FF' : '#FFFFFF';
-          labelText.style.padding = '1px 5px';
-          labelText.style.borderRadius = '4px';
-          labelText.style.border = isSelected ? '1.5px solid #3B82F6' : '1px solid #CBD5E1';
-          labelText.style.boxShadow = isSelected
-            ? '0 2px 6px rgba(37,99,235,0.35)'
-            : '0 1px 3px rgba(0,0,0,0.18)';
-          labelText.style.letterSpacing = '-0.01em';
-          labelText.style.transition = 'all 0.15s ease-out';
+          labelText.style.fontSize = '11px';
+          labelText.style.fontWeight = '800';
+          labelText.style.color = isSelected ? '#1D4ED8' : '#334155';
+          labelText.style.paintOrder = 'stroke fill';
+          labelText.style.webkitTextStroke = isSelected ? '1.75px #DBEAFE' : '1.75px #FFFFFF';
+          labelText.style.textShadow = isSelected
+            ? '0 0 3px #93C5FD, 0 1px 2px rgba(0,0,0,0.25)'
+            : '0 1px 2px rgba(0,0,0,0.25)';
+          labelText.style.letterSpacing = '0.02em';
+          labelText.style.cursor = isPointerMode ? 'pointer' : 'default';
+          labelText.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
+          labelText.style.userSelect = 'none';
+          labelText.style.transition =
+            'color 0.15s ease-out, text-shadow 0.15s ease-out, -webkit-text-stroke 0.15s ease-out';
           labelText.textContent = road.name;
-          roadCallout.appendChild(labelText);
 
-          roadCallout.addEventListener('click', (e) => {
+          labelText.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isPrintViewportActiveRef.current) return;
             if (activeToolRef.current === 'pointer') {
@@ -1907,7 +1996,7 @@ export function StudioGoogleMap({
             map,
             position: { lat: midPt.lat, lng: midPt.lng },
             title: road.name,
-            content: roadCallout,
+            content: labelText,
             zIndex: isSelected ? 30 : 18,
           });
           roadLabelMarkersRef.current.push(labelMarker);
@@ -1920,8 +2009,6 @@ export function StudioGoogleMap({
           centerline,
           highlightAura,
           labelMarker,
-          labelDot,
-          labelStem,
           labelText,
           casingColor,
           surfaceColor,
@@ -2016,8 +2103,8 @@ export function StudioGoogleMap({
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '3px #FFFFFF';
-        labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
+        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
         labelEl.style.transition = 'color 0.15s ease-out';
@@ -2111,8 +2198,8 @@ export function StudioGoogleMap({
         labelEl.style.fontWeight = '700';
         labelEl.style.color = '#065F46';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '3px #FFFFFF';
-        labelEl.style.textShadow = '0 0 3px #FFFFFF, 0 0 3px #FFFFFF, 0 1px 2px rgba(0,0,0,0.25)';
+        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
         labelEl.textContent = sf.label || 'Start Meeting Point';
@@ -2195,16 +2282,14 @@ export function StudioGoogleMap({
         zIndex: isSelected ? 16 : 12,
       });
       if (item.labelMarker) {
-        item.labelMarker.zIndex = isSelected ? 20 : 15;
-      }
-      if (item.labelDot) {
-        item.labelDot.style.backgroundColor = isSelected ? '#2563EB' : item.casingColor;
-      }
-      if (item.labelStem) {
-        item.labelStem.style.backgroundColor = isSelected ? '#2563EB' : item.casingColor;
+        item.labelMarker.zIndex = isSelected ? 30 : 18;
       }
       if (item.labelText) {
-        item.labelText.style.color = isSelected ? '#1D4ED8' : '#1E293B';
+        item.labelText.style.color = isSelected ? '#1D4ED8' : '#334155';
+        item.labelText.style.webkitTextStroke = isSelected ? '1.75px #DBEAFE' : '1.75px #FFFFFF';
+        item.labelText.style.textShadow = isSelected
+          ? '0 0 3px #93C5FD, 0 1px 2px rgba(0,0,0,0.25)'
+          : '0 1px 2px rgba(0,0,0,0.25)';
       }
     });
   }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);

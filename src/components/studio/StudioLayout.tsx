@@ -5,12 +5,12 @@ import {
   Clock,
   Edit,
   Flag,
+  Hexagon,
   Home,
   MapPin,
   Milestone,
   Navigation,
   Radio,
-  Square,
   Trash2,
   Users,
   X,
@@ -64,11 +64,10 @@ import {
   DEFAULT_BOUNDARY_DISPLAY,
   DEFAULT_STUDIO_LAYERS,
   resolveBoundaryDisplay,
-  StudioBasemapPopup,
   type StudioLayerSettings,
-} from './StudioBasemapPopup';
+  StudioMapToolbar,
+} from './StudioMapToolbar';
 import { StudioBoundaryDialog } from './StudioBoundaryDialog';
-import { StudioCameraControls } from './StudioCameraControls';
 import { StudioContextActionCard } from './StudioContextActionCard';
 import { getTerritoryBoundaries, normalizePolygons, StudioGoogleMap } from './StudioGoogleMap';
 import { StudioLandmarkDialog } from './StudioLandmarkDialog';
@@ -904,24 +903,20 @@ export function StudioLayout({
         />
       </div>
 
-      {/* Floating 3D Tilt & Heading Camera Controls */}
-      <StudioCameraControls
-        heading={camera.heading}
-        tilt={camera.tilt}
-        onSetHeading={handleSetHeading}
-        onSetTilt={handleSetTilt}
-        isTrackingLocation={isTrackingLocation}
-        onToggleLocation={handleLocationButtonClick}
-      />
-
-      {/* Basemap & Layer Popup Switcher */}
-      <StudioBasemapPopup
+      {/* Unified Floating Map Toolbar (Camera, Compass, GPS, Layers & Filters) */}
+      <StudioMapToolbar
         mode={basemapMode}
         onSelectMode={setBasemapMode}
         layers={layers}
         onChangeLayers={setLayers}
         boundaryDisplay={boundaryDisplay}
         onChangeBoundaryDisplay={handleUpdateBoundaryDisplay}
+        heading={camera.heading}
+        tilt={camera.tilt}
+        onSetHeading={handleSetHeading}
+        onSetTilt={handleSetTilt}
+        isTrackingLocation={isTrackingLocation}
+        onToggleLocation={handleLocationButtonClick}
       />
 
       {/* Left Workspace Drawer */}
@@ -1119,7 +1114,7 @@ export function StudioLayout({
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
                 <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">
-                  <Square size={16} />
+                  <Hexagon size={16} />
                 </div>
                 <div>
                   <p className="font-bold text-sm text-foreground leading-snug">
