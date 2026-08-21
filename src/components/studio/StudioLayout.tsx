@@ -253,20 +253,6 @@ export function StudioLayout({
     toggleTracking: toggleUserLocation,
   } = useUserLocation();
 
-  const effectiveUserLocation = useMemo(() => {
-    if (userLocation) return userLocation;
-    if (isSharingLocation && sharedLocationCoords) {
-      return {
-        lat: sharedLocationCoords.lat,
-        lng: sharedLocationCoords.lng,
-        accuracy: sharedLocationCoords.accuracy,
-      };
-    }
-    return null;
-  }, [userLocation, isSharingLocation, sharedLocationCoords]);
-
-  const effectiveUserHeading = userHeading ?? sharedLocationCoords?.heading ?? null;
-
   const hasInitiallyCenteredUserRef = useRef(false);
 
   // Search navigation state
@@ -277,23 +263,21 @@ export function StudioLayout({
     timestamp: number;
   } | null>(null);
 
-  // Pan to user location when tracking or sharing activates
+  // Pan to user location when My Location tracking activates
   useEffect(() => {
-    const loc = effectiveUserLocation;
-    const isTracking = isTrackingLocation || isSharingLocation;
-    if (loc && isTracking && !hasInitiallyCenteredUserRef.current) {
+    if (userLocation && isTrackingLocation && !hasInitiallyCenteredUserRef.current) {
       hasInitiallyCenteredUserRef.current = true;
       setSearchedLocation({
-        lat: loc.lat,
-        lng: loc.lng,
+        lat: userLocation.lat,
+        lng: userLocation.lng,
         zoom: 18,
         timestamp: Date.now(),
       });
     }
-    if (!isTracking) {
+    if (!isTrackingLocation) {
       hasInitiallyCenteredUserRef.current = false;
     }
-  }, [effectiveUserLocation, isTrackingLocation, isSharingLocation]);
+  }, [userLocation, isTrackingLocation]);
 
   const handleLocationButtonClick = () => {
     toggleUserLocation();
@@ -884,8 +868,8 @@ export function StudioLayout({
           selectedBoundaryId={selectedBoundary?.id}
           selectedLandmarkId={selectedLandmark?.id}
           selectedRoadId={selectedRoad?.id}
-          userLocation={effectiveUserLocation}
-          userHeading={effectiveUserHeading}
+          userLocation={userLocation}
+          userHeading={userHeading}
           memberLocations={memberLocations}
           selectedMemberLocationId={selectedMemberLocation?.id}
           onSelectMemberLocation={(loc) => {

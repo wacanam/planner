@@ -19,12 +19,12 @@ export function useUserLocation() {
   const watchIdRef = useRef<number | null>(null);
   const lastHeadingRef = useRef<number | null>(null);
 
-  // Smooth heading updates to avoid micro-jitter
+  // Smooth heading updates with adaptive noise filter
   const updateHeading = useCallback((newHeading: number) => {
     const prev = lastHeadingRef.current;
     if (prev == null) {
       lastHeadingRef.current = newHeading;
-      setHeading(Math.round(newHeading));
+      setHeading(Number(newHeading.toFixed(1)));
       return;
     }
 
@@ -33,16 +33,19 @@ export function useUserLocation() {
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
 
-    // Ignore sensor micro-jitter below 0.8 degrees
-    if (Math.abs(diff) < 0.8) {
+    // Ignore tiny sensor micro-noise below 0.35 degrees
+    if (Math.abs(diff) < 0.35) {
       return;
     }
 
-    // Smooth by 35% lerp
-    const smoothed = (prev + diff * 0.35 + 360) % 360;
+    // Adaptive low-pass filter: snappier for quick turns, smoother for minor drift
+    const absDiff = Math.abs(diff);
+    const alpha = absDiff > 15 ? 0.55 : absDiff > 5 ? 0.4 : 0.25;
+    const smoothed = (prev + diff * alpha + 360) % 360;
     lastHeadingRef.current = smoothed;
-    const rounded = Math.round(smoothed);
-    setHeading((prevHeading) => (prevHeading === rounded ? prevHeading : rounded));
+
+    const val = Number(smoothed.toFixed(1));
+    setHeading((prevHeading) => (prevHeading === val ? prevHeading : val));
   }, []);
 
   const handleDeviceOrientation = useCallback(

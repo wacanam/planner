@@ -602,6 +602,9 @@ export function StudioGoogleMap({
   const userLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
   const userLocationBeamRef = useRef<HTMLDivElement | null>(null);
   const lastLocationPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const currentBeamAngleRef = useRef<number | null>(null);
+  const targetBeamAngleRef = useRef<number | null>(null);
+  const beamRafIdRef = useRef<number | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -2222,6 +2225,12 @@ export function StudioGoogleMap({
       }
       userLocationBeamRef.current = null;
       lastLocationPosRef.current = null;
+      currentBeamAngleRef.current = null;
+      targetBeamAngleRef.current = null;
+      if (beamRafIdRef.current) {
+        cancelAnimationFrame(beamRafIdRef.current);
+        beamRafIdRef.current = null;
+      }
       return;
     }
 
@@ -2295,7 +2304,7 @@ export function StudioGoogleMap({
         'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.65) 0%, rgba(96, 165, 250, 0.25) 45%, rgba(191, 219, 254, 0) 70%)';
       beamDiv.style.clipPath = 'polygon(50% 50%, 20% 0%, 80% 0%)';
       beamDiv.style.display = userHeading != null ? 'block' : 'none';
-      beamDiv.style.transform = `rotate(${userHeading ?? 0}deg)`;
+      beamDiv.style.transform = `rotate(${(userHeading ?? 0).toFixed(2)}deg)`;
 
       // Pulsing Blue Location Halo
       const haloDiv = document.createElement('div');
@@ -2330,6 +2339,8 @@ export function StudioGoogleMap({
 
       userLocationBeamRef.current = beamDiv;
       lastLocationPosRef.current = { lat, lng };
+      currentBeamAngleRef.current = userHeading ?? 0;
+      targetBeamAngleRef.current = userHeading ?? 0;
 
       const marker = new AdvancedMarkerElement({
         map,
@@ -2348,16 +2359,80 @@ export function StudioGoogleMap({
     layerSettings.showUserLocation,
   ]);
 
-  // 9b. Compass Heading Flashlight Beam (Direct GPU style update, decoupled from Google Maps API)
+  // 9b. Compass Heading Flashlight Beam (Liquid-Smooth RAF Gimbal Interpolation)
   useEffect(() => {
-    if (!userLocationBeamRef.current) return;
-    if (userHeading != null && layerSettings.showUserLocation !== false) {
-      userLocationBeamRef.current.style.display = 'block';
-      userLocationBeamRef.current.style.transform = `rotate(${userHeading}deg)`;
-    } else {
-      userLocationBeamRef.current.style.display = 'none';
+    const beam = userLocationBeamRef.current;
+    if (!beam) return;
+
+    if (userHeading == null || layerSettings.showUserLocation === false) {
+      beam.style.display = 'none';
+      if (beamRafIdRef.current) {
+        cancelAnimationFrame(beamRafIdRef.current);
+        beamRafIdRef.current = null;
+      }
+      return;
+    }
+
+    beam.style.display = 'block';
+
+    const newTarget = userHeading;
+    if (currentBeamAngleRef.current == null) {
+      currentBeamAngleRef.current = newTarget;
+      targetBeamAngleRef.current = newTarget;
+      beam.style.transform = `rotate(${newTarget.toFixed(2)}deg)`;
+      return;
+    }
+
+    // Calculate shortest angular path from current unwrapped angle to new target
+    const currentAngle = currentBeamAngleRef.current;
+    const currentMod = ((currentAngle % 360) + 360) % 360;
+    let diff = newTarget - currentMod;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+
+    targetBeamAngleRef.current = currentAngle + diff;
+
+    // Start RAF animation loop if not active
+    if (!beamRafIdRef.current) {
+      const animateBeam = () => {
+        if (!userLocationBeamRef.current || targetBeamAngleRef.current == null) {
+          beamRafIdRef.current = null;
+          return;
+        }
+
+        const target = targetBeamAngleRef.current;
+        const current = currentBeamAngleRef.current ?? target;
+        const remaining = target - current;
+
+        // If delta is tiny, settle smoothly and stop RAF loop
+        if (Math.abs(remaining) < 0.04) {
+          currentBeamAngleRef.current = target;
+          userLocationBeamRef.current.style.transform = `rotate(${target.toFixed(2)}deg)`;
+          beamRafIdRef.current = null;
+          return;
+        }
+
+        // Critically-damped exponential lerp (0.22 factor @ 60/120Hz display refresh)
+        const next = current + remaining * 0.22;
+        currentBeamAngleRef.current = next;
+        userLocationBeamRef.current.style.transform = `rotate(${next.toFixed(2)}deg)`;
+
+        beamRafIdRef.current = requestAnimationFrame(animateBeam);
+      };
+
+      beamRafIdRef.current = requestAnimationFrame(animateBeam);
     }
   }, [userHeading, layerSettings.showUserLocation]);
+
+  // Clean up RAF loop on unmount
+  useEffect(() => {
+    return () => {
+      if (beamRafIdRef.current) {
+        cancelAnimationFrame(beamRafIdRef.current);
+        beamRafIdRef.current = null;
+      }
+    };
+  }, []);
 
   // 9c. Render Shared Member Locations (Group Overseers & Servants Visibility)
   const onSelectMemberLocationRef = useRef(onSelectMemberLocation);
@@ -2392,9 +2467,12 @@ export function StudioGoogleMap({
 
       const isLive = Boolean(loc.isSharing);
       const isSelected = selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
-      const heading = loc.heading ?? null;
       const accuracy = loc.accuracy ?? null;
       const isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
+      if (isCurrentUser) {
+        // Skip current user in member pins: current user's local location is handled separately by "My Location & Flashlight beam" toggle
+        continue;
+      }
 
       if (currentMarkersMap.has(locId)) {
         // Update existing marker in place
