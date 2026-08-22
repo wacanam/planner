@@ -37,6 +37,7 @@ import {
   useDeleteCongregation,
   useUpdateCongregation,
 } from '@/hooks';
+import { findDuplicateCongregation, normalizeCongregationName } from '@/lib/congregations';
 import { UserRole } from '@/lib/roles';
 import type { Congregation } from '@/types/api';
 
@@ -89,19 +90,25 @@ export default function AdminCongregationsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim()) {
+    const cleanName = normalizeCongregationName(newName);
+    if (!cleanName) {
       toast.error('Please enter a congregation name.');
+      return;
+    }
+    const duplicate = findDuplicateCongregation(cleanName, congregations);
+    if (duplicate) {
+      toast.error(`A congregation named "${duplicate.name}" already exists.`);
       return;
     }
     try {
       await createCong({
-        name: newName.trim(),
-        city: newCity.trim() || null,
-        country: newCountry.trim() || null,
+        name: cleanName,
+        city: newCity.trim() ? normalizeCongregationName(newCity) : null,
+        country: newCountry.trim() ? normalizeCongregationName(newCountry) : null,
         status: 'active',
         createdById: user.id || null,
       });
-      toast.success(`Congregation "${newName}" created successfully!`);
+      toast.success(`Congregation "${cleanName}" created successfully!`);
       setCreateOpen(false);
       setNewName('');
       setNewCity('');
@@ -121,15 +128,25 @@ export default function AdminCongregationsPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editCong || !editName.trim()) return;
+    if (!editCong) return;
+    const cleanName = normalizeCongregationName(editName);
+    if (!cleanName) {
+      toast.error('Congregation name cannot be empty.');
+      return;
+    }
+    const duplicate = findDuplicateCongregation(cleanName, congregations, editCong.id);
+    if (duplicate) {
+      toast.error(`A congregation named "${duplicate.name}" already exists.`);
+      return;
+    }
     try {
       await updateCong({
-        name: editName.trim(),
-        city: editCity.trim() || null,
-        country: editCountry.trim() || null,
+        name: cleanName,
+        city: editCity.trim() ? normalizeCongregationName(editCity) : null,
+        country: editCountry.trim() ? normalizeCongregationName(editCountry) : null,
         status: editStatus,
       });
-      toast.success(`Congregation "${editName}" updated successfully!`);
+      toast.success(`Congregation "${cleanName}" updated successfully!`);
       setEditCong(null);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update congregation.');

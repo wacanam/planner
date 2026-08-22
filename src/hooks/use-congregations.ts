@@ -13,6 +13,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
+import {
+  checkCongregationDuplicateInFirestore,
+  normalizeCongregationName,
+  slugifyCongregation,
+} from '@/lib/congregations';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import type { Congregation } from '@/types/api';
@@ -46,23 +51,15 @@ async function deleteCongregationScopedDocuments(congregationId: string) {
   await batch.commit();
 }
 
-function slugify(value: string) {
-  const slug = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || createClientId();
-}
-
 function congregationFromData(id: string, data: Partial<Congregation>): Congregation {
   const now = nowIso();
+  const name = data.name ? normalizeCongregationName(data.name) : 'Unnamed congregation';
   return {
     id,
-    name: data.name ?? 'Unnamed congregation',
-    slug: data.slug ?? slugify(data.name ?? id),
-    city: data.city ?? null,
-    country: data.country ?? null,
+    name,
+    slug: data.slug ?? slugifyCongregation(name || id),
+    city: data.city ? normalizeCongregationName(data.city) : null,
+    country: data.country ? normalizeCongregationName(data.country) : null,
     defaultLatitude: typeof data.defaultLatitude === 'number' ? data.defaultLatitude : null,
     defaultLongitude: typeof data.defaultLongitude === 'number' ? data.defaultLongitude : null,
     status: data.status ?? 'active',
@@ -143,15 +140,30 @@ export function useCreateCongregation() {
   const create = useCallback(async (arg: Record<string, unknown>) => {
     setIsCreating(true);
     try {
+      const name = normalizeCongregationName(String(arg.name ?? ''));
+      if (!name) {
+        throw new Error('Congregation name is required.');
+      }
+
+      const firestore = getPlannerFirestore();
+      const { isDuplicate, duplicate } = await checkCongregationDuplicateInFirestore(
+        firestore,
+        name
+      );
+      if (isDuplicate && duplicate) {
+        throw new Error(`A congregation named "${duplicate.name}" already exists.`);
+      }
+
       const id = createClientId();
       const now = nowIso();
-      const name = String(arg.name ?? '').trim();
+      const slug = slugifyCongregation(name);
+
       await setDoc(congregationDocument(id), {
         id,
         name,
-        slug: slugify(name),
-        city: arg.city ? String(arg.city) : null,
-        country: arg.country ? String(arg.country) : null,
+        slug,
+        city: arg.city ? normalizeCongregationName(String(arg.city)) : null,
+        country: arg.country ? normalizeCongregationName(String(arg.country)) : null,
         defaultLatitude: typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null,
         defaultLongitude: typeof arg.defaultLongitude === 'number' ? arg.defaultLongitude : null,
         status: String(arg.status ?? 'active'),
@@ -175,11 +187,30 @@ export function useUpdateCongregation(id: string) {
       try {
         const updates: Record<string, unknown> = { updatedAt: nowIso() };
         if (arg.name !== undefined) {
-          updates.name = String(arg.name).trim();
-          updates.slug = slugify(String(arg.name));
+          const name = normalizeCongregationName(String(arg.name));
+          if (!name) {
+            throw new Error('Congregation name cannot be empty.');
+          }
+
+          const firestore = getPlannerFirestore();
+          const { isDuplicate, duplicate } = await checkCongregationDuplicateInFirestore(
+            firestore,
+            name,
+            id
+          );
+          if (isDuplicate && duplicate) {
+            throw new Error(`A congregation named "${duplicate.name}" already exists.`);
+          }
+
+          updates.name = name;
+          updates.slug = slugifyCongregation(name);
         }
-        if (arg.city !== undefined) updates.city = arg.city ? String(arg.city) : null;
-        if (arg.country !== undefined) updates.country = arg.country ? String(arg.country) : null;
+        if (arg.city !== undefined) {
+          updates.city = arg.city ? normalizeCongregationName(String(arg.city)) : null;
+        }
+        if (arg.country !== undefined) {
+          updates.country = arg.country ? normalizeCongregationName(String(arg.country)) : null;
+        }
         if (arg.defaultLatitude !== undefined) {
           updates.defaultLatitude =
             typeof arg.defaultLatitude === 'number' ? arg.defaultLatitude : null;

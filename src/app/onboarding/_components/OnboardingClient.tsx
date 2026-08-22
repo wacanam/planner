@@ -5,7 +5,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   getDocs,
   onSnapshot,
   setDoc,
@@ -13,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import {
   AlertCircle,
+  ArrowRight,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -20,8 +20,10 @@ import {
   Globe,
   LogOut,
   MapPin,
+  Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -39,6 +41,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import {
+  checkCongregationDuplicateInFirestore,
+  findDuplicateCongregation,
+  findSimilarCongregations,
+  normalizeCongregationName,
+  slugifyCongregation,
+} from '@/lib/congregations';
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
@@ -99,6 +108,30 @@ export default function OnboardingPage() {
   const userId = session?.user?.id;
   const userEmail = session?.user?.email ?? null;
   const isAdmin = isSystemAdmin(session?.user?.role);
+
+  // Live congregation name analysis for duplicates & similarity
+  const watchedName = createForm.watch('name');
+  const normalizedWatchedName = useMemo(
+    () => normalizeCongregationName(watchedName || ''),
+    [watchedName]
+  );
+  const calculatedSlug = useMemo(
+    () => (normalizedWatchedName ? slugifyCongregation(normalizedWatchedName) : ''),
+    [normalizedWatchedName]
+  );
+
+  const duplicateMatch = useMemo(() => {
+    if (!normalizedWatchedName || normalizedWatchedName.length < 2) return null;
+    return findDuplicateCongregation(normalizedWatchedName, allCongregations);
+  }, [normalizedWatchedName, allCongregations]);
+
+  const similarMatches = useMemo(() => {
+    if (!normalizedWatchedName || duplicateMatch || normalizedWatchedName.length < 3) return [];
+    return findSimilarCongregations(normalizedWatchedName, allCongregations, {
+      excludeDuplicate: true,
+      limit: 3,
+    });
+  }, [normalizedWatchedName, duplicateMatch, allCongregations]);
 
   // ── 1. Redirect if admin or active approved member ──────────────────────────
   useEffect(() => {
@@ -210,28 +243,67 @@ export default function OnboardingPage() {
     }
   };
 
-  // ── 6. Create congregation ───────────────────────────────────────────────────
+  // ── 6. Transition helpers between Create & Join ──────────────────────────────
+  const handleJoinExisting = (cong: SearchResult) => {
+    setCreateError('');
+    setSelectedCong(cong);
+    setMode('join');
+  };
+
+  const handleCreateFromSearch = (nameToPreFill?: string) => {
+    const name = nameToPreFill?.trim() || searchQuery.trim();
+    if (name) {
+      createForm.setValue('name', name, { shouldValidate: true });
+    }
+    setCreateError('');
+    setMode('create');
+  };
+
+  // ── 7. Create congregation ───────────────────────────────────────────────────
   async function handleCreate(data: CreateCongregationFormData) {
     setCreateError('');
     try {
       if (!userId) throw new Error('Sign in again to finish setup.');
+
+      const cleanName = normalizeCongregationName(data.name);
+      if (!cleanName) {
+        throw new Error('Please enter a valid congregation name.');
+      }
+
+      // Check local cache for immediate duplicate
+      const localDuplicate = findDuplicateCongregation(cleanName, allCongregations);
+      if (localDuplicate) {
+        throw new Error(
+          `A congregation named "${localDuplicate.name}" is already registered. Please join it instead.`
+        );
+      }
+
+      // Check Firestore to guard against race conditions & enforce unique slug
+      const firestore = getPlannerFirestore();
+      const { isDuplicate, duplicate } = await checkCongregationDuplicateInFirestore(
+        firestore,
+        cleanName
+      );
+      if (isDuplicate && duplicate) {
+        throw new Error(
+          `A congregation named "${duplicate.name}" is already registered. Please join it instead.`
+        );
+      }
+
       const now = nowIso();
-      const congregation = {
+      const slug = slugifyCongregation(cleanName);
+      const congregation: Congregation = {
         id: createClientId(),
-        name: data.name.trim(),
-        slug: data.name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, ''),
-        city: data.city?.trim() || null,
-        country: data.country?.trim() || null,
+        name: cleanName,
+        slug,
+        city: data.city ? normalizeCongregationName(data.city) : null,
+        country: data.country ? normalizeCongregationName(data.country) : null,
         status: 'active',
         createdById: userId,
         createdAt: now,
         updatedAt: now,
       };
-      const firestore = getPlannerFirestore();
+
       await setDoc(
         doc(firestore, FIRESTORE_COLLECTIONS.congregations, congregation.id),
         congregation
@@ -266,7 +338,7 @@ export default function OnboardingPage() {
     }
   }
 
-  // ── 7. Submit join request ───────────────────────────────────────────────────
+  // ── 8. Submit join request ───────────────────────────────────────────────────
   async function handleJoin(data: JoinRequestFormData) {
     if (!selectedCong) return;
     setJoinError('');
@@ -526,7 +598,10 @@ export default function OnboardingPage() {
               {/* Create card */}
               <button
                 type="button"
-                onClick={() => setMode('create')}
+                onClick={() => {
+                  setCreateError('');
+                  setMode('create');
+                }}
                 className="group flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-6 text-left shadow-xs hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 group-hover:bg-primary/25 transition-colors">
@@ -547,7 +622,10 @@ export default function OnboardingPage() {
               {/* Join card */}
               <button
                 type="button"
-                onClick={() => setMode('join')}
+                onClick={() => {
+                  setJoinError('');
+                  setMode('join');
+                }}
                 className="group flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-6 text-left shadow-xs hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/40 group-hover:bg-secondary/60 transition-colors">
@@ -590,26 +668,28 @@ export default function OnboardingPage() {
         {membershipStatus === 'none' && mode === 'create' && (
           <div className="w-full max-w-md">
             <div className="bg-card rounded-3xl shadow-sm border border-border p-6 sm:p-10">
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/15 mb-4">
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/15 mb-3">
                   <Building2 size={24} className="text-primary" />
                 </div>
                 <h1 className="text-2xl font-bold text-foreground">Create your congregation</h1>
-                <p className="text-muted-foreground mt-1.5 text-sm">
+                <p className="text-muted-foreground mt-1.5 text-xs sm:text-sm">
                   You&apos;ll be the administrator. You can rename it later.
                 </p>
               </div>
 
               {createError && (
-                <Alert variant="destructive" className="mb-6 rounded-xl">
-                  <AlertCircle size={16} className="absolute left-4 top-3.5" />
-                  <AlertDescription className="pl-6 text-xs">{createError}</AlertDescription>
+                <Alert variant="destructive" className="mb-5 rounded-2xl">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <AlertDescription className="text-xs leading-relaxed">
+                    {createError}
+                  </AlertDescription>
                 </Alert>
               )}
 
-              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-5">
+              <form onSubmit={createForm.handleSubmit(handleCreate)} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="cong-name">
+                  <Label htmlFor="cong-name" className="text-xs font-semibold">
                     Congregation name <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -618,29 +698,123 @@ export default function OnboardingPage() {
                     {...createForm.register('name')}
                     placeholder="e.g. Southside Congregation"
                     disabled={createForm.formState.isSubmitting}
-                    className="rounded-xl"
+                    className="rounded-xl h-10 text-sm"
                   />
                   {createForm.formState.errors.name && (
                     <p className="text-xs text-destructive mt-1">
                       {createForm.formState.errors.name.message}
                     </p>
                   )}
+
+                  {/* Generated URL slug preview */}
+                  {calculatedSlug && !duplicateMatch && (
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1">
+                      <span className="font-medium text-foreground/80">Unique slug:</span>
+                      <code className="bg-muted/70 px-1.5 py-0.5 rounded font-mono text-[10px] text-primary">
+                        {calculatedSlug}
+                      </code>
+                    </p>
+                  )}
+
+                  {/* ── Real-time Duplicate Detection Banner ── */}
+                  {duplicateMatch && (
+                    <div className="mt-2.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 space-y-2.5">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle
+                          size={16}
+                          className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
+                        />
+                        <div>
+                          <p className="font-semibold text-xs text-amber-700 dark:text-amber-300">
+                            Congregation already exists
+                          </p>
+                          <p className="text-[11px] text-amber-700/90 dark:text-amber-200/90 mt-0.5">
+                            <span className="font-medium">{duplicateMatch.name}</span>
+                            {(duplicateMatch.city || duplicateMatch.country) && (
+                              <span>
+                                {' '}
+                                (
+                                {[duplicateMatch.city, duplicateMatch.country]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                                )
+                              </span>
+                            )}{' '}
+                            is already registered.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleJoinExisting(duplicateMatch)}
+                        className="w-full h-8 text-xs font-semibold rounded-xl bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-amber-950 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <span>Join &ldquo;{duplicateMatch.name}&rdquo; instead</span>
+                        <ArrowRight size={13} />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* ── Similar Existing Congregations Suggestions ── */}
+                  {!duplicateMatch && similarMatches.length > 0 && (
+                    <div className="mt-2.5 p-3 rounded-2xl bg-muted/40 border border-border/70 space-y-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                        <Sparkles size={13} className="text-primary shrink-0" />
+                        <span>Did you mean one of these existing congregations?</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {similarMatches.map((sim) => (
+                          <div
+                            key={sim.id}
+                            className="flex items-center justify-between p-2 rounded-xl bg-background/80 border border-border/50 text-xs"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="font-medium text-foreground truncate">{sim.name}</p>
+                              {(sim.city || sim.country) && (
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {[sim.city, sim.country].filter(Boolean).join(', ')}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleJoinExisting(sim)}
+                              className="h-7 text-[11px] px-2.5 rounded-lg shrink-0 font-medium hover:border-primary hover:text-primary"
+                            >
+                              Join instead
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="cong-city">
-                    City <span className="text-muted-foreground text-xs">(optional)</span>
+                  <Label htmlFor="cong-city" className="text-xs font-semibold">
+                    City{' '}
+                    <span className="text-muted-foreground text-[11px] font-normal">
+                      (optional)
+                    </span>
                   </Label>
                   <Input
                     id="cong-city"
                     {...createForm.register('city')}
                     placeholder="e.g. Manila"
                     disabled={createForm.formState.isSubmitting}
-                    className="rounded-xl"
+                    className="rounded-xl h-10 text-sm"
                   />
                 </div>
+
                 <div className="space-y-1.5">
-                  <Label htmlFor="cong-country">
-                    Country <span className="text-muted-foreground text-xs">(optional)</span>
+                  <Label htmlFor="cong-country" className="text-xs font-semibold">
+                    Country{' '}
+                    <span className="text-muted-foreground text-[11px] font-normal">
+                      (optional)
+                    </span>
                   </Label>
                   <div className="relative">
                     <Globe
@@ -652,7 +826,7 @@ export default function OnboardingPage() {
                       {...createForm.register('country')}
                       placeholder="e.g. Philippines"
                       disabled={createForm.formState.isSubmitting}
-                      className="pl-9 rounded-xl"
+                      className="pl-9 rounded-xl h-10 text-sm"
                     />
                   </div>
                 </div>
@@ -669,13 +843,28 @@ export default function OnboardingPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createForm.formState.isSubmitting}
+                    disabled={createForm.formState.isSubmitting || Boolean(duplicateMatch)}
                     className="flex-2 rounded-xl"
                   >
                     {createForm.formState.isSubmitting ? 'Creating…' : 'Create congregation'}
                   </Button>
                 </div>
               </form>
+
+              {/* Quick switch to search existing */}
+              <div className="mt-5 text-center pt-4 border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(normalizedWatchedName);
+                    setMode('join');
+                  }}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                >
+                  Looking to join an existing congregation?{' '}
+                  <span className="font-semibold text-primary underline">Search here</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -696,7 +885,7 @@ export default function OnboardingPage() {
 
               {/* Instant Search Bar */}
               {!selectedCong && (
-                <div className="space-y-4 mb-4">
+                <div className="space-y-3 mb-4">
                   <div className="relative">
                     <Search
                       size={16}
@@ -721,53 +910,71 @@ export default function OnboardingPage() {
                   </div>
 
                   {/* Real-time Discovery List */}
-                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                     {isLoadingCongregations ? (
                       <div className="text-center py-8 space-y-2">
                         <RefreshCw size={20} className="animate-spin text-primary mx-auto" />
                         <p className="text-xs text-muted-foreground">Loading congregations…</p>
                       </div>
                     ) : searchResults.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground text-xs space-y-2">
+                      <div className="text-center py-8 text-muted-foreground text-xs space-y-3">
                         <p>No congregations found matching &ldquo;{searchQuery}&rdquo;.</p>
-                        <p className="text-[11px]">
-                          Need to set up a new congregation?{' '}
-                          <button
-                            type="button"
-                            onClick={() => setMode('create')}
-                            className="text-primary hover:underline font-semibold"
-                          >
-                            Create one here
-                          </button>
-                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCreateFromSearch(searchQuery)}
+                          className="rounded-xl text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+                        >
+                          <Plus size={14} />
+                          <span>Create &ldquo;{searchQuery.trim()}&rdquo;</span>
+                        </Button>
                       </div>
                     ) : (
-                      searchResults.map((cong) => (
-                        <button
-                          key={cong.id}
-                          type="button"
-                          onClick={() => setSelectedCong(cong)}
-                          className="w-full flex items-center justify-between rounded-2xl border border-border bg-background p-3.5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group"
-                        >
-                          <div className="min-w-0 flex-1 pr-2">
-                            <p className="font-semibold text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                              {cong.name}
-                            </p>
-                            {(cong.city || cong.country) && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                                <MapPin size={12} className="shrink-0" />
-                                <span className="truncate">
-                                  {[cong.city, cong.country].filter(Boolean).join(', ')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <ChevronRight
-                            size={16}
-                            className="text-muted-foreground shrink-0 group-hover:text-primary transition-colors"
-                          />
-                        </button>
-                      ))
+                      <>
+                        {searchResults.map((cong) => (
+                          <button
+                            key={cong.id}
+                            type="button"
+                            onClick={() => setSelectedCong(cong)}
+                            className="w-full flex items-center justify-between rounded-2xl border border-border bg-background p-3.5 text-left hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer group"
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <p className="font-semibold text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                                {cong.name}
+                              </p>
+                              {(cong.city || cong.country) && (
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                                  <MapPin size={12} className="shrink-0" />
+                                  <span className="truncate">
+                                    {[cong.city, cong.country].filter(Boolean).join(', ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <ChevronRight
+                              size={16}
+                              className="text-muted-foreground shrink-0 group-hover:text-primary transition-colors"
+                            />
+                          </button>
+                        ))}
+
+                        {/* Subtle banner at bottom of search results to create new if yours isn't listed */}
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCreateFromSearch(searchQuery)}
+                            className="w-full p-2.5 text-center text-xs text-muted-foreground hover:text-primary border border-dashed border-border rounded-xl hover:border-primary/50 hover:bg-muted/20 transition-all cursor-pointer"
+                          >
+                            Can&apos;t find your congregation?{' '}
+                            <span className="font-semibold text-primary">
+                              {searchQuery.trim()
+                                ? `Create "${searchQuery.trim()}"`
+                                : 'Create a new congregation'}
+                            </span>
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>

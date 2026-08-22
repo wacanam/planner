@@ -1,7 +1,13 @@
 import { z } from 'zod';
+import { normalizeCongregationName } from '@/lib/congregations';
 
 export const createCongregationSchema = z.object({
-  name: z.string().min(1, 'Congregation name is required').max(255),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Congregation name must be at least 2 characters')
+    .max(255, 'Congregation name must not exceed 255 characters')
+    .transform((val) => normalizeCongregationName(val)),
   city: z.string().max(255).optional(),
   country: z.string().max(100).optional(),
 });
