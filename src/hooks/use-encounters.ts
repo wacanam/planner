@@ -7,7 +7,7 @@ import {
   watchVisits,
 } from '@/lib/local-first';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Encounter } from '@/types/api';
 
 function sortEncounters(encounters: Encounter[]) {
@@ -76,7 +76,7 @@ function useEncounterRecords(filters?: {
 
   const mappedEncounters = useMemo(() => {
     let filtered = encounters;
-    if (userId && !isTerritoryServant(userRole)) {
+    if (userId && !canViewAllCongregationRecords(userRole)) {
       filtered = encounters.filter(
         (e) =>
           e.userId === userId ||

@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Encounter } from '@/types/api';
 import { getHouseholdById } from './households';
 import { isoDate, nowIso, nullableString } from './shared';
@@ -76,7 +76,7 @@ export function filterEncounter(record: LocalEncounter, filters?: EncounterFilte
   if (filters.householdId && record.householdId !== filters.householdId) return false;
   if (
     filters.userId &&
-    !isTerritoryServant(filters.userRole) &&
+    !canViewAllCongregationRecords(filters.userRole) &&
     record.userId !== filters.userId &&
     !(
       filters.groupMateUserIds &&

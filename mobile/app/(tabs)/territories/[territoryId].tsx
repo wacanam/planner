@@ -99,7 +99,7 @@ export default function TerritoryDetailScreen() {
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  const isServant = isTerritoryServant(user?.role);
+  const canEdit = canEditTerritory(user?.role);
   const canAdjust = canAdjustAssignmentDates(user?.role);
   const activeAssignment = assignments.find(
     (a) => a.status === 'assigned' || a.status === 'active'
@@ -446,7 +446,7 @@ export default function TerritoryDetailScreen() {
                 </Text>
               </View>
 
-              {isServant && (
+              {canEdit && (
                 <Button
                   title="Return"
                   size="sm"
@@ -490,7 +490,7 @@ export default function TerritoryDetailScreen() {
           )}
 
           {/* Servant Actions & History */}
-          {isServant && !territory.publisherName && !territory.groupName && (
+          {canEdit && !territory.publisherName && !territory.groupName && (
             <Button
               title="Assign to Publisher"
               variant="outline"

@@ -43,8 +43,10 @@ import {
 } from '@/hooks';
 import { signOut, useAuthSession as useSession } from '@/lib/firebase/auth';
 import {
+  canManageGroups,
   canViewReports,
   isCircuitOverseer,
+  isCongregationSecretary,
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
@@ -84,7 +86,7 @@ export function DashboardHeader() {
           icon: FileText,
           badgeCount: pendingSharesCount,
         },
-        ...(isServiceOverseer(user.role)
+        ...(canManageGroups(user.role, user.congregationRole)
           ? [
               {
                 href: `/congregation/${id}/members`,
@@ -95,7 +97,7 @@ export function DashboardHeader() {
               { href: `/congregation/${id}/groups`, label: 'Groups', icon: FolderOpen },
             ]
           : []),
-        ...(canViewReports(user.role)
+        ...(canViewReports(user.role, user.congregationRole)
           ? [{ href: `/congregation/${id}/reports`, label: 'Reports', icon: BarChart2 }]
           : []),
       ]
@@ -113,6 +115,7 @@ export function DashboardHeader() {
     if (r === 'ADMIN') return 'Admin';
     if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
     if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
+    if (r === 'SECRETARY' || r === 'CONGREGATION_SECRETARY') return 'Secretary';
     if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
     if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
     return 'Publisher';
@@ -333,16 +336,18 @@ export function DashboardHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {id && (isServiceOverseer(user.role) || canViewReports(user.role) || isCircuitOverseer(user.role)) && (
+                {id && (canManageGroups(user.role, user.congregationRole) || canViewReports(user.role, user.congregationRole) || isCircuitOverseer(user.role)) && (
                   <>
                     <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
                       {isCircuitOverseer(user.role)
                         ? 'Circuit Overseer Menu'
                         : isServiceOverseer(user.role)
                           ? 'Overseer Menu'
-                          : 'Servant Menu'}
+                          : isCongregationSecretary(user.role)
+                            ? 'Secretary Menu'
+                            : 'Servant Menu'}
                     </div>
-                    {isServiceOverseer(user.role) && (
+                    {canManageGroups(user.role, user.congregationRole) && (
                       <>
                         <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                           <Link

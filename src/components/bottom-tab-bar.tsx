@@ -38,8 +38,11 @@ import {
 } from '@/hooks';
 import { signOut } from '@/lib/firebase/auth';
 import {
+  canCreateTerritory,
+  canManageGroups,
   canViewReports,
   isCircuitOverseer,
+  isCongregationSecretary,
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
@@ -60,9 +63,11 @@ export function BottomTabBar() {
 
   const isCircuitRole = isCircuitOverseer(user.role);
   const isOverseerRole = isServiceOverseer(user.role);
-  const isServantRole = isTerritoryServant(user.role);
+  const isSecretaryRole = isCongregationSecretary(user.role);
   const isAdminRole = isSystemAdmin(user.role);
-  const canReports = canViewReports(user.role);
+  const canManageMembersAndGroups = canManageGroups(user.role, user.congregationRole);
+  const canReports = canViewReports(user.role, user.congregationRole);
+  const canViewMapOverview = canCreateTerritory(user.role) || isCircuitOverseer(user.role);
 
   const mainTabs = [
     {
@@ -89,7 +94,7 @@ export function BottomTabBar() {
   ];
 
   const adminLinks = [
-    ...(isOverseerRole
+    ...(canManageMembersAndGroups
       ? [
           {
             href: `/congregation/${id}/members`,
@@ -116,7 +121,7 @@ export function BottomTabBar() {
           },
         ]
       : []),
-    ...(isServantRole || isOverseerRole
+    ...(canViewMapOverview
       ? [
           {
             href: `/congregation/${id}/territories/overview`,
@@ -195,7 +200,9 @@ export function BottomTabBar() {
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-[64px]">{isCircuitRole ? 'Circuit' : isOverseerRole ? 'Oversee' : 'More'}</span>
+              <span className="truncate max-w-[64px]">
+                {isCircuitRole ? 'Circuit' : isOverseerRole ? 'Oversee' : isSecretaryRole ? 'Secretary' : 'More'}
+              </span>
             </button>
           </SheetTrigger>
 
@@ -216,7 +223,13 @@ export function BottomTabBar() {
               {adminLinks.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
-                    {isCircuitRole ? 'Circuit Overseer Review' : isOverseerRole ? 'Congregation Administration' : 'Servant Management'}
+                    {isCircuitRole
+                      ? 'Circuit Overseer Review'
+                      : isOverseerRole
+                        ? 'Congregation Administration'
+                        : isSecretaryRole
+                          ? 'Secretary Administration'
+                          : 'Servant Management'}
                   </p>
                   {adminLinks.map(({ href, label, description, icon: Icon, badgeCount }) => {
                     const isActive = pathname.startsWith(href);

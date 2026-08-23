@@ -1,7 +1,16 @@
 import { z } from 'zod';
 
 export const editMemberRoleSchema = z.object({
-  congregationRole: z.enum(['service_overseer', 'territory_servant']).nullable(),
+  congregationRole: z
+    .enum([
+      'service_overseer',
+      'secretary',
+      'territory_servant',
+      'circuit_overseer',
+      'publisher',
+      'visiting_publisher',
+    ])
+    .nullable(),
 });
 export type EditMemberRoleFormData = z.infer<typeof editMemberRoleSchema>;
 

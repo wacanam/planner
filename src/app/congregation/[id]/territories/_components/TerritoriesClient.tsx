@@ -57,7 +57,13 @@ import {
   useUpdateCongregation,
   useUpdateTerritory,
 } from '@/hooks';
-import { canAdjustAssignmentDates, canDeleteTerritory, isTerritoryServant } from '@/lib/permissions';
+import {
+  canAdjustAssignmentDates,
+  canCreateTerritory,
+  canDeleteTerritory,
+  canEditTerritory,
+  isTerritoryServant,
+} from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment, Household, Territory } from '@/types/api';
 import {
@@ -80,8 +86,9 @@ export default function TerritoriesClient() {
   const router = useRouter();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const isServant = isTerritoryServant(user?.role);
-  const canDelete = canDeleteTerritory(user?.role);
+  const canCreate = canCreateTerritory(user?.role, user?.congregationRole);
+  const canEdit = canEditTerritory(user?.role, user?.congregationRole);
+  const canDelete = canDeleteTerritory(user?.role, user?.congregationRole);
 
   const { congregation } = useCongregation(congregationId);
   const { update: updateCongregation, isUpdating: updatingCenter } =
@@ -329,7 +336,7 @@ export default function TerritoriesClient() {
                 <span>Congregation Map</span>
               </Link>
             </Button>
-            {isServant && (
+            {canCreate && (
               <>
                 <Button
                   variant="outline"
@@ -499,7 +506,7 @@ export default function TerritoriesClient() {
                       </Link>
                     </Button>
 
-                    {isServant && (
+                    {canEdit && (
                       <div className="flex items-center gap-1.5 min-w-0">
                         {t.status === 'available' ? (
                           <Button

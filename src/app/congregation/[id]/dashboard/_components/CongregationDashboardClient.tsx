@@ -33,6 +33,8 @@ import {
   useMyAssignments,
 } from '@/hooks';
 import {
+  canCreateTerritory,
+  canManageCongregation,
   filterActiveAssignments,
   getUserGroupIds,
   isServiceOverseer,
@@ -95,13 +97,13 @@ export default function CongregationDashboardClient() {
     if (r === 'ADMIN') return 'Admin';
     if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
     if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
+    if (r === 'SECRETARY' || r === 'CONGREGATION_SECRETARY') return 'Secretary';
     if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
     if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
     return 'Publisher';
   })();
 
-  const isServant = isTerritoryServant(user.role);
-  const _isOverseer = isServiceOverseer(user.role);
+  const canManageTerritories = canCreateTerritory(user.role);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
   const activeAssignments = useMemo(() => {
@@ -174,7 +176,7 @@ export default function CongregationDashboardClient() {
                   <span>Launch Territory Studio</span>
                 </Link>
               </Button>
-            ) : isServant ? (
+            ) : canManageTerritories ? (
               <Button
                 asChild
                 variant="outline"

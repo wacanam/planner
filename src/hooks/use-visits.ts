@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toHouseholdView, toVisitView, watchHouseholds, watchVisits } from '@/lib/local-first';
 import type { HouseholdFilters } from '@/lib/local-first/households';
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Household, Visit } from '@/types/api';
 
 function sortVisits(visits: Visit[]) {
@@ -67,7 +67,7 @@ export function useVisitRecords(filters?: {
 
   const mappedVisits = useMemo(() => {
     let filteredVisits = visits;
-    if (userId && !isTerritoryServant(userRole)) {
+    if (userId && !canViewAllCongregationRecords(userRole)) {
       filteredVisits = visits.filter(
         (v) =>
           v.userId === userId ||

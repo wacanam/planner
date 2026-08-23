@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Visit } from '@/types/api';
 import { getHouseholdById } from './households';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
@@ -59,7 +59,7 @@ export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   if (record.deletedAt) return false;
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
-  if (filters?.userId && !isTerritoryServant(filters.userRole)) {
+  if (filters?.userId && !canViewAllCongregationRecords(filters.userRole)) {
     const isOwn = record.userId === filters.userId;
     const isGroupMate = Boolean(
       filters.groupMateUserIds &&

@@ -188,7 +188,17 @@ export default function ReportsClient() {
   }, [publishersData?.publishers, searchQuery]);
 
   return (
-    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.TERRITORY_SERVANT}>
+    <ProtectedPage
+      congregationId={congregationId}
+      allowedRoles={[
+        UserRole.SUPER_ADMIN,
+        UserRole.ADMIN,
+        UserRole.SERVICE_OVERSEER,
+        UserRole.SECRETARY,
+        UserRole.TERRITORY_SERVANT,
+        UserRole.CIRCUIT_OVERSEER,
+      ]}
+    >
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-28 lg:pb-12 w-full min-w-0">
         {/* Header Title & Actions */}

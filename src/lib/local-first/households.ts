@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Household } from '@/types/api';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold } from './types';
@@ -218,7 +218,7 @@ export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilte
 
   // Personal scope filter: only show records owned by user, shared/transferred to user, or owned by group mates if user is a group overseer
   if (filters?.personalOnly) {
-    if (isTerritoryServant(filters.userRole)) {
+    if (canViewAllCongregationRecords(filters.userRole)) {
       return true;
     }
     if (!filters.userId) {
