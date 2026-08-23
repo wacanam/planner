@@ -22,6 +22,8 @@ interface ProtectedPageProps {
   loginRedirect?: string;
   /** Where to redirect on role failure. Defaults to /onboarding */
   roleRedirect?: string;
+  /** Where to redirect if email is unverified. Defaults to /auth/verify-email */
+  verificationRedirect?: string;
 }
 
 const ROLE_RANK: Record<UserRole, number> = {
@@ -40,6 +42,7 @@ export function ProtectedPage({
   congregationId,
   loginRedirect = '/auth/login',
   roleRedirect = '/onboarding',
+  verificationRedirect = '/auth/verify-email',
 }: ProtectedPageProps) {
   const { user, userMemberships, loading, isAuthenticated } = useCurrentUser();
   const router = useRouter();
@@ -49,6 +52,11 @@ export function ProtectedPage({
 
     if (!isAuthenticated || !user?.id) {
       router.replace(loginRedirect);
+      return;
+    }
+
+    if (user.emailVerified === false) {
+      router.replace(verificationRedirect);
       return;
     }
 
@@ -81,6 +89,7 @@ export function ProtectedPage({
     user.id,
     user.role,
     user.congregationId,
+    user.emailVerified,
     userMemberships,
     loading,
     isAuthenticated,
@@ -89,6 +98,7 @@ export function ProtectedPage({
     congregationId,
     loginRedirect,
     roleRedirect,
+    verificationRedirect,
   ]);
 
   if (loading) {

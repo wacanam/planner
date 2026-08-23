@@ -25,6 +25,7 @@ export interface SessionUser {
   groupId?: string | null;
   avatarUrl?: string | null;
   image?: string | null;
+  emailVerified?: boolean;
 }
 
 export interface UserMembership {
@@ -169,7 +170,8 @@ export function useCurrentUser(): {
           setUserMemberships(list);
 
           // Select matching membership based on selectedCongId preference or fallback to first
-          const target = (selectedCongId && list.find((m) => m.congregationId === selectedCongId)) || list[0];
+          const target =
+            (selectedCongId && list.find((m) => m.congregationId === selectedCongId)) || list[0];
           if (target && target.congregationId) {
             setMembershipStatus('active');
             setPendingMembership(null);
@@ -235,12 +237,14 @@ export function useCurrentUser(): {
       congregationRole: membershipStatus === 'active' ? membershipRole : null,
       groupId,
       avatarUrl: session?.user?.avatarUrl || null,
+      emailVerified: session?.user?.emailVerified,
     };
   }, [
     session?.user?.id,
     session?.user?.name,
     session?.user?.email,
     session?.user?.avatarUrl,
+    session?.user?.emailVerified,
     effectiveRole,
     congregationId,
     membershipStatus,
@@ -261,7 +265,15 @@ export function useCurrentUser(): {
       userMemberships,
       switchCongregation,
     }),
-    [user, loading, isAuthenticated, membershipStatus, pendingMembership, userMemberships, switchCongregation]
+    [
+      user,
+      loading,
+      isAuthenticated,
+      membershipStatus,
+      pendingMembership,
+      userMemberships,
+      switchCongregation,
+    ]
   );
 }
 

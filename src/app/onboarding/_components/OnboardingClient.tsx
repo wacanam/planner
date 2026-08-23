@@ -133,9 +133,13 @@ export default function OnboardingPage() {
     });
   }, [normalizedWatchedName, duplicateMatch, allCongregations]);
 
-  // ── 1. Redirect if admin or active approved member ──────────────────────────
+  // ── 1. Redirect if unverified, admin, or active approved member ─────────────
   useEffect(() => {
     if (userLoading) return;
+    if (session?.user?.emailVerified === false) {
+      router.replace('/auth/verify-email');
+      return;
+    }
     if (isAdmin) {
       router.replace('/admin/dashboard');
       return;
@@ -144,7 +148,7 @@ export default function OnboardingPage() {
       toast.success('Welcome to your congregation workspace!');
       router.replace(`/congregation/${user.congregationId}/dashboard`);
     }
-  }, [isAdmin, user?.congregationId, membershipStatus, userLoading, router]);
+  }, [session?.user?.emailVerified, isAdmin, user?.congregationId, membershipStatus, userLoading, router]);
 
   // ── 2. Fetch pending congregation info if user is waiting for approval ───────
   useEffect(() => {

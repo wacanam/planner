@@ -1,9 +1,9 @@
-// mobile/src/context/AuthContext.tsx
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createUserWithEmailAndPassword,
   type User as FirebaseUser,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -24,6 +24,7 @@ export interface SessionUser {
   congregationRole: string | null;
   groupId: string | null;
   avatarUrl: string | null;
+  emailVerified?: boolean;
 }
 
 interface AuthContextType {
@@ -37,6 +38,8 @@ interface AuthContextType {
   register: (name: string, email: string, pass: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
+  reloadUser: () => Promise<boolean>;
 }
 
 const ACTIVE_CONGREGATION_KEY = 'planner_active_congregation_id';
@@ -52,6 +55,8 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   resetPassword: async () => {},
   logout: async () => {},
+  sendVerificationEmail: async () => {},
+  reloadUser: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -192,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       congregationRole: membershipRole,
       groupId,
       avatarUrl: userProfile?.avatarUrl || null,
+      emailVerified: Boolean(firebaseUser.emailVerified),
     };
   }, [
     firebaseUser,
@@ -234,11 +240,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatedAt: nowIso(),
     };
     await setDoc(doc(firestore, FIRESTORE_COLLECTIONS.users, res.user.uid), newUser);
+
+    try {
+      await sendEmailVerification(res.user);
+    } catch (e) {
+      console.warn('[sendEmailVerification on mobile register error]', e);
+    }
   };
 
   const resetPassword = async (email: string) => {
     const auth = getPlannerAuth();
     await sendPasswordResetEmail(auth, email.trim());
+  };
+
+  const sendVerificationEmail = async () => {
+    const auth = getPlannerAuth();
+    if (!auth.currentUser) throw new Error('No user is currently signed in.');
+    await sendEmailVerification(auth.currentUser);
+  };
+
+  const reloadUser = async (): Promise<boolean> => {
+    const auth = getPlannerAuth();
+    if (!auth.currentUser) return false;
+    await auth.currentUser.reload();
+    const refreshed = auth.currentUser;
+    setFirebaseUser(refreshed);
+    return Boolean(refreshed?.emailVerified);
   };
 
   const logout = async () => {
@@ -261,6 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         resetPassword,
         logout,
+        sendVerificationEmail,
+        reloadUser,
       }}
     >
       {children}

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  applyActionCode,
   browserLocalPersistence,
   confirmPasswordReset,
   createUserWithEmailAndPassword,
@@ -10,6 +11,7 @@ import {
   GoogleAuthProvider,
   onIdTokenChanged,
   reauthenticateWithCredential,
+  sendEmailVerification,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
@@ -54,6 +56,7 @@ export interface SessionUser {
   congregationId?: string | null;
   avatarUrl?: string | null;
   isActive?: boolean;
+  emailVerified?: boolean;
 }
 
 interface FirebaseSession {
@@ -70,6 +73,8 @@ interface AuthContextValue {
   data: FirebaseSession | null;
   status: AuthStatus;
   update: (data?: AuthSessionUpdate) => Promise<FirebaseSession | null>;
+  reloadUser: () => Promise<FirebaseSession | null>;
+  sendVerificationEmail: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -86,7 +91,11 @@ function normalizeEmail(email: string | null | undefined) {
   return (email ?? '').trim().toLowerCase();
 }
 
-function sessionUserFromData(id: string, data: Partial<User>): SessionUser {
+function sessionUserFromData(
+  id: string,
+  data: Partial<User>,
+  firebaseUser?: FirebaseUser | null
+): SessionUser {
   return {
     id,
     name: data.name ?? null,
@@ -95,6 +104,7 @@ function sessionUserFromData(id: string, data: Partial<User>): SessionUser {
     congregationId: data.congregationId ?? null,
     avatarUrl: data.avatarUrl ?? null,
     isActive: data.isActive ?? true,
+    emailVerified: firebaseUser ? Boolean(firebaseUser.emailVerified) : false,
   };
 }
 
@@ -107,6 +117,7 @@ function fallbackUser(firebaseUser: FirebaseUser): SessionUser {
     congregationId: null,
     avatarUrl: firebaseUser.photoURL ?? null,
     isActive: true,
+    emailVerified: Boolean(firebaseUser.emailVerified),
   };
 }
 
@@ -200,6 +211,12 @@ function firebaseErrorMessage(error: unknown) {
       return 'Please sign in again before changing your password.';
     case 'auth/weak-password':
       return 'Password must be at least 8 characters.';
+    case 'auth/expired-action-code':
+      return 'This verification link has expired. Please request a new one.';
+    case 'auth/invalid-action-code':
+      return 'This verification link is invalid or has already been used.';
+    case 'auth/too-many-requests':
+      return 'Too many requests. Please wait a moment before trying again.';
     default:
       return error instanceof Error ? error.message : 'Authentication failed. Please try again.';
   }
@@ -234,7 +251,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
           { includeMetadataChanges: true },
           (snapshot) => {
             const user = snapshot.exists()
-              ? sessionUserFromData(snapshot.id, snapshot.data() as Partial<User>)
+              ? sessionUserFromData(snapshot.id, snapshot.data() as Partial<User>, firebaseUser)
               : fallbackUser(firebaseUser);
             setSession({ user });
             setStatus(user.isActive === false ? 'unauthenticated' : 'authenticated');
@@ -276,14 +293,50 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
 
     const snapshot = await getDoc(userDocument(firebaseUser.uid));
     const user = snapshot.exists()
-      ? sessionUserFromData(snapshot.id, snapshot.data() as Partial<User>)
+      ? sessionUserFromData(snapshot.id, snapshot.data() as Partial<User>, firebaseUser)
       : fallbackUser(firebaseUser);
     return { user };
   }, []);
 
+  const reloadUser = useCallback(async () => {
+    const auth = getPlannerAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+    await currentUser.reload();
+    const refreshedUser = auth.currentUser;
+    if (!refreshedUser) {
+      setSession(null);
+      setStatus('unauthenticated');
+      return null;
+    }
+
+    try {
+      const snap = await getDoc(userDocument(refreshedUser.uid));
+      const user = snap.exists()
+        ? sessionUserFromData(snap.id, snap.data() as Partial<User>, refreshedUser)
+        : fallbackUser(refreshedUser);
+      const newSession: FirebaseSession = { user };
+      setSession(newSession);
+      setStatus(user.isActive === false ? 'unauthenticated' : 'authenticated');
+      return newSession;
+    } catch {
+      const newSession: FirebaseSession = { user: fallbackUser(refreshedUser) };
+      setSession(newSession);
+      setStatus('authenticated');
+      return newSession;
+    }
+  }, []);
+
+  const sendVerificationEmail = useCallback(async () => {
+    const auth = getPlannerAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error('You must be signed in to send a verification email.');
+    await sendUserEmailVerification(currentUser);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ data: session, status, update }),
-    [session, status, update]
+    () => ({ data: session, status, update, reloadUser, sendVerificationEmail }),
+    [session, status, update, reloadUser, sendVerificationEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -293,6 +346,48 @@ export function useAuthSession() {
   const value = useContext(AuthContext);
   if (!value) throw new Error('useAuthSession must be used inside FirebaseAuthProvider');
   return value;
+}
+
+export async function sendUserEmailVerification(user?: FirebaseUser | null): Promise<void> {
+  const auth = getPlannerAuth();
+  const targetUser = user ?? auth.currentUser;
+  if (!targetUser) throw new Error('No user is currently signed in.');
+
+  const origin =
+    typeof window !== 'undefined' && window.location.origin ? window.location.origin : null;
+  if (origin) {
+    try {
+      await sendEmailVerification(targetUser, {
+        url: `${origin}/auth/verify-email`,
+        handleCodeInApp: true,
+      });
+      return;
+    } catch (innerErr) {
+      console.warn('[sendEmailVerification custom url fallback to default]', innerErr);
+    }
+  }
+
+  await sendEmailVerification(targetUser);
+}
+
+export async function reloadCurrentUser(): Promise<FirebaseUser | null> {
+  const auth = getPlannerAuth();
+  const user = auth.currentUser;
+  if (!user) return null;
+  await user.reload();
+  return auth.currentUser;
+}
+
+export async function applyEmailVerificationCode(code: string): Promise<void> {
+  const auth = getPlannerAuth();
+  try {
+    await applyActionCode(auth, code);
+    if (auth.currentUser) {
+      await auth.currentUser.reload();
+    }
+  } catch (error) {
+    throw new Error(firebaseErrorMessage(error));
+  }
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -318,6 +413,13 @@ export async function registerWithEmail(input: { email: string; password: string
     );
     await updateProfile(credential.user, { displayName: input.name });
     await ensureUserDocument(credential.user, input.name);
+
+    try {
+      await sendUserEmailVerification(credential.user);
+    } catch (verErr) {
+      console.warn('[sendEmailVerification auto send failed]', verErr);
+    }
+
     return credential.user;
   } catch (error) {
     throw new Error(firebaseErrorMessage(error));
@@ -408,11 +510,7 @@ export async function updateUserProfile(input: { name?: string; avatarUrl?: stri
   // 1. Sync to congregationMembers collection (both by direct doc id and query by userId)
   try {
     const memberDocRefs = new Set<string>();
-    const directMemberRef = doc(
-      db,
-      FIRESTORE_COLLECTIONS.congregationMembers,
-      firebaseUser.uid
-    );
+    const directMemberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, firebaseUser.uid);
     const memberSnap = await getDoc(directMemberRef);
     if (memberSnap.exists()) {
       memberDocRefs.add(firebaseUser.uid);

@@ -55,7 +55,7 @@ export default function RegisterScreen() {
     try {
       await register(name, email, password);
       await triggerHaptic('success');
-      router.replace('/select-congregation');
+      router.replace('/(auth)/verify-email');
     } catch (err: any) {
       triggerHaptic('error');
       setErrorMessage(err.message || 'Failed to create account. Please try again.');

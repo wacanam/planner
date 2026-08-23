@@ -79,9 +79,9 @@ export default function RegisterPage() {
 
     try {
       await registerWithEmail({ email: data.email, password: data.password, name });
-      setSuccess('Welcome! Setting up your workspace…');
+      setSuccess('Account created! Please verify your email…');
       setTimeout(() => {
-        router.push('/onboarding');
+        router.push('/auth/verify-email');
         router.refresh();
       }, 600);
     } catch (err) {

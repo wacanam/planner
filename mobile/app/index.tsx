@@ -7,7 +7,7 @@ import { useTheme } from '@/context/ThemeContext';
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { isAuthenticated, activeCongregationId, loading } = useAuth();
+  const { isAuthenticated, firebaseUser, activeCongregationId, loading } = useAuth();
   const { colors, typography, spacing } = useTheme();
 
   useEffect(() => {
@@ -15,12 +15,14 @@ export default function IndexScreen() {
 
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
+    } else if (firebaseUser && !firebaseUser.emailVerified) {
+      router.replace('/(auth)/verify-email');
     } else if (!activeCongregationId) {
       router.replace('/select-congregation');
     } else {
       router.replace('/(tabs)/assignments');
     }
-  }, [loading, isAuthenticated, activeCongregationId, router]);
+  }, [loading, isAuthenticated, firebaseUser?.emailVerified, activeCongregationId, router]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

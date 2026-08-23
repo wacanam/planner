@@ -43,7 +43,12 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormData) {
     setError('');
     try {
-      await signInWithEmail(data.email, data.password);
+      const user = await signInWithEmail(data.email, data.password);
+      if (!user.emailVerified) {
+        router.push('/auth/verify-email');
+        router.refresh();
+        return;
+      }
       router.push('/onboarding');
       router.refresh();
     } catch (err) {
