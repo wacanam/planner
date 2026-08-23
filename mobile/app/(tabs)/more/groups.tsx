@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -517,15 +518,23 @@ export default function ServiceGroupsScreen() {
                                     { backgroundColor: colors.primary + '20' },
                                   ]}
                                 >
-                                  <Text
-                                    style={{
-                                      fontWeight: '700',
-                                      color: colors.primary,
-                                      fontSize: 12,
-                                    }}
-                                  >
-                                    {gm.user?.name ? gm.user.name.charAt(0).toUpperCase() : 'P'}
-                                  </Text>
+                                  {gm.user?.avatarUrl ? (
+                                    <Image
+                                      source={{ uri: gm.user.avatarUrl }}
+                                      style={styles.avatarImage}
+                                      resizeMode="cover"
+                                    />
+                                  ) : (
+                                    <Text
+                                      style={{
+                                        fontWeight: '700',
+                                        color: colors.primary,
+                                        fontSize: 12,
+                                      }}
+                                    >
+                                      {gm.user?.name ? gm.user.name.charAt(0).toUpperCase() : 'P'}
+                                    </Text>
+                                  )}
                                 </View>
 
                                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -896,6 +905,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   territoryRow: {
     flexDirection: 'row',

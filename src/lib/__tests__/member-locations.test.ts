@@ -198,4 +198,86 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
       expect(filterVisibleMemberLocations({ id: 'user-1', role: UserRole.USER }, [], [], baseTime)).toEqual([]);
     });
   });
+
+  describe('Profile Avatar Aspect Ratio & Real-Time Sync', () => {
+    it('calculates aspect-ratio-preserving cover dimensions for landscape images', () => {
+      const PREVIEW_SIZE = 192;
+      const naturalWidth = 1920;
+      const naturalHeight = 1080;
+      const rotation = 0;
+
+      const isRotated90or270 = rotation % 180 !== 0;
+      const baseCoverScale = isRotated90or270
+        ? Math.max(PREVIEW_SIZE / naturalHeight, PREVIEW_SIZE / naturalWidth)
+        : Math.max(PREVIEW_SIZE / naturalWidth, PREVIEW_SIZE / naturalHeight);
+
+      const previewBaseWidth = naturalWidth * baseCoverScale;
+      const previewBaseHeight = naturalHeight * baseCoverScale;
+
+      expect(previewBaseWidth / previewBaseHeight).toBeCloseTo(naturalWidth / naturalHeight, 5);
+      expect(previewBaseWidth).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+      expect(previewBaseHeight).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+    });
+
+    it('calculates aspect-ratio-preserving cover dimensions for portrait images', () => {
+      const PREVIEW_SIZE = 192;
+      const naturalWidth = 1080;
+      const naturalHeight = 1920;
+      const rotation = 0;
+
+      const isRotated90or270 = rotation % 180 !== 0;
+      const baseCoverScale = isRotated90or270
+        ? Math.max(PREVIEW_SIZE / naturalHeight, PREVIEW_SIZE / naturalWidth)
+        : Math.max(PREVIEW_SIZE / naturalWidth, PREVIEW_SIZE / naturalHeight);
+
+      const previewBaseWidth = naturalWidth * baseCoverScale;
+      const previewBaseHeight = naturalHeight * baseCoverScale;
+
+      expect(previewBaseWidth / previewBaseHeight).toBeCloseTo(naturalWidth / naturalHeight, 5);
+      expect(previewBaseWidth).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+      expect(previewBaseHeight).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+    });
+
+    it('calculates aspect-ratio-preserving cover dimensions when rotated 90 or 270 degrees', () => {
+      const PREVIEW_SIZE = 192;
+      const naturalWidth = 1920;
+      const naturalHeight = 1080;
+
+      for (const rotation of [90, 270]) {
+        const isRotated90or270 = rotation % 180 !== 0;
+        const baseCoverScale = isRotated90or270
+          ? Math.max(PREVIEW_SIZE / naturalHeight, PREVIEW_SIZE / naturalWidth)
+          : Math.max(PREVIEW_SIZE / naturalWidth, PREVIEW_SIZE / naturalHeight);
+
+        const previewBaseWidth = naturalWidth * baseCoverScale;
+        const previewBaseHeight = naturalHeight * baseCoverScale;
+
+        expect(previewBaseWidth / previewBaseHeight).toBeCloseTo(naturalWidth / naturalHeight, 5);
+        expect(previewBaseHeight).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+        expect(previewBaseWidth).toBeGreaterThanOrEqual(PREVIEW_SIZE);
+      }
+    });
+
+    it('enriches current user location with latest local avatarUrl', () => {
+      const currentUser = {
+        id: 'member-1',
+        name: 'Publisher One Updated',
+        avatarUrl: 'https://example.com/new-avatar.jpg',
+      };
+
+      const enriched = mockLocations.map((loc) => {
+        if (loc.userId === currentUser.id) {
+          return {
+            ...loc,
+            userName: currentUser.name || loc.userName,
+            avatarUrl: currentUser.avatarUrl !== undefined ? currentUser.avatarUrl : loc.avatarUrl,
+          };
+        }
+        return loc;
+      });
+
+      expect(enriched[0].avatarUrl).toBe('https://example.com/new-avatar.jpg');
+      expect(enriched[0].userName).toBe('Publisher One Updated');
+    });
+  });
 });

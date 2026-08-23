@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react-native';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -125,9 +125,17 @@ export default function MoreMenuScreen() {
         <Card style={[styles.userCard, { marginBottom: spacing.lg }]}>
           <View style={styles.userRow}>
             <View style={[styles.userAvatar, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.userInitial, { color: '#ffffff' }]}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </Text>
+              {user?.avatarUrl ? (
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={[styles.userInitial, { color: '#ffffff' }]}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              )}
             </View>
 
             <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -264,6 +272,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   userInitial: {
     fontSize: 20,

@@ -16,6 +16,7 @@ import {
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -205,9 +206,17 @@ export default function ProfileScreen() {
         <Card style={styles.card}>
           <View style={styles.avatarSection}>
             <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-              <Text style={styles.avatarLetter}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </Text>
+              {user?.avatarUrl ? (
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.avatarLetter}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              )}
             </View>
             <Text
               style={[styles.profileName, { color: colors.foreground, fontSize: typography.lg }]}
@@ -474,6 +483,11 @@ const styles = StyleSheet.create({
     borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarLetter: {
     color: '#ffffff',

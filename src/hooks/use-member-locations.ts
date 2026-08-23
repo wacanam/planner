@@ -232,7 +232,21 @@ export function useMemberLocations(
   // Filter based on user's role, assigned groups, active status, and expiry
   const memberLocations = useMemo(() => {
     if (!user?.id) return [];
-    const filtered = filterVisibleMemberLocations(user, groups, allLocations, nowTick);
+
+    // Ensure current user's location instantly reflects any local profile updates (avatar, name)
+    const enrichedLocations = allLocations.map((loc) => {
+      if (loc.userId === user.id) {
+        return {
+          ...loc,
+          userName: user.name || loc.userName,
+          userEmail: user.email || loc.userEmail,
+          avatarUrl: user.avatarUrl !== undefined ? user.avatarUrl : loc.avatarUrl,
+        };
+      }
+      return loc;
+    });
+
+    const filtered = filterVisibleMemberLocations(user, groups, enrichedLocations, nowTick);
 
     // Sort: active sharing by lastSeenAt / updatedAt descending
     return filtered.sort((a, b) => {
@@ -567,6 +581,17 @@ export function useLocationSharing({
 
     return () => unsub();
   }, [congregationId, user?.id, stopSharing]);
+
+  // Reactively sync user profile updates (avatarUrl, name) to Firestore if currently sharing
+  useEffect(() => {
+    if (!isSharing || !congregationId || !user?.id || !currentCoords) return;
+    void syncLocationToFirestore(
+      currentCoords,
+      true,
+      expiresAtRef.current,
+      durationMinutesRef.current
+    );
+  }, [user?.avatarUrl, user?.name, isSharing, congregationId, user?.id, currentCoords, syncLocationToFirestore]);
 
   const startSharing = useCallback(
     async (mins?: number) => {

@@ -403,22 +403,63 @@ export async function updateUserProfile(input: { name?: string; avatarUrl?: stri
     photoURL: input.avatarUrl ?? firebaseUser.photoURL,
   }).catch(() => undefined);
 
-  // Sync to congregationMembers collection if a member document exists
+  const db = getPlannerFirestore();
+
+  // 1. Sync to congregationMembers collection (both by direct doc id and query by userId)
   try {
-    const memberRef = doc(
-      getPlannerFirestore(),
+    const memberDocRefs = new Set<string>();
+    const directMemberRef = doc(
+      db,
       FIRESTORE_COLLECTIONS.congregationMembers,
       firebaseUser.uid
     );
-    const memberSnap = await getDoc(memberRef);
+    const memberSnap = await getDoc(directMemberRef);
     if (memberSnap.exists()) {
+      memberDocRefs.add(firebaseUser.uid);
       const existingUser = memberSnap.data().user || {};
-      await updateDoc(memberRef, {
+      await updateDoc(directMemberRef, {
         user: {
           ...existingUser,
           ...(input.name !== undefined ? { name: input.name.trim() } : {}),
           ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
         },
+      });
+    }
+
+    const memberQuery = query(
+      collection(db, FIRESTORE_COLLECTIONS.congregationMembers),
+      where('userId', '==', firebaseUser.uid)
+    );
+    const memberQuerySnap = await getDocs(memberQuery);
+    for (const d of memberQuerySnap.docs) {
+      if (!memberDocRefs.has(d.id)) {
+        memberDocRefs.add(d.id);
+        const existingUser = d.data().user || {};
+        await updateDoc(d.ref, {
+          user: {
+            ...existingUser,
+            ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+            ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+          },
+        });
+      }
+    }
+  } catch {
+    // non-fatal sync
+  }
+
+  // 2. Sync to memberLocations collection (all matching location docs for this user)
+  try {
+    const locQuery = query(
+      collection(db, FIRESTORE_COLLECTIONS.memberLocations),
+      where('userId', '==', firebaseUser.uid)
+    );
+    const locSnap = await getDocs(locQuery);
+    for (const locDoc of locSnap.docs) {
+      await updateDoc(locDoc.ref, {
+        ...(input.name !== undefined ? { userName: input.name.trim() } : {}),
+        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        updatedAt: nowIso(),
       });
     }
   } catch {

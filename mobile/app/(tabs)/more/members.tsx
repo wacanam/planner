@@ -15,6 +15,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   StyleSheet,
   Text,
@@ -368,9 +369,17 @@ export default function CongregationMembersScreen() {
                 <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
                   <View style={styles.memberRow}>
                     <View style={[styles.avatarBox, { backgroundColor: colors.primary + '20' }]}>
-                      <Text style={{ fontWeight: '800', color: colors.primary }}>
-                        {item.user?.name ? item.user.name.charAt(0).toUpperCase() : 'P'}
-                      </Text>
+                      {item.user?.avatarUrl ? (
+                        <Image
+                          source={{ uri: item.user.avatarUrl }}
+                          style={styles.avatarImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={{ fontWeight: '800', color: colors.primary }}>
+                          {item.user?.name ? item.user.name.charAt(0).toUpperCase() : 'P'}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -428,9 +437,17 @@ export default function CongregationMembersScreen() {
                 <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
                   <View style={styles.memberRow}>
                     <View style={[styles.avatarBox, { backgroundColor: colors.primary + '20' }]}>
-                      <Text style={{ fontWeight: '800', color: colors.primary }}>
-                        {item.user?.name ? item.user.name.charAt(0).toUpperCase() : 'P'}
-                      </Text>
+                      {item.user?.avatarUrl ? (
+                        <Image
+                          source={{ uri: item.user.avatarUrl }}
+                          style={styles.avatarImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={{ fontWeight: '800', color: colors.primary }}>
+                          {item.user?.name ? item.user.name.charAt(0).toUpperCase() : 'P'}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -607,5 +624,10 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
 });

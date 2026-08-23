@@ -1561,7 +1561,8 @@ export function CongregationGoogleMap({
         pinContainer.style.display = 'flex';
         pinContainer.style.alignItems = 'center';
         pinContainer.style.justifyContent = 'center';
-        pinContainer.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+        pinContainer.style.overflow = 'hidden';
+        pinContainer.style.flexShrink = '0';
         pinContainer.style.zIndex = '3';
 
         const initials = (loc.userName || 'P')
@@ -1572,9 +1573,12 @@ export function CongregationGoogleMap({
           .slice(0, 2);
 
         if (loc.avatarUrl) {
-          pinContainer.innerHTML = `<img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none;" />`;
+          pinContainer.innerHTML = `
+            <img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; display: block;" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
+            <span style="display: none; color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; pointer-events: none; width: 100%; height: 100%; align-items: center; justify-content: center;">${initials}</span>
+          `;
         } else {
-          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; pointer-events: none;">${initials}</span>`;
+          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${initials}</span>`;
         }
 
         if (isLive) {
