@@ -33,6 +33,13 @@ export interface FitOptions {
   animated?: boolean;
 }
 
+export interface ClusterProperties {
+  cluster: boolean;
+  cluster_id: number;
+  point_count: number;
+  point_count_abbreviated: string | number;
+}
+
 export interface TerritoryMapViewProps {
   boundaryCoordinates?: MapCoordinate[];
   markers?: MapMarkerItem[];
@@ -44,10 +51,23 @@ export interface TerritoryMapViewProps {
   polygonStrokeColor?: string;
   polygonFillColor?: string;
   onMapReady?: () => void;
+  onRegionChangeComplete?: (region: MapRegion) => void;
   children?: React.ReactNode;
+
+  /**
+   * Clustering configurations
+   */
+  enableClustering?: boolean;
+  clusterRadius?: number;
+  clusterMaxZoom?: number;
+  clusterMinPoints?: number;
+  clusterColor?: string;
+  clusterTextColor?: string;
+  onClusterPress?: (clusterId: number, coordinate: MapCoordinate, expansionZoom: number) => void;
 }
 
 export interface TerritoryMapViewRef {
   fitToCoordinates: (coordinates: MapCoordinate[], options?: FitOptions) => void;
   animateToRegion: (region: MapRegion, duration?: number) => void;
 }
+
