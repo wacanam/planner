@@ -97,15 +97,19 @@ export default function RecordsScreen() {
   const isOverseer = useMemo(() => {
     if (!user?.id) return false;
     return (
-      isGroupOverseer(user.id, myGroup) ||
-      isGroupOverseerAssistant(user.id, myGroup) ||
-      groups.some((g) => isGroupOverseer(user.id, g) || isGroupOverseerAssistant(user.id, g))
+      isGroupOverseer(user.id, myGroup, user.role, user.congregationRole) ||
+      isGroupOverseerAssistant(user.id, myGroup, user.role, user.congregationRole) ||
+      groups.some(
+        (g) =>
+          isGroupOverseer(user.id, g, user.role, user.congregationRole) ||
+          isGroupOverseerAssistant(user.id, g, user.role, user.congregationRole)
+      )
     );
-  }, [user?.id, myGroup, groups]);
+  }, [user?.id, user?.role, user?.congregationRole, myGroup, groups]);
 
   const groupMateIds = useMemo(() => {
-    return getOverseenGroupMateIds(user?.id, groups);
-  }, [user?.id, groups]);
+    return getOverseenGroupMateIds(user?.id, groups, user?.role, user?.congregationRole);
+  }, [user?.id, groups, user?.role, user?.congregationRole]);
 
   // Available scopes based on permissions
   const availableScopes: { id: RecordScope; label: string; icon: string }[] = useMemo(() => {
@@ -160,16 +164,37 @@ export default function RecordsScreen() {
           h.readOnlyUserIds?.includes(user.id)
       );
     } else if (recordScope === 'group') {
-      list = list.filter(
-        (h) =>
-          h.createdById === user.id ||
-          (h.createdById && groupMateIds.has(h.createdById)) ||
-          h.collaboratorIds?.includes(user.id)
-      );
+      if (canViewCongregation || isOverseer) {
+        list = list.filter(
+          (h) =>
+            h.createdById === user.id ||
+            (h.createdById && groupMateIds.has(h.createdById)) ||
+            h.collaboratorIds?.includes(user.id) ||
+            h.readOnlyUserIds?.includes(user.id)
+        );
+      } else {
+        list = list.filter(
+          (h) =>
+            h.createdById === user.id ||
+            h.collaboratorIds?.includes(user.id) ||
+            h.readOnlyUserIds?.includes(user.id)
+        );
+      }
+    } else if (recordScope === 'congregation') {
+      if (!canViewCongregation) {
+        list = list.filter(
+          (h) =>
+            h.createdById === user.id ||
+            h.collaboratorIds?.includes(user.id) ||
+            h.readOnlyUserIds?.includes(user.id)
+        );
+      }
     }
 
     if (publisherFilter !== 'all') {
-      list = list.filter((h) => h.createdById === publisherFilter);
+      list = list.filter(
+        (h) => h.createdById === publisherFilter || h.collaboratorIds?.includes(publisherFilter)
+      );
     }
 
     // Sort: My personal records first when in group/congregation scope
@@ -180,7 +205,7 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return (a.streetName || a.address).localeCompare(b.streetName || b.address);
     });
-  }, [households, recordScope, publisherFilter, user?.id, groupMateIds]);
+  }, [households, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
 
   // Scope-Filtered Visits
   const scopedVisits = useMemo(() => {
@@ -190,9 +215,17 @@ export default function RecordsScreen() {
     if (recordScope === 'mine') {
       list = list.filter((v) => v.userId === user.id);
     } else if (recordScope === 'group') {
-      list = list.filter(
-        (v) => v.userId === user.id || (v.userId && groupMateIds.has(v.userId))
-      );
+      if (canViewCongregation || isOverseer) {
+        list = list.filter(
+          (v) => v.userId === user.id || (v.userId && groupMateIds.has(v.userId))
+        );
+      } else {
+        list = list.filter((v) => v.userId === user.id);
+      }
+    } else if (recordScope === 'congregation') {
+      if (!canViewCongregation) {
+        list = list.filter((v) => v.userId === user.id);
+      }
     }
 
     if (publisherFilter !== 'all') {
@@ -206,7 +239,7 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return b.visitDate.localeCompare(a.visitDate);
     });
-  }, [visits, recordScope, publisherFilter, user?.id, groupMateIds]);
+  }, [visits, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
 
   // Scope-Filtered Encounters
   const scopedEncounters = useMemo(() => {
@@ -216,9 +249,17 @@ export default function RecordsScreen() {
     if (recordScope === 'mine') {
       list = list.filter((e) => e.userId === user.id);
     } else if (recordScope === 'group') {
-      list = list.filter(
-        (e) => e.userId === user.id || (e.userId && groupMateIds.has(e.userId))
-      );
+      if (canViewCongregation || isOverseer) {
+        list = list.filter(
+          (e) => e.userId === user.id || (e.userId && groupMateIds.has(e.userId))
+        );
+      } else {
+        list = list.filter((e) => e.userId === user.id);
+      }
+    } else if (recordScope === 'congregation') {
+      if (!canViewCongregation) {
+        list = list.filter((e) => e.userId === user.id);
+      }
     }
 
     if (publisherFilter !== 'all') {
@@ -232,7 +273,7 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [encounters, recordScope, publisherFilter, user?.id, groupMateIds]);
+  }, [encounters, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
 
   // Search filtered results
   const filteredHouseholds = useMemo(() => {

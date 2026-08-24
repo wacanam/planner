@@ -95,7 +95,7 @@ describe('Group Overseer Record Access & Permission Rules', () => {
       expect(isGroupOverseerAssistant('user-overseer-1', mockGroups[0])).toBe(false);
     });
 
-    it('getOverseenGroupMateIds returns all member IDs for the group(s) overseen', () => {
+    it('getOverseenGroupMateIds returns all member IDs for the group(s) overseen by overseer or assistant', () => {
       const overseer1Mates = getOverseenGroupMateIds('user-overseer-1', mockGroups);
       expect(overseer1Mates.has('user-overseer-1')).toBe(true);
       expect(overseer1Mates.has('user-asst-1')).toBe(true);
@@ -104,23 +104,31 @@ describe('Group Overseer Record Access & Permission Rules', () => {
       // Should NOT include group 2 members
       expect(overseer1Mates.has('user-publisher-c')).toBe(false);
       expect(overseer1Mates.has('user-overseer-2')).toBe(false);
-    });
 
-    it('getOverseenGroupMateIds returns empty Set for regular members or assistants', () => {
       const asstMates = getOverseenGroupMateIds('user-asst-1', mockGroups);
-      expect(asstMates.size).toBe(0);
-
-      const pubMates = getOverseenGroupMateIds('user-publisher-a', mockGroups);
-      expect(pubMates.size).toBe(0);
+      expect(asstMates.has('user-overseer-1')).toBe(true);
+      expect(asstMates.has('user-asst-1')).toBe(true);
+      expect(asstMates.has('user-publisher-a')).toBe(true);
+      expect(asstMates.has('user-publisher-b')).toBe(true);
+      expect(asstMates.has('user-publisher-c')).toBe(false);
     });
 
-    it('isGroupOverseerOfUser verifies overseer relationship correctly', () => {
+    it('getOverseenGroupMateIds returns empty Set for regular members without leadership', () => {
+      const pubMatesA = getOverseenGroupMateIds('user-publisher-a', mockGroups);
+      expect(pubMatesA.size).toBe(0);
+
+      const pubMatesB = getOverseenGroupMateIds('user-publisher-b', mockGroups);
+      expect(pubMatesB.size).toBe(0);
+    });
+
+    it('isGroupOverseerOfUser verifies oversight leadership relationship correctly', () => {
       expect(isGroupOverseerOfUser('user-overseer-1', 'user-publisher-a', mockGroups)).toBe(true);
       expect(isGroupOverseerOfUser('user-overseer-1', 'user-publisher-b', mockGroups)).toBe(true);
       expect(isGroupOverseerOfUser('user-overseer-1', 'user-publisher-c', mockGroups)).toBe(false);
 
-      // Assistant is NOT a Group Overseer
-      expect(isGroupOverseerOfUser('user-asst-1', 'user-publisher-a', mockGroups)).toBe(false);
+      // Assistant also has leadership oversight of group mates
+      expect(isGroupOverseerOfUser('user-asst-1', 'user-publisher-a', mockGroups)).toBe(true);
+      expect(isGroupOverseerOfUser('user-asst-1', 'user-publisher-c', mockGroups)).toBe(false);
     });
   });
 
@@ -176,7 +184,7 @@ describe('Group Overseer Record Access & Permission Rules', () => {
       expect(isVisible).toBe(true);
     });
 
-    it('denies another publisher in the same group from viewing unshared household', () => {
+    it('denies another regular publisher in the same group from viewing unshared household', () => {
       const pubBMates = getOverseenGroupMateIds('user-publisher-b', mockGroups); // empty
       const isVisible = filterHousehold(unsharedGroupMateHousehold, {
         userId: 'user-publisher-b',
@@ -187,7 +195,7 @@ describe('Group Overseer Record Access & Permission Rules', () => {
       expect(isVisible).toBe(false);
     });
 
-    it('denies Assistant Overseer from viewing unshared household unless shared', () => {
+    it('allows Assistant Overseer to view unshared group mate household', () => {
       const asstMates = getOverseenGroupMateIds('user-asst-1', mockGroups);
       const isVisible = filterHousehold(unsharedGroupMateHousehold, {
         userId: 'user-asst-1',
@@ -195,7 +203,7 @@ describe('Group Overseer Record Access & Permission Rules', () => {
         personalOnly: true,
         groupMateUserIds: asstMates,
       });
-      expect(isVisible).toBe(false);
+      expect(isVisible).toBe(true);
     });
 
     it('denies Group Overseer of a different group from viewing unshared household', () => {
@@ -232,10 +240,11 @@ describe('Group Overseer Record Access & Permission Rules', () => {
       ).toBe(true);
     });
 
-    it('denies Assistant Overseer or stranger detail access if not shared', () => {
+    it('allows Assistant Overseer and denies stranger detail access if not shared', () => {
+      // Assistant Overseer has oversight of group mate's household
       expect(
         canAccessHouseholdDetails('user-asst-1', householdView, [], UserRole.PUBLISHER, mockGroups)
-      ).toBe(false);
+      ).toBe(true);
       expect(
         canAccessHouseholdDetails(
           'user-publisher-b',

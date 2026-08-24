@@ -43,6 +43,7 @@ export interface VisitFilters {
   assignmentId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  congregationRole?: string | null;
   scope?: 'mine' | 'group' | 'congregation' | null;
   publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
@@ -77,40 +78,52 @@ export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
     return false;
   }
 
+  const isCongregationAdmin = canViewAllCongregationRecords(
+    filters?.userRole,
+    filters?.congregationRole
+  );
+
+  const isOwn = Boolean(filters?.userId && record.userId === filters.userId);
+  const isGroupMate = Boolean(
+    filters?.groupMateUserIds &&
+      record.userId &&
+      (filters.groupMateUserIds instanceof Set
+        ? filters.groupMateUserIds.has(record.userId)
+        : filters.groupMateUserIds.includes(record.userId))
+  );
+
   // Explicit scope filtering
   if (filters?.scope === 'mine') {
     if (!filters.userId) return false;
-    return record.userId === filters.userId;
+    return isOwn;
   }
 
   if (filters?.scope === 'group') {
     if (!filters.userId) return false;
-    const isOwn = record.userId === filters.userId;
-    const isGroupMate = Boolean(
+    const hasGroupLeadership = Boolean(
       filters.groupMateUserIds &&
-        record.userId &&
         (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.userId)
-          : filters.groupMateUserIds.includes(record.userId))
+          ? filters.groupMateUserIds.size > 0
+          : filters.groupMateUserIds.length > 0)
     );
-    return isOwn || isGroupMate;
+    if (isCongregationAdmin || hasGroupLeadership) {
+      return isOwn || isGroupMate;
+    }
+    return isOwn;
   }
 
   if (filters?.scope === 'congregation') {
-    return true;
+    if (isCongregationAdmin) {
+      return true;
+    }
+    return isOwn;
   }
 
-  if (filters?.userId && !canViewAllCongregationRecords(filters.userRole)) {
-    const isOwn = record.userId === filters.userId;
-    const isGroupMate = Boolean(
-      filters.groupMateUserIds &&
-        record.userId &&
-        (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.userId)
-          : filters.groupMateUserIds.includes(record.userId))
-    );
-    if (!isOwn && !isGroupMate) return false;
+  // Default / fallback:
+  if (filters?.userId && !isCongregationAdmin) {
+    return isOwn || isGroupMate;
   }
+
   return true;
 }
 

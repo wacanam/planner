@@ -20,6 +20,8 @@ import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
 import type { LocalHousehold } from './types';
 
 export interface CreateHouseholdInput {
+  id?: string;
+  serverId?: string;
   name?: string;
   address: string;
   houseNumber?: string | null;
@@ -33,6 +35,7 @@ export interface CreateHouseholdInput {
   membersCount?: number | null;
   occupantsCount?: number | null;
   languages?: string | null;
+  language?: string | null;
   bestTimeToCall?: string | null;
   status?: string | null;
   lastVisitDate?: string | null;
@@ -58,6 +61,7 @@ export interface HouseholdFilters {
   territoryId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  congregationRole?: string | null;
   personalOnly?: boolean;
   scope?: 'mine' | 'group' | 'congregation' | null;
   publisherId?: string | null;
@@ -157,36 +161,28 @@ export function localHouseholdFromApi(household: Household, existingId?: string)
 
 function createLocalHouseholdRecord(
   input: CreateHouseholdInput,
-  id = createClientId()
+  id = input.id ?? createClientId()
 ): LocalHousehold {
   const now = nowIso();
-  const latitude = nullableString(input.latitude);
-  const longitude = nullableString(input.longitude);
-  const coordinateLabel =
-    latitude && longitude ? `Pinned household ${latitude}, ${longitude}` : 'Pinned household';
-  const address = nullableString(input.address) ?? nullableString(input.name) ?? coordinateLabel;
-  const name = nullableString(input.name);
-  const streetName = nullableString(input.streetName) ?? '';
-  const city = nullableString(input.city) ?? '';
   return {
     id,
-    serverId: id,
+    serverId: input.serverId ?? id,
     congregationId: nullableString(input.congregationId),
     territoryId: nullableString(input.territoryId),
-    name,
-    address,
+    name: nullableString(input.name) ?? input.address,
+    address: input.address,
     houseNumber: nullableString(input.houseNumber),
     unitNumber: nullableString(input.unitNumber),
-    streetName,
-    city,
+    streetName: nullableString(input.streetName) ?? input.address,
+    city: nullableString(input.city) ?? '',
     postalCode: nullableString(input.postalCode),
-    country: nullableString(input.country),
-    latitude,
-    longitude,
-    type: nullableString(input.type) ?? 'house',
-    floor: nullableNumber(input.floor),
-    occupantsCount: nullableNumber(input.occupantsCount ?? input.membersCount),
-    languages: nullableString(input.languages),
+    country: nullableString(input.country) ?? 'Philippines',
+    latitude: input.latitude ? String(input.latitude) : null,
+    longitude: input.longitude ? String(input.longitude) : null,
+    type: input.type ?? 'house',
+    floor: input.floor ?? null,
+    occupantsCount: input.occupantsCount ?? 1,
+    languages: nullableString(input.language) ?? 'Tagalog',
     bestTimeToCall: nullableString(input.bestTimeToCall),
     status: nullableString(input.status) ?? 'new',
     lastVisitDate: null,
@@ -219,61 +215,78 @@ export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilte
   if (filters?.territoryId && record.territoryId !== filters.territoryId) return false;
 
   // Specific publisher filter
-  if (filters?.publisherId && record.createdById !== filters.publisherId) {
-    return false;
+  if (filters?.publisherId) {
+    const isCreatedByPub = record.createdById === filters.publisherId;
+    const isCollaboratedByPub = Boolean(record.collaboratorIds?.includes(filters.publisherId));
+    if (!isCreatedByPub && !isCollaboratedByPub) {
+      return false;
+    }
   }
 
-  // Explicit scope filtering
-  if (filters?.scope === 'mine') {
-    if (!filters.userId) return false;
-    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
-    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
-    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
-    return isOwner || isCollaborator || isReadOnly;
-  }
-
-  if (filters?.scope === 'group') {
-    if (!filters.userId) return false;
-    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
-    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
-    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
-    const isGroupMateRecord = Boolean(
-      filters.groupMateUserIds &&
-        record.createdById &&
-        (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.createdById)
-          : filters.groupMateUserIds.includes(record.createdById))
-    );
-    return isOwner || isCollaborator || isReadOnly || isGroupMateRecord;
-  }
-
-  if (filters?.scope === 'congregation') {
+  // If no userId is provided, this is an unscoped / general query (e.g. sync or congregation-wide map)
+  if (!filters?.userId) {
     return true;
   }
 
-  // Personal scope filter (fallback for backward compatibility)
-  if (filters?.personalOnly) {
-    if (canViewAllCongregationRecords(filters.userRole)) {
-      return true;
-    }
-    if (!filters.userId) {
-      return false;
-    }
-    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
-    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
-    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
-    const isGroupMateRecord = Boolean(
-      filters.groupMateUserIds &&
-        record.createdById &&
-        (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.createdById)
-          : filters.groupMateUserIds.includes(record.createdById))
-    );
+  const isCongregationAdmin = canViewAllCongregationRecords(
+    filters?.userRole,
+    filters?.congregationRole
+  );
 
-    return isOwner || isCollaborator || isReadOnly || isGroupMateRecord;
+  const isOwner = Boolean(record.createdById === filters.userId);
+  const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
+  const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
+  const isPersonalOrShared = isOwner || isCollaborator || isReadOnly;
+
+  const isGroupMateRecord = Boolean(
+    filters?.groupMateUserIds &&
+      record.createdById &&
+      (filters.groupMateUserIds instanceof Set
+        ? filters.groupMateUserIds.has(record.createdById)
+        : filters.groupMateUserIds.includes(record.createdById))
+  );
+
+  // Explicit scope filtering
+  if (filters?.scope === 'mine') {
+    return isPersonalOrShared;
   }
 
-  return true;
+  if (filters?.scope === 'group') {
+    const hasGroupLeadership = Boolean(
+      filters.groupMateUserIds &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.size > 0
+          : filters.groupMateUserIds.length > 0)
+    );
+    if (isCongregationAdmin || hasGroupLeadership) {
+      return isPersonalOrShared || isGroupMateRecord;
+    }
+    // Unauthorized publisher attempting group scope: strictly personal & shared only
+    return isPersonalOrShared;
+  }
+
+  if (filters?.scope === 'congregation') {
+    if (isCongregationAdmin) {
+      return true;
+    }
+    // Unauthorized publisher attempting congregation scope: strictly personal & shared only
+    return isPersonalOrShared;
+  }
+
+  // Legacy personalOnly filter:
+  if (filters?.personalOnly) {
+    if (isCongregationAdmin) {
+      return true;
+    }
+    return isPersonalOrShared || isGroupMateRecord;
+  }
+
+  // Default when userId is provided and not congregation admin:
+  if (isCongregationAdmin) {
+    return true;
+  }
+
+  return isPersonalOrShared || isGroupMateRecord;
 }
 
 export async function createHousehold(input: CreateHouseholdInput): Promise<LocalHousehold> {

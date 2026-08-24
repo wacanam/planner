@@ -236,5 +236,116 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
       expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
       expect(filterVisit(otherGroupVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
     });
+
+    it('denies access to unauthorized congregation records if regular publisher attempts congregation scope', () => {
+      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(true);
+      expect(filterHousehold(sharedWithMeHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(true);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(false);
+    });
+  });
+
+  describe('Regular Publisher (NO Group Oversight, NO Congregation Admin)', () => {
+    const userRole = UserRole.PUBLISHER;
+    const userId = 'user-regular-pub';
+
+    const regularPubHousehold: LocalHousehold = {
+      ...myHousehold,
+      id: 'hh-regular',
+      createdById: 'user-regular-pub',
+      creatorName: 'Regular Publisher',
+    };
+
+    const regularPubVisit: LocalVisit = {
+      ...myVisit,
+      id: 'visit-regular',
+      userId: 'user-regular-pub',
+      householdId: 'hh-regular',
+    };
+
+    const regularPubEncounter: LocalEncounter = {
+      ...myEncounter,
+      id: 'enc-regular',
+      userId: 'user-regular-pub',
+      householdId: 'hh-regular',
+    };
+
+    const sharedWithPubHousehold: LocalHousehold = {
+      ...myHousehold,
+      id: 'hh-shared-with-pub',
+      createdById: 'user-other',
+      collaboratorIds: ['user-regular-pub'],
+    };
+
+    it('NEVER allows viewing unshared household records of other publishers under ANY scope', () => {
+      // "mine" scope
+      expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'mine' })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'mine' })).toBe(true);
+      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
+
+      // "group" scope attempt (without oversight)
+      expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'group' })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'group' })).toBe(true);
+      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'group' })).toBe(false);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group' })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'group' })).toBe(false);
+
+      // "congregation" scope attempt (unauthorized)
+      expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
+
+      // default / no scope passed
+      expect(filterHousehold(regularPubHousehold, { userId, userRole })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole })).toBe(true);
+      expect(filterHousehold(myHousehold, { userId, userRole })).toBe(false);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole })).toBe(false);
+    });
+
+    it('NEVER allows viewing unshared visits or encounters of other publishers', () => {
+      // Visits
+      expect(filterVisit(regularPubVisit, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterVisit(myVisit, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'congregation' })).toBe(false);
+
+      // Encounters
+      expect(filterEncounter(regularPubEncounter, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterEncounter(myEncounter, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'congregation' })).toBe(false);
+    });
+  });
+
+  describe('Assistant Group Overseer (Assistant Oversight)', () => {
+    const userId = 'user-asst-1';
+    const congregationRole = 'assistant_overseer';
+    const userRole = UserRole.PUBLISHER;
+    const asstGroupMateIds = new Set(['user-asst-1', 'user-groupmate-1']);
+
+    const asstHousehold: LocalHousehold = {
+      ...myHousehold,
+      id: 'hh-asst',
+      createdById: 'user-asst-1',
+      creatorName: 'Assistant Overseer',
+    };
+
+    it('correctly filters in "mine" and "group" scopes for assistant overseer', () => {
+      // In "mine" scope: only personal
+      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'mine', groupMateUserIds: asstGroupMateIds })).toBe(true);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'mine', groupMateUserIds: asstGroupMateIds })).toBe(false);
+
+      // In "group" scope: personal + group mate
+      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(true);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(true);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(false);
+
+      // With publisher filter in "group" scope
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'group', publisherId: 'user-groupmate-1', groupMateUserIds: asstGroupMateIds })).toBe(true);
+      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'group', publisherId: 'user-groupmate-1', groupMateUserIds: asstGroupMateIds })).toBe(false);
+    });
   });
 });

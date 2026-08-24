@@ -248,17 +248,33 @@ export function isGroupOverseer(
         members?: { userId?: string | null; id?: string | null; role?: string | null }[];
       }
     | null
-    | undefined
+    | undefined,
+  userRole?: string | null,
+  congregationRole?: string | null
 ): boolean {
   if (!userId || !group) return false;
   if (group.overseerId === userId) return true;
-  return Boolean(
+  const isMemberOverseer = Boolean(
     group.members?.some(
       (m) =>
         (m.userId === userId || m.id === userId) &&
-        (m.role === 'group_overseer' || m.role === 'OVERSEER' || m.role === 'groupOverseer')
+        (m.role === 'group_overseer' ||
+          m.role === 'OVERSEER' ||
+          m.role === 'groupOverseer' ||
+          m.role === 'overseer')
     )
   );
+  if (isMemberOverseer) return true;
+
+  const normCongRole = congregationRole?.toUpperCase().replace(/\s+/g, '_');
+  const normUserRole = userRole?.toUpperCase().replace(/\s+/g, '_');
+  if (normCongRole === 'GROUP_OVERSEER' || normUserRole === 'GROUP_OVERSEER') {
+    return Boolean(
+      group.members?.some((m) => m.userId === userId || m.id === userId) ||
+        group.overseerId === userId
+    );
+  }
+  return false;
 }
 
 /**
@@ -272,53 +288,39 @@ export function isGroupOverseerAssistant(
         members?: { userId?: string | null; id?: string | null; role?: string | null }[];
       }
     | null
-    | undefined
+    | undefined,
+  userRole?: string | null,
+  congregationRole?: string | null
 ): boolean {
   if (!userId || !group) return false;
   if (group.assistantOverseerId === userId) return true;
-  return Boolean(
+  const isMemberAssistant = Boolean(
     group.members?.some(
       (m) =>
         (m.userId === userId || m.id === userId) &&
-        (m.role === 'assistant_overseer' || m.role === 'ASSISTANT' || m.role === 'groupAssistant')
+        (m.role === 'assistant_overseer' ||
+          m.role === 'ASSISTANT' ||
+          m.role === 'groupAssistant' ||
+          m.role === 'assistant' ||
+          m.role === 'assistantOverseer')
     )
   );
-}
+  if (isMemberAssistant) return true;
 
-/**
- * Returns a Set of member user IDs across all groups where the specified user is a Group Overseer.
- */
-export function getOverseenGroupMateIds(
-  userId: string | null | undefined,
-  groups: Array<{
-    overseerId?: string | null;
-    assistantOverseerId?: string | null;
-    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
-  }> = []
-): Set<string> {
-  const mateIds = new Set<string>();
-  if (!userId || !groups || groups.length === 0) return mateIds;
-
-  for (const group of groups) {
-    if (isGroupOverseer(userId, group)) {
-      if (group.members) {
-        for (const member of group.members) {
-          const uid = member.userId || member.id;
-          if (uid) {
-            mateIds.add(uid);
-          }
-        }
-      }
-      if (group.overseerId) {
-        mateIds.add(group.overseerId);
-      }
-      if (group.assistantOverseerId) {
-        mateIds.add(group.assistantOverseerId);
-      }
-    }
+  const normCongRole = congregationRole?.toUpperCase().replace(/\s+/g, '_');
+  const normUserRole = userRole?.toUpperCase().replace(/\s+/g, '_');
+  if (
+    normCongRole === 'ASSISTANT_OVERSEER' ||
+    normUserRole === 'ASSISTANT_OVERSEER' ||
+    normCongRole === 'GROUP_ASSISTANT' ||
+    normUserRole === 'GROUP_ASSISTANT'
+  ) {
+    return Boolean(
+      group.members?.some((m) => m.userId === userId || m.id === userId) ||
+        group.assistantOverseerId === userId
+    );
   }
-
-  return mateIds;
+  return false;
 }
 
 /**
@@ -333,27 +335,34 @@ export function isGroupLeader(
         members?: { userId?: string | null; id?: string | null; role?: string | null }[];
       }
     | null
-    | undefined
+    | undefined,
+  userRole?: string | null,
+  congregationRole?: string | null
 ): boolean {
-  return isGroupOverseer(userId, group) || isGroupOverseerAssistant(userId, group);
+  return (
+    isGroupOverseer(userId, group, userRole, congregationRole) ||
+    isGroupOverseerAssistant(userId, group, userRole, congregationRole)
+  );
 }
 
 /**
  * Returns a Set of member user IDs across all groups where the specified user is a Group Overseer OR Assistant Overseer.
  */
-export function getGroupLeadershipMateIds(
+export function getOverseenGroupMateIds(
   userId: string | null | undefined,
   groups: Array<{
     overseerId?: string | null;
     assistantOverseerId?: string | null;
     members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
-  }> = []
+  }> = [],
+  userRole?: string | null,
+  congregationRole?: string | null
 ): Set<string> {
   const mateIds = new Set<string>();
   if (!userId || !groups || groups.length === 0) return mateIds;
 
   for (const group of groups) {
-    if (isGroupLeader(userId, group)) {
+    if (isGroupLeader(userId, group, userRole, congregationRole)) {
       if (group.members) {
         for (const member of group.members) {
           const uid = member.userId || member.id;
@@ -368,10 +377,27 @@ export function getGroupLeadershipMateIds(
       if (group.assistantOverseerId) {
         mateIds.add(group.assistantOverseerId);
       }
+      mateIds.add(userId);
     }
   }
 
   return mateIds;
+}
+
+/**
+ * Returns a Set of member user IDs across all groups where the specified user is a Group Overseer OR Assistant Overseer.
+ */
+export function getGroupLeadershipMateIds(
+  userId: string | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = [],
+  userRole?: string | null,
+  congregationRole?: string | null
+): Set<string> {
+  return getOverseenGroupMateIds(userId, groups, userRole, congregationRole);
 }
 
 /**

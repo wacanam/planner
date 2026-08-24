@@ -70,7 +70,12 @@ export default function VisitsClient() {
   const params = useParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
+  const groupMateUserIds = useOverseenGroupMates(
+    congregationId,
+    user?.id,
+    user?.role,
+    user?.congregationRole
+  );
 
   type RecordScope = 'mine' | 'group' | 'congregation';
   const [recordScope, setRecordScope] = useState<RecordScope>('mine');
@@ -115,6 +120,7 @@ export default function VisitsClient() {
     congregationId,
     userId: user?.id,
     userRole: user?.role,
+    congregationRole: user?.congregationRole,
     scope: recordScope,
     publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
@@ -123,6 +129,7 @@ export default function VisitsClient() {
     congregationId,
     userId: user?.id,
     userRole: user?.role,
+    congregationRole: user?.congregationRole,
     scope: recordScope,
     publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
@@ -287,12 +294,19 @@ export default function VisitsClient() {
           >
             <option value="all">All Publishers</option>
             {members
-              .filter((m) => (recordScope === 'group' ? groupMateUserIds.has(m.userId) : true))
-              .map((m) => (
-                <option key={m.id} value={m.userId}>
-                  {m.user?.name || 'Publisher'} {m.userId === user?.id ? '(You)' : ''}
-                </option>
-              ))}
+              .filter((m) => {
+                const uid = m.userId || m.id;
+                if (recordScope === 'group') return groupMateUserIds.has(uid);
+                return true;
+              })
+              .map((m) => {
+                const uid = m.userId || m.id;
+                return (
+                  <option key={m.id} value={uid}>
+                    {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
+                  </option>
+                );
+              })}
           </select>
         )}
 

@@ -93,14 +93,19 @@ export function useCongregationGroups(congregationId: string | null | undefined)
 }
 
 /**
- * Returns a Set of member user IDs across all groups where userId is a Group Overseer.
+ * Returns a Set of member user IDs across all groups where userId is a Group Overseer or Assistant.
  */
 export function useOverseenGroupMates(
   congregationId: string | null | undefined,
-  userId: string | null | undefined
+  userId: string | null | undefined,
+  userRole?: string | null,
+  congregationRole?: string | null
 ): Set<string> {
   const { groups = [] } = useCongregationGroups(congregationId);
-  return useMemo(() => getOverseenGroupMateIds(userId, groups), [userId, groups]);
+  return useMemo(
+    () => getOverseenGroupMateIds(userId, groups, userRole, congregationRole),
+    [userId, groups, userRole, congregationRole]
+  );
 }
 
 /**

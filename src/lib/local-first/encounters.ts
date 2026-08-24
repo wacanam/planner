@@ -57,6 +57,7 @@ export interface EncounterFilters {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  congregationRole?: string | null;
   scope?: 'mine' | 'group' | 'congregation' | null;
   publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
@@ -92,43 +93,52 @@ export function filterEncounter(record: LocalEncounter, filters?: EncounterFilte
     return false;
   }
 
-  // Explicit scope filtering
-  if (filters.scope === 'mine') {
-    if (!filters.userId) return false;
-    return record.userId === filters.userId;
-  }
+  const isCongregationAdmin = canViewAllCongregationRecords(
+    filters.userRole,
+    filters.congregationRole
+  );
 
-  if (filters.scope === 'group') {
-    if (!filters.userId) return false;
-    const isOwn = record.userId === filters.userId;
-    const isGroupMate = Boolean(
-      filters.groupMateUserIds &&
-        record.userId &&
-        (filters.groupMateUserIds instanceof Set
-          ? filters.groupMateUserIds.has(record.userId)
-          : filters.groupMateUserIds.includes(record.userId))
-    );
-    return isOwn || isGroupMate;
-  }
-
-  if (filters.scope === 'congregation') {
-    return true;
-  }
-
-  if (
-    filters.userId &&
-    !canViewAllCongregationRecords(filters.userRole) &&
-    record.userId !== filters.userId &&
-    !(
-      filters.groupMateUserIds &&
+  const isOwn = Boolean(filters.userId && record.userId === filters.userId);
+  const isGroupMate = Boolean(
+    filters.groupMateUserIds &&
       record.userId &&
       (filters.groupMateUserIds instanceof Set
         ? filters.groupMateUserIds.has(record.userId)
         : filters.groupMateUserIds.includes(record.userId))
-    )
-  ) {
-    return false;
+  );
+
+  // Explicit scope filtering
+  if (filters.scope === 'mine') {
+    if (!filters.userId) return false;
+    return isOwn;
   }
+
+  if (filters.scope === 'group') {
+    if (!filters.userId) return false;
+    const hasGroupLeadership = Boolean(
+      filters.groupMateUserIds &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.size > 0
+          : filters.groupMateUserIds.length > 0)
+    );
+    if (isCongregationAdmin || hasGroupLeadership) {
+      return isOwn || isGroupMate;
+    }
+    return isOwn;
+  }
+
+  if (filters.scope === 'congregation') {
+    if (isCongregationAdmin) {
+      return true;
+    }
+    return isOwn;
+  }
+
+  // Default / fallback:
+  if (filters.userId && !isCongregationAdmin) {
+    return isOwn || isGroupMate;
+  }
+
   return true;
 }
 
