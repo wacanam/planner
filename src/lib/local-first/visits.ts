@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   type QueryConstraint,
@@ -82,11 +83,15 @@ export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   return true;
 }
 
-export function toVisitView(record: LocalVisit, household?: LocalHousehold | null): Visit {
+export function toVisitView(
+  record: LocalVisit,
+  household?: LocalHousehold | null,
+  userCongregationId?: string | null
+): Visit {
   return {
     id: record.id,
     userId: record.userId ?? '',
-    congregationId: record.congregationId ?? household?.congregationId ?? null,
+    congregationId: record.congregationId ?? household?.congregationId ?? userCongregationId ?? null,
     householdId: record.householdId,
     assignmentId: record.assignmentId,
     visitDate: record.visitDate,
@@ -141,8 +146,16 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
 
 export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> {
   const now = nowIso();
-  const household = await getHouseholdById(input.householdId);
-  const congregationId = nullableString(input.congregationId) ?? household?.congregationId ?? null;
+  const household = input.householdId ? await getHouseholdById(input.householdId) : undefined;
+  let congregationId = nullableString(input.congregationId) ?? household?.congregationId ?? null;
+  if (!congregationId && input.userId) {
+    try {
+      const uDoc = await getDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId));
+      if (uDoc.exists()) {
+        congregationId = uDoc.data().congregationId ?? null;
+      }
+    } catch {}
+  }
   const record: LocalVisit = {
     id: createClientId(),
     serverId: null,

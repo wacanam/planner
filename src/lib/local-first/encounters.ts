@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   type QueryConstraint,
@@ -105,13 +106,20 @@ export const matchesEncounterFilters = filterEncounter;
 export function toEncounterView(
   record: LocalEncounter,
   household?: LocalHousehold | null,
-  visit?: LocalVisit | null
+  visit?: LocalVisit | null,
+  userCongregationId?: string | null
 ): Encounter {
+  const derivedCongregationId =
+    record.congregationId ??
+    household?.congregationId ??
+    visit?.congregationId ??
+    userCongregationId ??
+    null;
   return {
     id: record.id,
     visitId: record.visitId,
     householdId: record.householdId,
-    congregationId: record.congregationId ?? household?.congregationId ?? visit?.congregationId ?? null,
+    congregationId: derivedCongregationId,
     userId: record.userId ?? '',
     publisherName: record.publisherName ?? household?.creatorName ?? null,
     name: record.name,
@@ -197,11 +205,19 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
   const visit = input.visitId ? visits.find((item) => item.id === input.visitId) : null;
   const householdId = nullableString(input.householdId) ?? visit?.householdId ?? null;
   const household = householdId ? await getHouseholdById(householdId) : null;
-  const congregationId =
+  let congregationId =
     nullableString(input.congregationId) ??
     household?.congregationId ??
     visit?.congregationId ??
     null;
+  if (!congregationId && input.userId) {
+    try {
+      const uDoc = await getDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId));
+      if (uDoc.exists()) {
+        congregationId = uDoc.data().congregationId ?? null;
+      }
+    } catch {}
+  }
 
   const record: LocalEncounter = {
     id: createClientId(),

@@ -88,7 +88,35 @@ export function useVisits(filters?: {
     const q =
       constraints.length > 0 ? query(visitCollection(), ...constraints) : query(visitCollection());
 
-    return onSnapshot(
+    let householdsMap = new Map<string, any>();
+    let memberUserIds = new Set<string>();
+
+    const unsubHouseholds = congregationId
+      ? onSnapshot(
+          query(
+            collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.households),
+            where('congregationId', '==', congregationId)
+          ),
+          (hSnap) => {
+            householdsMap = new Map(hSnap.docs.map((d) => [d.id, d.data()]));
+          }
+        )
+      : () => {};
+
+    const unsubMembers = congregationId
+      ? onSnapshot(
+          query(
+            collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
+            where('congregationId', '==', congregationId),
+            where('status', 'in', ['active', 'approved'])
+          ),
+          (mSnap) => {
+            memberUserIds = new Set(mSnap.docs.map((d) => d.data().userId || d.id));
+          }
+        )
+      : () => {};
+
+    const unsubVisits = onSnapshot(
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
@@ -96,7 +124,12 @@ export function useVisits(filters?: {
           .map((document) => visitFromData(document.id, document.data() as Partial<Visit>))
           .sort((a, b) => b.visitDate.localeCompare(a.visitDate));
         if (congregationId) {
-          list = list.filter((v) => !v.congregationId || v.congregationId === congregationId);
+          list = list.filter((v) => {
+            if (v.congregationId) return v.congregationId === congregationId;
+            if (v.householdId) return householdsMap.has(v.householdId);
+            if (v.userId) return memberUserIds.has(v.userId);
+            return false;
+          });
         }
         setVisits(list);
         setError(null);
@@ -107,6 +140,12 @@ export function useVisits(filters?: {
         setIsLoading(false);
       }
     );
+
+    return () => {
+      unsubHouseholds();
+      unsubMembers();
+      unsubVisits();
+    };
   }, [congregationId, householdId, assignmentId]);
 
   return { visits, data: visits, isLoading, error };
@@ -127,6 +166,12 @@ export function useCreateVisit() {
         const hDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId));
         if (hDoc.exists()) {
           congregationId = hDoc.data().congregationId || null;
+        }
+      }
+      if (!congregationId && data.userId) {
+        const uDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.users, data.userId));
+        if (uDoc.exists()) {
+          congregationId = uDoc.data().congregationId || null;
         }
       }
 

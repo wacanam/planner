@@ -247,5 +247,26 @@ describe('Congregation Isolation & Super Admin Global Access', () => {
       expect(filterVisit(legacyVisitWithoutCongId, { householdId: 'hh-1' })).toBe(true);
       expect(filterEncounter(legacyEncounterWithoutCongId, { householdId: 'hh-1' })).toBe(true);
     });
+
+    it('resolves congregationId for visits and encounters lacking both congregationId and householdId via user membered congregation', () => {
+      const adHocVisit: LocalVisit = {
+        ...mockVisitAlpha,
+        congregationId: undefined,
+        householdId: '',
+      };
+      const adHocEncounter: LocalEncounter = {
+        ...mockEncounterAlpha,
+        congregationId: undefined,
+        householdId: null,
+        visitId: null,
+      };
+
+      // With no household and no direct congregationId, resolves via user membered congregation
+      const vView = toVisitView(adHocVisit, null, 'cong-alpha');
+      expect(vView.congregationId).toBe('cong-alpha');
+
+      const eView = toEncounterView(adHocEncounter, null, null, 'cong-alpha');
+      expect(eView.congregationId).toBe('cong-alpha');
+    });
   });
 });

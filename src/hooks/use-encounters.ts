@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import {
   createEncounter,
   toEncounterView,
@@ -32,6 +35,7 @@ function useEncounterRecords(filters?: {
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [memberUserIds, setMemberUserIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +44,7 @@ function useEncounterRecords(filters?: {
       setEncounters([]);
       setHouseholds([]);
       setVisits([]);
+      setMemberUserIds(new Set());
       setIsLoading(false);
       return;
     }
@@ -68,10 +73,36 @@ function useEncounterRecords(filters?: {
       setVisits,
       handleError
     );
+
+    let unsubscribeMembers = () => {};
+    if (congregationId) {
+      const q = query(
+        collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
+        where('congregationId', '==', congregationId),
+        where('status', 'in', ['active', 'approved'])
+      );
+      unsubscribeMembers = onSnapshot(
+        q,
+        (snapshot) => {
+          const ids = new Set<string>();
+          for (const d of snapshot.docs) {
+            const data = d.data();
+            if (data.userId) ids.add(String(data.userId));
+            ids.add(d.id);
+          }
+          setMemberUserIds(ids);
+        },
+        () => {}
+      );
+    } else {
+      setMemberUserIds(new Set());
+    }
+
     return () => {
       unsubscribeEncounters();
       unsubscribeHouseholds();
       unsubscribeVisits();
+      unsubscribeMembers();
     };
   }, [congregationId, groupMateUserIds, householdId, userId, userRole, visitId]);
 
@@ -92,12 +123,33 @@ function useEncounterRecords(filters?: {
     let filteredEncounters = encounters;
     if (congregationId) {
       filteredEncounters = filteredEncounters.filter((e) => {
+        // 1. Direct congregationId match
         if (e.congregationId) {
           return e.congregationId === congregationId;
         }
-        // Backward-compatibility: match through household
-        const hh = e.householdId ? householdMap.get(e.householdId) : null;
-        return hh ? (!hh.congregationId || hh.congregationId === congregationId) : true;
+        // 2. Household-derived congregationId
+        if (e.householdId) {
+          const hh = householdMap.get(e.householdId);
+          if (hh) {
+            return !hh.congregationId || hh.congregationId === congregationId;
+          }
+          return false;
+        }
+        // If linked to a visit
+        if (e.visitId && visitMap.has(e.visitId)) {
+          const v = visitMap.get(e.visitId);
+          if (v?.congregationId) return v.congregationId === congregationId;
+          if (v?.householdId) {
+            const hh = householdMap.get(v.householdId);
+            return Boolean(hh && (!hh.congregationId || hh.congregationId === congregationId));
+          }
+          if (v?.userId) return memberUserIds.has(v.userId) || v.userId === userId;
+        }
+        // 3. User-membership-derived congregationId
+        if (e.userId) {
+          return memberUserIds.has(e.userId) || e.userId === userId;
+        }
+        return false;
       });
     }
     if (userId && !canViewAllCongregationRecords(userRole)) {
@@ -113,11 +165,14 @@ function useEncounterRecords(filters?: {
         toEncounterView(
           encounter,
           encounter.householdId ? householdMap.get(encounter.householdId) : null,
-          encounter.visitId ? visitMap.get(encounter.visitId) : undefined
+          encounter.visitId ? visitMap.get(encounter.visitId) : undefined,
+          congregationId && (memberUserIds.has(encounter.userId ?? '') || encounter.userId === userId)
+            ? congregationId
+            : null
         )
       )
     );
-  }, [congregationId, encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
+  }, [congregationId, encounters, groupMateSet, householdMap, memberUserIds, userId, userRole, visitMap]);
 
   return { encounters: mappedEncounters, isLoading, error };
 }
