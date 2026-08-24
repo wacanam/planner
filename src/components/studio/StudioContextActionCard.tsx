@@ -37,19 +37,19 @@ const TOOL_CONFIG: Record<
 > = {
   pointer: {
     title: 'Selection Mode',
-    instruction: 'Tap any household pin or boundary to view details and actions.',
+    instruction: 'Tap any household, road, or boundary to edit. Right-click vertices on selected roads/boundaries to delete them.',
     icon: MousePointer,
     doneLabel: 'Done',
   },
   boundary: {
     title: 'Draw Territory Boundary',
-    instruction: 'Tap around the perimeter on the map to define the polygon boundary.',
+    instruction: 'Tap around the perimeter. Click the green start dot or Complete Boundary to close and fill. Right-click vertices to delete.',
     icon: Hexagon,
     doneLabel: 'Complete Boundary',
   },
   road: {
     title: 'Draw Road / Route Path',
-    instruction: 'Tap along the street to draw street route lines. Click Save Road when finished.',
+    instruction: 'Tap along the street to draw route lines. Snaps to existing roads as Y, T, or X junctions. Right-click vertices to delete.',
     icon: Milestone,
     doneLabel: 'Save Road',
   },

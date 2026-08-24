@@ -48,6 +48,7 @@ import {
   canModifyMapAnnotation,
   canViewMemberLocations,
 } from '@/lib/permissions';
+import { insertJunctionVertexIntoRoad } from '@/lib/map-geometry';
 import {
   deleteHouseholdRecord,
   saveHouseholdRecord,
@@ -157,6 +158,25 @@ export function StudioLayout({
   const [drawnPoints, setDrawnPoints] = useState<Array<{ lat: number; lng: number }>>([]);
   const [_history, setHistory] = useState<Array<Array<{ lat: number; lng: number }>>>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Snapped road junction connections during road drawing (T, Y, X intersections)
+  const snappedJunctionsRef = useRef<
+    Array<{
+      roadId: string;
+      segmentIndex: number;
+      point: { lat: number; lng: number };
+      isVertex?: boolean;
+    }>
+  >([]);
+
+  const handleDeleteDrawnPoint = (index: number) => {
+    if (index < 0 || index >= drawnPoints.length) return;
+    const nextPoints = drawnPoints.filter((_, i) => i !== index);
+    setDrawnPoints(nextPoints);
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextPoints]);
+    setHistoryIndex((prev) => prev + 1);
+    toast.info(`Deleted vertex #${index + 1}`);
+  };
 
   // Sheets & Dialogs
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
@@ -737,6 +757,13 @@ export function StudioLayout({
             setDrawnPoints(nextPoints);
             setHistory((prev) => [...prev.slice(0, historyIndex + 1), nextPoints]);
             setHistoryIndex((prev) => prev + 1);
+          }}
+          onDeleteDrawnPoint={handleDeleteDrawnPoint}
+          onCloseBoundary={() => {
+            void handleDoneTool();
+          }}
+          onRoadSnapJunction={(junction) => {
+            snappedJunctionsRef.current.push(junction);
           }}
           onSelectHousehold={(h) => {
             dismissAllFloatingCards();
@@ -1756,9 +1783,25 @@ export function StudioLayout({
                 creatorName: user?.name || null,
                 createdAt: new Date().toISOString(),
               };
+
+              // Automatically insert junction vertices into connected existing roads
+              let nextExistingRoads = [...existingRoads];
+              if (snappedJunctionsRef.current.length > 0) {
+                for (const junction of snappedJunctionsRef.current) {
+                  if (!junction.isVertex) {
+                    nextExistingRoads = nextExistingRoads.map((r) =>
+                      r.id === junction.roadId
+                        ? insertJunctionVertexIntoRoad(r, junction.point, junction.segmentIndex)
+                        : r
+                    );
+                  }
+                }
+                snappedJunctionsRef.current = [];
+              }
+
               await saveAnnotations({
                 ...territory.annotations,
-                roads: [...existingRoads, newRoad],
+                roads: [...nextExistingRoads, newRoad],
               });
               toast.success(`Road "${data.name}" saved!`);
               setDrawnPoints([]);

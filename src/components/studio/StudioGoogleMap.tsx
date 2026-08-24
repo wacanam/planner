@@ -3,6 +3,11 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  computeDistanceMeters,
+  findNearestRoadSnapPoint,
+  type RoadSnapResult,
+} from '@/lib/map-geometry';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { canEditHousehold, canModifyMapAnnotation } from '@/lib/permissions';
 import type {
@@ -29,6 +34,14 @@ interface StudioGoogleMapProps {
   activeTool: StudioTool;
   drawnPoints: Array<{ lat: number; lng: number }>;
   onAddPoint: (point: { lat: number; lng: number }) => void;
+  onDeleteDrawnPoint?: (index: number) => void;
+  onCloseBoundary?: () => void;
+  onRoadSnapJunction?: (junction: {
+    roadId: string;
+    segmentIndex: number;
+    point: { lat: number; lng: number };
+    isVertex?: boolean;
+  }) => void;
   onSelectHousehold: (household: Household) => void;
   onMoveHousehold?: (id: string, lat: number, lng: number) => void;
   onSelectLandmark?: (landmark: MapLandmark) => void;
@@ -584,6 +597,9 @@ export function StudioGoogleMap({
   activeTool,
   drawnPoints,
   onAddPoint,
+  onDeleteDrawnPoint,
+  onCloseBoundary,
+  onRoadSnapJunction,
   onSelectHousehold,
   onMoveHousehold,
   onSelectLandmark,
@@ -630,6 +646,16 @@ export function StudioGoogleMap({
   const drawingPolysRef = useRef<(google.maps.Polyline | google.maps.Polygon)[]>([]);
   const drawingMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const householdMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+
+  // Snapping & Drawing refs
+  const activeRoadSnapRef = useRef<RoadSnapResult | null>(null);
+  const isNearBoundaryStartRef = useRef<boolean>(false);
+  const snapMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const snapMarkerLabelRef = useRef<HTMLDivElement | null>(null);
+  const territoryRef = useRef(territory);
+  territoryRef.current = territory;
+  const drawnPointsRef = useRef(drawnPoints);
+  drawnPointsRef.current = drawnPoints;
 
   // Annotations refs
   const roadPolylinesRef = useRef<google.maps.Polyline[]>([]);
@@ -812,6 +838,15 @@ export function StudioGoogleMap({
   const handleUpdateRoadPointsRef = useRef(onUpdateRoadPoints);
   handleUpdateRoadPointsRef.current = onUpdateRoadPoints;
 
+  const handleDeleteDrawnPointRef = useRef(onDeleteDrawnPoint);
+  handleDeleteDrawnPointRef.current = onDeleteDrawnPoint;
+
+  const handleCloseBoundaryRef = useRef(onCloseBoundary);
+  handleCloseBoundaryRef.current = onCloseBoundary;
+
+  const handleRoadSnapJunctionRef = useRef(onRoadSnapJunction);
+  handleRoadSnapJunctionRef.current = onRoadSnapJunction;
+
   const handleSelectBoundaryRef = useRef(onSelectBoundary);
   handleSelectBoundaryRef.current = onSelectBoundary;
 
@@ -869,7 +904,9 @@ export function StudioGoogleMap({
           RenderingType?: { VECTOR: google.maps.RenderingType; RASTER: google.maps.RenderingType };
         };
         await importLibrary('geometry');
-        await importLibrary('marker');
+        const { AdvancedMarkerElement } = (await importLibrary(
+          'marker'
+        )) as google.maps.MarkerLibrary;
 
         if (!isMounted || !mapContainerRef.current) return;
 
@@ -898,6 +935,138 @@ export function StudioGoogleMap({
           gestureHandling: 'greedy',
         });
 
+        // Initialize Snap Target Marker for road intersections (Y, T, X)
+        const snapContainer = document.createElement('div');
+        snapContainer.style.position = 'relative';
+        snapContainer.style.width = '0px';
+        snapContainer.style.height = '0px';
+        snapContainer.style.pointerEvents = 'none';
+
+        const snapRing = document.createElement('div');
+        snapRing.style.position = 'absolute';
+        snapRing.style.left = '-12px';
+        snapRing.style.top = '-12px';
+        snapRing.style.width = '24px';
+        snapRing.style.height = '24px';
+        snapRing.style.borderRadius = '50%';
+        snapRing.style.border = '2.5px solid #2563EB';
+        snapRing.style.backgroundColor = 'rgba(59, 130, 246, 0.25)';
+        snapRing.style.boxShadow = '0 0 10px rgba(37, 99, 235, 0.7)';
+
+        const snapDot = document.createElement('div');
+        snapDot.style.position = 'absolute';
+        snapDot.style.left = '-4px';
+        snapDot.style.top = '-4px';
+        snapDot.style.width = '8px';
+        snapDot.style.height = '8px';
+        snapDot.style.borderRadius = '50%';
+        snapDot.style.backgroundColor = '#1D4ED8';
+        snapDot.style.border = '1.5px solid #FFFFFF';
+        snapDot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+
+        const snapBadge = document.createElement('div');
+        snapBadge.style.position = 'absolute';
+        snapBadge.style.left = '16px';
+        snapBadge.style.top = '-10px';
+        snapBadge.style.whiteSpace = 'nowrap';
+        snapBadge.style.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+        snapBadge.style.color = '#FFFFFF';
+        snapBadge.style.fontSize = '10px';
+        snapBadge.style.fontWeight = '700';
+        snapBadge.style.padding = '2px 7px';
+        snapBadge.style.borderRadius = '6px';
+        snapBadge.style.border = '1px solid rgba(255,255,255,0.2)';
+        snapBadge.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+        snapBadge.style.pointerEvents = 'none';
+        snapBadge.textContent = 'Connect Junction';
+
+        snapContainer.appendChild(snapRing);
+        snapContainer.appendChild(snapDot);
+        snapContainer.appendChild(snapBadge);
+
+        const snapMarker = new AdvancedMarkerElement({
+          map: null,
+          position: null,
+          content: snapContainer,
+          zIndex: 100,
+        });
+        snapMarkerRef.current = snapMarker;
+        snapMarkerLabelRef.current = snapBadge;
+
+        // Listen for mousemove for magnetic road snapping and boundary closing detection
+        map.addListener('mousemove', (e: google.maps.MapMouseEvent) => {
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
+          const currentTool = activeToolRef.current;
+          if (currentTool === 'road' && e.latLng) {
+            const latLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+            const projection = overlayRef.current?.getProjection();
+            const latLngToPixel = (coord: { lat: number; lng: number }) => {
+              if (!projection) return null;
+              const p = projection.fromLatLngToContainerPixel(
+                new google.maps.LatLng(coord.lat, coord.lng)
+              );
+              return p ? { x: p.x, y: p.y } : null;
+            };
+            const cursorPixel = latLngToPixel(latLng);
+            const roads = territoryRef.current?.annotations?.roads || [];
+
+            const snap = findNearestRoadSnapPoint({
+              point: latLng,
+              roads,
+              pixelTolerance: 24,
+              latLngToPixel,
+              cursorPixel,
+            });
+
+            activeRoadSnapRef.current = snap;
+            if (snap && snapMarkerRef.current) {
+              snapMarkerRef.current.position = snap.snappedPoint;
+              snapMarkerRef.current.map = map;
+              if (snapMarkerLabelRef.current) {
+                snapMarkerLabelRef.current.textContent = snap.isVertex
+                  ? `Snap to ${snap.road.name || 'Road'} (Vertex)`
+                  : `Connect to ${snap.road.name || 'Road'} (Junction)`;
+              }
+            } else if (snapMarkerRef.current) {
+              snapMarkerRef.current.map = null;
+            }
+          } else if (currentTool === 'boundary' && e.latLng) {
+            const pts = drawnPointsRef.current;
+            if (pts.length >= 3) {
+              const p0 = pts[0];
+              const latLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+              const projection = overlayRef.current?.getProjection();
+              let isNearP0 = false;
+              if (projection) {
+                const pCursor = projection.fromLatLngToContainerPixel(
+                  new google.maps.LatLng(latLng.lat, latLng.lng)
+                );
+                const pStart = projection.fromLatLngToContainerPixel(
+                  new google.maps.LatLng(p0.lat, p0.lng)
+                );
+                if (pCursor && pStart) {
+                  const dist = Math.hypot(pCursor.x - pStart.x, pCursor.y - pStart.y);
+                  isNearP0 = dist <= 24;
+                }
+              } else {
+                isNearP0 = computeDistanceMeters(latLng, p0) <= 20;
+              }
+              isNearBoundaryStartRef.current = isNearP0;
+            } else {
+              isNearBoundaryStartRef.current = false;
+            }
+            if (snapMarkerRef.current) {
+              snapMarkerRef.current.map = null;
+            }
+          } else {
+            activeRoadSnapRef.current = null;
+            isNearBoundaryStartRef.current = false;
+            if (snapMarkerRef.current) {
+              snapMarkerRef.current.map = null;
+            }
+          }
+        });
+
         // Add single stable click listener for tool actions
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
@@ -916,8 +1085,25 @@ export function StudioGoogleMap({
             handlePlaceLandmarkRef.current?.({ lat, lng });
           } else if (currentTool === 'start') {
             handleSetStartFlagRef.current?.({ lat, lng });
-          } else if (currentTool === 'boundary' || currentTool === 'road') {
-            handleAddPointRef.current?.({ lat, lng });
+          } else if (currentTool === 'boundary') {
+            if (drawnPointsRef.current.length >= 3 && isNearBoundaryStartRef.current) {
+              handleCloseBoundaryRef.current?.();
+            } else {
+              handleAddPointRef.current?.({ lat, lng });
+            }
+          } else if (currentTool === 'road') {
+            if (activeRoadSnapRef.current) {
+              const snap = activeRoadSnapRef.current;
+              handleRoadSnapJunctionRef.current?.({
+                roadId: snap.road.id,
+                segmentIndex: snap.segmentIndex,
+                point: snap.snappedPoint,
+                isVertex: snap.isVertex,
+              });
+              handleAddPointRef.current?.(snap.snappedPoint);
+            } else {
+              handleAddPointRef.current?.({ lat, lng });
+            }
           } else if (currentTool === 'pointer') {
             handleDeselectAllRef.current?.();
           }
@@ -1361,7 +1547,10 @@ export function StudioGoogleMap({
         polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           if (e.vertex != null) {
-            polygon.getPath().removeAt(e.vertex);
+            const path = polygon.getPath();
+            if (path.getLength() > 3) {
+              path.removeAt(e.vertex);
+            }
           }
         });
 
@@ -1383,8 +1572,25 @@ export function StudioGoogleMap({
               handlePlaceLandmarkRef.current?.({ lat, lng });
             } else if (currentTool === 'start') {
               handleSetStartFlagRef.current?.({ lat, lng });
-            } else if (currentTool === 'boundary' || currentTool === 'road') {
-              handleAddPointRef.current?.({ lat, lng });
+            } else if (currentTool === 'boundary') {
+              if (drawnPointsRef.current.length >= 3 && isNearBoundaryStartRef.current) {
+                handleCloseBoundaryRef.current?.();
+              } else {
+                handleAddPointRef.current?.({ lat, lng });
+              }
+            } else if (currentTool === 'road') {
+              if (activeRoadSnapRef.current) {
+                const snap = activeRoadSnapRef.current;
+                handleRoadSnapJunctionRef.current?.({
+                  roadId: snap.road.id,
+                  segmentIndex: snap.segmentIndex,
+                  point: snap.snappedPoint,
+                  isVertex: snap.isVertex,
+                });
+                handleAddPointRef.current?.(snap.snappedPoint);
+              } else {
+                handleAddPointRef.current?.({ lat, lng });
+              }
             }
           }
         });
@@ -1708,13 +1914,13 @@ export function StudioGoogleMap({
 
     if (drawnPoints.length > 0) {
       if (activeTool === 'boundary') {
-        const poly = new google.maps.Polygon({
-          paths: drawnPoints,
+        // While drawing, boundary is rendered as an unfilled open polyline
+        const poly = new google.maps.Polyline({
+          path: drawnPoints,
           strokeColor: '#F59E0B',
-          strokeOpacity: 1,
-          strokeWeight: 2.5,
-          fillColor: '#FBBF24',
-          fillOpacity: 0.25,
+          strokeOpacity: 0.95,
+          strokeWeight: 3,
+          zIndex: 20,
           map,
         });
         drawingPolysRef.current.push(poly);
@@ -1760,18 +1966,53 @@ export function StudioGoogleMap({
       }
 
       drawnPoints.forEach((pt, idx) => {
+        const dotWrapper = document.createElement('div');
+        dotWrapper.style.position = 'relative';
+        dotWrapper.style.cursor = 'pointer';
+
         const dot = document.createElement('div');
         dot.style.width = '14px';
         dot.style.height = '14px';
         dot.style.borderRadius = '50%';
         dot.style.backgroundColor = idx === 0 ? '#10B981' : '#F59E0B';
         dot.style.border = '2.5px solid #FFFFFF';
-        dot.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+        dot.style.boxShadow =
+          activeTool === 'boundary' && idx === 0 && drawnPoints.length >= 3
+            ? '0 0 0 3px #10B981, 0 2px 6px rgba(0,0,0,0.35)'
+            : '0 2px 6px rgba(0,0,0,0.35)';
+        dot.style.transition = 'transform 0.15s ease-out';
+
+        dotWrapper.addEventListener('mouseenter', () => {
+          dot.style.transform = 'scale(1.25)';
+        });
+        dotWrapper.addEventListener('mouseleave', () => {
+          dot.style.transform = 'scale(1.0)';
+        });
+
+        // Right-click to delete vertex
+        dotWrapper.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDeleteDrawnPointRef.current?.(idx);
+        });
+
+        if (activeTool === 'boundary' && idx === 0 && drawnPoints.length >= 3) {
+          dotWrapper.title = 'Click to close boundary polygon • Right-click to delete';
+          dotWrapper.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleCloseBoundaryRef.current?.();
+          });
+        } else {
+          dotWrapper.title = 'Right-click to delete vertex';
+        }
+
+        dotWrapper.appendChild(dot);
 
         const marker = new AdvancedMarkerElement({
           map,
           position: pt,
-          content: dot,
+          content: dotWrapper,
+          zIndex: 30 + idx,
         });
         drawingMarkersRef.current.push(marker);
       });
@@ -1942,12 +2183,17 @@ export function StudioGoogleMap({
         });
 
         // Right-click vertex deletion on road
-        pavement.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
+        const handleRoadRightClick = (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
           if (e.vertex != null) {
-            pavement.getPath().removeAt(e.vertex);
+            const path = pavement.getPath();
+            if (path.getLength() > 2) {
+              path.removeAt(e.vertex);
+            }
           }
-        });
+        };
+        pavement.addListener('rightclick', handleRoadRightClick);
+        casing.addListener('rightclick', handleRoadRightClick);
 
         // Sync vertex modifications across all 3 layers and propagate to database
         const roadPath = pavement.getPath();
@@ -1970,19 +2216,59 @@ export function StudioGoogleMap({
         roadPath.addListener('insert_at', handleRoadPathChange);
         roadPath.addListener('remove_at', handleRoadPathChange);
 
-        // Click listeners on road polylines for selection & editing
-        casing.addListener('click', () => {
+        // Click listeners on road polylines for selection & tool forwarding
+        const handleRoadClick = (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             handleSelectRoadRef.current?.(road);
+          } else {
+            if (!e.latLng) return;
+            const lat = e.latLng.lat();
+            const lng = e.latLng.lng();
+            const currentTool = activeToolRef.current;
+
+            if (currentTool === 'pin') {
+              handlePinRef.current?.({ lat, lng });
+            } else if (currentTool === 'landmark') {
+              handlePlaceLandmarkRef.current?.({ lat, lng });
+            } else if (currentTool === 'start') {
+              handleSetStartFlagRef.current?.({ lat, lng });
+            } else if (currentTool === 'boundary') {
+              handleAddPointRef.current?.({ lat, lng });
+            } else if (currentTool === 'road') {
+              if (activeRoadSnapRef.current) {
+                const snap = activeRoadSnapRef.current;
+                handleRoadSnapJunctionRef.current?.({
+                  roadId: snap.road.id,
+                  segmentIndex: snap.segmentIndex,
+                  point: snap.snappedPoint,
+                  isVertex: snap.isVertex,
+                });
+                handleAddPointRef.current?.(snap.snappedPoint);
+              } else {
+                const snap = findNearestRoadSnapPoint({
+                  point: { lat, lng },
+                  roads: [road],
+                  meterTolerance: 25,
+                });
+                if (snap) {
+                  handleRoadSnapJunctionRef.current?.({
+                    roadId: road.id,
+                    segmentIndex: snap.segmentIndex,
+                    point: snap.snappedPoint,
+                    isVertex: snap.isVertex,
+                  });
+                  handleAddPointRef.current?.(snap.snappedPoint);
+                } else {
+                  handleAddPointRef.current?.({ lat, lng });
+                }
+              }
+            }
           }
-        });
-        pavement.addListener('click', () => {
-          if (isPrintViewportActiveRef.current) return;
-          if (activeToolRef.current === 'pointer') {
-            handleSelectRoadRef.current?.(road);
-          }
-        });
+        };
+
+        casing.addListener('click', handleRoadClick);
+        pavement.addListener('click', handleRoadClick);
 
         roadPolylinesRef.current.push(casing, pavement, centerline);
 
