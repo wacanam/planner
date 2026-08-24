@@ -90,8 +90,18 @@ function useEncounterRecords(filters?: {
 
   const mappedEncounters = useMemo(() => {
     let filteredEncounters = encounters;
+    if (congregationId) {
+      filteredEncounters = filteredEncounters.filter((e) => {
+        if (e.congregationId) {
+          return e.congregationId === congregationId;
+        }
+        // Backward-compatibility: match through household
+        const hh = e.householdId ? householdMap.get(e.householdId) : null;
+        return hh ? (!hh.congregationId || hh.congregationId === congregationId) : true;
+      });
+    }
     if (userId && !canViewAllCongregationRecords(userRole)) {
-      filteredEncounters = encounters.filter(
+      filteredEncounters = filteredEncounters.filter(
         (e) =>
           e.userId === userId ||
           (e.householdId && householdMap.has(e.householdId)) ||
@@ -107,7 +117,7 @@ function useEncounterRecords(filters?: {
         )
       )
     );
-  }, [encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
+  }, [congregationId, encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
 
   return { encounters: mappedEncounters, isLoading, error };
 }

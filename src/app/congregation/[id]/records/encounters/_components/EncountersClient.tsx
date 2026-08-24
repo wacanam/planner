@@ -127,6 +127,7 @@ export default function EncountersClient() {
     try {
       await saveEncounterRecord({
         householdId: values.householdId,
+        congregationId,
         name: values.name,
         response: values.response,
         gender: values.gender,

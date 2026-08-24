@@ -86,6 +86,7 @@ export function toVisitView(record: LocalVisit, household?: LocalHousehold | nul
   return {
     id: record.id,
     userId: record.userId ?? '',
+    congregationId: record.congregationId ?? household?.congregationId ?? null,
     householdId: record.householdId,
     assignmentId: record.assignmentId,
     visitDate: record.visitDate,
@@ -228,9 +229,8 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
 
 export async function getAllVisits(filters?: VisitFilters): Promise<LocalVisit[]> {
   const constraints: QueryConstraint[] = [];
-  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  else if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
   const q = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
   const snapshot = await getDocs(q);
   return snapshot.docs
@@ -249,9 +249,8 @@ export function watchVisits(
   onError?: (error: Error) => void
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
-  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  else if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
   const visitQuery =
     constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
 

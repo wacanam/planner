@@ -226,7 +226,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
       allow create: if isAuthenticated() && (
         isSuperAdmin() ||
@@ -236,12 +237,14 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
       allow delete: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
     }
 
@@ -250,7 +253,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
       allow create: if isAuthenticated() && (
         isSuperAdmin() ||
@@ -260,12 +264,14 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
       allow delete: if isAuthenticated() && (
         isSuperAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
+        resource.data.congregationId == getUserCongregationId() ||
+        (!('congregationId' in resource.data) && getUserCongregationId() != null)
       );
     }
 

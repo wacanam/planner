@@ -97,9 +97,13 @@ export default function AssignmentVisitsClient() {
   const { data: members = [] } = useCongregationMembers(congregationId);
   const { households = [], isLoading: householdsLoading } = useHouseholds({
     territoryId: territoryId ?? undefined,
+    congregationId,
   });
-  const { visits = [], isLoading: visitsLoading } = useTerritoryVisits(territoryId);
-  const { encounters = [], isLoading: encountersLoading } = useTerritoryEncounters(territoryId);
+  const { visits = [], isLoading: visitsLoading } = useTerritoryVisits(territoryId, congregationId);
+  const { encounters = [], isLoading: encountersLoading } = useTerritoryEncounters(
+    territoryId,
+    congregationId
+  );
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);

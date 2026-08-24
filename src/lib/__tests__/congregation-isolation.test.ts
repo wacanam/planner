@@ -214,6 +214,7 @@ describe('Congregation Isolation & Super Admin Global Access', () => {
       expect(hView.address).toBe('123 Main St');
 
       const vView = toVisitView(mockVisitAlpha, mockHouseholdAlpha);
+      expect(vView.congregationId).toBe('cong-alpha');
       expect(vView.householdAddress).toBe('123 Main St');
       expect(vView.outcome).toBe('answered');
 
@@ -221,6 +222,30 @@ describe('Congregation Isolation & Super Admin Global Access', () => {
       expect(eView.congregationId).toBe('cong-alpha');
       expect(eView.householdAddress).toBe('123 Main St');
       expect(eView.response).toBe('interested');
+    });
+
+    it('resolves congregationId for legacy visits and encounters lacking direct congregationId via parent household', () => {
+      const legacyVisitWithoutCongId: LocalVisit = {
+        ...mockVisitAlpha,
+        congregationId: undefined,
+      };
+      const legacyEncounterWithoutCongId: LocalEncounter = {
+        ...mockEncounterAlpha,
+        congregationId: undefined,
+      };
+
+      // When mapped to views using the parent household, congregationId is backward-compatibly resolved
+      const vView = toVisitView(legacyVisitWithoutCongId, mockHouseholdAlpha);
+      expect(vView.congregationId).toBe('cong-alpha');
+      expect(vView.householdAddress).toBe('123 Main St');
+
+      const eView = toEncounterView(legacyEncounterWithoutCongId, mockHouseholdAlpha, legacyVisitWithoutCongId);
+      expect(eView.congregationId).toBe('cong-alpha');
+      expect(eView.householdAddress).toBe('123 Main St');
+
+      // Filter passes when matching by householdId or when congregationId is resolved
+      expect(filterVisit(legacyVisitWithoutCongId, { householdId: 'hh-1' })).toBe(true);
+      expect(filterEncounter(legacyEncounterWithoutCongId, { householdId: 'hh-1' })).toBe(true);
     });
   });
 });

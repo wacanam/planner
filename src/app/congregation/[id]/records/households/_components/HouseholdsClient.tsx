@@ -96,6 +96,7 @@ export default function HouseholdsClient() {
   });
   const { data: territories = [] } = useCongregationTerritories(congregationId);
   const { visits: allVisits = [] } = useMyVisits({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     groupMateUserIds,

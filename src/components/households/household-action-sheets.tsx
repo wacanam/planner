@@ -404,6 +404,7 @@ export function HouseholdLogVisitSheet({
       // 1. Save Visit Record
       const visitId = await saveVisitRecord({
         householdId: household.id,
+        congregationId: household.congregationId ?? user?.congregationId ?? undefined,
         assignmentId: assignmentId ?? undefined,
         outcome: data.outcome,
         notes: data.notes || undefined,
@@ -419,6 +420,7 @@ export function HouseholdLogVisitSheet({
       if (recordEncounter && encounterName.trim()) {
         await saveEncounterRecord({
           householdId: household.id,
+          congregationId: household.congregationId ?? user?.congregationId ?? undefined,
           visitId,
           name: encounterName.trim(),
           response: encounterResponse,
@@ -1055,6 +1057,7 @@ export function HouseholdEncounterSheet({
     try {
       await saveEncounterRecord({
         householdId: values.householdId,
+        congregationId: household?.congregationId ?? user?.congregationId ?? undefined,
         name: values.name,
         response: values.response,
         role: values.role,

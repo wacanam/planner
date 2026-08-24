@@ -86,9 +86,6 @@ export function useEncounters(filters?: {
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
-    if (congregationId) {
-      constraints.push(where('congregationId', '==', congregationId));
-    }
     if (householdId) {
       constraints.push(where('householdId', '==', householdId));
     } else if (visitId) {
@@ -104,9 +101,12 @@ export function useEncounters(filters?: {
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const list = snapshot.docs
+        let list = snapshot.docs
           .map((document) => encounterFromData(document.id, document.data() as Partial<Encounter>))
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        if (congregationId) {
+          list = list.filter((e) => !e.congregationId || e.congregationId === congregationId);
+        }
         setEncounters(list);
         setError(null);
         setIsLoading(false);

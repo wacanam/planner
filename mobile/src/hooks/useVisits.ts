@@ -79,9 +79,6 @@ export function useVisits(filters?: {
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
-    if (congregationId) {
-      constraints.push(where('congregationId', '==', congregationId));
-    }
     if (householdId) {
       constraints.push(where('householdId', '==', householdId));
     } else if (assignmentId) {
@@ -95,9 +92,12 @@ export function useVisits(filters?: {
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const list = snapshot.docs
+        let list = snapshot.docs
           .map((document) => visitFromData(document.id, document.data() as Partial<Visit>))
           .sort((a, b) => b.visitDate.localeCompare(a.visitDate));
+        if (congregationId) {
+          list = list.filter((v) => !v.congregationId || v.congregationId === congregationId);
+        }
         setVisits(list);
         setError(null);
         setIsLoading(false);

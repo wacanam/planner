@@ -76,8 +76,18 @@ export function useVisitRecords(filters?: {
 
   const mappedVisits = useMemo(() => {
     let filteredVisits = visits;
+    if (congregationId) {
+      filteredVisits = filteredVisits.filter((v) => {
+        if (v.congregationId) {
+          return v.congregationId === congregationId;
+        }
+        // Backward-compatibility: if visit has no congregationId, match through household
+        const hh = householdMap.get(v.householdId);
+        return hh ? (!hh.congregationId || hh.congregationId === congregationId) : true;
+      });
+    }
     if (userId && !canViewAllCongregationRecords(userRole)) {
-      filteredVisits = visits.filter(
+      filteredVisits = filteredVisits.filter(
         (v) =>
           v.userId === userId ||
           householdMap.has(v.householdId) ||
@@ -87,7 +97,7 @@ export function useVisitRecords(filters?: {
     return sortVisits(
       filteredVisits.map((visit) => toVisitView(visit, householdMap.get(visit.householdId)))
     );
-  }, [groupMateSet, householdMap, userId, userRole, visits]);
+  }, [congregationId, groupMateSet, householdMap, userId, userRole, visits]);
 
   return { visits: mappedVisits, households, isLoading, error };
 }

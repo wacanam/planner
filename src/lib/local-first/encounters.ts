@@ -306,9 +306,8 @@ export async function updateEncounter(
 
 export async function getAllEncounters(filters?: EncounterFilters): Promise<LocalEncounter[]> {
   const constraints: QueryConstraint[] = [];
-  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
-  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  else if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
   const q = constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
   const snapshot = await getDocs(q);
   return snapshot.docs
@@ -331,9 +330,8 @@ export function watchEncounters(
   onError?: (error: Error) => void
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
-  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
-  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  else if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
   const encounterQuery =
     constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
 
@@ -345,7 +343,7 @@ export function watchEncounters(
         snapshot.docs
           .map(encounterFromSnapshot)
           .filter((encounter) => filterEncounter(encounter, filters))
-          .sort((left, right) => right.encounterDate.localeCompare(left.encounterDate))
+          .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
       );
     },
     onError

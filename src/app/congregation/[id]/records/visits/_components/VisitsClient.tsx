@@ -177,6 +177,7 @@ export default function VisitsClient() {
     try {
       await saveEncounterRecord({
         householdId: addEncounterVisit.householdId,
+        congregationId: addEncounterVisit.congregationId || congregationId,
         visitId: addEncounterVisit.id,
         name: values.name,
         response: values.response,
