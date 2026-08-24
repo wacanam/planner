@@ -845,6 +845,9 @@ export function StudioGoogleMap({
   const selectedRoadIdRef = useRef(selectedRoadId);
   selectedRoadIdRef.current = selectedRoadId;
 
+  const basemapModeRef = useRef(basemapMode);
+  basemapModeRef.current = basemapMode;
+
   // 1. Initialize Google Map ONCE on mount
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -879,6 +882,7 @@ export function StudioGoogleMap({
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
           mapId,
+          mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
           heading: 0,

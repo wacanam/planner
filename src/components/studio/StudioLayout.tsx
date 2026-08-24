@@ -71,13 +71,13 @@ import { StudioContextActionCard } from './StudioContextActionCard';
 import { getTerritoryBoundaries, StudioGoogleMap } from './StudioGoogleMap';
 import { StudioLandmarkDialog } from './StudioLandmarkDialog';
 import {
-  type BasemapMode,
   type BoundaryDisplaySettings,
   DEFAULT_STUDIO_LAYERS,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
+import { useBasemapPreference } from '@/lib/map-preferences';
 import { StudioPrintViewport } from './StudioPrintViewport';
 import { StudioRoadDialog } from './StudioRoadDialog';
 import { type CardDimensionSettings, StudioSidebar } from './StudioSidebar';
@@ -128,7 +128,7 @@ export function StudioLayout({
     !isReadOnly && pinHouseholdId ? 'pin' : 'pointer'
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
+  const [basemapMode, setBasemapMode] = useBasemapPreference();
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
 
   // Print Viewport & Card Download Framing States

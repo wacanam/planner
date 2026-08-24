@@ -164,4 +164,97 @@ describe('PWA Redirection & Landing CTA Destination Logic', () => {
       expect(target).toBe('/onboarding');
     });
   });
+
+  describe('PWA /app Gateway Dispatcher Logic', () => {
+    function resolveAppGatewayTarget(params: {
+      cachedCongregationId?: string | null;
+      loading: boolean;
+      isAuthenticated: boolean;
+      role?: UserRole | string | null;
+      congregationId?: string | null;
+    }): string | null {
+      // 1. Fast Path: cached active congregation
+      if (params.cachedCongregationId) {
+        return `/congregation/${params.cachedCongregationId}/dashboard`;
+      }
+
+      // If still loading and no cache
+      if (params.loading) {
+        return null; // Keep displaying splash screen
+      }
+
+      // 2. Auth State resolution
+      if (!params.isAuthenticated) {
+        return '/auth/login';
+      }
+
+      const isAdmin =
+        params.role === UserRole.SUPER_ADMIN ||
+        params.role === UserRole.ADMIN ||
+        params.role === 'SUPER_ADMIN' ||
+        params.role === 'ADMIN';
+
+      if (isAdmin) return '/admin/dashboard';
+      if (params.congregationId) return `/congregation/${params.congregationId}/dashboard`;
+      return '/onboarding';
+    }
+
+    it('immediately returns cached congregation dashboard even while loading', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: 'cong-cached-777',
+        loading: true,
+        isAuthenticated: false,
+      });
+      expect(target).toBe('/congregation/cong-cached-777/dashboard');
+    });
+
+    it('returns null (splash screen) while auth is resolving if no cache is present', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: null,
+        loading: true,
+        isAuthenticated: false,
+      });
+      expect(target).toBeNull();
+    });
+
+    it('redirects unauthenticated users to /auth/login after loading', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: null,
+        loading: false,
+        isAuthenticated: false,
+      });
+      expect(target).toBe('/auth/login');
+    });
+
+    it('redirects authenticated members to their congregation dashboard', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: null,
+        loading: false,
+        isAuthenticated: true,
+        congregationId: 'cong-makati',
+      });
+      expect(target).toBe('/congregation/cong-makati/dashboard');
+    });
+
+    it('redirects admins to /admin/dashboard', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: null,
+        loading: false,
+        isAuthenticated: true,
+        role: UserRole.SUPER_ADMIN,
+      });
+      expect(target).toBe('/admin/dashboard');
+    });
+
+    it('redirects users without congregation to /onboarding', () => {
+      const target = resolveAppGatewayTarget({
+        cachedCongregationId: null,
+        loading: false,
+        isAuthenticated: true,
+        congregationId: null,
+      });
+      expect(target).toBe('/onboarding');
+    });
+  });
 });
+

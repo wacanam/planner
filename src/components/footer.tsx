@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth'];
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth', '/app'];
 
 export function Footer() {
   const pathname = usePathname();

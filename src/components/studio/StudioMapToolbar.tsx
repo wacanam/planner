@@ -25,9 +25,11 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { type BasemapMode, DEFAULT_BASEMAP_MODE } from '@/lib/map-preferences';
 import type { BoundaryDisplaySettings } from '@/types/api';
 
-export type BasemapMode = 'satellite' | 'street';
+export type { BasemapMode };
+export { DEFAULT_BASEMAP_MODE };
 
 export type HouseholdStatusFilter =
   | 'all'

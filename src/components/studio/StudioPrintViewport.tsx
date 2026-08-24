@@ -54,7 +54,7 @@ export function StudioPrintViewport({
   congregation,
   households,
   onFitTerritoryToFrame,
-  basemapMode = 'street',
+  basemapMode = 'satellite',
   onChangeBasemapMode,
 }: StudioPrintViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);

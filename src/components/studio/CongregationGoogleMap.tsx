@@ -491,6 +491,9 @@ export function CongregationGoogleMap({
   const handleCameraChangeRef = useRef(onCameraChange);
   handleCameraChangeRef.current = onCameraChange;
 
+  const basemapModeRef = useRef(basemapMode);
+  basemapModeRef.current = basemapMode;
+
   // 1. Initialize Google Map Instance
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -522,6 +525,7 @@ export function CongregationGoogleMap({
           center: defaultCenter,
           zoom: 14,
           mapId,
+          mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
           heading: 0,

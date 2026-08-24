@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { isSystemAdmin } from '@/lib/permissions';
 
-const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth'];
+const DASHBOARD_PREFIXES = ['/admin', '/congregation', '/profile', '/onboarding', '/auth', '/app'];
 
 const publicNavLinks = [
   { href: '/#features', label: 'Features' },

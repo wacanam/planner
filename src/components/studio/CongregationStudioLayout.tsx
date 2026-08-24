@@ -44,13 +44,13 @@ import type {
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
 import {
-  type BasemapMode,
   type BoundaryDisplaySettings,
   DEFAULT_BOUNDARY_DISPLAY,
   DEFAULT_STUDIO_LAYERS,
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
+import { useBasemapPreference } from '@/lib/map-preferences';
 
 export interface CongregationStudioLayoutProps {
   congregationId: string;
@@ -71,7 +71,7 @@ export function CongregationStudioLayout({
   // Sidebar & Map States
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState('');
-  const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
+  const [basemapMode, setBasemapMode] = useBasemapPreference();
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
   const [boundaryDisplay, setBoundaryDisplay] =
     useState<BoundaryDisplaySettings>(DEFAULT_BOUNDARY_DISPLAY);
