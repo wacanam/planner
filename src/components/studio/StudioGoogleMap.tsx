@@ -419,7 +419,8 @@ function attachLongPressDrag({
   getIsSelected,
   canDrag,
 }: AttachLongPressDragOptions) {
-  let pressTimer: NodeJS.Timeout | null = null;
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+
   let isDragging = false;
   let startX = 0;
   let startY = 0;
@@ -602,7 +603,8 @@ function attachLongPressDrag({
 }
 
 function attachVertexTouchDelete(el: HTMLElement, onDelete: () => void, onClick?: () => void) {
-  let timer: NodeJS.Timeout | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
   let isLongPress = false;
   let startX = 0;
   let startY = 0;

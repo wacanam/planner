@@ -4,7 +4,7 @@ import {
   getBoundingBoxFromRegion,
   getLongitudeDeltaFromZoom,
   getZoomFromLongitudeDelta,
-} from '../../../mobile/src/components/map/hooks/useSupercluster';
+} from '../hooks/useSupercluster';
 
 describe('Map Clustering & Spatial Utilities', () => {
   describe('getZoomFromLongitudeDelta', () => {
@@ -48,8 +48,6 @@ describe('Map Clustering & Spatial Utilities', () => {
       };
 
       const [minLng, minLat, maxLng, maxLat] = getBoundingBoxFromRegion(region, 0.1);
-      // Margin = 0.02 * 0.1 = 0.002
-      // minLng = 120.9842 - 0.01 - 0.002 = 120.9722
       expect(minLng).toBeCloseTo(120.9722, 4);
       expect(maxLng).toBeCloseTo(120.9962, 4);
       expect(minLat).toBeCloseTo(14.5875, 4);

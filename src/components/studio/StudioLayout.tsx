@@ -257,7 +257,8 @@ export function StudioLayout({
   const { saveAnnotations, isSaving: isSavingAnnotations } = useSaveAnnotations(
     territory?.id ?? ''
   );
-  const boundaryDisplaySaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const boundaryDisplaySaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Service Groups for permission scoping & location tracking
   const { groups = [] } = useCongregationGroups(congregationId);
