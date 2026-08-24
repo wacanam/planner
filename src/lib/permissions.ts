@@ -322,6 +322,59 @@ export function getOverseenGroupMateIds(
 }
 
 /**
+ * Checks if the current user is either a Group Overseer or Assistant Overseer of a given group.
+ */
+export function isGroupLeader(
+  userId: string | null | undefined,
+  group:
+    | {
+        overseerId?: string | null;
+        assistantOverseerId?: string | null;
+        members?: { userId?: string | null; id?: string | null; role?: string | null }[];
+      }
+    | null
+    | undefined
+): boolean {
+  return isGroupOverseer(userId, group) || isGroupOverseerAssistant(userId, group);
+}
+
+/**
+ * Returns a Set of member user IDs across all groups where the specified user is a Group Overseer OR Assistant Overseer.
+ */
+export function getGroupLeadershipMateIds(
+  userId: string | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = []
+): Set<string> {
+  const mateIds = new Set<string>();
+  if (!userId || !groups || groups.length === 0) return mateIds;
+
+  for (const group of groups) {
+    if (isGroupLeader(userId, group)) {
+      if (group.members) {
+        for (const member of group.members) {
+          const uid = member.userId || member.id;
+          if (uid) {
+            mateIds.add(uid);
+          }
+        }
+      }
+      if (group.overseerId) {
+        mateIds.add(group.overseerId);
+      }
+      if (group.assistantOverseerId) {
+        mateIds.add(group.assistantOverseerId);
+      }
+    }
+  }
+
+  return mateIds;
+}
+
+/**
  * Checks if a user is the Group Overseer of a group containing the target user.
  */
 export function isGroupOverseerOfUser(
@@ -336,6 +389,24 @@ export function isGroupOverseerOfUser(
   if (!overseerUserId || !targetUserId || !groups || groups.length === 0) return false;
   return getOverseenGroupMateIds(overseerUserId, groups).has(targetUserId);
 }
+
+/**
+ * Checks if a user is the Group Overseer or Assistant Overseer of a group containing the target user.
+ */
+export function isGroupLeaderOfUser(
+  leaderUserId: string | null | undefined,
+  targetUserId: string | null | undefined,
+  groups: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }> = []
+): boolean {
+  if (!leaderUserId || !targetUserId || !groups || groups.length === 0) return false;
+  return getGroupLeadershipMateIds(leaderUserId, groups).has(targetUserId);
+}
+
+
 
 /**
  * Checks if a user belongs to a service group as overseer, assistant overseer, or group member.
@@ -679,44 +750,98 @@ export function canAccessHouseholdDetails(
 
 /**
  * Checks if a user is allowed to SHARE a household record.
- * Allowed for record Owner or role Territory Servant / Service Overseer / Secretary / Admin.
+ * Allowed for record Owner, Group Overseer / Assistant, or role Territory Servant / Service Overseer / Secretary / Admin.
  */
 export function canShareHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household?: { createdById?: string | null } | null
+  household?: { createdById?: string | null } | null,
+  groups?: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }>
 ): boolean {
   if (!user?.id) return false;
   if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
-  return household.createdById === user.id;
+  if (household.createdById === user.id) return true;
+  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Checks if a user is allowed to EDIT a household record's core details.
- * Allowed for record Owner or role Territory Servant / Service Overseer / Secretary / Admin.
+ * Allowed for record Owner, Group Overseer / Assistant, or role Territory Servant / Service Overseer / Secretary / Admin.
  */
 export function canEditHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household?: { createdById?: string | null } | null
+  household?: { createdById?: string | null } | null,
+  groups?: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }>
 ): boolean {
   if (!user?.id) return false;
   if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
-  return household.createdById === user.id;
+  if (household.createdById === user.id) return true;
+  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+    return true;
+  }
+  return false;
 }
 
 /**
  * Checks if a user is allowed to DELETE a household record.
- * Allowed for record Owner or role Territory Servant / Service Overseer / Admin.
+ * Allowed for record Owner, Group Overseer / Assistant, or role Territory Servant / Service Overseer / Admin.
  */
 export function canDeleteHousehold(
   user: { id?: string | null; role?: string | null } | null | undefined,
-  household?: { createdById?: string | null } | null
+  household?: { createdById?: string | null } | null,
+  groups?: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }>
 ): boolean {
   if (!user?.id) return false;
   if (canDeleteTerritory(user.role)) return true;
   if (!household) return false;
-  return household.createdById === user.id;
+  if (household.createdById === user.id) return true;
+  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Checks if a user is allowed to modify (edit, move, delete) a map studio annotation
+ * (landmark, road corridor, territory boundary polygon, start meeting flag).
+ * Allowed for:
+ * 1. Annotation creator (annotation.createdById === user.id)
+ * 2. Service Overseer, Territory Servant, or Admin (canEditTerritory)
+ * 3. Group Overseer or Assistant Overseer of the creator
+ */
+export function canModifyMapAnnotation(
+  user: { id?: string | null; role?: string | null } | null | undefined,
+  annotation?: { createdById?: string | null } | null,
+  groups?: Array<{
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{ userId?: string | null; id?: string | null; role?: string | null }>;
+  }>
+): boolean {
+  if (!user?.id) return false;
+  if (canEditTerritory(user.role)) return true;
+  if (!annotation) return false;
+  if (annotation.createdById === user.id) return true;
+  if (groups && annotation.createdById && isGroupLeaderOfUser(user.id, annotation.createdById, groups)) {
+    return true;
+  }
+  return false;
 }
 
 /**

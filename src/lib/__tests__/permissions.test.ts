@@ -3,10 +3,13 @@ import { UserRole } from '@/lib/roles';
 import {
   canApproveMembers,
   canCreateTerritory,
+  canDeleteHousehold,
   canDeleteTerritory,
+  canEditHousehold,
   canEditTerritory,
   canEditTerritoryInStudio,
   canManageGroups,
+  canModifyMapAnnotation,
   canReturnAssignment,
   canViewReports,
   filterActiveAssignments,
@@ -15,6 +18,8 @@ import {
   hasRole,
   isCircuitOverseer,
   isCongregationSecretary,
+  isGroupLeader,
+  isGroupLeaderOfUser,
   isGroupOverseer,
   isGroupOverseerAssistant,
   isPublisher,
@@ -542,4 +547,111 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
       expect(active).toHaveLength(1);
     });
   });
+
+  describe('canModifyMapAnnotation & Destructive Map Studio Permissions', () => {
+    const groupA = {
+      id: 'g-1',
+      overseerId: 'overseer-1',
+      assistantOverseerId: 'asst-1',
+      members: [{ userId: 'member-1' }, { userId: 'member-2' }],
+    };
+    const groupB = {
+      id: 'g-2',
+      overseerId: 'overseer-2',
+      members: [{ userId: 'member-3' }],
+    };
+    const groups = [groupA, groupB];
+
+    const annotationCreatedByMember1 = {
+      id: 'lm-1',
+      createdById: 'member-1',
+      label: 'Main Street Bakery',
+    };
+
+    it('allows creator publisher to modify their own annotation', () => {
+      const creatorUser = { id: 'member-1', role: UserRole.USER };
+      expect(canModifyMapAnnotation(creatorUser, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('denies groupmate publisher from modifying other member annotation (read-only)', () => {
+      const otherGroupmate = { id: 'member-2', role: UserRole.USER };
+      expect(canModifyMapAnnotation(otherGroupmate, annotationCreatedByMember1, groups)).toBe(false);
+    });
+
+    it('denies publisher from different group from modifying annotation', () => {
+      const differentGroupMember = { id: 'member-3', role: UserRole.USER };
+      expect(canModifyMapAnnotation(differentGroupMember, annotationCreatedByMember1, groups)).toBe(
+        false
+      );
+    });
+
+    it('allows Group Overseer of creator group to modify annotation', () => {
+      const groupOverseer = { id: 'overseer-1', role: UserRole.USER };
+      expect(canModifyMapAnnotation(groupOverseer, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('allows Assistant Overseer of creator group to modify annotation', () => {
+      const asstOverseer = { id: 'asst-1', role: UserRole.USER };
+      expect(canModifyMapAnnotation(asstOverseer, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('denies Group Overseer of another group from modifying annotation', () => {
+      const otherGroupOverseer = { id: 'overseer-2', role: UserRole.USER };
+      expect(canModifyMapAnnotation(otherGroupOverseer, annotationCreatedByMember1, groups)).toBe(
+        false
+      );
+    });
+
+    it('allows Service Overseer to modify any annotation', () => {
+      const serviceOverseer = { id: 'so-1', role: UserRole.SERVICE_OVERSEER };
+      expect(canModifyMapAnnotation(serviceOverseer, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('allows Territory Servant to modify any annotation', () => {
+      const territoryServant = { id: 'ts-1', role: UserRole.TERRITORY_SERVANT };
+      expect(canModifyMapAnnotation(territoryServant, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('allows Super Admin to modify any annotation', () => {
+      const superAdmin = { id: 'admin-1', role: UserRole.SUPER_ADMIN };
+      expect(canModifyMapAnnotation(superAdmin, annotationCreatedByMember1, groups)).toBe(true);
+    });
+  });
+
+  describe('canEditHousehold & canDeleteHousehold group leader scoping', () => {
+    const groups = [
+      {
+        id: 'g-1',
+        overseerId: 'overseer-1',
+        assistantOverseerId: 'asst-1',
+        members: [{ userId: 'member-1' }, { userId: 'member-2' }],
+      },
+    ];
+    const household = { id: 'h-1', createdById: 'member-1' };
+
+    it('allows creator to edit and delete household', () => {
+      const creator = { id: 'member-1', role: UserRole.USER };
+      expect(canEditHousehold(creator, household, groups)).toBe(true);
+      expect(canDeleteHousehold(creator, household, groups)).toBe(true);
+    });
+
+    it('denies regular groupmate from editing or deleting household (read-only view)', () => {
+      const groupmate = { id: 'member-2', role: UserRole.USER };
+      expect(canEditHousehold(groupmate, household, groups)).toBe(false);
+      expect(canDeleteHousehold(groupmate, household, groups)).toBe(false);
+    });
+
+    it('allows Group Overseer to edit and delete member household', () => {
+      const overseer = { id: 'overseer-1', role: UserRole.USER };
+      expect(canEditHousehold(overseer, household, groups)).toBe(true);
+      expect(canDeleteHousehold(overseer, household, groups)).toBe(true);
+    });
+
+    it('allows Assistant Overseer to edit and delete member household', () => {
+      const asst = { id: 'asst-1', role: UserRole.USER };
+      expect(canEditHousehold(asst, household, groups)).toBe(true);
+      expect(canDeleteHousehold(asst, household, groups)).toBe(true);
+    });
+  });
 });
+

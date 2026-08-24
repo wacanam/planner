@@ -41,7 +41,13 @@ import {
 } from '@/hooks';
 import { createClientId } from '@/lib/firebase/schema';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
-import { canViewMemberLocations } from '@/lib/permissions';
+import {
+  canDeleteHousehold,
+  canEditHousehold,
+  canLogVisitOrEncounter,
+  canModifyMapAnnotation,
+  canViewMemberLocations,
+} from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
   saveHouseholdRecord,
@@ -737,6 +743,11 @@ export function StudioLayout({
             setSelectedHousehold(h);
           }}
           onMoveHousehold={async (id, lat, lng) => {
+            const targetH = households.find((h) => h.id === id);
+            if (!targetH || !canEditHousehold(user, targetH, groups)) {
+              toast.error('You do not have permission to move this household pin.');
+              return;
+            }
             try {
               await updateHouseholdRecord(id, { latitude: lat, longitude: lng });
               toast.success('Household pin moved');
@@ -751,8 +762,13 @@ export function StudioLayout({
           }}
           onMoveLandmark={async (id, lat, lng) => {
             if (!territory?.id) return;
+            const existing = territory.annotations?.landmarks || [];
+            const target = existing.find((lm) => lm.id === id);
+            if (!target || !canModifyMapAnnotation(user, target, groups)) {
+              toast.error('You do not have permission to move this landmark.');
+              return;
+            }
             try {
-              const existing = territory.annotations?.landmarks || [];
               const updated = existing.map((lm) => (lm.id === id ? { ...lm, lat, lng } : lm));
               await saveAnnotations({
                 ...territory.annotations,
@@ -769,8 +785,13 @@ export function StudioLayout({
           }}
           onUpdateRoadPoints={async (roadId, points) => {
             if (!territory?.id || isReadOnly) return;
+            const existingRoads = territory.annotations?.roads || [];
+            const target = existingRoads.find((r) => r.id === roadId);
+            if (!target || !canModifyMapAnnotation(user, target, groups)) {
+              toast.error('You do not have permission to modify this road.');
+              return;
+            }
             try {
-              const existingRoads = territory.annotations?.roads || [];
               const updated = existingRoads.map((r) => (r.id === roadId ? { ...r, points } : r));
               await saveAnnotations({
                 ...territory.annotations,
@@ -787,8 +808,13 @@ export function StudioLayout({
           }}
           onUpdateBoundaryPolygon={async (boundaryId, points) => {
             if (!territory?.id || isReadOnly) return;
+            const existingBoundaries = getTerritoryBoundaries(territory);
+            const target = existingBoundaries.find((b) => b.id === boundaryId);
+            if (!target || !canModifyMapAnnotation(user, target, groups)) {
+              toast.error('You do not have permission to modify this boundary.');
+              return;
+            }
             try {
-              const existingBoundaries = getTerritoryBoundaries(territory);
               const updated = existingBoundaries.map((b) =>
                 b.id === boundaryId ? { ...b, points } : b
               );
@@ -809,11 +835,16 @@ export function StudioLayout({
           }}
           onMoveStartFlag={async (lat, lng) => {
             if (!territory?.id) return;
+            const startFlag = territory.annotations?.startFlag;
+            if (!startFlag || !canModifyMapAnnotation(user, startFlag, groups)) {
+              toast.error('You do not have permission to move the start meeting flag.');
+              return;
+            }
             try {
               await saveAnnotations({
                 ...territory.annotations,
                 startFlag: {
-                  ...(territory.annotations?.startFlag || { label: 'Start Meeting Point' }),
+                  ...startFlag,
                   lat,
                   lng,
                 },
@@ -886,6 +917,8 @@ export function StudioLayout({
             setSelectedMemberLocation(loc);
           }}
           currentUserId={user.id}
+          currentUser={user}
+          groups={groups}
           fitPrintViewportPadding={fitPrintViewportPadding}
           isPrintViewportActive={isPrintViewportActive}
         />
@@ -1076,57 +1109,73 @@ export function StudioLayout({
               </p>
             )}
 
-            {!isReadOnly && (
-              <div className="flex items-center gap-1.5 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-xl text-xs font-semibold"
-                  onClick={() => {
-                    setLogVisitHousehold(selectedHousehold);
-                    setSelectedHousehold(null);
-                  }}
-                >
-                  Log Visit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-xl text-xs font-semibold"
-                  onClick={() => {
-                    setEncounterHousehold(selectedHousehold);
-                    setSelectedHousehold(null);
-                  }}
-                >
-                  Encounter
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
-                  title="Edit Household details"
-                  onClick={() => {
-                    setEditingHousehold(selectedHousehold);
-                    setSelectedHousehold(null);
-                  }}
-                >
-                  <Edit size={14} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                  title="Delete Household door"
-                  onClick={() => {
-                    if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
-                      void handleDeleteHousehold(selectedHousehold.id);
-                    }
-                  }}
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </div>
-            )}
+            {(() => {
+              const canEditH = canEditHousehold(user, selectedHousehold, groups);
+              const canDeleteH = canDeleteHousehold(user, selectedHousehold, groups);
+              const canLogH = canLogVisitOrEncounter(user, selectedHousehold);
+
+              if (!canLogH && !canEditH && !canDeleteH) return null;
+
+              return (
+                <div className="flex items-center gap-1.5 pt-1">
+                  {canLogH && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 rounded-xl text-xs font-semibold"
+                        onClick={() => {
+                          setLogVisitHousehold(selectedHousehold);
+                          setSelectedHousehold(null);
+                        }}
+                      >
+                        Log Visit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 rounded-xl text-xs font-semibold"
+                        onClick={() => {
+                          setEncounterHousehold(selectedHousehold);
+                          setSelectedHousehold(null);
+                        }}
+                      >
+                        Encounter
+                      </Button>
+                    </>
+                  )}
+                  {canEditH && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-foreground shrink-0"
+                      title="Edit Household details"
+                      onClick={() => {
+                        setEditingHousehold(selectedHousehold);
+                        setSelectedHousehold(null);
+                      }}
+                    >
+                      <Edit size={14} />
+                    </Button>
+                  )}
+                  {canDeleteH && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                      title="Delete Household door"
+                      onClick={() => {
+                        if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
+                          void handleDeleteHousehold(selectedHousehold.id);
+                        }
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1171,7 +1220,7 @@ export function StudioLayout({
               </Button>
             </div>
 
-            {!isReadOnly && (
+            {canModifyMapAnnotation(user, selectedBoundary, groups) && (
               <div className="flex items-center gap-1.5 pt-1">
                 <Button
                   size="sm"
@@ -1253,7 +1302,7 @@ export function StudioLayout({
               </Button>
             </div>
 
-            {!isReadOnly && (
+            {canModifyMapAnnotation(user, selectedLandmark, groups) && (
               <div className="flex items-center gap-1.5 pt-1">
                 <Button
                   size="sm"
@@ -1337,7 +1386,7 @@ export function StudioLayout({
               </Button>
             </div>
 
-            {!isReadOnly && (
+            {canModifyMapAnnotation(user, selectedRoad, groups) && (
               <div className="flex items-center gap-1.5 pt-1">
                 <Button
                   size="sm"
@@ -1419,7 +1468,7 @@ export function StudioLayout({
               </Button>
             </div>
 
-            {!isReadOnly && (
+            {canModifyMapAnnotation(user, selectedStartFlag, groups) && (
               <div className="flex items-center gap-1.5 pt-1">
                 <Button
                   size="sm"

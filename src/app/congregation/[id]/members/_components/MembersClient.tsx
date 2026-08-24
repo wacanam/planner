@@ -670,22 +670,22 @@ export default function MembersClient() {
                   <Card key={item.id} className="bg-card border-border shadow-xs overflow-hidden">
                     <CardContent className="p-4 sm:p-5 space-y-3.5">
                       {/* Header: Territory and Endorsement status badge */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-base text-foreground">
+                      <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
+                        <div className="min-w-0 space-y-1">
+                          <h4 className="font-bold text-base text-foreground leading-snug break-words">
                             {territoryTitle}
+                          </h4>
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Calendar size={12} className="shrink-0" />
+                            <span>{timeString}</span>
                           </span>
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-                          >
-                            Endorsement Pending Approval
-                          </Badge>
                         </div>
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Calendar size={12} />
-                          <span>{timeString}</span>
-                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 shrink-0 whitespace-nowrap"
+                        >
+                          Pending Approval
+                        </Badge>
                       </div>
 
                       {/* Details: Who is being endorsed & Who endorsed */}

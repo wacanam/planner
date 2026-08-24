@@ -4,6 +4,7 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import { canEditHousehold, canModifyMapAnnotation } from '@/lib/permissions';
 import type {
   Congregation,
   Household,
@@ -74,6 +75,8 @@ interface StudioGoogleMapProps {
   } | null;
   isPrintViewportActive?: boolean;
   isReadOnly?: boolean;
+  currentUser?: { id?: string | null; role?: string | null } | null;
+  groups?: Array<any>;
 }
 
 // Fallback default coordinates if not configured on congregation
@@ -374,6 +377,7 @@ interface AttachLongPressDragOptions {
   onSelect: () => void;
   onMove?: (lat: number, lng: number) => void;
   getIsSelected?: () => boolean;
+  canDrag?: () => boolean;
 }
 
 function attachLongPressDrag({
@@ -389,6 +393,7 @@ function attachLongPressDrag({
   onSelect,
   onMove,
   getIsSelected,
+  canDrag,
 }: AttachLongPressDragOptions) {
   let pressTimer: NodeJS.Timeout | null = null;
   let isDragging = false;
@@ -408,7 +413,8 @@ function attachLongPressDrag({
     if (
       isReadOnlyRef.current ||
       isPrintViewportActiveRef.current ||
-      activeToolRef.current !== 'pointer'
+      activeToolRef.current !== 'pointer' ||
+      (canDrag && !canDrag())
     ) {
       return;
     }
@@ -427,7 +433,8 @@ function attachLongPressDrag({
       if (
         isReadOnlyRef.current ||
         isPrintViewportActiveRef.current ||
-        activeToolRef.current !== 'pointer'
+        activeToolRef.current !== 'pointer' ||
+        (canDrag && !canDrag())
       ) {
         return;
       }
@@ -611,6 +618,8 @@ export function StudioGoogleMap({
   fitPrintViewportPadding,
   isPrintViewportActive = false,
   isReadOnly = false,
+  currentUser,
+  groups = [],
 }: StudioGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
@@ -1436,15 +1445,26 @@ export function StudioGoogleMap({
   // 5c. Zero-Flicker Boundary Selection Synchronizer (In-place editable toggling with 0 polygon rebuilds)
   useEffect(() => {
     const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
+    const boundaries = getTerritoryBoundaries(territory);
     polygonsDataRef.current.forEach(({ id, polygon }) => {
       const isSelected = selectedBoundaryId === id;
-      polygon.setEditable(isSelected && !isReadOnly && isPointerMode);
+      const targetBoundary = boundaries.find((b) => b.id === id);
+      const canModify = canModifyMapAnnotation(currentUser, targetBoundary, groups);
+      polygon.setEditable(isSelected && canModify && !isReadOnly && isPointerMode);
       polygon.setOptions({
         strokeWeight: isSelected ? 4 : 3,
         zIndex: isSelected ? 5 : 2,
       });
     });
-  }, [selectedBoundaryId, activeTool, isReadOnly, isPrintViewportActive]);
+  }, [
+    selectedBoundaryId,
+    activeTool,
+    isReadOnly,
+    isPrintViewportActive,
+    currentUser,
+    groups,
+    territory,
+  ]);
 
   // 6. Render Household Markers with Teardrop Pin Shape & Anchor Point at Tip
   useEffect(() => {
@@ -1505,17 +1525,8 @@ export function StudioGoogleMap({
 
       const pinColor = getStatusColor(h.status);
 
-      // Zero-width/height container: guarantees (0,0) is anchored directly at the {lat, lng} coordinate
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'relative';
-      wrapper.style.width = '0px';
-      wrapper.style.height = '0px';
-      wrapper.style.cursor =
-        !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
-      wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
-      wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
-
       const isSelected = selectedHouseholdId === h.id;
+      const canMoveHousehold = canEditHousehold(currentUser, h, groups);
 
       // Pin Element: 24px wide, positioned left: -12px and bottom: 0px -> tip is PRECISELY at (0, 0)
       const pinContainer = document.createElement('div');
@@ -1532,6 +1543,20 @@ export function StudioGoogleMap({
       pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
       pinContainer.style.transformOrigin = 'bottom center';
       pinContainer.style.transition = 'transform 0.15s ease-out, filter 0.15s ease-out';
+
+      // Zero-width/height container: guarantees (0,0) is anchored directly at the {lat, lng} coordinate
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'relative';
+      wrapper.style.width = '0px';
+      wrapper.style.height = '0px';
+      wrapper.style.cursor =
+        canMoveHousehold && !isReadOnly && isPointerMode
+          ? 'grab'
+          : isPrintViewportActive
+            ? 'default'
+            : 'pointer';
+      wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
+      wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
 
       const pinCircle = document.createElement('div');
       pinCircle.style.backgroundColor = pinColor;
@@ -1619,6 +1644,7 @@ export function StudioGoogleMap({
         onSelect: () => handleSelectHouseholdRef.current(h),
         onMove: (newLat, newLng) => handleMoveHouseholdRef.current?.(h.id, newLat, newLng),
         getIsSelected: () => selectedHouseholdIdRef.current === h.id,
+        canDrag: () => canMoveHousehold && !isReadOnlyRef.current,
       });
 
       householdMarkersRef.current.push(marker);
@@ -2027,18 +2053,8 @@ export function StudioGoogleMap({
         if (typeof landmark.lat !== 'number' || typeof landmark.lng !== 'number') return;
 
         const { bg, svg } = getLandmarkIconConfig(landmark.type);
-
-        // Zero-width/height container: (0, 0) is the exact landmark coordinate
-        const wrapper = document.createElement('div');
-        wrapper.style.position = 'relative';
-        wrapper.style.width = '0px';
-        wrapper.style.height = '0px';
-        wrapper.style.cursor =
-          !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
-        wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
-        wrapper.title = `${landmark.label || 'Landmark'} (${landmark.type})`;
-
         const isSelected = selectedLandmarkId === landmark.id;
+        const canMoveLandmark = canModifyMapAnnotation(currentUser, landmark, groups);
 
         // Pin Element: 24px wide, positioned left: -12px and bottom: 0px -> tip is PRECISELY at (0, 0)
         const pinContainer = document.createElement('div');
@@ -2055,6 +2071,20 @@ export function StudioGoogleMap({
         pinContainer.style.transform = isSelected ? 'scale(1.08)' : 'scale(1)';
         pinContainer.style.transformOrigin = 'bottom center';
         pinContainer.style.transition = 'transform 0.15s ease-out, filter 0.15s ease-out';
+
+        // Zero-width/height container: (0, 0) is the exact landmark coordinate
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.width = '0px';
+        wrapper.style.height = '0px';
+        wrapper.style.cursor =
+          canMoveLandmark && !isReadOnly && isPointerMode
+            ? 'grab'
+            : isPrintViewportActive
+              ? 'default'
+              : 'pointer';
+        wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
+        wrapper.title = `${landmark.label || 'Landmark'} (${landmark.type})`;
 
         const pinCircle = document.createElement('div');
         pinCircle.style.backgroundColor = bg;
@@ -2134,6 +2164,7 @@ export function StudioGoogleMap({
           onSelect: () => handleSelectLandmarkRef.current?.(landmark),
           onMove: (newLat, newLng) => handleMoveLandmarkRef.current?.(landmark.id, newLat, newLng),
           getIsSelected: () => selectedLandmarkIdRef.current === landmark.id,
+          canDrag: () => canMoveLandmark && !isReadOnlyRef.current,
         });
 
         landmarkMarkersRef.current.push(marker);
@@ -2151,13 +2182,19 @@ export function StudioGoogleMap({
     if (layerSettings.showStartFlag !== false && annotations.startFlag) {
       const sf = annotations.startFlag;
       if (typeof sf.lat === 'number' && typeof sf.lng === 'number') {
+        const canMoveStartFlag = canModifyMapAnnotation(currentUser, sf, groups);
+
         // Zero-width/height container: (0, 0) is the exact start flag coordinate
         const wrapper = document.createElement('div');
         wrapper.style.position = 'relative';
         wrapper.style.width = '0px';
         wrapper.style.height = '0px';
         wrapper.style.cursor =
-          !isReadOnly && isPointerMode ? 'grab' : isPrintViewportActive ? 'default' : 'pointer';
+          canMoveStartFlag && !isReadOnly && isPointerMode
+            ? 'grab'
+            : isPrintViewportActive
+              ? 'default'
+              : 'pointer';
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 
@@ -2227,6 +2264,7 @@ export function StudioGoogleMap({
           activeToolRef,
           onSelect: () => handleSelectStartFlagRef.current?.(),
           onMove: (newLat, newLng) => handleMoveStartFlagRef.current?.(newLat, newLng),
+          canDrag: () => canMoveStartFlag && !isReadOnlyRef.current,
         });
 
         startFlagMarkerRef.current = marker;
@@ -2263,9 +2301,12 @@ export function StudioGoogleMap({
 
     // Sync Roads
     const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
+    const roads = territory?.annotations?.roads || [];
     roadPolylinesDataRef.current.forEach((item) => {
       const isSelected = selectedRoadId === item.id;
-      item.pavement.setEditable(isSelected && !isReadOnly && isPointerMode);
+      const targetRoad = roads.find((r) => r.id === item.id);
+      const canEditRoad = canModifyMapAnnotation(currentUser, targetRoad, groups);
+      item.pavement.setEditable(isSelected && canEditRoad && !isReadOnly && isPointerMode);
       if (item.highlightAura) {
         item.highlightAura.setVisible(isSelected);
       }

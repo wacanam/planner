@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  useCongregationGroups,
   useCongregationTerritories,
   useCurrentUser,
   useHouseholds,
@@ -74,6 +75,7 @@ export default function HouseholdsClient() {
   const _searchParams = useSearchParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
+  const { groups = [] } = useCongregationGroups(congregationId);
   const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
   const [search, setSearch] = useState('');
@@ -255,9 +257,9 @@ export default function HouseholdsClient() {
                 groupMateUserIds.has(h.createdById)
             );
 
-            const canShare = canShareHousehold(user, h);
-            const canEdit = canEditHousehold(user, h);
-            const canDelete = canDeleteHousehold(user, h);
+            const canShare = canShareHousehold(user, h, groups);
+            const canEdit = canEditHousehold(user, h, groups);
+            const canDelete = canDeleteHousehold(user, h, groups);
             const canLog = canLogVisitOrEncounter(user, h);
 
             return (
