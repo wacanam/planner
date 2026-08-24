@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CongregationRole, UserRole } from '@/lib/roles';
+import type { Household, SharedMemberLocation } from '@/types/api';
 import {
   canAccessHouseholdDetails,
   canAdjustAssignmentDates,
@@ -20,7 +21,6 @@ import {
   isServiceOverseer,
   isTerritoryServant,
 } from '../permissions';
-import type { Household, SharedMemberLocation } from '@/types/api';
 
 describe('Congregation Secretary Access & Role Identity Separation', () => {
   describe('Pure Role Identity', () => {
@@ -104,7 +104,9 @@ describe('Congregation Secretary Access & Role Identity Separation', () => {
     };
 
     it('allows Secretary to view household details across the congregation', () => {
-      expect(canAccessHouseholdDetails('sec-1', sampleHousehold, [], UserRole.SECRETARY)).toBe(true);
+      expect(canAccessHouseholdDetails('sec-1', sampleHousehold, [], UserRole.SECRETARY)).toBe(
+        true
+      );
       expect(canAccessHouseholdDetails('sec-1', sampleHousehold, [], 'secretary')).toBe(true);
     });
 
@@ -120,7 +122,11 @@ describe('Congregation Secretary Access & Role Identity Separation', () => {
       const secUser = { id: 'sec-1', role: UserRole.SECRETARY };
       expect(canViewMemberLocations(secUser)).toBe(true);
       expect(
-        canViewMemberLocations({ id: 'sec-1', role: UserRole.USER, congregationRole: CongregationRole.SECRETARY })
+        canViewMemberLocations({
+          id: 'sec-1',
+          role: UserRole.USER,
+          congregationRole: CongregationRole.SECRETARY,
+        })
       ).toBe(true);
     });
 

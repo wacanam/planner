@@ -15,7 +15,7 @@ import type {
 export function useCoverageReport(congregationId: string | null | undefined) {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [_assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

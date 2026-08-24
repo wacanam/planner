@@ -1,12 +1,12 @@
 // mobile/src/components/ui/OfflineBanner.tsx
 import { CloudOff } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 export function OfflineBanner() {
   const { colors, typography, spacing } = useTheme();
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, _setIsOffline] = useState(false);
 
   // In React Native with Firestore persistentLocalCache, we can monitor connectivity
   // or show offline notification if disconnected
@@ -18,8 +18,8 @@ export function OfflineBanner() {
       style={[
         styles.banner,
         {
-          backgroundColor: colors.warning + '22',
-          borderBottomColor: colors.warning + '55',
+          backgroundColor: `${colors.warning}22`,
+          borderBottomColor: `${colors.warning}55`,
           paddingVertical: spacing.xs,
           paddingHorizontal: spacing.md,
         },

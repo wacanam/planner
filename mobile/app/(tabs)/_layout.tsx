@@ -1,8 +1,7 @@
 // mobile/app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import { BookOpen, FolderOpen, Map as MapIcon, MoreHorizontal } from 'lucide-react-native';
-import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 
 export default function TabsLayout() {

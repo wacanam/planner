@@ -10,7 +10,6 @@ import {
   Home,
   MapPin,
   RotateCcw,
-  Shield,
   User,
   Users,
 } from 'lucide-react';
@@ -21,7 +20,6 @@ import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,7 +93,7 @@ export default function MyAssignmentsClient() {
     for (const h of households) {
       if (h.territoryId) {
         if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
-        byTerritory.get(h.territoryId)!.push(h);
+        byTerritory.get(h.territoryId)?.push(h);
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
@@ -474,7 +472,10 @@ export default function MyAssignmentsClient() {
                   disabled={returning || (canAdjust && !returnDate)}
                   onClick={async () => {
                     if (returnConfirmAssignment) {
-                      await returnTerritory(returnConfirmAssignment.id, canAdjust ? returnDate : undefined);
+                      await returnTerritory(
+                        returnConfirmAssignment.id,
+                        canAdjust ? returnDate : undefined
+                      );
                       toast.success('Territory returned to congregation');
                       setReturnConfirmAssignment(null);
                       setReturnDate(new Date().toISOString().slice(0, 10));

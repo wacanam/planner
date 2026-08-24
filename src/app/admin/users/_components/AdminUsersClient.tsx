@@ -4,13 +4,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   Building2,
-  CheckCircle2,
   LogOut,
   MoreVertical,
   Search,
   Shield,
   ShieldAlert,
-  ShieldCheck,
   Trash2,
   UserCheck,
   UserCog,
@@ -64,7 +62,7 @@ export default function AdminUsersClient() {
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [statusFilter, _setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   // Role Edit Modal
   const [selectedUser, setSelectedUser] = useState<User | null>(null);

@@ -8,7 +8,6 @@ import {
   type QueryConstraint,
   query,
   setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
@@ -172,7 +171,9 @@ export function useCreateEncounter() {
 
       let congregationId = data.congregationId || null;
       if (!congregationId && data.householdId) {
-        const hDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId));
+        const hDoc = await getDoc(
+          doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId)
+        );
         if (hDoc.exists()) {
           congregationId = hDoc.data().congregationId || null;
         }

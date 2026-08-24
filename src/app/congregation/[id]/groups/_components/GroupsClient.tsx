@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Check,
   Crown,
   FolderOpen,
   Pencil,
@@ -12,7 +11,6 @@ import {
   UserCheck,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -45,7 +43,6 @@ import {
   useUpdateGroup,
 } from '@/hooks';
 import { canManageGroups, isUserInGroup } from '@/lib/permissions';
-import { UserRole } from '@/lib/roles';
 import type { Group, GroupMember } from '@/types/api';
 
 export default function GroupsClient() {

@@ -173,15 +173,11 @@ export function StudioLandmarkDialog({
   const [label, setLabel] = useState(
     initialData?.label || DEFAULT_LANDMARK_NAMES[initialData?.type || 'landmark']
   );
-  const [selectedType, setSelectedType] = useState<LandmarkType>(
-    initialData?.type || 'landmark'
-  );
+  const [selectedType, setSelectedType] = useState<LandmarkType>(initialData?.type || 'landmark');
 
   useEffect(() => {
     if (initialData) {
-      setLabel(
-        initialData.label || DEFAULT_LANDMARK_NAMES[initialData.type || 'landmark']
-      );
+      setLabel(initialData.label || DEFAULT_LANDMARK_NAMES[initialData.type || 'landmark']);
       setSelectedType(initialData.type || 'landmark');
     } else {
       setLabel(DEFAULT_LANDMARK_NAMES.landmark);
@@ -285,7 +281,10 @@ export function StudioLandmarkDialog({
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <User size={12} className="shrink-0 text-muted-foreground/70" />
                 <span>
-                  Contributor: <strong className="font-semibold text-foreground">{initialData.creatorName}</strong>
+                  Contributor:{' '}
+                  <strong className="font-semibold text-foreground">
+                    {initialData.creatorName}
+                  </strong>
                 </span>
               </div>
             )}

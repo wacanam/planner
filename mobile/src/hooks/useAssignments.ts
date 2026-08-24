@@ -1,7 +1,6 @@
 // mobile/src/hooks/useAssignments.ts
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -131,14 +130,14 @@ export function useMyAssignments(congregationId?: string | null) {
 }
 
 export function normalizeDateToIso(dateStr?: string | null): string {
-  if (!dateStr || !dateStr.trim()) return nowIso();
+  if (!dateStr?.trim()) return nowIso();
   const trimmed = dateStr.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     const d = new Date(`${trimmed}T12:00:00.000Z`);
-    return !isNaN(d.getTime()) ? d.toISOString() : nowIso();
+    return !Number.isNaN(d.getTime()) ? d.toISOString() : nowIso();
   }
   const parsed = new Date(trimmed);
-  return !isNaN(parsed.getTime()) ? parsed.toISOString() : nowIso();
+  return !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : nowIso();
 }
 
 export function useReturnAssignment() {

@@ -239,7 +239,11 @@ describe('Congregation Isolation & Super Admin Global Access', () => {
       expect(vView.congregationId).toBe('cong-alpha');
       expect(vView.householdAddress).toBe('123 Main St');
 
-      const eView = toEncounterView(legacyEncounterWithoutCongId, mockHouseholdAlpha, legacyVisitWithoutCongId);
+      const eView = toEncounterView(
+        legacyEncounterWithoutCongId,
+        mockHouseholdAlpha,
+        legacyVisitWithoutCongId
+      );
       expect(eView.congregationId).toBe('cong-alpha');
       expect(eView.householdAddress).toBe('123 Main St');
 

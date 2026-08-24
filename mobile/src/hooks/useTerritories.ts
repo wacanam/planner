@@ -1,9 +1,7 @@
 // mobile/src/hooks/useTerritories.ts
 import {
   collection,
-  deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -14,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
-import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
+import type { Territory, TerritoryRequest } from '@/types/api';
 
 function territoryCollection() {
   return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.territories);

@@ -32,7 +32,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
-import { canDeleteEncounter, canEditEncounter, isTerritoryServant } from '@/lib/permissions';
+import { canDeleteEncounter, canEditEncounter } from '@/lib/permissions';
 import {
   deleteEncounterRecord,
   saveEncounterRecord,
@@ -96,12 +96,12 @@ export default function EncountersClient() {
       const q = search.toLowerCase();
       list = list.filter(
         (e) =>
-          (e.name && e.name.toLowerCase().includes(q)) ||
-          (e.streetName && e.streetName.toLowerCase().includes(q)) ||
-          (e.householdAddress && e.householdAddress.toLowerCase().includes(q)) ||
-          (e.notes && e.notes.toLowerCase().includes(q)) ||
-          (e.topicDiscussed && e.topicDiscussed.toLowerCase().includes(q)) ||
-          (e.topicsDiscussed && e.topicsDiscussed.toLowerCase().includes(q))
+          e.name?.toLowerCase().includes(q) ||
+          e.streetName?.toLowerCase().includes(q) ||
+          e.householdAddress?.toLowerCase().includes(q) ||
+          e.notes?.toLowerCase().includes(q) ||
+          e.topicDiscussed?.toLowerCase().includes(q) ||
+          e.topicsDiscussed?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -147,7 +147,7 @@ export default function EncountersClient() {
       });
       toast.success(`Encounter with ${values.name} recorded`);
       setAddDialogOpen(false);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to record encounter');
     }
   };
@@ -174,7 +174,7 @@ export default function EncountersClient() {
       });
       toast.success('Encounter updated');
       setEditEncounter(null);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to update encounter');
     } finally {
       setEditingEncounter(false);
@@ -187,7 +187,7 @@ export default function EncountersClient() {
       await deleteEncounterRecord(id);
       setDeleteConfirmId(null);
       toast.success('Encounter deleted');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to delete encounter');
     } finally {
       setDeletingId(null);
@@ -224,10 +224,11 @@ export default function EncountersClient() {
             <button
               type="button"
               onClick={() => setViewMode('timeline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${viewMode === 'timeline'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                viewMode === 'timeline'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               <LayoutList size={13} />
               <span>All Encounters</span>
@@ -238,10 +239,11 @@ export default function EncountersClient() {
             <button
               type="button"
               onClick={() => setViewMode('contacts')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${viewMode === 'contacts'
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-                }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                viewMode === 'contacts'
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               <Users size={13} />
               <span>Group by Person</span>
@@ -347,8 +349,9 @@ export default function EncountersClient() {
                           </h2>
                           <Badge
                             variant="outline"
-                            className={`text-[10px] font-bold capitalize py-0 ${responseColors[contact.lastResponse] ?? ''
-                              }`}
+                            className={`text-[10px] font-bold capitalize py-0 ${
+                              responseColors[contact.lastResponse] ?? ''
+                            }`}
                           >
                             {contact.lastResponse.replace(/_/g, ' ')}
                           </Badge>
@@ -399,8 +402,11 @@ export default function EncountersClient() {
                               contact.latestEncounter?.householdId
                                 ? `/congregation/${congregationId}/records/households/${contact.latestEncounter.householdId}`
                                 : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(
-                                  contact.streetName || contact.latestEncounter?.streetName || contact.householdAddress || ''
-                                )}`
+                                    contact.streetName ||
+                                      contact.latestEncounter?.streetName ||
+                                      contact.householdAddress ||
+                                      ''
+                                  )}`
                             }
                             className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold flex-wrap"
                           >
@@ -409,7 +415,9 @@ export default function EncountersClient() {
                               {contact.latestEncounter?.houseNumber
                                 ? `#${contact.latestEncounter.houseNumber} `
                                 : ''}
-                              {contact.streetName || contact.latestEncounter?.streetName || contact.householdAddress}
+                              {contact.streetName ||
+                                contact.latestEncounter?.streetName ||
+                                contact.householdAddress}
                               {contact.latestEncounter?.unitNumber
                                 ? ` (Unit ${contact.latestEncounter.unitNumber})`
                                 : ''}
@@ -531,8 +539,9 @@ export default function EncountersClient() {
                         </span>
                         <ChevronDown
                           size={13}
-                          className={`ml-1 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
-                            }`}
+                          className={`ml-1 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
                         />
                       </Button>
                     </div>
@@ -557,8 +566,9 @@ export default function EncountersClient() {
                                 </span>
                                 <Badge
                                   variant="outline"
-                                  className={`text-[9px] font-bold capitalize py-0 ${responseColors[enc.response] ?? ''
-                                    }`}
+                                  className={`text-[9px] font-bold capitalize py-0 ${
+                                    responseColors[enc.response] ?? ''
+                                  }`}
                                 >
                                   {enc.response.replace(/_/g, ' ')}
                                 </Badge>
@@ -781,33 +791,33 @@ export default function EncountersClient() {
                     e,
                     households.find((h) => h.id === e.householdId)
                   ) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                        onClick={() => setEditEncounter(e)}
-                        title="Edit encounter details"
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={() => setEditEncounter(e)}
+                      title="Edit encounter details"
+                    >
+                      <Pencil size={14} />
+                    </Button>
+                  )}
 
                   {canDeleteEncounter(
                     user,
                     e,
                     households.find((h) => h.id === e.householdId)
                   ) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteConfirmId(e.id)}
-                        disabled={deletingId === e.id}
-                        title="Delete encounter"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteConfirmId(e.id)}
+                      disabled={deletingId === e.id}
+                      title="Delete encounter"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -835,20 +845,20 @@ export default function EncountersClient() {
           initialValues={
             presetContact
               ? {
-                name: presetContact.name,
-                gender: presetContact.gender,
-                ageGroup: presetContact.ageGroup,
-                role: presetContact.role,
-                language: presetContact.language,
-                phoneNumber: presetContact.phoneNumber,
-                email: presetContact.email,
-                bestTimeToCall: presetContact.bestTimeToCall,
-                locationDescription: presetContact.locationDescription,
-                householdId: presetContact.latestEncounter?.householdId || null,
-                bibleStudyInterest: presetContact.bibleStudyInterest,
-                bibleStudyPublication: presetContact.bibleStudyPublication,
-                bibleStudyLesson: presetContact.bibleStudyLesson,
-              }
+                  name: presetContact.name,
+                  gender: presetContact.gender,
+                  ageGroup: presetContact.ageGroup,
+                  role: presetContact.role,
+                  language: presetContact.language,
+                  phoneNumber: presetContact.phoneNumber,
+                  email: presetContact.email,
+                  bestTimeToCall: presetContact.bestTimeToCall,
+                  locationDescription: presetContact.locationDescription,
+                  householdId: presetContact.latestEncounter?.householdId || null,
+                  bibleStudyInterest: presetContact.bibleStudyInterest,
+                  bibleStudyPublication: presetContact.bibleStudyPublication,
+                  bibleStudyLesson: presetContact.bibleStudyLesson,
+                }
               : undefined
           }
           onSubmit={handleSaveEncounter}

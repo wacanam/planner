@@ -1,20 +1,7 @@
 // mobile/app/(tabs)/more/groups.tsx
 import { useRouter } from 'expo-router';
-import {
-  ChevronRight,
-  Crown,
-  Edit2,
-  FolderOpen,
-  MapPin,
-  Plus,
-  Shield,
-  Trash2,
-  UserCheck,
-  User as UserIcon,
-  Users,
-  X,
-} from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { ChevronRight, Crown, Edit2, Plus, Shield, Trash2, Users, X } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -226,7 +213,7 @@ export default function ServiceGroupsScreen() {
                   }}
                   style={[
                     styles.myGroupCard,
-                    { backgroundColor: colors.primary + '12', borderColor: colors.primary + '35' },
+                    { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}35` },
                   ]}
                 >
                   <View style={styles.groupHeader}>
@@ -289,11 +276,11 @@ export default function ServiceGroupsScreen() {
                 style={[
                   styles.groupCard,
                   { marginBottom: spacing.md },
-                  isCurrentMyGroup && { borderColor: colors.primary + '40' },
+                  isCurrentMyGroup && { borderColor: `${colors.primary}40` },
                 ]}
               >
                 <View style={styles.groupHeader}>
-                  <View style={[styles.iconBox, { backgroundColor: colors.secondary + '25' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: `${colors.secondary}25` }]}>
                     <Users size={20} color={colors.secondaryForeground} />
                   </View>
                   <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -404,7 +391,7 @@ export default function ServiceGroupsScreen() {
                   <View
                     style={[
                       styles.roleCard,
-                      { backgroundColor: colors.muted + '40', borderColor: colors.border },
+                      { backgroundColor: `${colors.muted}40`, borderColor: colors.border },
                     ]}
                   >
                     <View style={[styles.roleIconCircle, { backgroundColor: '#f59e0b20' }]}>
@@ -438,7 +425,7 @@ export default function ServiceGroupsScreen() {
                     style={[
                       styles.roleCard,
                       {
-                        backgroundColor: colors.muted + '40',
+                        backgroundColor: `${colors.muted}40`,
                         borderColor: colors.border,
                         marginTop: 8,
                       },
@@ -508,14 +495,14 @@ export default function ServiceGroupsScreen() {
                                   styles.groupmateRow,
                                   { borderBottomColor: colors.border },
                                   (isOverseer || isAssistant) && {
-                                    backgroundColor: colors.muted + '25',
+                                    backgroundColor: `${colors.muted}25`,
                                   },
                                 ]}
                               >
                                 <View
                                   style={[
                                     styles.avatarCircle,
-                                    { backgroundColor: colors.primary + '20' },
+                                    { backgroundColor: `${colors.primary}20` },
                                   ]}
                                 >
                                   {gm.user?.avatarUrl ? (
@@ -700,7 +687,7 @@ export default function ServiceGroupsScreen() {
                   onPress={() => setSelectedOverseerId(null)}
                   style={[
                     styles.pickerOption,
-                    !selectedOverseerId && { backgroundColor: colors.primary + '15' },
+                    !selectedOverseerId && { backgroundColor: `${colors.primary}15` },
                   ]}
                 >
                   <Text
@@ -718,7 +705,7 @@ export default function ServiceGroupsScreen() {
                     onPress={() => setSelectedOverseerId(m.userId)}
                     style={[
                       styles.pickerOption,
-                      selectedOverseerId === m.userId && { backgroundColor: colors.primary + '15' },
+                      selectedOverseerId === m.userId && { backgroundColor: `${colors.primary}15` },
                     ]}
                   >
                     <Text
@@ -748,7 +735,7 @@ export default function ServiceGroupsScreen() {
                   onPress={() => setSelectedAssistantId(null)}
                   style={[
                     styles.pickerOption,
-                    !selectedAssistantId && { backgroundColor: colors.secondary + '20' },
+                    !selectedAssistantId && { backgroundColor: `${colors.secondary}20` },
                   ]}
                 >
                   <Text
@@ -769,7 +756,7 @@ export default function ServiceGroupsScreen() {
                     style={[
                       styles.pickerOption,
                       selectedAssistantId === m.userId && {
-                        backgroundColor: colors.secondary + '20',
+                        backgroundColor: `${colors.secondary}20`,
                       },
                     ]}
                   >

@@ -1,25 +1,6 @@
 'use client';
 
-import {
-  ArrowLeft,
-  Check,
-  ChevronDown,
-  Clock,
-  Eye,
-  Filter,
-  Flag,
-  FolderOpen,
-  Home,
-  MapPin,
-  Menu,
-  Milestone,
-  Plus,
-  Radio,
-  Search,
-  Timer,
-  Users,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, Eye, Filter, Home, MapPin, Menu, Radio, Search, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -326,9 +307,9 @@ export function CongregationTopBar({
 
             {/* Status Filter */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-muted-foreground">
+              <span className="block text-[11px] font-semibold text-muted-foreground">
                 Territory Status
-              </label>
+              </span>
               <Select value={statusFilter} onValueChange={onChangeStatusFilter}>
                 <SelectTrigger className="h-8 rounded-xl text-xs bg-background">
                   <SelectValue placeholder="All Statuses" />
@@ -344,9 +325,9 @@ export function CongregationTopBar({
 
             {/* Service Group Filter */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-muted-foreground">
+              <span className="block text-[11px] font-semibold text-muted-foreground">
                 Service Group
-              </label>
+              </span>
               <Select value={groupFilterId} onValueChange={onChangeGroupFilterId}>
                 <SelectTrigger className="h-8 rounded-xl text-xs bg-background">
                   <SelectValue placeholder="All Service Groups" />

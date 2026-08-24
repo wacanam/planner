@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CongregationRole, UserRole } from '@/lib/roles';
+import type { Household, SharedMemberLocation } from '@/types/api';
 import {
   canAccessHouseholdDetails,
   canCreateTerritory,
@@ -13,7 +14,6 @@ import {
   isCircuitOverseer,
   isVisitingPublisher,
 } from '../permissions';
-import type { Household, SharedMemberLocation } from '@/types/api';
 
 describe('Circuit Overseer and Visiting Publisher Permissions', () => {
   describe('Role Identifiers', () => {
@@ -139,7 +139,9 @@ describe('Circuit Overseer and Visiting Publisher Permissions', () => {
     };
 
     it('allows Circuit Overseer full read access to household details', () => {
-      expect(canAccessHouseholdDetails('co-user', mockHousehold, [], UserRole.CIRCUIT_OVERSEER)).toBe(true);
+      expect(
+        canAccessHouseholdDetails('co-user', mockHousehold, [], UserRole.CIRCUIT_OVERSEER)
+      ).toBe(true);
     });
 
     it('allows Circuit Overseer and Visiting Publisher to log visits and encounters during field ministry', () => {
@@ -147,7 +149,7 @@ describe('Circuit Overseer and Visiting Publisher Permissions', () => {
       const visitingWife = { id: 'visiting-wife', role: UserRole.VISITING_PUBLISHER };
 
       expect(canLogVisitOrEncounter(coUser, mockHousehold)).toBe(true);
-      
+
       const collabHousehold = { ...mockHousehold, collaboratorIds: ['visiting-wife'] };
       expect(canLogVisitOrEncounter(visitingWife, collabHousehold)).toBe(true);
     });

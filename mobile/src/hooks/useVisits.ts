@@ -163,7 +163,9 @@ export function useCreateVisit() {
 
       let congregationId = (data as any).congregationId || null;
       if (!congregationId && data.householdId) {
-        const hDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId));
+        const hDoc = await getDoc(
+          doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId)
+        );
         if (hDoc.exists()) {
           congregationId = hDoc.data().congregationId || null;
         }

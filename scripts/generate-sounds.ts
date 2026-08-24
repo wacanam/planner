@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 function createWavBuffer(samples: Float32Array, sampleRate = 44100): Buffer {
   const buffer = Buffer.alloc(44 + samples.length * 2);

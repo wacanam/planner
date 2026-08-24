@@ -248,11 +248,11 @@ export default function HouseholdsClient() {
             const isOwner = Boolean(user?.id && h.createdById === user.id);
             const isGroupMateRecord = Boolean(
               user?.id &&
-              h.createdById &&
-              h.createdById !== user.id &&
-              !isCollaborator &&
-              !isReadOnly &&
-              groupMateUserIds.has(h.createdById)
+                h.createdById &&
+                h.createdById !== user.id &&
+                !isCollaborator &&
+                !isReadOnly &&
+                groupMateUserIds.has(h.createdById)
             );
 
             const canShare = canShareHousehold(user, h);

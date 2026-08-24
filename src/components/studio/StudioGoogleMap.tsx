@@ -3,6 +3,7 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import type {
   Congregation,
   Household,
@@ -12,11 +13,9 @@ import type {
   SharedMemberLocation,
   Territory,
 } from '@/types/api';
-import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
-  DEFAULT_BOUNDARY_DISPLAY,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
 } from './StudioBasemapPopup';
@@ -96,7 +95,7 @@ export function normalizePolygons(
     for (const item of coords as Array<{ lat: number; lng: number; polygonIndex?: number }>) {
       const idx = Number(item.polygonIndex ?? 0);
       if (!polysMap.has(idx)) polysMap.set(idx, []);
-      polysMap.get(idx)!.push({ lat: Number(item.lat), lng: Number(item.lng) });
+      polysMap.get(idx)?.push({ lat: Number(item.lat), lng: Number(item.lng) });
     }
     return Array.from(polysMap.values());
   }
@@ -1485,7 +1484,6 @@ export function StudioGoogleMap({
         case 'moved':
         case 'inactive':
           return '#9CA3AF'; // Muted Gray
-        case 'new':
         default:
           return '#64748B'; // Cool Slate / Steel
       }
@@ -2552,9 +2550,10 @@ export function StudioGoogleMap({
       if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
 
       const isLive = Boolean(loc.isSharing);
-      const isSelected = selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
+      const isSelected =
+        selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
       const accuracy = loc.accuracy ?? null;
-      const isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
+      const _isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
 
       if (currentMarkersMap.has(locId)) {
         // Update existing marker in place

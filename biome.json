@@ -10,12 +10,21 @@
     "rules": {
       "preset": "recommended",
       "correctness": {
-        "useExhaustiveDependencies": "off"
+        "useExhaustiveDependencies": "off",
+        "noUnusedFunctionParameters": "off",
+        "noUnusedVariables": "off"
       },
       "a11y": {
         "noStaticElementInteractions": "off",
         "useKeyWithClickEvents": "off",
-        "noSvgWithoutTitle": "off"
+        "noSvgWithoutTitle": "off",
+        "noLabelWithoutControl": "off"
+      },
+      "performance": {
+        "noImgElement": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off",

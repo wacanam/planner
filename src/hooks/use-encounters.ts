@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import {
@@ -166,13 +166,23 @@ function useEncounterRecords(filters?: {
           encounter,
           encounter.householdId ? householdMap.get(encounter.householdId) : null,
           encounter.visitId ? visitMap.get(encounter.visitId) : undefined,
-          congregationId && (memberUserIds.has(encounter.userId ?? '') || encounter.userId === userId)
+          congregationId &&
+            (memberUserIds.has(encounter.userId ?? '') || encounter.userId === userId)
             ? congregationId
             : null
         )
       )
     );
-  }, [congregationId, encounters, groupMateSet, householdMap, memberUserIds, userId, userRole, visitMap]);
+  }, [
+    congregationId,
+    encounters,
+    groupMateSet,
+    householdMap,
+    memberUserIds,
+    userId,
+    userRole,
+    visitMap,
+  ]);
 
   return { encounters: mappedEncounters, isLoading, error };
 }
@@ -192,10 +202,7 @@ export function useMyEncounters(filters?: {
   return useEncounterRecords(filters);
 }
 
-export function useTerritoryEncounters(
-  territoryId: string | null,
-  congregationId?: string | null
-) {
+export function useTerritoryEncounters(territoryId: string | null, congregationId?: string | null) {
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);

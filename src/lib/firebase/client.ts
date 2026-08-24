@@ -1,8 +1,8 @@
 import { type FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { type Auth, getAuth } from 'firebase/auth';
 import {
-  type Firestore,
   clearIndexedDbPersistence,
+  type Firestore,
   getFirestore,
   initializeFirestore,
   persistentLocalCache,

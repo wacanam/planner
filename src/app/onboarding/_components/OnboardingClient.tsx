@@ -148,7 +148,14 @@ export default function OnboardingPage() {
       toast.success('Welcome to your congregation workspace!');
       router.replace(`/congregation/${user.congregationId}/dashboard`);
     }
-  }, [session?.user?.emailVerified, isAdmin, user?.congregationId, membershipStatus, userLoading, router]);
+  }, [
+    session?.user?.emailVerified,
+    isAdmin,
+    user?.congregationId,
+    membershipStatus,
+    userLoading,
+    router,
+  ]);
 
   // ── 2. Fetch pending congregation info if user is waiting for approval ───────
   useEffect(() => {

@@ -24,12 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser, useMyEncounters, useMyVisits, useOverseenGroupMates } from '@/hooks';
-import {
-  canDeleteVisit,
-  canEditVisit,
-  canLogVisitOrEncounter,
-  isTerritoryServant,
-} from '@/lib/permissions';
+import { canDeleteVisit, canEditVisit, canLogVisitOrEncounter } from '@/lib/permissions';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
@@ -141,7 +136,7 @@ export default function VisitsClient() {
       await deleteVisitRecord(id);
       setDeleteConfirmId(null);
       toast.success('Visit record deleted');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to delete visit');
     } finally {
       setDeletingId(null);
@@ -164,7 +159,7 @@ export default function VisitsClient() {
       });
       toast.success('Visit record updated');
       setEditVisit(null);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to update visit');
     } finally {
       setEditingVisit(false);
@@ -293,7 +288,10 @@ export default function VisitsClient() {
                         <Home size={14} className="text-primary shrink-0" />
                         <span>
                           {v.houseNumber ? `#${v.houseNumber} ` : ''}
-                          {v.streetName || household?.streetName || v.householdAddress || 'Household Record'}
+                          {v.streetName ||
+                            household?.streetName ||
+                            v.householdAddress ||
+                            'Household Record'}
                           {v.unitNumber ? ` (Unit ${v.unitNumber})` : ''}
                         </span>
                       </Link>

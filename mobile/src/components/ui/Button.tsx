@@ -103,7 +103,6 @@ export function Button({
         return { paddingVertical: 8, paddingHorizontal: 12 };
       case 'lg':
         return { paddingVertical: 14, paddingHorizontal: 20 };
-      case 'md':
       default:
         return { paddingVertical: 11, paddingHorizontal: 16 };
     }
@@ -115,7 +114,6 @@ export function Button({
         return typography.sm;
       case 'lg':
         return typography.base;
-      case 'md':
       default:
         return typography.sm + 1;
     }

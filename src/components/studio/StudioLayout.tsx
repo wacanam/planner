@@ -13,7 +13,6 @@ import {
   Radio,
   Trash2,
   User,
-  Users,
   X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -41,6 +40,7 @@ import {
   useUserLocation,
 } from '@/hooks';
 import { createClientId } from '@/lib/firebase/schema';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { canViewMemberLocations } from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
@@ -48,7 +48,6 @@ import {
   updateHouseholdRecord,
 } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
-import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import type {
   Congregation,
   Household,
@@ -61,19 +60,18 @@ import type {
   Territory,
   TerritoryAnnotations,
 } from '@/types/api';
+import { StudioBoundaryDialog } from './StudioBoundaryDialog';
+import { StudioContextActionCard } from './StudioContextActionCard';
+import { getTerritoryBoundaries, StudioGoogleMap } from './StudioGoogleMap';
+import { StudioLandmarkDialog } from './StudioLandmarkDialog';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
-  DEFAULT_BOUNDARY_DISPLAY,
   DEFAULT_STUDIO_LAYERS,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
-import { StudioBoundaryDialog } from './StudioBoundaryDialog';
-import { StudioContextActionCard } from './StudioContextActionCard';
-import { getTerritoryBoundaries, normalizePolygons, StudioGoogleMap } from './StudioGoogleMap';
-import { StudioLandmarkDialog } from './StudioLandmarkDialog';
 import { StudioPrintViewport } from './StudioPrintViewport';
 import { StudioRoadDialog } from './StudioRoadDialog';
 import { type CardDimensionSettings, StudioSidebar } from './StudioSidebar';
@@ -1026,7 +1024,8 @@ export function StudioLayout({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {selectedHousehold.address || selectedHousehold.streetName}
-                    {selectedHousehold.city && !(selectedHousehold.address || '').includes(selectedHousehold.city)
+                    {selectedHousehold.city &&
+                    !(selectedHousehold.address || '').includes(selectedHousehold.city)
                       ? `, ${selectedHousehold.city}`
                       : ''}
                   </p>
@@ -1062,7 +1061,12 @@ export function StudioLayout({
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-0.5">
               <User size={12} className="text-muted-foreground/70 shrink-0" />
               <span>
-                Added by <strong className="font-semibold text-foreground">{selectedHousehold.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                Added by{' '}
+                <strong className="font-semibold text-foreground">
+                  {selectedHousehold.creatorName ||
+                    territory?.publisherName ||
+                    'Territory Contributor'}
+                </strong>
               </span>
             </div>
 
@@ -1147,7 +1151,12 @@ export function StudioLayout({
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Mapped by <strong className="font-semibold text-foreground">{selectedBoundary.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                      Mapped by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedBoundary.creatorName ||
+                          territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -1224,7 +1233,12 @@ export function StudioLayout({
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Added by <strong className="font-semibold text-foreground">{selectedLandmark.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                      Added by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedLandmark.creatorName ||
+                          territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -1303,7 +1317,12 @@ export function StudioLayout({
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Drawn by <strong className="font-semibold text-foreground">{selectedRoad.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                      Drawn by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedRoad.creatorName ||
+                          territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -1372,15 +1391,20 @@ export function StudioLayout({
                 </div>
                 <div>
                   <p className="font-bold text-sm text-foreground leading-snug">
-                    {territory?.annotations?.startFlag?.label || selectedStartFlag.label || 'Territory Start Meeting Point'}
+                    {territory?.annotations?.startFlag?.label ||
+                      selectedStartFlag.label ||
+                      'Territory Start Meeting Point'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Meeting Point • Start Alignment
-                  </p>
+                  <p className="text-xs text-muted-foreground">Meeting Point • Start Alignment</p>
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Set by <strong className="font-semibold text-foreground">{territory?.annotations?.startFlag?.creatorName || territory?.publisherName || 'Territory Contributor'}</strong>
+                      Set by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {territory?.annotations?.startFlag?.creatorName ||
+                          territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -1402,7 +1426,11 @@ export function StudioLayout({
                   variant="outline"
                   className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
                   onClick={() => {
-                    setStartFlagLabel(territory?.annotations?.startFlag?.label || selectedStartFlag.label || 'Start Meeting Point');
+                    setStartFlagLabel(
+                      territory?.annotations?.startFlag?.label ||
+                        selectedStartFlag.label ||
+                        'Start Meeting Point'
+                    );
                     setStartFlagDialogOpen(true);
                     setSelectedStartFlag(null);
                   }}
@@ -1504,7 +1532,12 @@ export function StudioLayout({
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock size={12} />
-                    <span>Last seen {timeAgo(selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt)}</span>
+                    <span>
+                      Last seen{' '}
+                      {timeAgo(
+                        selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt
+                      )}
+                    </span>
                   </span>
                 )}
               </div>
@@ -1728,7 +1761,10 @@ export function StudioLayout({
             <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-[11px] text-muted-foreground flex items-center gap-2">
               <User size={13} className="shrink-0 text-muted-foreground/70" />
               <span>
-                Contributor: <strong className="font-semibold text-foreground">{territory.annotations.startFlag.creatorName}</strong>
+                Contributor:{' '}
+                <strong className="font-semibold text-foreground">
+                  {territory.annotations.startFlag.creatorName}
+                </strong>
               </span>
             </div>
           )}

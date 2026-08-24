@@ -1,7 +1,7 @@
 // mobile/app/(auth)/reset-password.tsx
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -101,7 +101,7 @@ export default function ResetPasswordScreen() {
             <View
               style={[
                 styles.errorBanner,
-                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+                { backgroundColor: `${colors.destructive}15`, marginBottom: spacing.md },
               ]}
             >
               <Text
@@ -116,7 +116,7 @@ export default function ResetPasswordScreen() {
             <View
               style={[
                 styles.successBanner,
-                { backgroundColor: colors.success + '15', marginBottom: spacing.md },
+                { backgroundColor: `${colors.success}15`, marginBottom: spacing.md },
               ]}
             >
               <Text

@@ -44,7 +44,7 @@ import {
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
-import { canApproveMembers, isServiceOverseer, isUserInGroup } from '@/lib/permissions';
+import { canApproveMembers, isUserInGroup } from '@/lib/permissions';
 import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
 import { timeAgo } from '@/lib/time-ago';
 import type { Assignment } from '@/types/api';
@@ -56,7 +56,7 @@ export default function MembersClient() {
   const searchParams = useSearchParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const canManage = canApproveMembers(user.role, user.congregationRole);
+  const _canManage = canApproveMembers(user.role, user.congregationRole);
 
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { groups = [] } = useCongregationGroups(congregationId);
@@ -816,9 +816,7 @@ export default function MembersClient() {
                     <SelectItem value={CongregationRole.CIRCUIT_OVERSEER}>
                       Circuit Overseer
                     </SelectItem>
-                    <SelectItem value={CongregationRole.PUBLISHER}>
-                      Regular Publisher
-                    </SelectItem>
+                    <SelectItem value={CongregationRole.PUBLISHER}>Regular Publisher</SelectItem>
                     <SelectItem value={CongregationRole.VISITING_PUBLISHER}>
                       Visiting Publisher
                     </SelectItem>

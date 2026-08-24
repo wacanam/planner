@@ -179,7 +179,7 @@ export function useCurrentUser(): {
           // Select matching membership based on selectedCongId preference or fallback to first
           const target =
             (selectedCongId && list.find((m) => m.congregationId === selectedCongId)) || list[0];
-          if (target && target.congregationId) {
+          if (target?.congregationId) {
             setMembershipStatus('active');
             setPendingMembership(null);
             setMembershipRole(target.congregationRole || CongregationRole.PUBLISHER);

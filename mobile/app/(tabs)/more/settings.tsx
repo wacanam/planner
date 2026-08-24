@@ -1,7 +1,7 @@
 // mobile/app/(tabs)/more/settings.tsx
 import { useRouter } from 'expo-router';
-import { Bell, Moon, Shield, Smartphone, Sun, Volume2 } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { Moon, Smartphone, Sun, Volume2 } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
@@ -25,7 +25,7 @@ const SOUND_STYLES: { id: NotificationSoundStyle; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, typography, spacing, isDark, mode, setMode } = useTheme();
 
@@ -77,7 +77,7 @@ export default function SettingsScreen() {
                 styles.themeBtn,
                 {
                   borderColor: mode === 'light' ? colors.primary : colors.border,
-                  backgroundColor: mode === 'light' ? colors.primary + '15' : colors.card,
+                  backgroundColor: mode === 'light' ? `${colors.primary}15` : colors.card,
                 },
               ]}
             >
@@ -101,7 +101,7 @@ export default function SettingsScreen() {
                 styles.themeBtn,
                 {
                   borderColor: mode === 'dark' ? colors.primary : colors.border,
-                  backgroundColor: mode === 'dark' ? colors.primary + '15' : colors.card,
+                  backgroundColor: mode === 'dark' ? `${colors.primary}15` : colors.card,
                 },
               ]}
             >
@@ -125,7 +125,7 @@ export default function SettingsScreen() {
                 styles.themeBtn,
                 {
                   borderColor: mode === 'system' ? colors.primary : colors.border,
-                  backgroundColor: mode === 'system' ? colors.primary + '15' : colors.card,
+                  backgroundColor: mode === 'system' ? `${colors.primary}15` : colors.card,
                 },
               ]}
             >
@@ -202,7 +202,7 @@ export default function SettingsScreen() {
                       styles.soundOptionRow,
                       {
                         borderColor: isSelected ? colors.primary : colors.border,
-                        backgroundColor: isSelected ? colors.primary + '12' : colors.card,
+                        backgroundColor: isSelected ? `${colors.primary}12` : colors.card,
                       },
                     ]}
                   >

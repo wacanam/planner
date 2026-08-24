@@ -47,9 +47,9 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   const marginBottom = 14;
   const contentWidth = pageWidth - marginLeft - marginRight; // 269mm
 
-  const totalPages = 0;
+  const _totalPages = 0;
 
-  const drawPageFooter = (pageNum: number, totalExpected: string) => {
+  const drawPageFooter = (pageNum: number, _totalExpected: string) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184); // Slate-400

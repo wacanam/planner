@@ -3,7 +3,6 @@ import {
   doc,
   getDocs,
   onSnapshot,
-  type QueryConstraint,
   type QueryDocumentSnapshot,
   query,
   type Unsubscribe,
@@ -20,7 +19,6 @@ import type {
   CreateContactInput,
   UpdateContactInput,
 } from '@/types/api';
-import { getHouseholdById } from './households';
 import { nowIso, nullableString } from './shared';
 import type { LocalContact, LocalHousehold } from './types';
 

@@ -13,7 +13,6 @@ import type {
   GroupReportStats,
   Household,
   Member,
-  PublisherStats,
   PublishersReport,
   S13AssignmentRecord,
   Territory,
@@ -340,7 +339,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 
@@ -479,7 +478,7 @@ export function useS13Report(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 
@@ -541,7 +540,7 @@ export function useGroupsReport(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 

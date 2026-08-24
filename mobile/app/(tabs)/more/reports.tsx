@@ -1,19 +1,7 @@
 // mobile/app/(tabs)/more/reports.tsx
 import { useRouter } from 'expo-router';
-import {
-  BarChart2,
-  Calendar,
-  CheckCircle2,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  Home,
-  PieChart,
-  Printer,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react-native';
-import React, { useState } from 'react';
+import { BarChart2, Download, FileText, Home } from 'lucide-react-native';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,7 +25,7 @@ import { exportS13Pdf } from '@/lib/pdf-export';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function ReportsScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeCongregationId } = useAuth();
   const { congregation } = useCongregation(activeCongregationId);
@@ -230,8 +218,8 @@ export default function ReportsScreen() {
               styles.sectionCard,
               {
                 marginTop: spacing.md,
-                backgroundColor: colors.primary + '12',
-                borderColor: colors.primary + '35',
+                backgroundColor: `${colors.primary}12`,
+                borderColor: `${colors.primary}35`,
               },
             ]}
           >

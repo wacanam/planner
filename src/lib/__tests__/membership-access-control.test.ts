@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { memberFromData } from '@/hooks/use-congregation-members';
 import { buildWelcomeEmailContent } from '@/lib/mail';
-import { NotificationType, UserRole } from '@/lib/roles';
-import type { Member, User } from '@/types/api';
+import { UserRole } from '@/lib/roles';
+import type { Member } from '@/types/api';
 
 describe('Membership Access Control & Welcome Email', () => {
   describe('Welcome Email Generation', () => {

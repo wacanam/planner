@@ -1,24 +1,11 @@
 'use client';
 
-import {
-  collection,
-  doc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import {
-  filterVisibleMemberLocations,
-  isGroupOverseer,
-  isGroupOverseerAssistant,
-  isTerritoryServant,
-} from '@/lib/permissions';
+import { filterVisibleMemberLocations } from '@/lib/permissions';
 import type { Group, SharedMemberLocation } from '@/types/api';
 import type { SessionUser } from './use-current-user';
 
@@ -31,7 +18,11 @@ function memberLocationDocId(congregationId: string, userId: string): string {
  * Plays a tiny inaudible buffer ONLY when the document is hidden/backgrounded
  * to keep the mobile browser process alive without consuming CPU/battery in foreground.
  */
-function createSilentAudioKeepalive(): { play: () => void; stop: () => void; isPlaying: () => boolean } {
+function createSilentAudioKeepalive(): {
+  play: () => void;
+  stop: () => void;
+  isPlaying: () => boolean;
+} {
   if (typeof window === 'undefined') {
     return { play: () => {}, stop: () => {}, isPlaying: () => false };
   }
@@ -250,7 +241,10 @@ export function useMemberLocations(
 
     // Sort: active sharing by lastSeenAt / updatedAt descending
     return filtered.sort((a, b) => {
-      return new Date(b.lastSeenAt || b.updatedAt).getTime() - new Date(a.lastSeenAt || a.updatedAt).getTime();
+      return (
+        new Date(b.lastSeenAt || b.updatedAt).getTime() -
+        new Date(a.lastSeenAt || a.updatedAt).getTime()
+      );
     });
   }, [user, groups, allLocations, nowTick]);
 
@@ -309,13 +303,15 @@ export function useLocationSharing({
   // Find user's service group
   const userGroup = useMemo(() => {
     if (!user?.id || groups.length === 0) return null;
-    return groups.find(
-      (g) =>
-        g.id === user.groupId ||
-        g.overseerId === user.id ||
-        g.assistantOverseerId === user.id ||
-        g.members?.some((m) => m.userId === user.id || m.id === user.id)
-    ) || null;
+    return (
+      groups.find(
+        (g) =>
+          g.id === user.groupId ||
+          g.overseerId === user.id ||
+          g.assistantOverseerId === user.id ||
+          g.members?.some((m) => m.userId === user.id || m.id === user.id)
+      ) || null
+    );
   }, [user, groups]);
 
   const clearExpiryTimer = useCallback(() => {
@@ -376,7 +372,8 @@ export function useLocationSharing({
 
   const handleDeviceOrientation = useCallback(
     (event: DeviceOrientationEvent) => {
-      const iosHeading = (event as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
+      const iosHeading = (event as unknown as { webkitCompassHeading?: number })
+        .webkitCompassHeading;
       if (typeof iosHeading === 'number' && !Number.isNaN(iosHeading)) {
         updateHeading(iosHeading);
         return;
@@ -456,7 +453,11 @@ export function useLocationSharing({
       watchIdRef.current = null;
     }
     if (typeof window !== 'undefined') {
-      window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+      window.removeEventListener(
+        'deviceorientationabsolute',
+        handleDeviceOrientation as EventListener,
+        true
+      );
       window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
     }
     setIsSharing(false);
@@ -521,12 +522,7 @@ export function useLocationSharing({
         const timeElapsed = !last || now - last.time > 35000;
 
         if (movedSignificantly || timeElapsed) {
-          syncLocationToFirestore(
-            coords,
-            true,
-            expiresAtRef.current,
-            durationMinutesRef.current
-          );
+          syncLocationToFirestore(coords, true, expiresAtRef.current, durationMinutesRef.current);
         }
       },
       (err) => {
@@ -591,7 +587,15 @@ export function useLocationSharing({
       expiresAtRef.current,
       durationMinutesRef.current
     );
-  }, [user?.avatarUrl, user?.name, isSharing, congregationId, user?.id, currentCoords, syncLocationToFirestore]);
+  }, [
+    user?.avatarUrl,
+    user?.name,
+    isSharing,
+    congregationId,
+    user?.id,
+    currentCoords,
+    syncLocationToFirestore,
+  ]);
 
   const startSharing = useCallback(
     async (mins?: number) => {
@@ -616,10 +620,13 @@ export function useLocationSharing({
 
       // Setup client auto-expiry timer
       clearExpiryTimer();
-      expiryTimerRef.current = setTimeout(() => {
-        toast.info('Location sharing expired.');
-        void stopSharing();
-      }, activeMins * 60 * 1000);
+      expiryTimerRef.current = setTimeout(
+        () => {
+          toast.info('Location sharing expired.');
+          void stopSharing();
+        },
+        activeMins * 60 * 1000
+      );
 
       // Acquire Screen Wake Lock if visible
       void acquireWakeLock();
@@ -653,7 +660,11 @@ export function useLocationSharing({
         }
       }
 
-      window.addEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+      window.addEventListener(
+        'deviceorientationabsolute',
+        handleDeviceOrientation as EventListener,
+        true
+      );
       window.addEventListener('deviceorientation', handleDeviceOrientation, true);
 
       const id = navigator.geolocation.watchPosition(
@@ -847,7 +858,11 @@ export function useLocationSharing({
         watchIdRef.current = null;
       }
       if (typeof window !== 'undefined') {
-        window.removeEventListener('deviceorientationabsolute', handleDeviceOrientation as EventListener, true);
+        window.removeEventListener(
+          'deviceorientationabsolute',
+          handleDeviceOrientation as EventListener,
+          true
+        );
         window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
       }
     };

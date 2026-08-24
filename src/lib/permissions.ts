@@ -814,7 +814,10 @@ export function canDeleteEncounter(
  * Territory Servants, Service Overseers, Secretaries, Admins, Super Admins, Circuit Overseers, and Group Overseers (and assistants) can view member locations.
  */
 export function canViewMemberLocations(
-  user: { id?: string | null; role?: string | null; congregationRole?: string | null } | null | undefined,
+  user:
+    | { id?: string | null; role?: string | null; congregationRole?: string | null }
+    | null
+    | undefined,
   groups: Array<{
     overseerId?: string | null;
     assistantOverseerId?: string | null;
@@ -832,7 +835,7 @@ export function canViewMemberLocations(
  * Checks if a member location is currently actively shared and has not expired.
  */
 export function isLocationActive(loc: SharedMemberLocation, now: number = Date.now()): boolean {
-  if (!loc || !loc.isSharing) return false;
+  if (!loc?.isSharing) return false;
   if (loc.expiresAt) {
     const expTime = new Date(loc.expiresAt).getTime();
     if (!Number.isNaN(expTime) && expTime <= now) {
@@ -850,7 +853,16 @@ export function isLocationActive(loc: SharedMemberLocation, now: number = Date.n
  * - Regular publishers: Can only see their own active shared location.
  */
 export function filterVisibleMemberLocations(
-  user: { id?: string | null; role?: string | null; congregationRole?: string | null; email?: string | null; groupId?: string | null } | null | undefined,
+  user:
+    | {
+        id?: string | null;
+        role?: string | null;
+        congregationRole?: string | null;
+        email?: string | null;
+        groupId?: string | null;
+      }
+    | null
+    | undefined,
   groups: Array<{
     id?: string;
     overseerId?: string | null;

@@ -91,7 +91,8 @@ export function toVisitView(
   return {
     id: record.id,
     userId: record.userId ?? '',
-    congregationId: record.congregationId ?? household?.congregationId ?? userCongregationId ?? null,
+    congregationId:
+      record.congregationId ?? household?.congregationId ?? userCongregationId ?? null,
     householdId: record.householdId,
     assignmentId: record.assignmentId,
     visitDate: record.visitDate,
@@ -150,7 +151,9 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
   let congregationId = nullableString(input.congregationId) ?? household?.congregationId ?? null;
   if (!congregationId && input.userId) {
     try {
-      const uDoc = await getDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId));
+      const uDoc = await getDoc(
+        doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId)
+      );
       if (uDoc.exists()) {
         congregationId = uDoc.data().congregationId ?? null;
       }
@@ -243,7 +246,8 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
 export async function getAllVisits(filters?: VisitFilters): Promise<LocalVisit[]> {
   const constraints: QueryConstraint[] = [];
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  else if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  else if (filters?.assignmentId)
+    constraints.push(where('assignmentId', '==', filters.assignmentId));
   const q = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
   const snapshot = await getDocs(q);
   return snapshot.docs
@@ -263,7 +267,8 @@ export function watchVisits(
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  else if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  else if (filters?.assignmentId)
+    constraints.push(where('assignmentId', '==', filters.assignmentId));
   const visitQuery =
     constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
 

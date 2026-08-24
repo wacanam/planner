@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { normalizeDateToIso } from '@/hooks/use-assignments';
 import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
-import { normalizeDateToIso } from '@/hooks/use-assignments';
 
 describe('Assignment Date Adjustment Permissions', () => {
   it('should allow SERVICE_OVERSEER to adjust assignment dates', () => {
@@ -46,10 +46,10 @@ describe('Date Normalization Helper (normalizeDateToIso)', () => {
   it('should handle falsy values by returning a fallback ISO date', () => {
     const fallback = normalizeDateToIso(undefined);
     expect(typeof fallback).toBe('string');
-    expect(!isNaN(new Date(fallback).getTime())).toBe(true);
+    expect(!Number.isNaN(new Date(fallback).getTime())).toBe(true);
 
     const fallbackNull = normalizeDateToIso(null);
     expect(typeof fallbackNull).toBe('string');
-    expect(!isNaN(new Date(fallbackNull).getTime())).toBe(true);
+    expect(!Number.isNaN(new Date(fallbackNull).getTime())).toBe(true);
   });
 });

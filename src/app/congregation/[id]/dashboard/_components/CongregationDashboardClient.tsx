@@ -34,11 +34,8 @@ import {
 } from '@/hooks';
 import {
   canCreateTerritory,
-  canManageCongregation,
   filterActiveAssignments,
   getUserGroupIds,
-  isServiceOverseer,
-  isTerritoryServant,
   resolveUserAssignments,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';

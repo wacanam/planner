@@ -1,6 +1,6 @@
 // mobile/src/components/map/TerritoryMapView.web.tsx
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import type {
   FitOptions,
@@ -49,7 +49,7 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
 
     const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
     const strokeColor = polygonStrokeColor || colors.primary;
-    const fillColor = polygonFillColor || colors.primary + '33';
+    const fillColor = polygonFillColor || `${colors.primary}33`;
 
     useImperativeHandle(ref, () => ({
       fitToCoordinates: (coordinates: MapCoordinate[], _options?: FitOptions) => {

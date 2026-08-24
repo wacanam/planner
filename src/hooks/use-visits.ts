@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import { toHouseholdView, toVisitView, watchHouseholds, watchVisits } from '@/lib/local-first';

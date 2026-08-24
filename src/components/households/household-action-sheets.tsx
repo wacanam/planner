@@ -1,19 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  BookOpen,
-  Calendar,
-  Clock,
-  FileText,
-  Mail,
-  MapPin,
-  Phone,
-  Plus,
-  Sparkles,
-  User,
-  Users,
-} from 'lucide-react';
+import { BookOpen, Clock, Mail, Phone, Plus, Sparkles, User, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';

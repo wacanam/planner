@@ -230,4 +230,3 @@ describe('getHouseholdMapLabel', () => {
     expect(getHouseholdMapLabel({})).toBe('House');
   });
 });
-

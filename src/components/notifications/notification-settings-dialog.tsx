@@ -1,20 +1,6 @@
 'use client';
 
-import {
-  Bell,
-  Check,
-  CheckCircle2,
-  Cloud,
-  FileText,
-  KeyRound,
-  MapPin,
-  Music,
-  Share2,
-  Shield,
-  Users,
-  Volume2,
-  VolumeX,
-} from 'lucide-react';
+import { Bell, Cloud, MapPin, Share2, Shield, Users, Volume2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';

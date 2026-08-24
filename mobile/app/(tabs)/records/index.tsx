@@ -1,21 +1,7 @@
 // mobile/app/(tabs)/records/index.tsx
 import { useRouter } from 'expo-router';
-import {
-  BookOpen,
-  Calendar,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Home,
-  MapPin,
-  MessageSquare,
-  Plus,
-  Search,
-  Sparkles,
-  User as UserIcon,
-  Users,
-} from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { Calendar, ChevronRight, Home, MessageSquare, Plus, Search } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -38,7 +24,6 @@ import { useEncounters } from '@/hooks/useEncounters';
 import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useVisits } from '@/hooks/useVisits';
 import { triggerHaptic } from '@/lib/sound';
-import type { Encounter, Household, Visit } from '@/types/api';
 
 type Tab = 'households' | 'visits' | 'encounters';
 
@@ -74,8 +59,8 @@ export default function RecordsScreen() {
     return households.filter(
       (h) =>
         h.address.toLowerCase().includes(q) ||
-        (h.city && h.city.toLowerCase().includes(q)) ||
-        (h.notes && h.notes.toLowerCase().includes(q))
+        h.city?.toLowerCase().includes(q) ||
+        h.notes?.toLowerCase().includes(q)
     );
   }, [households, searchQuery]);
 
@@ -85,9 +70,9 @@ export default function RecordsScreen() {
     return visits.filter(
       (v) =>
         v.outcome.toLowerCase().includes(q) ||
-        (v.notes && v.notes.toLowerCase().includes(q)) ||
-        (v.bibleTopicDiscussed && v.bibleTopicDiscussed.toLowerCase().includes(q)) ||
-        (v.householdAddress && v.householdAddress.toLowerCase().includes(q))
+        v.notes?.toLowerCase().includes(q) ||
+        v.bibleTopicDiscussed?.toLowerCase().includes(q) ||
+        v.householdAddress?.toLowerCase().includes(q)
     );
   }, [visits, searchQuery]);
 
@@ -96,10 +81,10 @@ export default function RecordsScreen() {
     if (!q) return encounters;
     return encounters.filter(
       (e) =>
-        (e.name && e.name.toLowerCase().includes(q)) ||
+        e.name?.toLowerCase().includes(q) ||
         e.response.toLowerCase().includes(q) ||
-        (e.topicDiscussed && e.topicDiscussed.toLowerCase().includes(q)) ||
-        (e.notes && e.notes.toLowerCase().includes(q))
+        e.topicDiscussed?.toLowerCase().includes(q) ||
+        e.notes?.toLowerCase().includes(q)
     );
   }, [encounters, searchQuery]);
 

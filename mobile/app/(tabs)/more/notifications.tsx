@@ -1,18 +1,10 @@
 // mobile/app/(tabs)/more/notifications.tsx
 import { useRouter } from 'expo-router';
 import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import { Bell, Check, Clock, Sparkles } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Bell } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
@@ -23,7 +15,7 @@ import { triggerHaptic } from '@/lib/sound';
 import type { Notification } from '@/types/api';
 
 export default function NotificationsScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { colors, typography, spacing, radius } = useTheme();
@@ -109,7 +101,7 @@ export default function NotificationsScreen() {
                 <View
                   style={[
                     styles.iconBox,
-                    { backgroundColor: item.isRead ? colors.muted : colors.primary + '20' },
+                    { backgroundColor: item.isRead ? colors.muted : `${colors.primary}20` },
                   ]}
                 >
                   <Bell size={16} color={item.isRead ? colors.mutedForeground : colors.primary} />

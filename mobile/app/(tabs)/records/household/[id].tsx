@@ -1,21 +1,7 @@
 // mobile/app/(tabs)/records/household/[id].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  Calendar,
-  Check,
-  CheckCircle2,
-  Clock,
-  Home,
-  MapPin,
-  MessageSquare,
-  Plus,
-  Share2,
-  Trash2,
-  User as UserIcon,
-  Users,
-  X,
-} from 'lucide-react-native';
-import React, { useState } from 'react';
+import { Check, MapPin, Share2, Trash2, X } from 'lucide-react-native';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -88,7 +74,7 @@ export default function HouseholdDetailScreen() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string | null>(null);
 
-  const canEdit = canEditHousehold(user, household);
+  const _canEdit = canEditHousehold(user, household);
   const canDelete = canDeleteHousehold(user, household);
   const canLog = canLogVisitOrEncounter(user, household);
   const canShare = canShareHousehold(user, household);
@@ -284,7 +270,7 @@ export default function HouseholdDetailScreen() {
             <View
               style={[
                 styles.notesBox,
-                { backgroundColor: colors.muted + '30', borderColor: colors.border },
+                { backgroundColor: `${colors.muted}30`, borderColor: colors.border },
               ]}
             >
               <Text style={{ color: colors.foreground, fontSize: typography.sm }}>
@@ -418,7 +404,7 @@ export default function HouseholdDetailScreen() {
                       styles.outcomeOption,
                       {
                         borderColor: outcome === opt.id ? opt.color : colors.border,
-                        backgroundColor: outcome === opt.id ? opt.color + '20' : colors.card,
+                        backgroundColor: outcome === opt.id ? `${opt.color}20` : colors.card,
                       },
                     ]}
                   >
@@ -531,7 +517,7 @@ export default function HouseholdDetailScreen() {
                         styles.memberRow,
                         {
                           borderColor: isSelected ? colors.primary : colors.border,
-                          backgroundColor: isSelected ? colors.primary + '15' : colors.card,
+                          backgroundColor: isSelected ? `${colors.primary}15` : colors.card,
                         },
                       ]}
                     >

@@ -5,11 +5,9 @@ import {
   Building2,
   ChevronRight,
   FileText,
-  HelpCircle,
   LogOut,
   Moon,
   Settings,
-  Shield,
   Sun,
   User as UserIcon,
   Users,
@@ -24,12 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregation } from '@/hooks/useCongregations';
-import {
-  canManageCongregation,
-  canViewReports,
-  isSystemAdmin,
-  isUserInGroup,
-} from '@/lib/permissions';
+import { isUserInGroup } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function MoreMenuScreen() {
@@ -82,7 +75,7 @@ export default function MoreMenuScreen() {
       }}
       style={[styles.menuItem, { borderBottomColor: colors.border }]}
     >
-      <View style={[styles.menuIconBox, { backgroundColor: colors.muted + '50' }]}>{icon}</View>
+      <View style={[styles.menuIconBox, { backgroundColor: `${colors.muted}50` }]}>{icon}</View>
       <View style={{ flex: 1, marginLeft: spacing.sm }}>
         <Text
           style={[

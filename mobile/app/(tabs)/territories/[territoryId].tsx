@@ -1,25 +1,16 @@
 // mobile/app/(tabs)/territories/[territoryId].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  Calendar,
   CheckCircle2,
-  ChevronRight,
   Clock,
   Download,
-  FileText,
-  History,
   Home,
   MapPin,
-  Pencil,
-  RotateCcw,
-  Send,
-  Share2,
-  Trash2,
   UserCheck,
   Users,
   X,
 } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -55,12 +46,12 @@ import {
   useTerritoryDetail,
 } from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
-import { canAdjustAssignmentDates, canEditTerritory, isTerritoryServant } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canEditTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
 
 export default function TerritoryDetailScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { territoryId } = useLocalSearchParams<{ territoryId: string }>();
 
@@ -90,7 +81,9 @@ export default function TerritoryDetailScreen() {
   const [assignDate, setAssignDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const [returnRevokeModalVisible, setReturnRevokeModalVisible] = useState(false);
-  const [returnRevokeDate, setReturnRevokeDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [returnRevokeDate, setReturnRevokeDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
 
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -235,8 +228,12 @@ export default function TerritoryDetailScreen() {
     try {
       await updateAssignment({
         id: editingAssignment.id,
-        assignedAt: editAssignedAt ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString() : editingAssignment.assignedAt,
-        returnedAt: editReturnedAt ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString() : null,
+        assignedAt: editAssignedAt
+          ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
+          : editingAssignment.assignedAt,
+        returnedAt: editReturnedAt
+          ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString()
+          : null,
         dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
         notes: editNotes.trim() || undefined,
       });
@@ -343,7 +340,7 @@ export default function TerritoryDetailScreen() {
 
           {/* Quick Stats Grid */}
           <View style={styles.statsGrid}>
-            <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
+            <View style={[styles.statBox, { backgroundColor: `${colors.muted}40` }]}>
               <Home size={16} color={colors.primary} />
               <Text
                 style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
@@ -360,7 +357,7 @@ export default function TerritoryDetailScreen() {
               </Text>
             </View>
 
-            <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
+            <View style={[styles.statBox, { backgroundColor: `${colors.muted}40` }]}>
               <CheckCircle2 size={16} color={colors.success} />
               <Text
                 style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
@@ -377,7 +374,7 @@ export default function TerritoryDetailScreen() {
               </Text>
             </View>
 
-            <View style={[styles.statBox, { backgroundColor: colors.muted + '40' }]}>
+            <View style={[styles.statBox, { backgroundColor: `${colors.muted}40` }]}>
               <Clock size={16} color={colors.secondaryForeground} />
               <Text
                 style={[styles.statValue, { color: colors.foreground, fontSize: typography.lg }]}
@@ -399,7 +396,7 @@ export default function TerritoryDetailScreen() {
             <View
               style={[
                 styles.notesBox,
-                { backgroundColor: colors.muted + '30', borderColor: colors.border },
+                { backgroundColor: `${colors.muted}30`, borderColor: colors.border },
               ]}
             >
               <Text
@@ -429,7 +426,7 @@ export default function TerritoryDetailScreen() {
 
           {territory.publisherName ? (
             <View style={styles.assigneeRow}>
-              <View style={[styles.avatarBox, { backgroundColor: colors.primary + '20' }]}>
+              <View style={[styles.avatarBox, { backgroundColor: `${colors.primary}20` }]}>
                 <UserCheck size={20} color={colors.primary} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -458,7 +455,7 @@ export default function TerritoryDetailScreen() {
             </View>
           ) : territory.groupName ? (
             <View style={styles.assigneeRow}>
-              <View style={[styles.avatarBox, { backgroundColor: colors.secondary + '20' }]}>
+              <View style={[styles.avatarBox, { backgroundColor: `${colors.secondary}20` }]}>
                 <Users size={20} color={colors.secondaryForeground} />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -594,7 +591,7 @@ export default function TerritoryDetailScreen() {
                       styles.memberSelectRow,
                       {
                         borderColor: isSelected ? colors.primary : colors.border,
-                        backgroundColor: isSelected ? colors.primary + '15' : colors.card,
+                        backgroundColor: isSelected ? `${colors.primary}15` : colors.card,
                       },
                     ]}
                   >
@@ -632,7 +629,9 @@ export default function TerritoryDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '88%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Return Territory #{territory.number}
               </Text>
               <TouchableOpacity onPress={() => setReturnRevokeModalVisible(false)}>
@@ -640,8 +639,11 @@ export default function TerritoryDetailScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, marginBottom: 12 }}>
-              This will mark the current assignment as completed and return the territory to available status.
+            <Text
+              style={{ color: colors.mutedForeground, fontSize: typography.sm, marginBottom: 12 }}
+            >
+              This will mark the current assignment as completed and return the territory to
+              available status.
             </Text>
 
             <View style={{ marginBottom: 16 }}>
@@ -678,7 +680,9 @@ export default function TerritoryDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '92%', maxHeight: '80%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
                 Territory #{territory.number} History
               </Text>
               <TouchableOpacity onPress={() => setHistoryModalVisible(false)}>
@@ -690,7 +694,14 @@ export default function TerritoryDetailScreen() {
               {assignmentsLoading ? (
                 <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
               ) : assignments.length === 0 ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: typography.sm, textAlign: 'center', marginVertical: 20 }}>
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: typography.sm,
+                    textAlign: 'center',
+                    marginVertical: 20,
+                  }}
+                >
                   No assignment records for this territory.
                 </Text>
               ) : (
@@ -706,17 +717,42 @@ export default function TerritoryDetailScreen() {
                       backgroundColor: colors.card,
                     }}
                   >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.sm }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: colors.foreground,
+                          fontSize: typography.sm,
+                        }}
+                      >
                         {a.groupName || a.assigneeName || 'Publisher / Group'}
                       </Text>
-                      <Badge label={a.status} variant={a.status === 'completed' ? 'success' : 'primary'} size="sm" />
+                      <Badge
+                        label={a.status}
+                        variant={a.status === 'completed' ? 'success' : 'primary'}
+                        size="sm"
+                      />
                     </View>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 4 }}>
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: typography.xs,
+                        marginTop: 4,
+                      }}
+                    >
                       Assigned: {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                      Returned: {a.returnedAt ? new Date(a.returnedAt).toLocaleDateString() : 'Active in Field'}
+                      Returned:{' '}
+                      {a.returnedAt
+                        ? new Date(a.returnedAt).toLocaleDateString()
+                        : 'Active in Field'}
                     </Text>
                     {a.dueAt && (
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
@@ -724,7 +760,14 @@ export default function TerritoryDetailScreen() {
                       </Text>
                     )}
                     {a.notes ? (
-                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic', marginTop: 2 }}>
+                      <Text
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          fontStyle: 'italic',
+                          marginTop: 2,
+                        }}
+                      >
                         Note: {a.notes}
                       </Text>
                     ) : null}
@@ -751,7 +794,9 @@ export default function TerritoryDetailScreen() {
         <View style={styles.modalOverlay}>
           <Card style={[styles.modalCard, { width: '90%' }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.md }]}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.md }]}
+              >
                 Adjust Assignment Dates
               </Text>
               <TouchableOpacity onPress={() => setEditingAssignment(null)}>

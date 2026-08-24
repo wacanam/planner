@@ -32,7 +32,12 @@ export function AvatarCropDialog({
   });
 
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ clientX: number; clientY: number; startPanX: number; startPanY: number } | null>(null);
+  const dragStartRef = useRef<{
+    clientX: number;
+    clientY: number;
+    startPanX: number;
+    startPanY: number;
+  } | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Reset state on modal open / new image
@@ -115,10 +120,7 @@ export function AvatarCropDialog({
 
     ctx.save();
     // Translate to center with scaled pan offset
-    ctx.translate(
-      OUTPUT_SIZE / 2 + pan.x * scaleRatio,
-      OUTPUT_SIZE / 2 + pan.y * scaleRatio
-    );
+    ctx.translate(OUTPUT_SIZE / 2 + pan.x * scaleRatio, OUTPUT_SIZE / 2 + pan.y * scaleRatio);
     // Apply rotation
     ctx.rotate((rotation * Math.PI) / 180);
     // Apply zoom
@@ -143,7 +145,16 @@ export function AvatarCropDialog({
       'image/jpeg',
       0.88
     );
-  }, [previewBaseWidth, previewBaseHeight, pan.x, pan.y, rotation, zoom, onCropComplete, onOpenChange]);
+  }, [
+    previewBaseWidth,
+    previewBaseHeight,
+    pan.x,
+    pan.y,
+    rotation,
+    zoom,
+    onCropComplete,
+    onOpenChange,
+  ]);
 
   return (
     <ResponsiveDialog

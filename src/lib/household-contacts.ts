@@ -178,4 +178,3 @@ export function getHouseholdMapLabel(h: {
   if (num) return num;
   return nameOrStreet || 'House';
 }
-

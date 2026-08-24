@@ -18,9 +18,9 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
-
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useMemo } from 'react';
 import {
   useCongregation,
   useCongregations,
@@ -49,7 +48,6 @@ import {
   isCongregationSecretary,
   isServiceOverseer,
   isSystemAdmin,
-  isTerritoryServant,
 } from '@/lib/permissions';
 
 export function DashboardHeader() {
@@ -152,8 +150,8 @@ export function DashboardHeader() {
                 <span className="font-bold text-sm text-foreground tracking-tight leading-tight group-hover:text-primary transition-colors whitespace-nowrap">
                   Kanataran
                 </span>
-                {congregation && (
-                  userMemberships.length > 1 ? (
+                {congregation &&
+                  (userMemberships.length > 1 ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -166,7 +164,10 @@ export function DashboardHeader() {
                           <ChevronDown size={10} className="shrink-0 opacity-70" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-56 p-1 rounded-2xl shadow-lg border-border">
+                      <DropdownMenuContent
+                        align="start"
+                        className="w-56 p-1 rounded-2xl shadow-lg border-border"
+                      >
                         <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                           Circuit Congregations
                         </div>
@@ -181,9 +182,14 @@ export function DashboardHeader() {
                               m.congregationId === id ? 'bg-primary/10 font-bold text-primary' : ''
                             }`}
                           >
-                            <span className="truncate">{congMap.get(m.congregationId) || m.congregationId}</span>
+                            <span className="truncate">
+                              {congMap.get(m.congregationId) || m.congregationId}
+                            </span>
                             {m.congregationRole && (
-                              <Badge variant="outline" className="text-[9px] uppercase font-semibold">
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] uppercase font-semibold"
+                              >
                                 {m.congregationRole.replace(/_/g, ' ')}
                               </Badge>
                             )}
@@ -196,8 +202,7 @@ export function DashboardHeader() {
                       <Building2 size={10} className="shrink-0 text-primary" />
                       <span className="truncate">{congregation.name}</span>
                     </span>
-                  )
-                )}
+                  ))}
               </div>
             </Link>
 
@@ -336,69 +341,72 @@ export function DashboardHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {id && (canManageGroups(user.role, user.congregationRole) || canViewReports(user.role, user.congregationRole) || isCircuitOverseer(user.role)) && (
-                  <>
-                    <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                      {isCircuitOverseer(user.role)
-                        ? 'Circuit Overseer Menu'
-                        : isServiceOverseer(user.role)
-                          ? 'Overseer Menu'
-                          : isCongregationSecretary(user.role)
-                            ? 'Secretary Menu'
-                            : 'Servant Menu'}
-                    </div>
-                    {canManageGroups(user.role, user.congregationRole) && (
-                      <>
+                {id &&
+                  (canManageGroups(user.role, user.congregationRole) ||
+                    canViewReports(user.role, user.congregationRole) ||
+                    isCircuitOverseer(user.role)) && (
+                    <>
+                      <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                        {isCircuitOverseer(user.role)
+                          ? 'Circuit Overseer Menu'
+                          : isServiceOverseer(user.role)
+                            ? 'Overseer Menu'
+                            : isCongregationSecretary(user.role)
+                              ? 'Secretary Menu'
+                              : 'Servant Menu'}
+                      </div>
+                      {canManageGroups(user.role, user.congregationRole) && (
+                        <>
+                          <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                            <Link
+                              href={`/congregation/${id}/members`}
+                              className="flex items-center justify-between px-3 py-1.5 text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Users size={14} className="text-primary" />
+                                <span>Members & Access</span>
+                              </div>
+                              {Boolean(pendingEndorsementsCount) && (
+                                <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
+                                  {pendingEndorsementsCount}
+                                </Badge>
+                              )}
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
+                            <Link
+                              href={`/congregation/${id}/groups`}
+                              className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                            >
+                              <FolderOpen size={14} className="text-primary" />
+                              <span>Service Groups</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {canViewReports(user.role) && (
                         <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                           <Link
-                            href={`/congregation/${id}/members`}
-                            className="flex items-center justify-between px-3 py-1.5 text-xs"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Users size={14} className="text-primary" />
-                              <span>Members & Access</span>
-                            </div>
-                            {Boolean(pendingEndorsementsCount) && (
-                              <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
-                                {pendingEndorsementsCount}
-                              </Badge>
-                            )}
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                          <Link
-                            href={`/congregation/${id}/groups`}
+                            href={`/congregation/${id}/reports`}
                             className="flex items-center gap-2 px-3 py-1.5 text-xs"
                           >
-                            <FolderOpen size={14} className="text-primary" />
-                            <span>Service Groups</span>
+                            <BarChart2 size={14} className="text-primary" />
+                            <span>Reports</span>
                           </Link>
                         </DropdownMenuItem>
-                      </>
-                    )}
-                    {canViewReports(user.role) && (
+                      )}
                       <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                         <Link
-                          href={`/congregation/${id}/reports`}
+                          href={`/congregation/${id}/territories/overview`}
                           className="flex items-center gap-2 px-3 py-1.5 text-xs"
                         >
-                          <BarChart2 size={14} className="text-primary" />
-                          <span>Reports</span>
+                          <MapIcon size={14} className="text-primary" />
+                          <span>Congregation Map</span>
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
-                      <Link
-                        href={`/congregation/${id}/territories/overview`}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs"
-                      >
-                        <MapIcon size={14} className="text-primary" />
-                        <span>Congregation Map</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
 
                 <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                   <Link

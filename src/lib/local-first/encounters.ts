@@ -212,7 +212,9 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
     null;
   if (!congregationId && input.userId) {
     try {
-      const uDoc = await getDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId));
+      const uDoc = await getDoc(
+        doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId)
+      );
       if (uDoc.exists()) {
         congregationId = uDoc.data().congregationId ?? null;
       }
@@ -324,7 +326,8 @@ export async function getAllEncounters(filters?: EncounterFilters): Promise<Loca
   const constraints: QueryConstraint[] = [];
   if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
   else if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  const q = constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
+  const q =
+    constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
   const snapshot = await getDocs(q);
   return snapshot.docs
     .map(encounterFromSnapshot)
