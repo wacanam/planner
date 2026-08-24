@@ -1,7 +1,6 @@
 // mobile/app/(tabs)/records/index.tsx
 import { useRouter } from 'expo-router';
 import {
-  BookOpen,
   Calendar,
   ChevronRight,
   Filter,

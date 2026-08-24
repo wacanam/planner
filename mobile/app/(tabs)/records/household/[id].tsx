@@ -142,6 +142,57 @@ export default function HouseholdDetailScreen() {
     }
   };
 
+  const handleOpenEditModal = () => {
+    if (!household) return;
+    setEditHouseNumber(household.houseNumber || '');
+    setEditStreetName(household.streetName || '');
+    setEditAddress(household.address || '');
+    setEditCity(household.city || '');
+    setEditNotes(household.notes || '');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!household) return;
+    if (!editHouseNumber.trim()) {
+      Alert.alert('Required Field', 'House / Door number is required.');
+      return;
+    }
+    if (!editAddress.trim() && !editStreetName.trim()) {
+      Alert.alert('Required Field', 'Address or street name is required.');
+      return;
+    }
+
+    const duplicate = findDuplicateHouseholdByNumber(
+      editHouseNumber.trim(),
+      congregationHouseholds,
+      household.id
+    );
+    if (duplicate) {
+      Alert.alert(
+        'Duplicate House Number',
+        `House #${editHouseNumber.trim()} already exists in this congregation.`
+      );
+      return;
+    }
+
+    try {
+      const finalStreet = editStreetName.trim() || editAddress.trim();
+      const finalAddress = editAddress.trim() || editStreetName.trim();
+      await updateHousehold(household.id, {
+        houseNumber: editHouseNumber.trim(),
+        streetName: finalStreet,
+        address: finalAddress,
+        city: editCity.trim(),
+        notes: editNotes.trim() || null,
+      });
+      await triggerHaptic('success');
+      setEditModalVisible(false);
+    } catch {
+      triggerHaptic('error');
+    }
+  };
+
   const handleAddCollaborator = async () => {
     if (!household || !selectedCollaboratorId) return;
     const current = household.collaboratorIds || [];
@@ -232,6 +283,11 @@ export default function HouseholdDetailScreen() {
         }
         rightAction={
           <View style={{ flexDirection: 'row', gap: 8 }}>
+            {canEdit && (
+              <TouchableOpacity onPress={handleOpenEditModal} style={styles.iconBtn}>
+                <Pencil size={18} color={colors.foreground} />
+              </TouchableOpacity>
+            )}
             {canShare && (
               <TouchableOpacity onPress={() => setShareModalVisible(true)} style={styles.iconBtn}>
                 <Share2 size={18} color={colors.foreground} />
@@ -558,6 +614,82 @@ export default function HouseholdDetailScreen() {
               size="lg"
               style={{ marginTop: spacing.md }}
             />
+          </Card>
+        </View>
+      </Modal>
+
+      {/* Edit Household Modal */}
+      <Modal visible={editModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <Card style={[styles.modalCard, { width: '90%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text
+                style={[styles.modalTitle, { color: colors.foreground, fontSize: typography.lg }]}
+              >
+                Edit Household Details
+              </Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <X size={22} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginBottom: spacing.md,
+              }}
+            >
+              Update house number, street name, locality, or notes.
+            </Text>
+
+            <Input
+              label="House / Door Number *"
+              placeholder="e.g. 104"
+              value={editHouseNumber}
+              onChangeText={setEditHouseNumber}
+            />
+
+            <Input
+              label="Street Name / Address *"
+              placeholder="e.g. 742 Evergreen Terrace"
+              value={editStreetName || editAddress}
+              onChangeText={(val) => {
+                setEditStreetName(val);
+                setEditAddress(val);
+              }}
+            />
+
+            <Input
+              label="City / Locality"
+              placeholder="e.g. Springfield"
+              value={editCity}
+              onChangeText={setEditCity}
+            />
+
+            <Input
+              label="Notes (Optional)"
+              placeholder="e.g. Spanish speaking, best time Saturday morning"
+              value={editNotes}
+              onChangeText={setEditNotes}
+              multiline
+              numberOfLines={3}
+              style={{ minHeight: 60 }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md }}>
+              <Button
+                title="Cancel"
+                variant="ghost"
+                onPress={() => setEditModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Save Changes"
+                onPress={handleSaveEdit}
+                loading={isUpdating}
+                style={{ flex: 1 }}
+              />
+            </View>
           </Card>
         </View>
       </Modal>
