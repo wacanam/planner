@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   type QueryConstraint,
@@ -13,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Visit } from '@/types/api';
 import { getHouseholdById } from './households';
 import { isoDate, nowIso, nullableNumber, nullableString } from './shared';
@@ -21,6 +22,7 @@ import type { LocalHousehold, LocalVisit } from './types';
 
 export interface CreateVisitInput {
   householdId: string;
+  congregationId?: string | null;
   userId?: string | null;
   assignmentId?: string | null;
   outcome: string;
@@ -36,6 +38,7 @@ export interface CreateVisitInput {
 }
 
 export interface VisitFilters {
+  congregationId?: string | null;
   householdId?: string | null;
   assignmentId?: string | null;
   userId?: string | null;
@@ -57,9 +60,16 @@ function visitFromSnapshot(snapshot: QueryDocumentSnapshot): LocalVisit {
 
 export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   if (record.deletedAt) return false;
+  if (
+    filters?.congregationId &&
+    record.congregationId &&
+    record.congregationId !== filters.congregationId
+  ) {
+    return false;
+  }
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
-  if (filters?.userId && !isTerritoryServant(filters.userRole)) {
+  if (filters?.userId && !canViewAllCongregationRecords(filters.userRole)) {
     const isOwn = record.userId === filters.userId;
     const isGroupMate = Boolean(
       filters.groupMateUserIds &&
@@ -73,10 +83,16 @@ export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   return true;
 }
 
-export function toVisitView(record: LocalVisit, household?: LocalHousehold | null): Visit {
+export function toVisitView(
+  record: LocalVisit,
+  household?: LocalHousehold | null,
+  userCongregationId?: string | null
+): Visit {
   return {
     id: record.id,
     userId: record.userId ?? '',
+    congregationId:
+      record.congregationId ?? household?.congregationId ?? userCongregationId ?? null,
     householdId: record.householdId,
     assignmentId: record.assignmentId,
     visitDate: record.visitDate,
@@ -106,6 +122,7 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
   return {
     id: existingId ?? visit.id,
     serverId: visit.id,
+    congregationId: (visit as any).congregationId ?? null,
     userId: visit.userId ?? null,
     householdId: visit.householdId,
     householdServerId: visit.householdId,
@@ -130,10 +147,22 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
 
 export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> {
   const now = nowIso();
-  const household = await getHouseholdById(input.householdId);
+  const household = input.householdId ? await getHouseholdById(input.householdId) : undefined;
+  let congregationId = nullableString(input.congregationId) ?? household?.congregationId ?? null;
+  if (!congregationId && input.userId) {
+    try {
+      const uDoc = await getDoc(
+        doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, input.userId)
+      );
+      if (uDoc.exists()) {
+        congregationId = uDoc.data().congregationId ?? null;
+      }
+    } catch {}
+  }
   const record: LocalVisit = {
     id: createClientId(),
     serverId: null,
+    congregationId,
     userId: nullableString(input.userId),
     householdId: input.householdId,
     householdServerId: household?.serverId ?? input.householdId,
@@ -188,6 +217,9 @@ export async function applyRemoteVisits(visits: Visit[]): Promise<number> {
 export async function updateVisit(id: string, input: Partial<CreateVisitInput>): Promise<void> {
   const now = nowIso();
   const updates: Record<string, unknown> = { updatedAt: now };
+  if (input.congregationId !== undefined) {
+    updates.congregationId = nullableString(input.congregationId);
+  }
   if (input.outcome !== undefined) updates.outcome = input.outcome;
   if (input.householdStatusAfter !== undefined) {
     updates.householdStatusAfter = nullableString(input.householdStatusAfter);
@@ -212,7 +244,12 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
 }
 
 export async function getAllVisits(filters?: VisitFilters): Promise<LocalVisit[]> {
-  const snapshot = await getDocs(visitCollection());
+  const constraints: QueryConstraint[] = [];
+  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  else if (filters?.assignmentId)
+    constraints.push(where('assignmentId', '==', filters.assignmentId));
+  const q = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
+  const snapshot = await getDocs(q);
   return snapshot.docs
     .map(visitFromSnapshot)
     .filter((visit) => filterVisit(visit, filters))
@@ -230,7 +267,8 @@ export function watchVisits(
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
-  if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  else if (filters?.assignmentId)
+    constraints.push(where('assignmentId', '==', filters.assignmentId));
   const visitQuery =
     constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
 

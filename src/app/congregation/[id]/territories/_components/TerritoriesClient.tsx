@@ -3,9 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
-  Calendar,
   Clock,
-  FolderOpen,
   History,
   Map as MapIcon,
   MapPin,
@@ -14,7 +12,6 @@ import {
   RotateCcw,
   Search,
   Trash2,
-  Undo2,
   User,
   UserCheck,
   Users,
@@ -27,7 +24,6 @@ import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,15 +53,20 @@ import {
   useUpdateCongregation,
   useUpdateTerritory,
 } from '@/hooks';
-import { canAdjustAssignmentDates, canDeleteTerritory, isTerritoryServant } from '@/lib/permissions';
+import {
+  canAdjustAssignmentDates,
+  canCreateTerritory,
+  canDeleteTerritory,
+  canEditTerritory,
+} from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import type { Assignment, Household, Territory } from '@/types/api';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,
   type UpdateTerritoryFormData,
   updateTerritorySchema,
 } from '@/schemas';
+import type { Assignment, Household, Territory } from '@/types/api';
 
 const statusColors: Record<string, string> = {
   available:
@@ -77,11 +78,12 @@ const statusColors: Record<string, string> = {
 
 export default function TerritoriesClient() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const isServant = isTerritoryServant(user?.role);
-  const canDelete = canDeleteTerritory(user?.role);
+  const canCreate = canCreateTerritory(user?.role, user?.congregationRole);
+  const canEdit = canEditTerritory(user?.role, user?.congregationRole);
+  const canDelete = canDeleteTerritory(user?.role, user?.congregationRole);
 
   const { congregation } = useCongregation(congregationId);
   const { update: updateCongregation, isUpdating: updatingCenter } =
@@ -106,7 +108,7 @@ export default function TerritoriesClient() {
     for (const h of households) {
       if (h.territoryId) {
         if (!byTerritory.has(h.territoryId)) byTerritory.set(h.territoryId, []);
-        byTerritory.get(h.territoryId)!.push(h);
+        byTerritory.get(h.territoryId)?.push(h);
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
@@ -269,7 +271,7 @@ export default function TerritoriesClient() {
   const handleSaveMapCenter = async () => {
     const lat = parseFloat(centerLat);
     const lng = parseFloat(centerLng);
-    if (isNaN(lat) || isNaN(lng)) {
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
       toast.error('Please enter valid numeric latitude and longitude coordinates.');
       return;
     }
@@ -329,7 +331,7 @@ export default function TerritoriesClient() {
                 <span>Congregation Map</span>
               </Link>
             </Button>
-            {isServant && (
+            {canCreate && (
               <>
                 <Button
                   variant="outline"
@@ -499,7 +501,7 @@ export default function TerritoriesClient() {
                       </Link>
                     </Button>
 
-                    {isServant && (
+                    {canEdit && (
                       <div className="flex items-center gap-1.5 min-w-0">
                         {t.status === 'available' ? (
                           <Button
@@ -969,7 +971,9 @@ export default function TerritoriesClient() {
               </p>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Effective Revocation / Return Date *</Label>
+                <Label className="text-xs font-semibold">
+                  Effective Revocation / Return Date *
+                </Label>
                 <Input
                   type="date"
                   value={revokeDate}
@@ -1226,9 +1230,7 @@ function TerritoryHistoryDialog({
                 <div
                   key={a.id}
                   className={`p-3.5 rounded-2xl border transition-all text-xs space-y-2.5 ${
-                    isActive
-                      ? 'border-primary/40 bg-primary/5'
-                      : 'border-border bg-card'
+                    isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -1251,8 +1253,8 @@ function TerritoryHistoryDialog({
                         isActive
                           ? 'bg-primary/10 text-primary border-primary/30'
                           : isReturned
-                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                          : 'bg-muted text-muted-foreground'
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                            : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       {a.status}

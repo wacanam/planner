@@ -44,7 +44,7 @@ import {
   useReviewJoinRequest,
   useUpdateMemberRole,
 } from '@/hooks';
-import { isServiceOverseer, isUserInGroup } from '@/lib/permissions';
+import { canApproveMembers, isUserInGroup } from '@/lib/permissions';
 import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
 import { timeAgo } from '@/lib/time-ago';
 import type { Assignment } from '@/types/api';
@@ -56,7 +56,7 @@ export default function MembersClient() {
   const searchParams = useSearchParams();
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
-  const _isOverseer = isServiceOverseer(user.role);
+  const _canManage = canApproveMembers(user.role, user.congregationRole);
 
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { groups = [] } = useCongregationGroups(congregationId);
@@ -190,7 +190,15 @@ export default function MembersClient() {
   };
 
   return (
-    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.SERVICE_OVERSEER}>
+    <ProtectedPage
+      congregationId={congregationId}
+      allowedRoles={[
+        UserRole.SUPER_ADMIN,
+        UserRole.ADMIN,
+        UserRole.SERVICE_OVERSEER,
+        UserRole.SECRETARY,
+      ]}
+    >
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         <div>
@@ -799,15 +807,16 @@ export default function MembersClient() {
                     <SelectItem value={CongregationRole.SERVICE_OVERSEER}>
                       Service Overseer
                     </SelectItem>
+                    <SelectItem value={CongregationRole.SECRETARY}>
+                      Congregation Secretary
+                    </SelectItem>
                     <SelectItem value={CongregationRole.TERRITORY_SERVANT}>
                       Territory Servant
                     </SelectItem>
                     <SelectItem value={CongregationRole.CIRCUIT_OVERSEER}>
                       Circuit Overseer
                     </SelectItem>
-                    <SelectItem value={CongregationRole.PUBLISHER}>
-                      Regular Publisher
-                    </SelectItem>
+                    <SelectItem value={CongregationRole.PUBLISHER}>Regular Publisher</SelectItem>
                     <SelectItem value={CongregationRole.VISITING_PUBLISHER}>
                       Visiting Publisher
                     </SelectItem>

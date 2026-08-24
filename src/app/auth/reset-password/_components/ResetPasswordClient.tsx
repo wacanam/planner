@@ -8,7 +8,6 @@ import {
   EyeOff,
   KeyRound,
   Lock,
-  MapPin,
   RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -28,7 +27,7 @@ import {
 } from '@/lib/firebase/auth';
 
 export default function ResetPasswordClient() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const rawParamCode = searchParams.get('oobCode') || searchParams.get('code') || '';
 

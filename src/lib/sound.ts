@@ -177,8 +177,6 @@ export function getWavDataUri(style: NotificationSoundStyle): string {
         samples[i] = (n1 * 0.3 + n2 * 0.35 + n3 * 0.5) * 0.8;
         break;
       }
-
-      case 'chime':
       default: {
         const note1Attack = Math.min(1, t / 0.008);
         const note1Decay = Math.exp(-t * 3.5);
@@ -345,8 +343,6 @@ function playWebAudioTone(ctx: AudioContext, style: NotificationSoundStyle): voi
         osc3.stop(now + 1.5);
         break;
       }
-
-      case 'chime':
       default: {
         // Note 1: D5 (587.33Hz)
         const osc1 = ctx.createOscillator();

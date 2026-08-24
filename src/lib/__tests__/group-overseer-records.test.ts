@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { filterEncounter, toEncounterView } from '@/lib/local-first/encounters';
+import { filterEncounter } from '@/lib/local-first/encounters';
 import { filterHousehold, toHouseholdView } from '@/lib/local-first/households';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
-import { filterVisit, toVisitView } from '@/lib/local-first/visits';
+import { filterVisit } from '@/lib/local-first/visits';
 import {
   canAccessHouseholdDetails,
   canDeleteEncounter,

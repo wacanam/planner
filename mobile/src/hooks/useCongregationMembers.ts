@@ -1,16 +1,7 @@
 // mobile/src/hooks/useCongregationMembers.ts
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  setDoc,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
+import { FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Member } from '@/types/api';
 
 function memberCollection() {

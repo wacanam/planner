@@ -3,17 +3,12 @@
 import {
   ArrowLeft,
   BookOpen,
-  Calendar,
   ChevronDown,
   ChevronUp,
   Clock,
-  FileText,
-  Home,
-  MessageSquare,
   Plus,
   Share2,
   Sparkles,
-  User,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';

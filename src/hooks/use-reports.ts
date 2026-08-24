@@ -13,7 +13,6 @@ import type {
   GroupReportStats,
   Household,
   Member,
-  PublisherStats,
   PublishersReport,
   S13AssignmentRecord,
   Territory,
@@ -206,7 +205,7 @@ function useReportSources(congregationId: string | null | undefined) {
     }
     setAssignmentsLoading(true);
     return onSnapshot(
-      sourceCollection('assignments'),
+      query(sourceCollection('assignments'), where('congregationId', '==', congregationId)),
       { includeMetadataChanges: true },
       (snapshot) => {
         setAssignments(
@@ -286,7 +285,7 @@ function useReportSources(congregationId: string | null | undefined) {
     }
     setVisitsLoading(true);
     return onSnapshot(
-      sourceCollection('visits'),
+      query(sourceCollection('visits'), where('congregationId', '==', congregationId)),
       { includeMetadataChanges: true },
       (snapshot) => {
         setVisits(
@@ -340,7 +339,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 
@@ -479,7 +478,7 @@ export function useS13Report(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 
@@ -541,7 +540,7 @@ export function useGroupsReport(congregationId: string | null | undefined) {
         if (!householdsByTerritory.has(h.territoryId)) {
           householdsByTerritory.set(h.territoryId, []);
         }
-        householdsByTerritory.get(h.territoryId)!.push(h);
+        householdsByTerritory.get(h.territoryId)?.push(h);
       }
     }
 

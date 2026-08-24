@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Check,
   ChevronDown,
   Clock,
   Eye,
@@ -29,7 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentUser } from '@/hooks';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canEditTerritory } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, MapLandmark, MapRoad, SharedMemberLocation } from '@/types/api';
 
@@ -190,7 +189,7 @@ export function StudioTopBar({
     return visibleMemberLocations.filter((m) => m.isSharing && m.userId !== user?.id).length;
   }, [visibleMemberLocations, user?.id]);
 
-  const canDrawBoundary = isTerritoryServant(user.role);
+  const canDrawBoundary = canEditTerritory(user.role);
 
   const tools: Array<{
     id: StudioTool;
@@ -415,10 +414,7 @@ export function StudioTopBar({
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
-                <Radio
-                  size={14}
-                  className={isSharingLocation ? 'animate-pulse text-white' : ''}
-                />
+                <Radio size={14} className={isSharingLocation ? 'animate-pulse text-white' : ''} />
                 <span className="hidden sm:inline">
                   {isSharingLocation ? 'Sharing Live' : 'Share Location'}
                 </span>
@@ -534,7 +530,8 @@ export function StudioTopBar({
                         { label: '4 hours', value: 240 },
                         { label: '8 hours', value: 480 },
                       ].map((preset) => {
-                        const isSelected = !isCustomDuration && selectedDurationPreset === preset.value;
+                        const isSelected =
+                          !isCustomDuration && selectedDurationPreset === preset.value;
                         return (
                           <button
                             key={preset.value}
@@ -569,8 +566,14 @@ export function StudioTopBar({
                     {isCustomDuration && (
                       <div className="mt-2 p-2.5 rounded-xl bg-muted/40 border border-border flex items-center gap-2">
                         <div className="flex-1 space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground">Hours</label>
+                          <label
+                            htmlFor="custom-duration-hours"
+                            className="text-[10px] font-semibold text-muted-foreground"
+                          >
+                            Hours
+                          </label>
                           <input
+                            id="custom-duration-hours"
                             type="number"
                             min="0"
                             max="24"
@@ -580,8 +583,14 @@ export function StudioTopBar({
                           />
                         </div>
                         <div className="flex-1 space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground">Minutes</label>
+                          <label
+                            htmlFor="custom-duration-minutes"
+                            className="text-[10px] font-semibold text-muted-foreground"
+                          >
+                            Minutes
+                          </label>
                           <input
+                            id="custom-duration-minutes"
                             type="number"
                             min="0"
                             max="59"
@@ -669,7 +678,8 @@ export function StudioTopBar({
                   <span>Member Locations</span>
                 </div>
                 <span className="text-[10px] font-semibold text-muted-foreground">
-                  {visibleMemberLocations.length} publisher{visibleMemberLocations.length === 1 ? '' : 's'}
+                  {visibleMemberLocations.length} publisher
+                  {visibleMemberLocations.length === 1 ? '' : 's'}
                 </span>
               </div>
 
@@ -700,7 +710,9 @@ export function StudioTopBar({
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="relative shrink-0">
                             <Avatar className="h-8 w-8 rounded-xl border border-border">
-                              {loc.avatarUrl && <AvatarImage src={loc.avatarUrl} alt={loc.userName} />}
+                              {loc.avatarUrl && (
+                                <AvatarImage src={loc.avatarUrl} alt={loc.userName} />
+                              )}
                               <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
                                 {initials}
                               </AvatarFallback>

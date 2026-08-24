@@ -1,6 +1,6 @@
 'use client';
 
-import { doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';

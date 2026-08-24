@@ -79,6 +79,13 @@ export function useCurrentUser(): {
       setMembershipCongregationId(null);
       setMembershipGroupId(null);
       setUserMemberships([]);
+      setSelectedCongId(null);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('kanataran_active_congregation');
+          localStorage.removeItem('planner_active_congregation_id');
+        } catch {}
+      }
       setMembershipLoading(false);
       return;
     }
@@ -172,7 +179,7 @@ export function useCurrentUser(): {
           // Select matching membership based on selectedCongId preference or fallback to first
           const target =
             (selectedCongId && list.find((m) => m.congregationId === selectedCongId)) || list[0];
-          if (target && target.congregationId) {
+          if (target?.congregationId) {
             setMembershipStatus('active');
             setPendingMembership(null);
             setMembershipRole(target.congregationRole || CongregationRole.PUBLISHER);

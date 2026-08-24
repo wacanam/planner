@@ -15,7 +15,7 @@ import type {
 export function useCoverageReport(congregationId: string | null | undefined) {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [_assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +51,10 @@ export function useCoverageReport(congregationId: string | null | undefined) {
     );
 
     const unsubAssignments = onSnapshot(
-      query(collection(firestore, FIRESTORE_COLLECTIONS.assignments)),
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+        where('congregationId', '==', congregationId)
+      ),
       (snap) => {
         setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Assignment));
         setIsLoading(false);
@@ -157,13 +160,15 @@ export function useS13Report(congregationId: string | null | undefined) {
     }
 
     setIsLoading(true);
-    const q = query(collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments));
+    const q = query(
+      collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments),
+      where('congregationId', '==', congregationId)
+    );
     return onSnapshot(
       q,
       (snap) => {
         const list = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }) as Assignment)
-          .filter((a) => !a.congregationId || a.congregationId === congregationId)
           .sort((a, b) => (b.assignedAt || '').localeCompare(a.assignedAt || ''));
         setAssignments(list);
         setIsLoading(false);

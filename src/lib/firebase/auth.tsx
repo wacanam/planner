@@ -41,7 +41,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { getPlannerAuth, getPlannerFirestore } from '@/lib/firebase/client';
+import {
+  clearFirestoreLocalCache,
+  getPlannerAuth,
+  getPlannerFirestore,
+} from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { MemberStatus, UserRole } from '@/lib/roles';
 import type { User } from '@/types/api';
@@ -238,6 +242,12 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
       if (!firebaseUser) {
         setSession(null);
         setStatus('unauthenticated');
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('kanataran_active_congregation');
+            localStorage.removeItem('planner_active_congregation_id');
+          } catch {}
+        }
         return;
       }
 
@@ -442,6 +452,16 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   await firebaseSignOut(getPlannerAuth());
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('kanataran_active_congregation');
+      localStorage.removeItem('planner_active_congregation_id');
+      localStorage.removeItem('kanataran_active_tab');
+    } catch {}
+    try {
+      await clearFirestoreLocalCache();
+    } catch {}
+  }
 }
 
 export async function sendUserPasswordResetEmail(email: string) {

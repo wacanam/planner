@@ -96,6 +96,7 @@ export default function HouseholdsClient() {
   });
   const { data: territories = [] } = useCongregationTerritories(congregationId);
   const { visits: allVisits = [] } = useMyVisits({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     groupMateUserIds,
@@ -247,11 +248,11 @@ export default function HouseholdsClient() {
             const isOwner = Boolean(user?.id && h.createdById === user.id);
             const isGroupMateRecord = Boolean(
               user?.id &&
-              h.createdById &&
-              h.createdById !== user.id &&
-              !isCollaborator &&
-              !isReadOnly &&
-              groupMateUserIds.has(h.createdById)
+                h.createdById &&
+                h.createdById !== user.id &&
+                !isCollaborator &&
+                !isReadOnly &&
+                groupMateUserIds.has(h.createdById)
             );
 
             const canShare = canShareHousehold(user, h);

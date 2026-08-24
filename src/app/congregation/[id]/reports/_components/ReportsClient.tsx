@@ -3,7 +3,6 @@
 import {
   Activity,
   AlertTriangle,
-  ArrowUpDown,
   BarChart2,
   BookOpen,
   Building,
@@ -15,27 +14,20 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Filter,
   FolderOpen,
   Globe,
-  HelpCircle,
   Home,
   Layers,
   Lock,
-  MapPin,
   Pencil,
   PhoneCall,
-  PieChart,
-  Printer,
   RefreshCw,
   Search,
   Shield,
   Sparkles,
   TrendingUp,
-  UserCheck,
   Users,
 } from 'lucide-react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -75,7 +67,7 @@ import {
 } from '@/lib/reports-csv-export';
 import { UserRole } from '@/lib/roles';
 import { exportS13ToPDF } from '@/lib/s13-pdf-export';
-import type { CoverageTerritory, S13AssignmentRecord } from '@/types/api';
+import type { S13AssignmentRecord } from '@/types/api';
 
 type Tab = 'overview' | 's13' | 'groups-publishers' | 'doors' | 'activity';
 
@@ -126,8 +118,12 @@ export default function ReportsClient() {
     try {
       await updateAssignment({
         id: editingS13Record.id,
-        assignedAt: editAssignedAt ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString() : editingS13Record.assignedAt,
-        returnedAt: editReturnedAt ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString() : null,
+        assignedAt: editAssignedAt
+          ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
+          : editingS13Record.assignedAt,
+        returnedAt: editReturnedAt
+          ? new Date(`${editReturnedAt}T12:00:00.000Z`).toISOString()
+          : null,
         dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
         notes: editNotes.trim() || undefined,
       });
@@ -146,8 +142,8 @@ export default function ReportsClient() {
         !searchQuery.trim() ||
         t.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.publisherName && t.publisherName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (t.groupName && t.groupName.toLowerCase().includes(searchQuery.toLowerCase()));
+        t.publisherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
       const matchesHealth = healthFilter === 'all' || t.healthStatus === healthFilter;
@@ -164,7 +160,7 @@ export default function ReportsClient() {
         rec.territoryNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         rec.territoryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         rec.assigneeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (rec.groupName && rec.groupName.toLowerCase().includes(searchQuery.toLowerCase()));
+        rec.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
 
       if (s13Filter === 'active') return matchesSearch && !rec.returnedAt;
       if (s13Filter === 'returned') return matchesSearch && Boolean(rec.returnedAt);
@@ -182,13 +178,23 @@ export default function ReportsClient() {
         !searchQuery.trim() ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.groupName && p.groupName.toLowerCase().includes(searchQuery.toLowerCase()))
+        p.groupName?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     });
   }, [publishersData?.publishers, searchQuery]);
 
   return (
-    <ProtectedPage congregationId={congregationId} requiredRole={UserRole.TERRITORY_SERVANT}>
+    <ProtectedPage
+      congregationId={congregationId}
+      allowedRoles={[
+        UserRole.SUPER_ADMIN,
+        UserRole.ADMIN,
+        UserRole.SERVICE_OVERSEER,
+        UserRole.SECRETARY,
+        UserRole.TERRITORY_SERVANT,
+        UserRole.CIRCUIT_OVERSEER,
+      ]}
+    >
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-28 lg:pb-12 w-full min-w-0">
         {/* Header Title & Actions */}
@@ -848,7 +854,7 @@ export default function ReportsClient() {
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 {rec.isGroupAssignment ? (
-                                   <Badge
+                                  <Badge
                                     variant="outline"
                                     className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
                                   >
@@ -936,7 +942,8 @@ export default function ReportsClient() {
           {editingS13Record && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Service Overseers and Territory Servants can adjust the official assignment, return, or due dates.
+                Service Overseers and Territory Servants can adjust the official assignment, return,
+                or due dates.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

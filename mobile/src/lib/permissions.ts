@@ -30,58 +30,197 @@ export function isSystemAdmin(role?: string | null): boolean {
   );
 }
 
+export function isCircuitOverseer(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return normalized === UserRole.CIRCUIT_OVERSEER || normalized === 'CIRCUIT_OVERSEER';
+}
+
+export function isVisitingPublisher(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return normalized === UserRole.VISITING_PUBLISHER || normalized === 'VISITING_PUBLISHER';
+}
+
 export function isServiceOverseer(role?: string | null): boolean {
   if (!role) return false;
-  if (isSystemAdmin(role)) return true;
   const normalized = role.toUpperCase().replace(/\s+/g, '_');
   return normalized === UserRole.SERVICE_OVERSEER || normalized === 'SERVICE_OVERSEER';
 }
 
+export function isCongregationSecretary(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return (
+    normalized === UserRole.SECRETARY ||
+    normalized === 'SECRETARY' ||
+    normalized === 'CONGREGATION_SECRETARY'
+  );
+}
+
 export function isTerritoryServant(role?: string | null): boolean {
   if (!role) return false;
-  if (isServiceOverseer(role)) return true;
   const normalized = role.toUpperCase().replace(/\s+/g, '_');
   return normalized === UserRole.TERRITORY_SERVANT || normalized === 'TERRITORY_SERVANT';
 }
 
-export function canManageCongregation(role?: string | null): boolean {
-  return isServiceOverseer(role);
+export function isPublisher(role?: string | null): boolean {
+  if (!role) return false;
+  const normalized = role.toUpperCase().replace(/\s+/g, '_');
+  return (
+    normalized === UserRole.USER ||
+    normalized === UserRole.PUBLISHER ||
+    normalized === 'USER' ||
+    normalized === 'PUBLISHER'
+  );
+}
+
+export function canManageCongregation(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole)
+  );
 }
 
 export function canManageGroups(role?: string | null, congregationRole?: string | null): boolean {
-  return isServiceOverseer(role) || isServiceOverseer(congregationRole);
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole)
+  );
 }
 
-export function canApproveMembers(role?: string | null): boolean {
-  return isServiceOverseer(role);
+export function canApproveMembers(role?: string | null, congregationRole?: string | null): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole)
+  );
 }
 
-export function canApproveAssignments(role?: string | null): boolean {
-  return isServiceOverseer(role);
+export function canApproveAssignments(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole)
+  );
 }
 
-export function canCreateTerritory(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canCreateTerritory(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole)
+  );
 }
 
-export function canEditTerritory(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canEditTerritory(role?: string | null, congregationRole?: string | null): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole)
+  );
 }
 
-export function canDeleteTerritory(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canDeleteTerritory(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole)
+  );
 }
 
-export function canEndorseAssignment(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canEndorseAssignment(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole)
+  );
 }
 
-export function canAdjustAssignmentDates(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canAdjustAssignmentDates(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole)
+  );
 }
 
-export function canViewReports(role?: string | null): boolean {
-  return isTerritoryServant(role);
+export function canViewReports(role?: string | null, congregationRole?: string | null): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole) ||
+    isCircuitOverseer(role) ||
+    isCircuitOverseer(congregationRole)
+  );
+}
+
+export function canViewAllCongregationRecords(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole) ||
+    isCircuitOverseer(role) ||
+    isCircuitOverseer(congregationRole)
+  );
 }
 
 export function isGroupOverseer(
@@ -265,7 +404,7 @@ export function canReturnAssignment(
 ): boolean {
   if (!user?.id || !assignment) return false;
 
-  if (isTerritoryServant(user.role)) return true;
+  if (canEndorseAssignment(user.role)) return true;
 
   if (!assignment.serviceGroupId) {
     const matchesId = Boolean(assignment.userId && user.id && assignment.userId === user.id);
@@ -411,7 +550,7 @@ export function canAccessHouseholdDetails(
     | string[]
     | null
 ): boolean {
-  if (isTerritoryServant(userRole)) return true;
+  if (canViewAllCongregationRecords(userRole)) return true;
   if (!userId) return false;
   if (household.createdById === userId) return true;
   if (household.collaboratorIds?.includes(userId)) return true;
@@ -451,7 +590,7 @@ export function canShareHousehold(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
   return household.createdById === user.id;
 }
@@ -461,7 +600,7 @@ export function canEditHousehold(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
   return household.createdById === user.id;
 }
@@ -471,7 +610,7 @@ export function canDeleteHousehold(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canDeleteTerritory(user.role)) return true;
   if (!household) return false;
   return household.createdById === user.id;
 }
@@ -481,7 +620,7 @@ export function canLogVisitOrEncounter(
   household?: { createdById?: string | null; collaboratorIds?: string[] | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canViewAllCongregationRecords(user.role) || isVisitingPublisher(user.role)) return true;
   if (!household) return false;
   if (household.createdById === user.id) return true;
   return Boolean(household.collaboratorIds?.includes(user.id));
@@ -493,7 +632,7 @@ export function canEditVisit(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canEditTerritory(user.role)) return true;
   if (visit.userId && visit.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
@@ -505,7 +644,7 @@ export function canDeleteVisit(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canDeleteTerritory(user.role)) return true;
   if (visit.userId && visit.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
@@ -517,7 +656,7 @@ export function canEditEncounter(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canEditTerritory(user.role)) return true;
   if (encounter.userId && encounter.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
@@ -529,8 +668,23 @@ export function canDeleteEncounter(
   household?: { createdById?: string | null } | null
 ): boolean {
   if (!user?.id) return false;
-  if (isTerritoryServant(user.role)) return true;
+  if (canDeleteTerritory(user.role)) return true;
   if (encounter.userId && encounter.userId === user.id) return true;
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
+}
+
+/**
+ * Returns true if a user can access records for a given congregationId.
+ * Super Admins and System Admins have global access to all congregations.
+ * All other users are strictly restricted to their assigned active congregation.
+ */
+export function hasCongregationAccess(
+  user: { role?: string | null; congregationId?: string | null } | null | undefined,
+  targetCongregationId: string | null | undefined
+): boolean {
+  if (!user) return false;
+  if (isSystemAdmin(user.role)) return true;
+  if (!targetCongregationId || !user.congregationId) return false;
+  return user.congregationId === targetCongregationId;
 }

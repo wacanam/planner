@@ -1,18 +1,7 @@
 // mobile/app/(tabs)/territories/index.tsx
 import { useRouter } from 'expo-router';
-import {
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronRight,
-  Filter,
-  FolderOpen,
-  MapPin,
-  Plus,
-  Search,
-  Users,
-} from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { ChevronRight, FolderOpen, Plus, Search, Users } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
@@ -57,7 +45,7 @@ export default function TerritoriesDirectoryScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [selectedGroup, _setSelectedGroup] = useState<string | null>(null);
 
   const canCreate = canCreateTerritory(user?.role);
 
@@ -68,8 +56,8 @@ export default function TerritoriesDirectoryScreen() {
       if (q) {
         const matchesNumber = t.number.toLowerCase().includes(q);
         const matchesName = t.name.toLowerCase().includes(q);
-        const matchesCity = t.city && t.city.toLowerCase().includes(q);
-        const matchesPublisher = t.publisherName && t.publisherName.toLowerCase().includes(q);
+        const matchesCity = t.city?.toLowerCase().includes(q);
+        const matchesPublisher = t.publisherName?.toLowerCase().includes(q);
         if (!matchesNumber && !matchesName && !matchesCity && !matchesPublisher) return false;
       }
 

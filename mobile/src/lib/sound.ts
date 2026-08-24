@@ -1,6 +1,5 @@
 // mobile/src/lib/sound.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import type { NotificationSoundStyle } from '@/types/api';
 
@@ -64,7 +63,6 @@ export async function triggerHaptic(
       case 'error':
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         break;
-      case 'light':
       default:
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         break;
@@ -78,7 +76,7 @@ export async function triggerHaptic(
  * Plays an in-app notification sound chime.
  */
 export async function playNotificationSound(
-  style?: NotificationSoundStyle,
+  _style?: NotificationSoundStyle,
   forcePlay = false
 ): Promise<void> {
   try {

@@ -1,32 +1,19 @@
 // mobile/app/(tabs)/assignments/[assignmentId].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  BookOpen,
-  Calendar,
   Check,
-  CheckCircle2,
-  ChevronDown,
-  Clock,
   Compass,
   Crosshair,
-  Home,
   List as ListIcon,
   Map as MapIcon,
-  MapPin,
-  Navigation,
   Plus,
   RotateCcw,
-  Sparkles,
-  User as UserIcon,
   X,
 } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -35,7 +22,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type MapMarkerItem, TerritoryMapView, type TerritoryMapViewRef } from '@/components/map';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
@@ -318,7 +304,7 @@ export default function AssignmentDetailScreen() {
       .filter((h) => {
         const lat = Number(h.latitude);
         const lng = Number(h.longitude);
-        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+        return !Number.isNaN(lat) && !Number.isNaN(lng) && lat !== 0 && lng !== 0;
       })
       .map((h) => ({
         id: h.id,
@@ -355,7 +341,7 @@ export default function AssignmentDetailScreen() {
               onPress={() => setReturnModalVisible(true)}
               style={[
                 styles.modeToggle,
-                { backgroundColor: colors.secondary + '25', marginLeft: 8 },
+                { backgroundColor: `${colors.secondary}25`, marginLeft: 8 },
               ]}
             >
               <RotateCcw size={16} color={colors.secondaryForeground} />
@@ -566,7 +552,7 @@ export default function AssignmentDetailScreen() {
                       styles.outcomeOption,
                       {
                         borderColor: outcome === opt.id ? opt.color : colors.border,
-                        backgroundColor: outcome === opt.id ? opt.color + '20' : colors.card,
+                        backgroundColor: outcome === opt.id ? `${opt.color}20` : colors.card,
                       },
                     ]}
                   >

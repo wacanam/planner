@@ -4,12 +4,7 @@ import { useParams } from 'next/navigation';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ProtectedPage } from '@/components/protected-page';
 import { CongregationStudioLayout } from '@/components/studio/CongregationStudioLayout';
-import {
-  useCongregation,
-  useCongregationTerritories,
-  useCurrentUser,
-  useHouseholds,
-} from '@/hooks';
+import { useCongregation, useCongregationTerritories, useHouseholds } from '@/hooks';
 
 export default function CongregationMapClient() {
   const params = useParams();

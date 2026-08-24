@@ -3,24 +3,22 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import type {
   Congregation,
   Household,
-  MapBoundaryPolygon,
   MapLandmark,
   MapRoad,
   SharedMemberLocation,
   Territory,
 } from '@/types/api';
-import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
-  DEFAULT_BOUNDARY_DISPLAY,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
 } from './StudioBasemapPopup';
-import { getTerritoryBoundaries, normalizePolygons } from './StudioGoogleMap';
+import { getTerritoryBoundaries } from './StudioGoogleMap';
 
 export interface CongregationGoogleMapProps {
   territories: Territory[];
@@ -421,9 +419,9 @@ export function CongregationGoogleMap({
   const userLocationAccuracyCircleRef = useRef<google.maps.Circle | null>(null);
   const userLocationBeamRef = useRef<HTMLDivElement | null>(null);
   const lastLocationPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const currentBeamAngleRef = useRef<number | null>(null);
-  const targetBeamAngleRef = useRef<number | null>(null);
-  const beamRafIdRef = useRef<number | null>(null);
+  const _currentBeamAngleRef = useRef<number | null>(null);
+  const _targetBeamAngleRef = useRef<number | null>(null);
+  const _beamRafIdRef = useRef<number | null>(null);
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -592,7 +590,8 @@ export function CongregationGoogleMap({
   // 2. Initial Fit Bounds across all Congregation Territories
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !mapReady || typeof google === 'undefined' || initialBoundsFittedRef.current) return;
+    if (!map || !mapReady || typeof google === 'undefined' || initialBoundsFittedRef.current)
+      return;
     if (territories.length === 0) return;
 
     let hasValidPoints = false;
@@ -863,7 +862,9 @@ export function CongregationGoogleMap({
           badgeEl.style.borderRadius = '9999px';
           badgeEl.style.backgroundColor = isTerritorySelected ? '#2563EB' : palette.badgeBg;
           badgeEl.style.color = isTerritorySelected ? '#FFFFFF' : palette.badgeText;
-          badgeEl.style.border = isTerritorySelected ? '2px solid #FFFFFF' : `1.5px solid ${palette.stroke}`;
+          badgeEl.style.border = isTerritorySelected
+            ? '2px solid #FFFFFF'
+            : `1.5px solid ${palette.stroke}`;
           badgeEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
           badgeEl.style.fontSize = '11px';
           badgeEl.style.fontWeight = '800';
@@ -1322,7 +1323,9 @@ export function CongregationGoogleMap({
           labelEl.style.paintOrder = 'stroke fill';
           labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
           labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-          labelEl.textContent = sf.label ? `${sf.label} (#${territory.number})` : `Meeting Point #${territory.number}`;
+          labelEl.textContent = sf.label
+            ? `${sf.label} (#${territory.number})`
+            : `Meeting Point #${territory.number}`;
 
           labelWrapper.appendChild(labelEl);
           wrapper.appendChild(labelWrapper);
@@ -1650,9 +1653,7 @@ export function CongregationGoogleMap({
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80 backdrop-blur-xs">
           <div className="flex flex-col items-center gap-3 p-6 rounded-3xl bg-card border border-border shadow-lg">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-xs font-semibold text-foreground">
-              Loading Congregation Base Map…
-            </p>
+            <p className="text-xs font-semibold text-foreground">Loading Congregation Base Map…</p>
           </div>
         </div>
       )}

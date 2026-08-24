@@ -1,7 +1,6 @@
 // mobile/app/_layout.tsx
-import { Slot, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';

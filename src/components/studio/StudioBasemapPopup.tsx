@@ -2,7 +2,6 @@
 
 import {
   Check,
-  Compass,
   Eye,
   Filter,
   Flag,

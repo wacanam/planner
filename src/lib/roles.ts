@@ -3,6 +3,7 @@ export const UserRole = {
   ADMIN: 'ADMIN',
   CIRCUIT_OVERSEER: 'CIRCUIT_OVERSEER',
   SERVICE_OVERSEER: 'SERVICE_OVERSEER',
+  SECRETARY: 'SECRETARY',
   TERRITORY_SERVANT: 'TERRITORY_SERVANT',
   USER: 'USER',
   PUBLISHER: 'USER',
@@ -13,6 +14,7 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 export const CongregationRole = {
   CIRCUIT_OVERSEER: 'circuit_overseer',
   SERVICE_OVERSEER: 'service_overseer',
+  SECRETARY: 'secretary',
   TERRITORY_SERVANT: 'territory_servant',
   PUBLISHER: 'publisher',
   VISITING_PUBLISHER: 'visiting_publisher',

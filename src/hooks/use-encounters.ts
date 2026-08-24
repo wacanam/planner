@@ -1,4 +1,7 @@
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
+import { getPlannerFirestore } from '@/lib/firebase/client';
+import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import {
   createEncounter,
   toEncounterView,
@@ -7,7 +10,7 @@ import {
   watchVisits,
 } from '@/lib/local-first';
 import type { LocalEncounter, LocalHousehold, LocalVisit } from '@/lib/local-first/types';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canViewAllCongregationRecords } from '@/lib/permissions';
 import type { Encounter } from '@/types/api';
 
 function sortEncounters(encounters: Encounter[]) {
@@ -15,12 +18,14 @@ function sortEncounters(encounters: Encounter[]) {
 }
 
 function useEncounterRecords(filters?: {
+  congregationId?: string;
   visitId?: string | null;
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
+  const congregationId = filters?.congregationId ?? null;
   const visitId = filters?.visitId ?? null;
   const householdId = filters?.householdId ?? null;
   const userId = filters?.userId ?? null;
@@ -30,17 +35,27 @@ function useEncounterRecords(filters?: {
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);
+  const [memberUserIds, setMemberUserIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!congregationId && !userId && !householdId && !visitId) {
+      setEncounters([]);
+      setHouseholds([]);
+      setVisits([]);
+      setMemberUserIds(new Set());
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { visitId, householdId, userId, userRole, groupMateUserIds },
+      { congregationId, visitId, householdId, userId, userRole, groupMateUserIds },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -49,17 +64,47 @@ function useEncounterRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { personalOnly: true, userId, userRole, groupMateUserIds },
+      { congregationId, personalOnly: true, userId, userRole, groupMateUserIds },
       setHouseholds,
       handleError
     );
-    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    const unsubscribeVisits = watchVisits(
+      congregationId ? { congregationId } : undefined,
+      setVisits,
+      handleError
+    );
+
+    let unsubscribeMembers = () => {};
+    if (congregationId) {
+      const q = query(
+        collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
+        where('congregationId', '==', congregationId),
+        where('status', 'in', ['active', 'approved'])
+      );
+      unsubscribeMembers = onSnapshot(
+        q,
+        (snapshot) => {
+          const ids = new Set<string>();
+          for (const d of snapshot.docs) {
+            const data = d.data();
+            if (data.userId) ids.add(String(data.userId));
+            ids.add(d.id);
+          }
+          setMemberUserIds(ids);
+        },
+        () => {}
+      );
+    } else {
+      setMemberUserIds(new Set());
+    }
+
     return () => {
       unsubscribeEncounters();
       unsubscribeHouseholds();
       unsubscribeVisits();
+      unsubscribeMembers();
     };
-  }, [groupMateUserIds, householdId, userId, userRole, visitId]);
+  }, [congregationId, groupMateUserIds, householdId, userId, userRole, visitId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),
@@ -75,9 +120,40 @@ function useEncounterRecords(filters?: {
   }, [groupMateUserIds]);
 
   const mappedEncounters = useMemo(() => {
-    let filtered = encounters;
-    if (userId && !isTerritoryServant(userRole)) {
-      filtered = encounters.filter(
+    let filteredEncounters = encounters;
+    if (congregationId) {
+      filteredEncounters = filteredEncounters.filter((e) => {
+        // 1. Direct congregationId match
+        if (e.congregationId) {
+          return e.congregationId === congregationId;
+        }
+        // 2. Household-derived congregationId
+        if (e.householdId) {
+          const hh = householdMap.get(e.householdId);
+          if (hh) {
+            return !hh.congregationId || hh.congregationId === congregationId;
+          }
+          return false;
+        }
+        // If linked to a visit
+        if (e.visitId && visitMap.has(e.visitId)) {
+          const v = visitMap.get(e.visitId);
+          if (v?.congregationId) return v.congregationId === congregationId;
+          if (v?.householdId) {
+            const hh = householdMap.get(v.householdId);
+            return Boolean(hh && (!hh.congregationId || hh.congregationId === congregationId));
+          }
+          if (v?.userId) return memberUserIds.has(v.userId) || v.userId === userId;
+        }
+        // 3. User-membership-derived congregationId
+        if (e.userId) {
+          return memberUserIds.has(e.userId) || e.userId === userId;
+        }
+        return false;
+      });
+    }
+    if (userId && !canViewAllCongregationRecords(userRole)) {
+      filteredEncounters = filteredEncounters.filter(
         (e) =>
           e.userId === userId ||
           (e.householdId && householdMap.has(e.householdId)) ||
@@ -85,17 +161,30 @@ function useEncounterRecords(filters?: {
       );
     }
     return sortEncounters(
-      filtered.map((encounter) =>
+      filteredEncounters.map((encounter) =>
         toEncounterView(
           encounter,
           encounter.householdId ? householdMap.get(encounter.householdId) : null,
-          encounter.visitId ? visitMap.get(encounter.visitId) : null
+          encounter.visitId ? visitMap.get(encounter.visitId) : undefined,
+          congregationId &&
+            (memberUserIds.has(encounter.userId ?? '') || encounter.userId === userId)
+            ? congregationId
+            : null
         )
       )
     );
-  }, [encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
+  }, [
+    congregationId,
+    encounters,
+    groupMateSet,
+    householdMap,
+    memberUserIds,
+    userId,
+    userRole,
+    visitMap,
+  ]);
 
-  return { encounters: mappedEncounters, households, isLoading, error };
+  return { encounters: mappedEncounters, isLoading, error };
 }
 
 export function useVisitEncounters(visitId: string | null) {
@@ -103,6 +192,7 @@ export function useVisitEncounters(visitId: string | null) {
 }
 
 export function useMyEncounters(filters?: {
+  congregationId?: string;
   visitId?: string | null;
   householdId?: string | null;
   userId?: string | null;
@@ -112,7 +202,7 @@ export function useMyEncounters(filters?: {
   return useEncounterRecords(filters);
 }
 
-export function useTerritoryEncounters(territoryId: string | null) {
+export function useTerritoryEncounters(territoryId: string | null, congregationId?: string | null) {
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);
@@ -120,13 +210,21 @@ export function useTerritoryEncounters(territoryId: string | null) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!territoryId && !congregationId) {
+      setEncounters([]);
+      setHouseholds([]);
+      setVisits([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      undefined,
+      congregationId ? { congregationId } : undefined,
       (records) => {
         setEncounters(records);
         setError(null);
@@ -135,7 +233,7 @@ export function useTerritoryEncounters(territoryId: string | null) {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      territoryId ? { territoryId } : undefined,
+      { territoryId: territoryId ?? undefined, congregationId: congregationId ?? undefined },
       (records) => {
         setHouseholds(records);
         setError(null);
@@ -143,13 +241,17 @@ export function useTerritoryEncounters(territoryId: string | null) {
       },
       handleError
     );
-    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    const unsubscribeVisits = watchVisits(
+      congregationId ? { congregationId } : undefined,
+      setVisits,
+      handleError
+    );
     return () => {
       unsubscribeEncounters();
       unsubscribeHouseholds();
       unsubscribeVisits();
     };
-  }, [territoryId]);
+  }, [congregationId, territoryId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),

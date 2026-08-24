@@ -1,23 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
+  canApproveMembers,
   canCreateTerritory,
   canDeleteTerritory,
   canEditTerritory,
   canEditTerritoryInStudio,
+  canManageGroups,
   canReturnAssignment,
   canViewReports,
   filterActiveAssignments,
   getUserGroupIds,
   hasPermission,
   hasRole,
+  isCircuitOverseer,
+  isCongregationSecretary,
   isGroupOverseer,
   isGroupOverseerAssistant,
+  isPublisher,
   isServiceOverseer,
   isSystemAdmin,
   isTerritoryServant,
   isUserAssignedToTerritory,
   isUserInGroup,
+  isVisitingPublisher,
   resolveUserAssignments,
 } from '../permissions';
 
@@ -60,53 +66,112 @@ describe('hasRole', () => {
   });
 });
 
-describe('RBAC Matrix Helper Functions', () => {
+describe('Pure Role Identity Checks (Exact Match)', () => {
   it('identifies system admins correctly', () => {
     expect(isSystemAdmin(UserRole.SUPER_ADMIN)).toBe(true);
     expect(isSystemAdmin(UserRole.ADMIN)).toBe(true);
     expect(isSystemAdmin(UserRole.SERVICE_OVERSEER)).toBe(false);
+    expect(isSystemAdmin(UserRole.SECRETARY)).toBe(false);
+    expect(isSystemAdmin(UserRole.TERRITORY_SERVANT)).toBe(false);
     expect(isSystemAdmin(UserRole.USER)).toBe(false);
   });
 
-  it('identifies service overseers and higher', () => {
-    expect(isServiceOverseer(UserRole.SUPER_ADMIN)).toBe(true);
+  it('identifies service overseers with exact matching (no inheritance)', () => {
     expect(isServiceOverseer(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(isServiceOverseer(UserRole.SUPER_ADMIN)).toBe(false);
+    expect(isServiceOverseer(UserRole.ADMIN)).toBe(false);
+    expect(isServiceOverseer(UserRole.SECRETARY)).toBe(false);
     expect(isServiceOverseer(UserRole.TERRITORY_SERVANT)).toBe(false);
     expect(isServiceOverseer(UserRole.USER)).toBe(false);
   });
 
-  it('identifies territory servants and higher (can draw boundary and create territories)', () => {
-    expect(isTerritoryServant(UserRole.SUPER_ADMIN)).toBe(true);
-    expect(isTerritoryServant(UserRole.SERVICE_OVERSEER)).toBe(true);
+  it('identifies congregation secretaries with exact matching', () => {
+    expect(isCongregationSecretary(UserRole.SECRETARY)).toBe(true);
+    expect(isCongregationSecretary('SECRETARY')).toBe(true);
+    expect(isCongregationSecretary('secretary')).toBe(true);
+    expect(isCongregationSecretary('CONGREGATION_SECRETARY')).toBe(true);
+    expect(isCongregationSecretary(UserRole.SERVICE_OVERSEER)).toBe(false);
+    expect(isCongregationSecretary(UserRole.TERRITORY_SERVANT)).toBe(false);
+    expect(isCongregationSecretary(UserRole.SUPER_ADMIN)).toBe(false);
+  });
+
+  it('identifies territory servants with exact matching (no inheritance)', () => {
     expect(isTerritoryServant(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(isTerritoryServant('TERRITORY_SERVANT')).toBe(true);
+    expect(isTerritoryServant('territory_servant')).toBe(true);
+    expect(isTerritoryServant(UserRole.SERVICE_OVERSEER)).toBe(false);
+    expect(isTerritoryServant(UserRole.SUPER_ADMIN)).toBe(false);
+    expect(isTerritoryServant(UserRole.SECRETARY)).toBe(false);
     expect(isTerritoryServant(UserRole.USER)).toBe(false);
   });
 
-  it('allows territory servant and higher to view reports', () => {
+  it('identifies circuit overseers with exact matching', () => {
+    expect(isCircuitOverseer(UserRole.CIRCUIT_OVERSEER)).toBe(true);
+    expect(isCircuitOverseer(UserRole.SERVICE_OVERSEER)).toBe(false);
+    expect(isCircuitOverseer(UserRole.SUPER_ADMIN)).toBe(false);
+  });
+
+  it('identifies visiting publishers with exact matching', () => {
+    expect(isVisitingPublisher(UserRole.VISITING_PUBLISHER)).toBe(true);
+    expect(isVisitingPublisher(UserRole.USER)).toBe(false);
+  });
+
+  it('identifies regular publishers correctly', () => {
+    expect(isPublisher(UserRole.USER)).toBe(true);
+    expect(isPublisher(UserRole.PUBLISHER)).toBe(true);
+    expect(isPublisher(UserRole.SERVICE_OVERSEER)).toBe(false);
+  });
+});
+
+describe('Action Capability Checks', () => {
+  it('allows reports view to admins, service overseers, secretaries, territory servants, and circuit overseers', () => {
     expect(canViewReports(UserRole.SUPER_ADMIN)).toBe(true);
     expect(canViewReports(UserRole.ADMIN)).toBe(true);
     expect(canViewReports(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canViewReports(UserRole.SECRETARY)).toBe(true);
     expect(canViewReports(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canViewReports(UserRole.CIRCUIT_OVERSEER)).toBe(true);
     expect(canViewReports(UserRole.USER)).toBe(false);
   });
 
-  it('allows service overseer and territory servant to create and edit territories', () => {
+  it('allows member approvals and directory management to admins, service overseers, and secretaries', () => {
+    expect(canApproveMembers(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canApproveMembers(UserRole.ADMIN)).toBe(true);
+    expect(canApproveMembers(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canApproveMembers(UserRole.SECRETARY)).toBe(true);
+    expect(canApproveMembers(UserRole.TERRITORY_SERVANT)).toBe(false);
+    expect(canApproveMembers(UserRole.USER)).toBe(false);
+  });
+
+  it('allows service group management to admins, service overseers, and secretaries', () => {
+    expect(canManageGroups(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canManageGroups(UserRole.ADMIN)).toBe(true);
+    expect(canManageGroups(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canManageGroups(UserRole.SECRETARY)).toBe(true);
+    expect(canManageGroups(UserRole.TERRITORY_SERVANT)).toBe(false);
+    expect(canManageGroups(UserRole.USER)).toBe(false);
+  });
+
+  it('allows territory creation, editing, and deletion to admins, service overseers, and territory servants', () => {
     expect(canCreateTerritory(UserRole.SUPER_ADMIN)).toBe(true);
     expect(canCreateTerritory(UserRole.ADMIN)).toBe(true);
     expect(canCreateTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(canCreateTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canCreateTerritory(UserRole.SECRETARY)).toBe(false);
     expect(canCreateTerritory(UserRole.USER)).toBe(false);
 
     expect(canEditTerritory(UserRole.SUPER_ADMIN)).toBe(true);
     expect(canEditTerritory(UserRole.ADMIN)).toBe(true);
     expect(canEditTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(canEditTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canEditTerritory(UserRole.SECRETARY)).toBe(false);
     expect(canEditTerritory(UserRole.USER)).toBe(false);
 
     expect(canDeleteTerritory(UserRole.SUPER_ADMIN)).toBe(true);
     expect(canDeleteTerritory(UserRole.ADMIN)).toBe(true);
     expect(canDeleteTerritory(UserRole.SERVICE_OVERSEER)).toBe(true);
     expect(canDeleteTerritory(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canDeleteTerritory(UserRole.SECRETARY)).toBe(false);
     expect(canDeleteTerritory(UserRole.USER)).toBe(false);
   });
 });

@@ -3,18 +3,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BookOpen,
-  Calendar,
   Check,
   Clock,
-  FileText,
   Home,
   Mail,
   MapPin,
-  MessageSquare,
   Phone,
   Plus,
   Sparkles,
-  User,
   UserCheck,
   Users,
 } from 'lucide-react';

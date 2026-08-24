@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { collection, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import type React from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { FIRESTORE_COLLECTIONS, getPlannerAuth, getPlannerFirestore, nowIso } from '@/lib/firebase';
@@ -272,7 +272,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = getPlannerAuth();
     await signOut(auth);
     await AsyncStorage.removeItem(ACTIVE_CONGREGATION_KEY);
+    await AsyncStorage.removeItem('kanataran_active_congregation');
     setActiveCongId(null);
+    setUserProfile(null);
+    setMembershipRole(null);
+    setMembershipCongregationId(null);
+    setMembershipGroupId(null);
+    setFirebaseUser(null);
   };
 
   return (

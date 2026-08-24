@@ -13,7 +13,7 @@ import {
   RotateCw,
   X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,7 @@ export function StudioPrintViewport({
   const coverageStats = useMemo(() => calculateTerritoryCoverage(households), [households]);
 
   // Group households by street name for street directory on back
-  const streetsSummary = useMemo(() => {
+  const _streetsSummary = useMemo(() => {
     const map = new Map<string, Household[]>();
     for (const h of households) {
       const street =
@@ -77,7 +77,7 @@ export function StudioPrintViewport({
       if (!map.has(street)) {
         map.set(street, []);
       }
-      map.get(street)!.push(h);
+      map.get(street)?.push(h);
     }
     return Array.from(map.entries()).map(([street, list]) => ({
       street,

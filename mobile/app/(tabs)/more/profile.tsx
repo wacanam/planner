@@ -2,18 +2,15 @@
 import { useRouter } from 'expo-router';
 import { doc, updateDoc } from 'firebase/firestore';
 import {
-  AlertTriangle,
-  Building2,
   Check,
   ChevronRight,
   Crown,
-  LogOut,
   Mail,
   Shield,
   User as UserIcon,
   Users,
 } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -244,7 +241,7 @@ export default function ProfileScreen() {
           </View>
 
           {successMsg && (
-            <View style={[styles.successBox, { backgroundColor: colors.success + '15' }]}>
+            <View style={[styles.successBox, { backgroundColor: `${colors.success}15` }]}>
               <Check size={16} color={colors.success} />
               <Text
                 style={{
@@ -299,7 +296,7 @@ export default function ProfileScreen() {
             <View>
               {/* Group Name Header */}
               <View style={styles.groupHeaderRow}>
-                <View style={[styles.groupIconBox, { backgroundColor: colors.primary + '20' }]}>
+                <View style={[styles.groupIconBox, { backgroundColor: `${colors.primary}20` }]}>
                   <Users size={20} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>
@@ -328,7 +325,7 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.leadershipBox,
-                  { backgroundColor: colors.muted + '35', borderColor: colors.border },
+                  { backgroundColor: `${colors.muted}35`, borderColor: colors.border },
                 ]}
               >
                 {/* Overseer */}
@@ -403,7 +400,7 @@ export default function ProfileScreen() {
                     {groupmates.slice(0, 6).map((gm) => (
                       <View
                         key={gm.id}
-                        style={[styles.chip, { backgroundColor: colors.muted + '50' }]}
+                        style={[styles.chip, { backgroundColor: `${colors.muted}50` }]}
                       >
                         <Text style={{ fontSize: 11, color: colors.foreground, fontWeight: '500' }}>
                           {gm.name || gm.email?.split('@')[0] || 'Publisher'}
@@ -411,7 +408,7 @@ export default function ProfileScreen() {
                       </View>
                     ))}
                     {groupmates.length > 6 && (
-                      <View style={[styles.chip, { backgroundColor: colors.primary + '15' }]}>
+                      <View style={[styles.chip, { backgroundColor: `${colors.primary}15` }]}>
                         <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>
                           +{groupmates.length - 6} more
                         </Text>

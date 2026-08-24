@@ -30,9 +30,9 @@ import {
   useMemberLocations,
   useUserLocation,
 } from '@/hooks';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { canViewMemberLocations } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
-import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import type {
   Congregation,
   Household,
@@ -41,17 +41,16 @@ import type {
   SharedMemberLocation,
   Territory,
 } from '@/types/api';
+import { CongregationGoogleMap } from './CongregationGoogleMap';
+import { CongregationTopBar } from './CongregationTopBar';
 import {
   type BasemapMode,
   type BoundaryDisplaySettings,
   DEFAULT_BOUNDARY_DISPLAY,
   DEFAULT_STUDIO_LAYERS,
-  resolveBoundaryDisplay,
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
-import { CongregationGoogleMap } from './CongregationGoogleMap';
-import { CongregationTopBar } from './CongregationTopBar';
 
 export interface CongregationStudioLayoutProps {
   congregationId: string;
@@ -66,7 +65,7 @@ export function CongregationStudioLayout({
   territories,
   households,
 }: CongregationStudioLayoutProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const { user } = useCurrentUser();
 
   // Sidebar & Map States
@@ -74,9 +73,8 @@ export function CongregationStudioLayout({
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [basemapMode, setBasemapMode] = useState<BasemapMode>('street');
   const [layers, setLayers] = useState<StudioLayerSettings>(DEFAULT_STUDIO_LAYERS);
-  const [boundaryDisplay, setBoundaryDisplay] = useState<BoundaryDisplaySettings>(
-    DEFAULT_BOUNDARY_DISPLAY
-  );
+  const [boundaryDisplay, setBoundaryDisplay] =
+    useState<BoundaryDisplaySettings>(DEFAULT_BOUNDARY_DISPLAY);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -174,7 +172,7 @@ export function CongregationStudioLayout({
     const matchedTerritory = territories.find(
       (t) => (t.number || '').toLowerCase() === q || (t.name || '').toLowerCase().includes(q)
     );
-    if (matchedTerritory && matchedTerritory.boundaryCoordinates) {
+    if (matchedTerritory?.boundaryCoordinates) {
       dismissAllFloatingCards();
       setSelectedTerritory(matchedTerritory);
 
@@ -268,10 +266,19 @@ export function CongregationStudioLayout({
         onSelectTerritory={(t) => {
           dismissAllFloatingCards();
           setSelectedTerritory(t);
-          if (t.boundaryCoordinates && Array.isArray(t.boundaryCoordinates) && t.boundaryCoordinates.length > 0) {
+          if (
+            t.boundaryCoordinates &&
+            Array.isArray(t.boundaryCoordinates) &&
+            t.boundaryCoordinates.length > 0
+          ) {
             const first = t.boundaryCoordinates[0] as any;
             if (first.lat && first.lng) {
-              setSearchedLocation({ lat: first.lat, lng: first.lng, zoom: 17, timestamp: Date.now() });
+              setSearchedLocation({
+                lat: first.lat,
+                lng: first.lng,
+                zoom: 17,
+                timestamp: Date.now(),
+              });
             }
           }
         }}
@@ -279,7 +286,12 @@ export function CongregationStudioLayout({
           dismissAllFloatingCards();
           setSelectedHousehold(h);
           if (h.latitude && h.longitude) {
-            setSearchedLocation({ lat: Number(h.latitude), lng: Number(h.longitude), zoom: 19, timestamp: Date.now() });
+            setSearchedLocation({
+              lat: Number(h.latitude),
+              lng: Number(h.longitude),
+              zoom: 19,
+              timestamp: Date.now(),
+            });
           }
         }}
         onSelectLandmark={(lm, t) => {
@@ -291,7 +303,12 @@ export function CongregationStudioLayout({
           dismissAllFloatingCards();
           setSelectedRoad({ road: r, territory: t });
           if (r.points && r.points.length > 0) {
-            setSearchedLocation({ lat: r.points[0].lat, lng: r.points[0].lng, zoom: 18, timestamp: Date.now() });
+            setSearchedLocation({
+              lat: r.points[0].lat,
+              lng: r.points[0].lng,
+              zoom: 18,
+              timestamp: Date.now(),
+            });
           }
         }}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
@@ -587,13 +604,8 @@ export function CongregationStudioLayout({
             )}
 
             <div className="flex items-center gap-2 pt-1 border-t border-border">
-              <Button
-                asChild
-                className="w-full rounded-2xl text-xs font-bold gap-2 shadow-sm h-9"
-              >
-                <Link
-                  href={`/congregation/${congregationId}/territories/${selectedTerritory.id}`}
-                >
+              <Button asChild className="w-full rounded-2xl text-xs font-bold gap-2 shadow-sm h-9">
+                <Link href={`/congregation/${congregationId}/territories/${selectedTerritory.id}`}>
                   <span>Open in Territory Studio</span>
                   <ExternalLink size={13} />
                 </Link>
@@ -619,7 +631,8 @@ export function CongregationStudioLayout({
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {selectedHousehold.address || selectedHousehold.streetName}
-                    {selectedHousehold.city && !(selectedHousehold.address || '').includes(selectedHousehold.city)
+                    {selectedHousehold.city &&
+                    !(selectedHousehold.address || '').includes(selectedHousehold.city)
                       ? `, ${selectedHousehold.city}`
                       : ''}
                   </p>
@@ -655,7 +668,12 @@ export function CongregationStudioLayout({
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-0.5">
               <User size={12} className="text-muted-foreground/70 shrink-0" />
               <span>
-                Added by <strong className="font-semibold text-foreground">{selectedHousehold.creatorName || findParentTerritory(selectedHousehold.territoryId || '')?.publisherName || 'Territory Contributor'}</strong>
+                Added by{' '}
+                <strong className="font-semibold text-foreground">
+                  {selectedHousehold.creatorName ||
+                    findParentTerritory(selectedHousehold.territoryId || '')?.publisherName ||
+                    'Territory Contributor'}
+                </strong>
               </span>
             </div>
 
@@ -675,7 +693,9 @@ export function CongregationStudioLayout({
                 <Link
                   href={`/congregation/${congregationId}/territories/${selectedHousehold.territoryId}`}
                 >
-                  <span>Open Territory #{findParentTerritory(selectedHousehold.territoryId)?.number}</span>
+                  <span>
+                    Open Territory #{findParentTerritory(selectedHousehold.territoryId)?.number}
+                  </span>
                   <ExternalLink size={12} />
                 </Link>
               </Button>
@@ -699,12 +719,19 @@ export function CongregationStudioLayout({
                     {selectedLandmark.landmark.label || 'Landmark'}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {selectedLandmark.landmark.type} • Territory #{selectedLandmark.territory.number}
+                    {selectedLandmark.landmark.type} • Territory #
+                    {selectedLandmark.territory.number}
                   </p>
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Added by <strong className="font-semibold text-foreground">{selectedLandmark.landmark.creatorName || (selectedLandmark.landmark as any).createdByName || selectedLandmark.territory?.publisherName || 'Territory Contributor'}</strong>
+                      Added by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedLandmark.landmark.creatorName ||
+                          (selectedLandmark.landmark as any).createdByName ||
+                          selectedLandmark.territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -751,12 +778,19 @@ export function CongregationStudioLayout({
                     {selectedRoad.road.name || 'Road Corridor'}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {selectedRoad.road.color || 'street'} • Territory #{selectedRoad.territory.number}
+                    {selectedRoad.road.color || 'street'} • Territory #
+                    {selectedRoad.territory.number}
                   </p>
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Drawn by <strong className="font-semibold text-foreground">{selectedRoad.road.creatorName || (selectedRoad.road as any).createdByName || selectedRoad.territory?.publisherName || 'Territory Contributor'}</strong>
+                      Drawn by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedRoad.road.creatorName ||
+                          (selectedRoad.road as any).createdByName ||
+                          selectedRoad.territory?.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -803,12 +837,20 @@ export function CongregationStudioLayout({
                     {selectedStartFlagTerritory.annotations?.startFlag?.label || 'Meeting Point'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Territory #{selectedStartFlagTerritory.number}: {selectedStartFlagTerritory.name}
+                    Territory #{selectedStartFlagTerritory.number}:{' '}
+                    {selectedStartFlagTerritory.name}
                   </p>
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground pt-0.5">
                     <User size={11} className="text-muted-foreground/70 shrink-0" />
                     <span>
-                      Set by <strong className="font-semibold text-foreground">{selectedStartFlagTerritory.annotations?.startFlag?.creatorName || (selectedStartFlagTerritory.annotations?.startFlag as any)?.createdByName || selectedStartFlagTerritory.publisherName || 'Territory Contributor'}</strong>
+                      Set by{' '}
+                      <strong className="font-semibold text-foreground">
+                        {selectedStartFlagTerritory.annotations?.startFlag?.creatorName ||
+                          (selectedStartFlagTerritory.annotations?.startFlag as any)
+                            ?.createdByName ||
+                          selectedStartFlagTerritory.publisherName ||
+                          'Territory Contributor'}
+                      </strong>
                     </span>
                   </div>
                 </div>
@@ -886,7 +928,8 @@ export function CongregationStudioLayout({
                   </span>
                 ) : (
                   <span className="text-[11px] text-muted-foreground">
-                    Last seen {timeAgo(selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt)}
+                    Last seen{' '}
+                    {timeAgo(selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt)}
                   </span>
                 )}
               </div>

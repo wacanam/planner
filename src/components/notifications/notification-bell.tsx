@@ -9,7 +9,6 @@ import {
   Info,
   MapPin,
   MoreVertical,
-  Music,
   RotateCcw,
   Settings,
   Share2,
@@ -321,7 +320,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             ) : (
               filteredNotifications.map((notif) => {
                 const visuals = getNotificationVisuals(notif.type);
-                const targetRoute = getNotificationRoute(notif, congregationId);
+                const _targetRoute = getNotificationRoute(notif, congregationId);
                 const timeString = formatNotificationTime(notif.createdAt);
 
                 return (

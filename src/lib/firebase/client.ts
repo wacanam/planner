@@ -1,11 +1,13 @@
 import { type FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { type Auth, getAuth } from 'firebase/auth';
 import {
+  clearIndexedDbPersistence,
   type Firestore,
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  terminate,
 } from 'firebase/firestore';
 import { getPublicEnv } from '@/lib/env';
 
@@ -47,6 +49,25 @@ export function getPlannerFirestore(): Firestore {
   }
 
   return firestoreInstance;
+}
+
+export function resetPlannerFirestore(): void {
+  firestoreInstance = null;
+}
+
+export async function clearFirestoreLocalCache(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    if (firestoreInstance) {
+      const db = firestoreInstance;
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    }
+  } catch (err) {
+    console.warn('[clearFirestoreLocalCache]', err);
+  } finally {
+    firestoreInstance = null;
+  }
 }
 
 export function getPlannerAuth(): Auth {

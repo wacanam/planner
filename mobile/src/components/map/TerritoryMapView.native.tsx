@@ -1,6 +1,6 @@
 // mobile/src/components/map/TerritoryMapView.native.tsx
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polygon, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
 import { useTheme } from '@/context/ThemeContext';
@@ -45,7 +45,7 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
     const mapRef = useRef<MapView>(null);
 
     const strokeColor = polygonStrokeColor || colors.primary;
-    const fillColor = polygonFillColor || colors.primary + '25';
+    const fillColor = polygonFillColor || `${colors.primary}25`;
 
     useImperativeHandle(ref, () => ({
       fitToCoordinates: (coordinates: MapCoordinate[], options?: FitOptions) => {
@@ -100,7 +100,7 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
           {markers.map((marker) => {
             const lat = Number(marker.coordinate?.latitude);
             const lng = Number(marker.coordinate?.longitude);
-            if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return null;
+            if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return null;
 
             return (
               <Marker

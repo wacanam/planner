@@ -143,7 +143,7 @@ export default function VerifyEmailScreen() {
           <View
             style={[
               styles.iconWrapper,
-              { backgroundColor: colors.primary + '18', marginBottom: spacing.md },
+              { backgroundColor: `${colors.primary}18`, marginBottom: spacing.md },
             ]}
           >
             <Mail size={32} color={colors.primary} />
@@ -195,7 +195,7 @@ export default function VerifyEmailScreen() {
             <View
               style={[
                 styles.errorBanner,
-                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+                { backgroundColor: `${colors.destructive}15`, marginBottom: spacing.md },
               ]}
             >
               <Text

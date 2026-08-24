@@ -1,17 +1,8 @@
 // mobile/app/select-congregation.tsx
 import { useRouter } from 'expo-router';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
-import {
-  Building2,
-  Check,
-  Clock,
-  MapPin,
-  Plus,
-  Search,
-  UserCheck,
-  XCircle,
-} from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { Building2, Check, MapPin, Plus, Search } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -84,8 +75,8 @@ export default function SelectCongregationScreen() {
     if (!q) return true;
     return (
       c.name.toLowerCase().includes(q) ||
-      (c.city && c.city.toLowerCase().includes(q)) ||
-      (c.country && c.country.toLowerCase().includes(q))
+      c.city?.toLowerCase().includes(q) ||
+      c.country?.toLowerCase().includes(q)
     );
   });
 
@@ -206,7 +197,7 @@ export default function SelectCongregationScreen() {
                 ]}
               >
                 <View style={styles.congCardContent}>
-                  <View style={[styles.iconBox, { backgroundColor: colors.primary + '18' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: `${colors.primary}18` }]}>
                     <Building2 size={22} color={colors.primary} />
                   </View>
 

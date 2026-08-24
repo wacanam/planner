@@ -502,6 +502,7 @@ export interface User {
 export interface Visit {
   id: string;
   userId: string;
+  congregationId?: string | null;
   publisherName?: string | null;
   householdId: string;
   visitDate: string;

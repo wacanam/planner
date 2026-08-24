@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { canViewMemberLocations, filterVisibleMemberLocations, isLocationActive } from '@/lib/permissions';
+import {
+  canViewMemberLocations,
+  filterVisibleMemberLocations,
+  isLocationActive,
+} from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { Group, SharedMemberLocation } from '@/types/api';
 
@@ -17,9 +21,24 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
       assistantOverseerName: 'Brother Assistant 1',
       createdAt: '2026-01-01T00:00:00Z',
       members: [
-        { id: 'member-1', userId: 'member-1', role: 'member', user: { name: 'Publisher One', email: null } },
-        { id: 'member-2', userId: 'member-2', role: 'member', user: { name: 'Publisher Two', email: null } },
-        { id: 'member-expired', userId: 'member-expired', role: 'member', user: { name: 'Publisher Expired', email: null } },
+        {
+          id: 'member-1',
+          userId: 'member-1',
+          role: 'member',
+          user: { name: 'Publisher One', email: null },
+        },
+        {
+          id: 'member-2',
+          userId: 'member-2',
+          role: 'member',
+          user: { name: 'Publisher Two', email: null },
+        },
+        {
+          id: 'member-expired',
+          userId: 'member-expired',
+          role: 'member',
+          user: { name: 'Publisher Expired', email: null },
+        },
       ],
     },
     {
@@ -30,7 +49,12 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
       overseerName: 'Brother Overseer 2',
       createdAt: '2026-01-01T00:00:00Z',
       members: [
-        { id: 'member-3', userId: 'member-3', role: 'member', user: { name: 'Publisher Three', email: null } },
+        {
+          id: 'member-3',
+          userId: 'member-3',
+          role: 'member',
+          user: { name: 'Publisher Three', email: null },
+        },
       ],
     },
   ];
@@ -75,8 +99,8 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
       userName: 'Publisher Expired',
       groupId: 'group-1',
       groupName: 'Group 1 - Downtown',
-      latitude: 14.6000,
-      longitude: 120.9850,
+      latitude: 14.6,
+      longitude: 120.985,
       accuracy: 12,
       heading: null,
       isSharing: true,
@@ -92,8 +116,8 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
       userName: 'Publisher Three',
       groupId: 'group-2',
       groupName: 'Group 2 - Uptown',
-      latitude: 14.6100,
-      longitude: 120.9900,
+      latitude: 14.61,
+      longitude: 120.99,
       accuracy: 8,
       heading: 180,
       isSharing: true,
@@ -130,8 +154,12 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
     });
 
     it('allows Admin and Super Admin to view member locations', () => {
-      expect(canViewMemberLocations({ id: 'admin-user', role: UserRole.ADMIN }, mockGroups)).toBe(true);
-      expect(canViewMemberLocations({ id: 'super-admin-user', role: UserRole.SUPER_ADMIN }, mockGroups)).toBe(true);
+      expect(canViewMemberLocations({ id: 'admin-user', role: UserRole.ADMIN }, mockGroups)).toBe(
+        true
+      );
+      expect(
+        canViewMemberLocations({ id: 'super-admin-user', role: UserRole.SUPER_ADMIN }, mockGroups)
+      ).toBe(true);
     });
 
     it('allows Group Overseer to view member locations', () => {
@@ -195,7 +223,9 @@ describe('Member Real-Time Location Sharing & Expiry Scoping', () => {
 
     it('handles empty inputs safely', () => {
       expect(filterVisibleMemberLocations(null, mockGroups, mockLocations, baseTime)).toEqual([]);
-      expect(filterVisibleMemberLocations({ id: 'user-1', role: UserRole.USER }, [], [], baseTime)).toEqual([]);
+      expect(
+        filterVisibleMemberLocations({ id: 'user-1', role: UserRole.USER }, [], [], baseTime)
+      ).toEqual([]);
     });
   });
 

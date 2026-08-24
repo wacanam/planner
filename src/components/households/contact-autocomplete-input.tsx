@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronRight, Sparkles, User, UserPlus, X } from 'lucide-react';
+import { Check, UserPlus, X } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,7 @@ export function ContactAutocompleteInput({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [_isSearching, setIsSearching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const internalId = useId();

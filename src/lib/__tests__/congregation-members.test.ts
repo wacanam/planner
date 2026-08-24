@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { joinRequestFromMember, memberFromData } from '@/hooks/use-congregation-members';
-import { MemberStatus, NotificationType, UserRole } from '@/lib/roles';
+import { MemberStatus, UserRole } from '@/lib/roles';
 import type { Group, Member } from '@/types/api';
 
 describe('useCongregationMembers helpers', () => {

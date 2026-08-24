@@ -1,22 +1,11 @@
 // mobile/app/(tabs)/more/members.tsx
 import { useRouter } from 'expo-router';
-import {
-  Check,
-  Clock,
-  Crown,
-  Search,
-  Shield,
-  UserCheck,
-  User as UserIcon,
-  Users,
-  X,
-} from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import { Clock, Crown, Search, Shield, User as UserIcon, Users, X } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Image,
-  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -44,7 +33,7 @@ import type { Member } from '@/types/api';
 type DirectoryTab = 'active' | 'my_group' | 'pending';
 
 export default function CongregationMembersScreen() {
-  const router = useRouter();
+  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, activeCongregationId } = useAuth();
   const { colors, typography, spacing, radius } = useTheme();
@@ -251,7 +240,7 @@ export default function CongregationMembersScreen() {
                 <Card
                   style={[
                     styles.myGroupBanner,
-                    { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' },
+                    { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` },
                   ]}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -368,7 +357,7 @@ export default function CongregationMembersScreen() {
               return (
                 <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
                   <View style={styles.memberRow}>
-                    <View style={[styles.avatarBox, { backgroundColor: colors.primary + '20' }]}>
+                    <View style={[styles.avatarBox, { backgroundColor: `${colors.primary}20` }]}>
                       {item.user?.avatarUrl ? (
                         <Image
                           source={{ uri: item.user.avatarUrl }}
@@ -436,7 +425,7 @@ export default function CongregationMembersScreen() {
               return (
                 <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
                   <View style={styles.memberRow}>
-                    <View style={[styles.avatarBox, { backgroundColor: colors.primary + '20' }]}>
+                    <View style={[styles.avatarBox, { backgroundColor: `${colors.primary}20` }]}>
                       {item.user?.avatarUrl ? (
                         <Image
                           source={{ uri: item.user.avatarUrl }}
@@ -508,7 +497,7 @@ export default function CongregationMembersScreen() {
           renderItem={({ item }) => (
             <Card style={[styles.memberCard, { marginBottom: spacing.sm }]}>
               <View style={styles.memberRow}>
-                <View style={[styles.avatarBox, { backgroundColor: colors.warning + '20' }]}>
+                <View style={[styles.avatarBox, { backgroundColor: `${colors.warning}20` }]}>
                   <Clock size={18} color={colors.warning} />
                 </View>
                 <View style={{ flex: 1, marginLeft: spacing.sm }}>

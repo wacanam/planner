@@ -137,7 +137,7 @@ export async function queueWelcomeEmail(
   params: WelcomeEmailParams
 ): Promise<boolean> {
   const normalizedEmail = (params.toEmail || '').trim().toLowerCase();
-  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+  if (!normalizedEmail?.includes('@')) {
     return false;
   }
 

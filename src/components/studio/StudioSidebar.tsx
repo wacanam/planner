@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentUser } from '@/hooks';
-import { isTerritoryServant } from '@/lib/permissions';
+import { canEditTerritory } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household, Territory } from '@/types/api';
 
@@ -63,7 +63,7 @@ export function StudioSidebar({
   isReadOnly = false,
 }: StudioSidebarProps) {
   const { user } = useCurrentUser();
-  const isServant = isTerritoryServant(user.role);
+  const isServant = canEditTerritory(user.role);
   const [tab, setTab] = useState<'info' | 'portion' | 'settings'>('info');
 
   const coverageStats = useMemo(() => calculateTerritoryCoverage(households), [households]);

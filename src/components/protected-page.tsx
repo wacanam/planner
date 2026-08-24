@@ -14,6 +14,10 @@ interface ProtectedPageProps {
    */
   requiredRole?: UserRole;
   /**
+   * Explicit list of allowed user roles.
+   */
+  allowedRoles?: UserRole[];
+  /**
    * If set, also verify the user belongs to this congregation
    * (for SERVICE_OVERSEER checks). Skipped for SUPER_ADMIN / ADMIN.
    */
@@ -30,6 +34,7 @@ const ROLE_RANK: Record<UserRole, number> = {
   [UserRole.USER]: 0,
   [UserRole.VISITING_PUBLISHER]: 0,
   [UserRole.TERRITORY_SERVANT]: 1,
+  [UserRole.SECRETARY]: 2,
   [UserRole.SERVICE_OVERSEER]: 2,
   [UserRole.CIRCUIT_OVERSEER]: 2,
   [UserRole.ADMIN]: 3,
@@ -39,6 +44,7 @@ const ROLE_RANK: Record<UserRole, number> = {
 export function ProtectedPage({
   children,
   requiredRole,
+  allowedRoles,
   congregationId,
   loginRedirect = '/auth/login',
   roleRedirect = '/onboarding',
@@ -60,8 +66,17 @@ export function ProtectedPage({
       return;
     }
 
-    if (requiredRole) {
-      const userRank = ROLE_RANK[user.role] ?? 0;
+    if (allowedRoles && allowedRoles.length > 0) {
+      const isAllowed =
+        user.role === UserRole.SUPER_ADMIN ||
+        user.role === UserRole.ADMIN ||
+        allowedRoles.includes(user.role as UserRole);
+      if (!isAllowed) {
+        router.replace(roleRedirect);
+        return;
+      }
+    } else if (requiredRole) {
+      const userRank = ROLE_RANK[user.role as UserRole] ?? 0;
       const requiredRank = ROLE_RANK[requiredRole] ?? 0;
       if (userRank < requiredRank) {
         router.replace(roleRedirect);

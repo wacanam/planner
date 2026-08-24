@@ -3,11 +3,11 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   type QueryConstraint,
   query,
   setDoc,
-  updateDoc,
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
@@ -62,6 +62,7 @@ function encounterFromData(id: string, data: Partial<Encounter>): Encounter {
 }
 
 export function useEncounters(filters?: {
+  congregationId?: string;
   householdId?: string;
   visitId?: string;
   userId?: string;
@@ -70,10 +71,17 @@ export function useEncounters(filters?: {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const congregationId = filters?.congregationId ?? null;
   const householdId = filters?.householdId ?? null;
   const visitId = filters?.visitId ?? null;
 
   useEffect(() => {
+    if (!congregationId && !householdId && !visitId) {
+      setEncounters([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
@@ -88,13 +96,49 @@ export function useEncounters(filters?: {
         ? query(encounterCollection(), ...constraints)
         : query(encounterCollection());
 
-    return onSnapshot(
+    let householdsMap = new Map<string, any>();
+    let memberUserIds = new Set<string>();
+
+    const unsubHouseholds = congregationId
+      ? onSnapshot(
+          query(
+            collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.households),
+            where('congregationId', '==', congregationId)
+          ),
+          (hSnap) => {
+            householdsMap = new Map(hSnap.docs.map((d) => [d.id, d.data()]));
+          }
+        )
+      : () => {};
+
+    const unsubMembers = congregationId
+      ? onSnapshot(
+          query(
+            collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers),
+            where('congregationId', '==', congregationId),
+            where('status', 'in', ['active', 'approved'])
+          ),
+          (mSnap) => {
+            memberUserIds = new Set(mSnap.docs.map((d) => d.data().userId || d.id));
+          }
+        )
+      : () => {};
+
+    const unsubEncounters = onSnapshot(
       q,
       { includeMetadataChanges: true },
       (snapshot) => {
-        const list = snapshot.docs
+        let list = snapshot.docs
           .map((document) => encounterFromData(document.id, document.data() as Partial<Encounter>))
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        if (congregationId) {
+          list = list.filter((e) => {
+            if (e.congregationId) return e.congregationId === congregationId;
+            if (e.householdId) return householdsMap.has(e.householdId);
+            if (e.userId) return memberUserIds.has(e.userId);
+            return false;
+          });
+        }
         setEncounters(list);
         setError(null);
         setIsLoading(false);
@@ -104,7 +148,13 @@ export function useEncounters(filters?: {
         setIsLoading(false);
       }
     );
-  }, [householdId, visitId]);
+
+    return () => {
+      unsubHouseholds();
+      unsubMembers();
+      unsubEncounters();
+    };
+  }, [congregationId, householdId, visitId]);
 
   return { encounters, data: encounters, isLoading, error };
 }
@@ -117,13 +167,30 @@ export function useCreateEncounter() {
     try {
       const now = nowIso();
       const id = createClientId();
+      const firestore = getPlannerFirestore();
+
+      let congregationId = data.congregationId || null;
+      if (!congregationId && data.householdId) {
+        const hDoc = await getDoc(
+          doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId)
+        );
+        if (hDoc.exists()) {
+          congregationId = hDoc.data().congregationId || null;
+        }
+      }
+      if (!congregationId && data.userId) {
+        const uDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.users, data.userId));
+        if (uDoc.exists()) {
+          congregationId = uDoc.data().congregationId || null;
+        }
+      }
 
       const docData: Encounter = {
         id,
         visitId: data.visitId || null,
         householdId: data.householdId || null,
         territoryId: data.territoryId || null,
-        congregationId: data.congregationId || null,
+        congregationId,
         locationType: data.locationType || 'household',
         locationDescription: data.locationDescription || null,
         userId: data.userId || '',

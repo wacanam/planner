@@ -1,7 +1,7 @@
 // mobile/app/(auth)/login.tsx
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Lock, Mail } from 'lucide-react-native';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -85,7 +85,7 @@ export default function LoginScreen() {
             <View
               style={[
                 styles.errorBanner,
-                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+                { backgroundColor: `${colors.destructive}15`, marginBottom: spacing.md },
               ]}
             >
               <Text

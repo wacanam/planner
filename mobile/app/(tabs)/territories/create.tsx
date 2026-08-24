@@ -1,17 +1,7 @@
 // mobile/app/(tabs)/territories/create.tsx
 import { useRouter } from 'expo-router';
-import { Check, Compass, MapPin, X } from 'lucide-react-native';
-import React, { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -91,7 +81,7 @@ export default function CreateTerritoryScreen() {
             <View
               style={[
                 styles.errorBox,
-                { backgroundColor: colors.destructive + '15', marginBottom: spacing.md },
+                { backgroundColor: `${colors.destructive}15`, marginBottom: spacing.md },
               ]}
             >
               <Text

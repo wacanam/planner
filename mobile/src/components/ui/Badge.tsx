@@ -1,5 +1,3 @@
-// mobile/src/components/ui/Badge.tsx
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -25,20 +23,19 @@ export function Badge({ label, variant = 'primary', size = 'md' }: BadgeProps) {
   const getBackgroundColor = () => {
     switch (variant) {
       case 'primary':
-        return colors.primary + '22';
+        return `${colors.primary}22`;
       case 'secondary':
-        return colors.secondary + '33';
+        return `${colors.secondary}33`;
       case 'accent':
-        return colors.accent + '33';
+        return `${colors.accent}33`;
       case 'success':
-        return colors.success + '22';
+        return `${colors.success}22`;
       case 'warning':
-        return colors.warning + '22';
+        return `${colors.warning}22`;
       case 'destructive':
-        return colors.destructive + '22';
+        return `${colors.destructive}22`;
       case 'muted':
         return colors.muted;
-      case 'outline':
       default:
         return 'transparent';
     }
@@ -60,7 +57,6 @@ export function Badge({ label, variant = 'primary', size = 'md' }: BadgeProps) {
         return colors.destructive;
       case 'muted':
         return colors.mutedForeground;
-      case 'outline':
       default:
         return colors.foreground;
     }

@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  AlertTriangle,
   ArrowLeft,
   Building2,
   Check,
@@ -9,11 +8,8 @@ import {
   Clock,
   Inbox,
   LogOut,
-  MessageSquare,
   Search,
   Trash2,
-  UserCheck,
-  UserX,
   X,
   XCircle,
 } from 'lucide-react';
@@ -56,7 +52,7 @@ export default function AdminRequestsClient() {
 
   const approvedCount = requests.filter((r) => r.status === 'approved').length;
   const rejectedCount = requests.filter((r) => r.status === 'rejected').length;
-  const cancelledCount = requests.filter((r) => r.status === 'cancelled').length;
+  const _cancelledCount = requests.filter((r) => r.status === 'cancelled').length;
 
   const filtered = useMemo(() => {
     let list = requests;

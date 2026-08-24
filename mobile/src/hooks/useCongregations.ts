@@ -1,5 +1,5 @@
 // mobile/src/hooks/useCongregations.ts
-import { collection, doc, onSnapshot, query, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, setDoc } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import type { Congregation } from '@/types/api';

@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ShieldAlert, Trash2, UserCheck, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { UserCheck, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -96,7 +96,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
       );
       await revokeShareAccess(household.id, targetUserId, matchShare?.id);
       toast.success('Access revoked successfully');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to revoke access');
     } finally {
       setActionInProgress(null);
@@ -114,7 +114,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
       toast.success(
         `Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`
       );
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to update permission');
     } finally {
       setActionInProgress(null);
@@ -126,7 +126,7 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
     try {
       await cancelOutgoingShare(shareId);
       toast.success('Pending invitation cancelled');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to cancel invitation');
     } finally {
       setActionInProgress(null);

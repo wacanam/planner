@@ -1,22 +1,10 @@
 // mobile/app/(tabs)/assignments/index.tsx
 import { useRouter } from 'expo-router';
-import {
-  Calendar,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Crown,
-  Home,
-  MapPin,
-  Shield,
-  Sparkles,
-  Users,
-} from 'lucide-react-native';
-import React, { useMemo } from 'react';
+import { Calendar, ChevronRight, Sparkles, Users } from 'lucide-react-native';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,7 +13,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
@@ -103,7 +90,7 @@ export default function MyAssignmentsScreen() {
         <Card
           style={[
             styles.groupBanner,
-            { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' },
+            { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` },
           ]}
         >
           <View style={styles.groupBannerRow}>

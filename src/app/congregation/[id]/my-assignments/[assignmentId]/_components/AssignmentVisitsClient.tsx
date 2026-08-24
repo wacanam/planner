@@ -28,7 +28,6 @@ import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,11 @@ import {
   useTerritoryEncounters,
   useTerritoryVisits,
 } from '@/hooks';
-import { canAdjustAssignmentDates, canLogVisitOrEncounter, canReturnAssignment } from '@/lib/permissions';
+import {
+  canAdjustAssignmentDates,
+  canLogVisitOrEncounter,
+  canReturnAssignment,
+} from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
@@ -97,9 +100,13 @@ export default function AssignmentVisitsClient() {
   const { data: members = [] } = useCongregationMembers(congregationId);
   const { households = [], isLoading: householdsLoading } = useHouseholds({
     territoryId: territoryId ?? undefined,
+    congregationId,
   });
-  const { visits = [], isLoading: visitsLoading } = useTerritoryVisits(territoryId);
-  const { encounters = [], isLoading: encountersLoading } = useTerritoryEncounters(territoryId);
+  const { visits = [], isLoading: visitsLoading } = useTerritoryVisits(territoryId, congregationId);
+  const { encounters = [], isLoading: encountersLoading } = useTerritoryEncounters(
+    territoryId,
+    congregationId
+  );
   const { returnTerritory, isPending: returning } = useReturnAssignment();
 
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
@@ -184,11 +191,7 @@ export default function AssignmentVisitsClient() {
       if (userId && userId === user?.id) {
         return user.name || 'You';
       }
-      if (
-        publisherName &&
-        publisherName.trim() &&
-        publisherName.trim().toLowerCase() !== 'publisher'
-      ) {
+      if (publisherName?.trim() && publisherName.trim().toLowerCase() !== 'publisher') {
         return publisherName.trim();
       }
       if (userId && userNameMap.has(userId)) {
@@ -337,8 +340,8 @@ export default function AssignmentVisitsClient() {
       const matchesSearch =
         !doorSearch.trim() ||
         h.address.toLowerCase().includes(doorSearch.toLowerCase()) ||
-        (h.city && h.city.toLowerCase().includes(doorSearch.toLowerCase())) ||
-        (h.notes && h.notes.toLowerCase().includes(doorSearch.toLowerCase()));
+        h.city?.toLowerCase().includes(doorSearch.toLowerCase()) ||
+        h.notes?.toLowerCase().includes(doorSearch.toLowerCase());
 
       if (!matchesSearch) return false;
 
@@ -710,10 +713,11 @@ export default function AssignmentVisitsClient() {
                   key={f.key}
                   type="button"
                   onClick={() => setStatusFilter(f.key)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${statusFilter === f.key
-                    ? 'bg-card text-primary shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                    }`}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    statusFilter === f.key
+                      ? 'bg-card text-primary shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
                 >
                   {f.label}
                 </button>
@@ -910,8 +914,8 @@ export default function AssignmentVisitsClient() {
         >
           <div className="space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              This will mark your assignment for Territory #{territory?.number || ''} as completed and
-              return the territory to Available status.
+              This will mark your assignment for Territory #{territory?.number || ''} as completed
+              and return the territory to Available status.
             </p>
 
             {canAdjust && (

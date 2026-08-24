@@ -1,5 +1,3 @@
-// mobile/src/components/ui/Card.tsx
-import React from 'react';
 import { StyleSheet, TouchableOpacity, View, type ViewProps } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';

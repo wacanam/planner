@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   type QueryConstraint,
@@ -339,10 +340,16 @@ export function useReviewTerritoryRequest(_congregationId: string) {
 
         if (arg.status === 'approved' && arg.territoryId) {
           const assignmentId = createClientId();
+          let congId = _congregationId;
+          if (!congId && arg.territoryId) {
+            const tDoc = await getDoc(territoryDocument(arg.territoryId));
+            if (tDoc.exists()) congId = tDoc.data().congregationId;
+          }
           await setDoc(
             doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.assignments, assignmentId),
             {
               id: assignmentId,
+              congregationId: congId || null,
               territoryId: arg.territoryId,
               userId: arg.publisherId ?? null,
               serviceGroupId: null,

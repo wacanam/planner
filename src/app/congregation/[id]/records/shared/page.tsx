@@ -36,7 +36,7 @@ export default function SharedRecordsPage() {
         status: accept ? 'accepted' : 'rejected',
       });
       toast.success(accept ? 'Record added to your personal records' : 'Share request declined');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to respond to share request');
     }
   };
@@ -46,7 +46,7 @@ export default function SharedRecordsPage() {
     try {
       await cancelOutgoingShare(shareId);
       toast.success('Invitation cancelled');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to cancel invitation');
     } finally {
       setActionInProgress(null);
@@ -58,7 +58,7 @@ export default function SharedRecordsPage() {
     try {
       await revokeShareAccess(householdId, toUserId, shareId);
       toast.success('Access revoked successfully');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to revoke access');
     } finally {
       setActionInProgress(null);
@@ -78,7 +78,7 @@ export default function SharedRecordsPage() {
       toast.success(
         `Permission updated to ${newMode === 'collaborate' ? 'Collaboration' : 'Read-Only'}`
       );
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to update permission');
     } finally {
       setActionInProgress(null);
@@ -90,7 +90,7 @@ export default function SharedRecordsPage() {
     try {
       await deleteShareRecord(shareId);
       toast.success('Share record removed from history');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Failed to remove share record');
     } finally {
       setActionInProgress(null);

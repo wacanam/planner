@@ -3,7 +3,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -79,13 +78,20 @@ export function useHouseholds(filters?: HouseholdFilters) {
   const congregationId = filters?.congregationId ?? null;
 
   useEffect(() => {
+    if (!congregationId && !territoryId) {
+      setHouseholds([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
+    if (congregationId) {
+      constraints.push(where('congregationId', '==', congregationId));
+    }
     if (territoryId) {
       constraints.push(where('territoryId', '==', territoryId));
-    } else if (congregationId) {
-      constraints.push(where('congregationId', '==', congregationId));
     }
 
     const q =
