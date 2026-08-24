@@ -30,7 +30,7 @@ export default function TerritoryDetailView() {
   const { congregation } = useCongregation(congregationId);
   const { data: allTerritories = [] } = useCongregationTerritories(congregationId);
   const { groups = [] } = useCongregationGroups(congregationId);
-  const { households = [] } = useHouseholds();
+  const { households = [] } = useHouseholds({ congregationId });
   const { assignments = [] } = useTerritoryAssignments(territoryId);
 
   const activeAssignment = assignments.find(
