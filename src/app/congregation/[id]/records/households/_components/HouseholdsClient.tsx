@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Home, MapPin, Pencil, Plus, Search, Share2, Trash2 } from 'lucide-react';
+import { ChevronRight, Filter, Home, MapPin, Pencil, Plus, Search, Share2, Sparkles, Trash2, User, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   useCongregationGroups,
+  useCongregationMembers,
   useCongregationTerritories,
   useCurrentUser,
   useHouseholds,
@@ -29,6 +30,7 @@ import {
   canEditHousehold,
   canLogVisitOrEncounter,
   canShareHousehold,
+  canViewAllCongregationRecords,
 } from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
@@ -78,6 +80,9 @@ export default function HouseholdsClient() {
   const { groups = [] } = useCongregationGroups(congregationId);
   const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
+  type RecordScope = 'mine' | 'group' | 'congregation';
+  const [recordScope, setRecordScope] = useState<RecordScope>('mine');
+  const [publisherFilter, setPublisherFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [_selectedHousehold, _setSelectedHousehold] = useState<Household | null>(null);
@@ -89,11 +94,35 @@ export default function HouseholdsClient() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  const { data: members = [] } = useCongregationMembers(congregationId);
+
+  const canViewCongregation = useMemo(() => {
+    return canViewAllCongregationRecords(user?.role, user?.congregationRole);
+  }, [user?.role, user?.congregationRole]);
+
+  const isGroupLeader = useMemo(() => {
+    return Boolean(groupMateUserIds && groupMateUserIds.size > 0);
+  }, [groupMateUserIds]);
+
+  const availableScopes: { id: RecordScope; label: string; icon: string }[] = useMemo(() => {
+    const list: { id: RecordScope; label: string; icon: string }[] = [
+      { id: 'mine', label: 'My Records', icon: '★' },
+    ];
+    if (isGroupLeader || canViewCongregation) {
+      list.push({ id: 'group', label: 'My Group', icon: '👥' });
+    }
+    if (canViewCongregation) {
+      list.push({ id: 'congregation', label: 'All Congregation', icon: '🏛️' });
+    }
+    return list;
+  }, [isGroupLeader, canViewCongregation]);
+
   const { households = [], isLoading } = useHouseholds({
     congregationId,
     userId: user?.id,
     userRole: user?.role,
-    personalOnly: true,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
   });
   const { data: territories = [] } = useCongregationTerritories(congregationId);
@@ -101,6 +130,8 @@ export default function HouseholdsClient() {
     congregationId,
     userId: user?.id,
     userRole: user?.role,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
   });
 
@@ -112,6 +143,23 @@ export default function HouseholdsClient() {
     }
     return counts;
   }, [allVisits]);
+
+  // Personal active follow-ups / studies
+  const myActiveFollowups = useMemo(() => {
+    if (!user?.id) return [];
+    return (households as Household[]).filter((h) => {
+      const isMine =
+        h.createdById === user.id ||
+        h.collaboratorIds?.includes(user.id) ||
+        h.readOnlyUserIds?.includes(user.id);
+      const isFollowup =
+        h.status === 'return_visit' ||
+        h.status === 'study_conducted' ||
+        h.lastVisitOutcome === 'return_visit' ||
+        h.lastVisitOutcome === 'study_conducted';
+      return isMine && isFollowup;
+    });
+  }, [households, user?.id]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -136,11 +184,20 @@ export default function HouseholdsClient() {
         (h) =>
           h.address.toLowerCase().includes(s) ||
           h.streetName.toLowerCase().includes(s) ||
-          h.city.toLowerCase().includes(s)
+          h.city.toLowerCase().includes(s) ||
+          h.creatorName?.toLowerCase().includes(s)
       );
     }
-    return list;
-  }, [households, search, statusFilter]);
+
+    // Sort personal records first when browsing group or congregation
+    return [...list].sort((a, b) => {
+      const aMine = a.createdById === user?.id;
+      const bMine = b.createdById === user?.id;
+      if (aMine && !bMine) return -1;
+      if (!aMine && bMine) return 1;
+      return (a.streetName || a.address).localeCompare(b.streetName || b.address);
+    });
+  }, [households, search, statusFilter, user?.id]);
 
   const handleCreateHousehold = async (values: HouseholdFormValues) => {
     await saveHouseholdRecord({
@@ -181,9 +238,19 @@ export default function HouseholdsClient() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">My Household Directory</h1>
+          <h1 className="text-xl font-bold text-foreground">
+            {recordScope === 'mine'
+              ? 'My Household Directory'
+              : recordScope === 'group'
+                ? 'Group Household Directory'
+                : 'Congregation Household Directory'}
+          </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Door records, contact notes, and offline-first follow-ups
+            {recordScope === 'mine'
+              ? 'Your personal door records, contact notes, and offline-first follow-ups'
+              : recordScope === 'group'
+                ? 'Door records and follow-ups across your service group'
+                : 'All door records across the entire congregation'}
           </p>
         </div>
         <Button
@@ -196,6 +263,70 @@ export default function HouseholdsClient() {
         </Button>
       </div>
 
+      {/* Role-Aware Scope Switcher Pills */}
+      {availableScopes.length > 1 && (
+        <div className="flex items-center gap-2 border-b border-border pb-3 flex-wrap">
+          {availableScopes.map((scope) => {
+            const isSelected = recordScope === scope.id;
+            return (
+              <button
+                key={scope.id}
+                type="button"
+                onClick={() => {
+                  setRecordScope(scope.id);
+                  setPublisherFilter('all');
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border'
+                }`}
+              >
+                <span>{scope.icon}</span>
+                <span>{scope.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pinned Personal Follow-ups Tray */}
+      {myActiveFollowups.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} className="text-primary" />
+              <h2 className="text-xs font-bold text-foreground">
+                My Active Return Visits & Studies ({myActiveFollowups.length})
+              </h2>
+            </div>
+            <Badge variant="outline" className="border-primary/40 text-primary text-[10px] py-0 font-bold">
+              Personal Follow-ups
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+            {myActiveFollowups.map((item) => (
+              <Link
+                key={item.id}
+                href={`/congregation/${congregationId}/records/households/${item.id}`}
+                className="p-2.5 bg-card hover:bg-muted/40 border border-primary/25 rounded-xl text-xs transition-all group block"
+              >
+                <div className="flex items-center justify-between gap-1 font-bold text-foreground group-hover:text-primary">
+                  <span className="truncate">
+                    {item.houseNumber ? `#${item.houseNumber} ` : ''}
+                    {item.streetName || item.address}
+                  </span>
+                  <ChevronRight size={12} className="text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 shrink-0" />
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate mt-1">
+                  {item.notes ? `"${item.notes}"` : 'Active Follow-up'}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[220px]">
@@ -204,12 +335,29 @@ export default function HouseholdsClient() {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            placeholder="Search address or street…"
+            placeholder="Search address, street, or publisher…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-9 rounded-xl text-xs"
           />
         </div>
+
+        {recordScope !== 'mine' && (
+          <select
+            value={publisherFilter}
+            onChange={(e) => setPublisherFilter(e.target.value)}
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+          >
+            <option value="all">All Publishers</option>
+            {members
+              .filter((m) => (recordScope === 'group' ? groupMateUserIds.has(m.userId) : true))
+              .map((m) => (
+                <option key={m.id} value={m.userId}>
+                  {m.user?.name || 'Publisher'} {m.userId === user?.id ? '(You)' : ''}
+                </option>
+              ))}
+          </select>
+        )}
 
         <select
           value={statusFilter}

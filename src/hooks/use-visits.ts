@@ -18,6 +18,8 @@ export function useVisitRecords(filters?: {
   assignmentId?: string;
   userId?: string;
   userRole?: string;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
   const congregationId = filters?.congregationId ?? null;
@@ -25,6 +27,8 @@ export function useVisitRecords(filters?: {
   const assignmentId = filters?.assignmentId ?? null;
   const userId = filters?.userId ?? null;
   const userRole = filters?.userRole ?? null;
+  const scope = filters?.scope ?? null;
+  const publisherId = filters?.publisherId ?? null;
   const groupMateUserIds = filters?.groupMateUserIds ?? null;
   const [visits, setVisits] = useState<LocalVisit[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
@@ -47,7 +51,7 @@ export function useVisitRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeVisits = watchVisits(
-      { congregationId, householdId, assignmentId, userId, userRole, groupMateUserIds },
+      { congregationId, householdId, assignmentId, userId, userRole, scope, publisherId, groupMateUserIds },
       (records) => {
         setVisits(records);
         setError(null);
@@ -56,7 +60,7 @@ export function useVisitRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { congregationId, personalOnly: true, userId, userRole, groupMateUserIds },
+      { congregationId, personalOnly: true, userId, userRole, scope, publisherId, groupMateUserIds },
       (records) => {
         setHouseholds(records);
         setError(null);
@@ -158,6 +162,8 @@ export function useMyVisits(filters?: {
   assignmentId?: string;
   userId?: string;
   userRole?: string;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
   return useVisitRecords(filters);

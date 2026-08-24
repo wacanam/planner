@@ -59,6 +59,8 @@ export interface HouseholdFilters {
   userId?: string | null;
   userRole?: string | null;
   personalOnly?: boolean;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }
 
@@ -216,7 +218,40 @@ export function filterHousehold(record: LocalHousehold, filters?: HouseholdFilte
   }
   if (filters?.territoryId && record.territoryId !== filters.territoryId) return false;
 
-  // Personal scope filter: only show records owned by user, shared/transferred to user, or owned by group mates if user is a group overseer
+  // Specific publisher filter
+  if (filters?.publisherId && record.createdById !== filters.publisherId) {
+    return false;
+  }
+
+  // Explicit scope filtering
+  if (filters?.scope === 'mine') {
+    if (!filters.userId) return false;
+    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
+    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
+    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
+    return isOwner || isCollaborator || isReadOnly;
+  }
+
+  if (filters?.scope === 'group') {
+    if (!filters.userId) return false;
+    const isOwner = Boolean(record.createdById && record.createdById === filters.userId);
+    const isCollaborator = Boolean(record.collaboratorIds?.includes(filters.userId));
+    const isReadOnly = Boolean(record.readOnlyUserIds?.includes(filters.userId));
+    const isGroupMateRecord = Boolean(
+      filters.groupMateUserIds &&
+        record.createdById &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.has(record.createdById)
+          : filters.groupMateUserIds.includes(record.createdById))
+    );
+    return isOwner || isCollaborator || isReadOnly || isGroupMateRecord;
+  }
+
+  if (filters?.scope === 'congregation') {
+    return true;
+  }
+
+  // Personal scope filter (fallback for backward compatibility)
   if (filters?.personalOnly) {
     if (canViewAllCongregationRecords(filters.userRole)) {
       return true;

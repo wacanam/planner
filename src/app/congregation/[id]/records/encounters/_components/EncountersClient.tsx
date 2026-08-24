@@ -5,6 +5,7 @@ import {
   Calendar,
   ChevronDown,
   Clock,
+  Filter,
   Home,
   LayoutList,
   Mail,
@@ -14,6 +15,7 @@ import {
   Plus,
   Search,
   Trash2,
+  User,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -30,9 +32,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
+import { useCongregationMembers, useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
-import { canDeleteEncounter, canEditEncounter } from '@/lib/permissions';
+import { canDeleteEncounter, canEditEncounter, canViewAllCongregationRecords } from '@/lib/permissions';
 import {
   deleteEncounterRecord,
   saveEncounterRecord,
@@ -61,17 +63,47 @@ export default function EncountersClient() {
   const congregationId = (params?.id as string) || user?.congregationId || '';
   const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
+  type RecordScope = 'mine' | 'group' | 'congregation';
+  const [recordScope, setRecordScope] = useState<RecordScope>('mine');
+  const [publisherFilter, setPublisherFilter] = useState<string>('all');
+
+  const { data: members = [] } = useCongregationMembers(congregationId);
+
+  const canViewCongregation = useMemo(() => {
+    return canViewAllCongregationRecords(user?.role, user?.congregationRole);
+  }, [user?.role, user?.congregationRole]);
+
+  const isGroupLeader = useMemo(() => {
+    return Boolean(groupMateUserIds && groupMateUserIds.size > 0);
+  }, [groupMateUserIds]);
+
+  const availableScopes: { id: RecordScope; label: string; icon: string }[] = useMemo(() => {
+    const list: { id: RecordScope; label: string; icon: string }[] = [
+      { id: 'mine', label: 'My Encounters', icon: '★' },
+    ];
+    if (isGroupLeader || canViewCongregation) {
+      list.push({ id: 'group', label: 'My Group', icon: '👥' });
+    }
+    if (canViewCongregation) {
+      list.push({ id: 'congregation', label: 'All Congregation', icon: '🏛️' });
+    }
+    return list;
+  }, [isGroupLeader, canViewCongregation]);
+
   const { encounters = [], isLoading } = useMyEncounters({
     congregationId,
     userId: user?.id,
     userRole: user?.role,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
   });
   const { households = [] } = useHouseholds({
     congregationId,
     userId: user?.id,
     userRole: user?.role,
-    personalOnly: true,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
   });
 
@@ -104,8 +136,15 @@ export default function EncountersClient() {
           e.topicsDiscussed?.toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [encounters, responseFilter, search]);
+
+    return [...list].sort((a, b) => {
+      const aMine = a.userId === user?.id;
+      const bMine = b.userId === user?.id;
+      if (aMine && !bMine) return -1;
+      if (!aMine && bMine) return 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [encounters, responseFilter, search, user?.id]);
 
   const groupedContacts = useMemo(() => {
     return extractHouseholdContacts(filtered);
@@ -198,9 +237,19 @@ export default function EncountersClient() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Person & Street Encounters</h1>
+          <h1 className="text-xl font-bold text-foreground">
+            {recordScope === 'mine'
+              ? 'My Person & Street Encounters'
+              : recordScope === 'group'
+                ? 'Group Person & Street Encounters'
+                : 'Congregation Encounters Directory'}
+          </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Log conversations met during field work, cart witnessing, and informal ministry
+            {recordScope === 'mine'
+              ? 'Your personal conversation logs met during field work, cart witnessing, and informal ministry'
+              : recordScope === 'group'
+                ? 'Conversations recorded across your service group'
+                : 'All conversations recorded across the congregation'}
           </p>
         </div>
         <Button
@@ -215,6 +264,33 @@ export default function EncountersClient() {
           <span>New Encounter</span>
         </Button>
       </div>
+
+      {/* Role-Aware Scope Switcher Pills */}
+      {availableScopes.length > 1 && (
+        <div className="flex items-center gap-2 border-b border-border pb-3 flex-wrap">
+          {availableScopes.map((scope) => {
+            const isSelected = recordScope === scope.id;
+            return (
+              <button
+                key={scope.id}
+                type="button"
+                onClick={() => {
+                  setRecordScope(scope.id);
+                  setPublisherFilter('all');
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border'
+                }`}
+              >
+                <span>{scope.icon}</span>
+                <span>{scope.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* View Switcher & Filters */}
       <div className="space-y-3">
@@ -280,12 +356,29 @@ export default function EncountersClient() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              placeholder="Search person or topic…"
+              placeholder="Search person, topic, or publisher…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-9 rounded-xl text-xs"
             />
           </div>
+
+          {recordScope !== 'mine' && (
+            <select
+              value={publisherFilter}
+              onChange={(e) => setPublisherFilter(e.target.value)}
+              className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+            >
+              <option value="all">All Publishers</option>
+              {members
+                .filter((m) => (recordScope === 'group' ? groupMateUserIds.has(m.userId) : true))
+                .map((m) => (
+                  <option key={m.id} value={m.userId}>
+                    {m.user?.name || 'Publisher'} {m.userId === user?.id ? '(You)' : ''}
+                  </option>
+                ))}
+            </select>
+          )}
 
           <select
             value={responseFilter}
@@ -301,7 +394,7 @@ export default function EncountersClient() {
             <option value="not_interested">Not Interested</option>
             <option value="hostile">Hostile</option>
             <option value="do_not_visit">Do Not Visit</option>
-            <option value="moved">Moved Out</option>
+            <option value="moved">Moved Away</option>
           </select>
         </div>
       </div>
@@ -651,6 +744,14 @@ export default function EncountersClient() {
                     >
                       {e.response.replace(/_/g, ' ')}
                     </Badge>
+                    {e.userId === user?.id && (
+                      <Badge
+                        variant="outline"
+                        className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                      >
+                        👤 My Encounter
+                      </Badge>
+                    )}
                     {e.role && e.role !== 'unknown' && (
                       <Badge
                         variant="outline"

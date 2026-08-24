@@ -23,6 +23,8 @@ function useEncounterRecords(filters?: {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
   const congregationId = filters?.congregationId ?? null;
@@ -30,6 +32,8 @@ function useEncounterRecords(filters?: {
   const householdId = filters?.householdId ?? null;
   const userId = filters?.userId ?? null;
   const userRole = filters?.userRole ?? null;
+  const scope = filters?.scope ?? null;
+  const publisherId = filters?.publisherId ?? null;
   const groupMateUserIds = filters?.groupMateUserIds ?? null;
 
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
@@ -55,7 +59,7 @@ function useEncounterRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { congregationId, visitId, householdId, userId, userRole, groupMateUserIds },
+      { congregationId, visitId, householdId, userId, userRole, scope, publisherId, groupMateUserIds },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -64,7 +68,7 @@ function useEncounterRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { congregationId, personalOnly: true, userId, userRole, groupMateUserIds },
+      { congregationId, personalOnly: true, userId, userRole, scope, publisherId, groupMateUserIds },
       setHouseholds,
       handleError
     );
@@ -197,6 +201,8 @@ export function useMyEncounters(filters?: {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
   return useEncounterRecords(filters);

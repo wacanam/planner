@@ -4,10 +4,12 @@ import {
   BookOpen,
   Calendar,
   Clock,
+  Filter,
   Home,
   Pencil,
   Search,
   Trash2,
+  User,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -23,8 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCurrentUser, useMyEncounters, useMyVisits, useOverseenGroupMates } from '@/hooks';
-import { canDeleteVisit, canEditVisit, canLogVisitOrEncounter } from '@/lib/permissions';
+import { useCongregationMembers, useCurrentUser, useMyEncounters, useMyVisits, useOverseenGroupMates } from '@/hooks';
+import { canDeleteVisit, canEditVisit, canLogVisitOrEncounter, canViewAllCongregationRecords } from '@/lib/permissions';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
@@ -70,23 +72,9 @@ export default function VisitsClient() {
   const { user } = useCurrentUser();
   const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
-  const {
-    visits = [],
-    households = [],
-    isLoading,
-  } = useMyVisits({
-    congregationId,
-    userId: user?.id,
-    userRole: user?.role,
-    groupMateUserIds,
-  });
-  const { encounters = [] } = useMyEncounters({
-    congregationId,
-    userId: user?.id,
-    userRole: user?.role,
-    groupMateUserIds,
-  });
-
+  type RecordScope = 'mine' | 'group' | 'congregation';
+  const [recordScope, setRecordScope] = useState<RecordScope>('mine');
+  const [publisherFilter, setPublisherFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -95,6 +83,50 @@ export default function VisitsClient() {
   const [savingEncounter, setSavingEncounter] = useState(false);
   const [editVisit, setEditVisit] = useState<Visit | null>(null);
   const [editingVisit, setEditingVisit] = useState(false);
+
+  const { data: members = [] } = useCongregationMembers(congregationId);
+
+  const canViewCongregation = useMemo(() => {
+    return canViewAllCongregationRecords(user?.role, user?.congregationRole);
+  }, [user?.role, user?.congregationRole]);
+
+  const isGroupLeader = useMemo(() => {
+    return Boolean(groupMateUserIds && groupMateUserIds.size > 0);
+  }, [groupMateUserIds]);
+
+  const availableScopes: { id: RecordScope; label: string; icon: string }[] = useMemo(() => {
+    const list: { id: RecordScope; label: string; icon: string }[] = [
+      { id: 'mine', label: 'My Visits', icon: '★' },
+    ];
+    if (isGroupLeader || canViewCongregation) {
+      list.push({ id: 'group', label: 'My Group', icon: '👥' });
+    }
+    if (canViewCongregation) {
+      list.push({ id: 'congregation', label: 'All Congregation', icon: '🏛️' });
+    }
+    return list;
+  }, [isGroupLeader, canViewCongregation]);
+
+  const {
+    visits = [],
+    households = [],
+    isLoading,
+  } = useMyVisits({
+    congregationId,
+    userId: user?.id,
+    userRole: user?.role,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
+    groupMateUserIds,
+  });
+  const { encounters = [] } = useMyEncounters({
+    congregationId,
+    userId: user?.id,
+    userRole: user?.role,
+    scope: recordScope,
+    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
+    groupMateUserIds,
+  });
 
   // Group encounters by visitId
   const encountersByVisit = useMemo(() => {
@@ -124,11 +156,19 @@ export default function VisitsClient() {
           v.notes?.toLowerCase().includes(q) ||
           v.bibleTopicDiscussed?.toLowerCase().includes(q) ||
           v.literaturePlaced?.toLowerCase().includes(q) ||
-          v.literatureLeft?.toLowerCase().includes(q)
+          v.literatureLeft?.toLowerCase().includes(q) ||
+          v.publisherName?.toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [visits, outcomeFilter, search]);
+
+    return [...list].sort((a, b) => {
+      const aMine = a.userId === user?.id;
+      const bMine = b.userId === user?.id;
+      if (aMine && !bMine) return -1;
+      if (!aMine && bMine) return 1;
+      return b.visitDate.localeCompare(a.visitDate);
+    });
+  }, [visits, outcomeFilter, search, user?.id]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -147,18 +187,9 @@ export default function VisitsClient() {
     if (!editVisit) return;
     setEditingVisit(true);
     try {
-      await updateVisitRecord(editVisit.id, {
-        outcome: values.outcome,
-        bibleTopicDiscussed: values.bibleTopicDiscussed || undefined,
-        literatureLeft: values.literatureLeft || undefined,
-        notes: values.notes || undefined,
-        returnVisitPlanned: values.returnVisitPlanned,
-        nextVisitDate: values.nextVisitDate || undefined,
-        nextVisitTime: values.nextVisitTime || undefined,
-        nextVisitNotes: values.nextVisitNotes || undefined,
-      });
-      toast.success('Visit record updated');
+      await updateVisitRecord(editVisit.id, values);
       setEditVisit(null);
+      toast.success('Visit record updated');
     } catch (_err) {
       toast.error('Failed to update visit');
     } finally {
@@ -166,36 +197,21 @@ export default function VisitsClient() {
     }
   };
 
-  const handleSaveEncounter = async (values: any) => {
+  const handleCreateEncounter = async (values: any) => {
     if (!addEncounterVisit) return;
     setSavingEncounter(true);
     try {
       await saveEncounterRecord({
-        householdId: addEncounterVisit.householdId,
-        congregationId: addEncounterVisit.congregationId || congregationId,
+        ...values,
+        congregationId,
         visitId: addEncounterVisit.id,
-        name: values.name,
-        response: values.response,
-        gender: values.gender,
-        ageGroup: values.ageGroup,
-        language: values.language,
-        notes: values.notes || undefined,
-        topicsDiscussed: values.topicsDiscussed || undefined,
-        literatureOffered: values.literatureOffered || undefined,
-        returnVisitRequested: values.returnVisitRequested,
-        nextVisitDate: values.nextVisitDate || undefined,
-        nextVisitTime: values.nextVisitTime || undefined,
-        nextVisitNotes: values.nextVisitNotes || undefined,
-        bibleStudyInterest: values.bibleStudyInterest,
-        visitDate: addEncounterVisit.visitDate || new Date().toISOString(),
+        householdId: addEncounterVisit.householdId,
         userId: user?.id || null,
-        publisherName: user?.name || null,
       });
-      toast.success(`Encounter with ${values.name} added to visit`);
       setAddEncounterVisit(null);
-    } catch (err) {
-      console.error('Failed to record encounter', err);
-      toast.error('Failed to record encounter');
+      toast.success('Encounter logged');
+    } catch (_err) {
+      toast.error('Failed to log encounter');
     } finally {
       setSavingEncounter(false);
     }
@@ -205,11 +221,48 @@ export default function VisitsClient() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground">Visit Records History</h1>
+        <h1 className="text-xl font-bold text-foreground">
+          {recordScope === 'mine'
+            ? 'My Visits History'
+            : recordScope === 'group'
+              ? 'Group Visits History'
+              : 'Congregation Visits History'}
+        </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Chronological door-to-door conversation logs and returns
+          {recordScope === 'mine'
+            ? 'Your personal conversation logs and field ministry visits'
+            : recordScope === 'group'
+              ? 'Visits logged across your service group'
+              : 'Chronological door-to-door conversation logs and returns'}
         </p>
       </div>
+
+      {/* Role-Aware Scope Switcher Pills */}
+      {availableScopes.length > 1 && (
+        <div className="flex items-center gap-2 border-b border-border pb-3 flex-wrap">
+          {availableScopes.map((scope) => {
+            const isSelected = recordScope === scope.id;
+            return (
+              <button
+                key={scope.id}
+                type="button"
+                onClick={() => {
+                  setRecordScope(scope.id);
+                  setPublisherFilter('all');
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border'
+                }`}
+              >
+                <span>{scope.icon}</span>
+                <span>{scope.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Search & Filters */}
       <div className="flex gap-2 flex-wrap items-center">
@@ -219,12 +272,29 @@ export default function VisitsClient() {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            placeholder="Search by address, street, city, notes, topic…"
+            placeholder="Search by address, street, city, notes, topic, publisher…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-9 rounded-xl text-xs bg-card"
           />
         </div>
+
+        {recordScope !== 'mine' && (
+          <select
+            value={publisherFilter}
+            onChange={(e) => setPublisherFilter(e.target.value)}
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+          >
+            <option value="all">All Publishers</option>
+            {members
+              .filter((m) => (recordScope === 'group' ? groupMateUserIds.has(m.userId) : true))
+              .map((m) => (
+                <option key={m.id} value={m.userId}>
+                  {m.user?.name || 'Publisher'} {m.userId === user?.id ? '(You)' : ''}
+                </option>
+              ))}
+          </select>
+        )}
 
         <select
           value={outcomeFilter}
@@ -304,6 +374,30 @@ export default function VisitsClient() {
                       >
                         {v.outcome.replace(/_/g, ' ')}
                       </Badge>
+
+                      {/* Ownership Badge */}
+                      {v.userId === user?.id ? (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                        >
+                          👤 My Visit
+                        </Badge>
+                      ) : v.userId && groupMateUserIds.has(v.userId) ? (
+                        <Badge
+                          variant="outline"
+                          className="border-indigo-300 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-[10px] py-0 font-bold"
+                        >
+                          👥 {v.publisherName || 'Group'}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-slate-300 text-slate-700 bg-slate-50 dark:bg-slate-950/40 text-[10px] py-0 font-bold"
+                        >
+                          🏛️ {v.publisherName || 'Congregation'}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Visit Date & Relative time */}
@@ -485,7 +579,7 @@ export default function VisitsClient() {
               visitId: addEncounterVisit.id,
               householdId: addEncounterVisit.householdId,
             }}
-            onSubmit={handleSaveEncounter}
+            onSubmit={handleCreateEncounter}
             loading={savingEncounter}
             onCancel={() => setAddEncounterVisit(null)}
           />

@@ -57,6 +57,8 @@ export interface EncounterFilters {
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
+  scope?: 'mine' | 'group' | 'congregation' | null;
+  publisherId?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }
 
@@ -84,6 +86,35 @@ export function filterEncounter(record: LocalEncounter, filters?: EncounterFilte
   }
   if (filters.visitId && record.visitId !== filters.visitId) return false;
   if (filters.householdId && record.householdId !== filters.householdId) return false;
+
+  // Specific publisher filter
+  if (filters.publisherId && record.userId !== filters.publisherId) {
+    return false;
+  }
+
+  // Explicit scope filtering
+  if (filters.scope === 'mine') {
+    if (!filters.userId) return false;
+    return record.userId === filters.userId;
+  }
+
+  if (filters.scope === 'group') {
+    if (!filters.userId) return false;
+    const isOwn = record.userId === filters.userId;
+    const isGroupMate = Boolean(
+      filters.groupMateUserIds &&
+        record.userId &&
+        (filters.groupMateUserIds instanceof Set
+          ? filters.groupMateUserIds.has(record.userId)
+          : filters.groupMateUserIds.includes(record.userId))
+    );
+    return isOwn || isGroupMate;
+  }
+
+  if (filters.scope === 'congregation') {
+    return true;
+  }
+
   if (
     filters.userId &&
     !canViewAllCongregationRecords(filters.userRole) &&
