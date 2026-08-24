@@ -54,6 +54,7 @@ import {
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
+import { findDuplicateTerritory } from '@/lib/territories';
 import { timeAgo } from '@/lib/time-ago';
 import type {
   Congregation,
@@ -1979,6 +1980,11 @@ export function StudioLayout({
               toast.error('Number and name are required');
               return;
             }
+            const duplicate = findDuplicateTerritory(editNumber, allTerritories, territory.id);
+            if (duplicate) {
+              toast.error(`Territory #${duplicate.number} already exists in this congregation.`);
+              return;
+            }
             try {
               await updateTerritory(territory.id, {
                 number: editNumber.trim(),
@@ -1986,7 +1992,7 @@ export function StudioLayout({
                 city: editCity.trim() || null,
                 notes: editNotes.trim() || null,
               });
-              toast.success(`Territory #${editNumber} updated successfully!`);
+              toast.success(`Territory #${editNumber.trim()} updated successfully!`);
               setEditTerritoryOpen(false);
             } catch (err: any) {
               toast.error(err?.message || 'Failed to update territory');

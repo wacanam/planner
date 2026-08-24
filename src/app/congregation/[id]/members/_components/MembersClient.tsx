@@ -3,6 +3,7 @@
 import {
   Calendar,
   Check,
+  CheckCircle2,
   Clock,
   Crown,
   FolderOpen,
@@ -10,8 +11,10 @@ import {
   Shield,
   UserCheck,
   User as UserIcon,
+  UserX,
   Users,
   X,
+  XCircle,
 } from 'lucide-react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -60,10 +63,8 @@ export default function MembersClient() {
 
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
   const { groups = [] } = useCongregationGroups(congregationId);
-  const { data: joinRequests = [], isLoading: requestsLoading } = useCongregationJoinRequests(
-    congregationId,
-    'pending'
-  );
+  const { data: allJoinRequests = [], isLoading: requestsLoading } =
+    useCongregationJoinRequests(congregationId);
   const { endorsements = [], isLoading: endorsementsLoading } =
     usePendingEndorsements(congregationId);
   const { review: reviewJoin, isPending: reviewingJoin } = useReviewJoinRequest(congregationId);
@@ -79,6 +80,18 @@ export default function MembersClient() {
   const [search, setSearch] = useState('');
   const [editMember, setEditMember] = useState<(typeof members)[0] | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('publisher');
+
+  // Request filter and search state
+  type RequestFilter = 'pending' | 'approved' | 'rejected' | 'all';
+  const [requestFilter, setRequestFilter] = useState<RequestFilter>('pending');
+  const [requestSearch, setRequestSearch] = useState('');
+
+  // Decline join request dialog state
+  const [declineRequestItem, setDeclineRequestItem] = useState<(typeof allJoinRequests)[0] | null>(
+    null
+  );
+  const [declineRequestReason, setDeclineRequestReason] = useState('');
+  const [isSubmittingRequestDecline, setIsSubmittingRequestDecline] = useState(false);
 
   // Decline endorsement dialog state
   const [declineEndorsement, setDeclineEndorsement] = useState<Assignment | null>(null);
@@ -137,6 +150,105 @@ export default function MembersClient() {
       (m) => m.user?.name?.toLowerCase().includes(q) || m.user?.email?.toLowerCase().includes(q)
     );
   }, [myGroupMembers, search]);
+
+  const pendingJoinRequests = useMemo(
+    () =>
+      allJoinRequests.filter(
+        (r) => r.status === 'pending' || r.status === MemberStatus.PENDING
+      ),
+    [allJoinRequests]
+  );
+
+  const approvedJoinRequests = useMemo(
+    () =>
+      allJoinRequests.filter(
+        (r) => r.status === 'active' || r.status === 'approved' || r.status === MemberStatus.ACTIVE
+      ),
+    [allJoinRequests]
+  );
+
+  const declinedJoinRequests = useMemo(
+    () =>
+      allJoinRequests.filter(
+        (r) => r.status === 'rejected' || r.status === MemberStatus.REJECTED
+      ),
+    [allJoinRequests]
+  );
+
+  const filteredJoinRequests = useMemo(() => {
+    let list = allJoinRequests;
+    if (requestFilter === 'pending') {
+      list = pendingJoinRequests;
+    } else if (requestFilter === 'approved') {
+      list = approvedJoinRequests;
+    } else if (requestFilter === 'rejected') {
+      list = declinedJoinRequests;
+    }
+
+    if (!requestSearch.trim()) return list;
+    const q = requestSearch.toLowerCase();
+    return list.filter(
+      (r) =>
+        r.user?.name?.toLowerCase().includes(q) ||
+        r.user?.email?.toLowerCase().includes(q) ||
+        r.approvedByName?.toLowerCase().includes(q) ||
+        r.declinedByName?.toLowerCase().includes(q) ||
+        r.reviewedByName?.toLowerCase().includes(q) ||
+        r.joinMessage?.toLowerCase().includes(q) ||
+        r.reviewNote?.toLowerCase().includes(q)
+    );
+  }, [
+    allJoinRequests,
+    requestFilter,
+    pendingJoinRequests,
+    approvedJoinRequests,
+    declinedJoinRequests,
+    requestSearch,
+  ]);
+
+  const handleApproveRequest = async (req: (typeof allJoinRequests)[0]) => {
+    try {
+      const reviewerName = user.name || user.email || 'Service Overseer';
+      await reviewJoin({
+        requestId: req.id,
+        status: MemberStatus.ACTIVE,
+        reviewerId: user.id,
+        reviewerName,
+        reviewerRole: user.congregationRole || user.role,
+      });
+      toast.success(
+        `Approved ${req.user?.name || req.user?.email || 'publisher'} into congregation`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to approve request');
+    }
+  };
+
+  const handleConfirmDeclineRequest = async () => {
+    if (!declineRequestItem) return;
+    setIsSubmittingRequestDecline(true);
+    try {
+      const reviewerName = user.name || user.email || 'Service Overseer';
+      const trimmedNote = declineRequestReason.trim();
+      await reviewJoin({
+        requestId: declineRequestItem.id,
+        status: MemberStatus.REJECTED,
+        reviewNote: trimmedNote || undefined,
+        reviewerId: user.id,
+        reviewerName,
+        reviewerRole: user.congregationRole || user.role,
+      });
+      toast.success(
+        `Declined join request for ${declineRequestItem.user?.name || declineRequestItem.user?.email || 'publisher'}`
+      );
+      setDeclineRequestItem(null);
+      setDeclineRequestReason('');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to decline request');
+    } finally {
+      setIsSubmittingRequestDecline(false);
+    }
+  };
 
   const handleUpdateRole = async () => {
     if (!editMember) return;
@@ -247,7 +359,7 @@ export default function MembersClient() {
               }`}
             >
               <Clock size={14} />
-              <span>Join Requests ({joinRequests.length})</span>
+              <span>Join Requests ({pendingJoinRequests.length})</span>
             </button>
 
             <button
@@ -432,6 +544,20 @@ export default function MembersClient() {
                                 <p className="text-xs text-muted-foreground truncate">
                                   {m.user?.email}
                                 </p>
+                                {(m.approvedByName || m.reviewedByName) && (
+                                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <UserCheck size={11} className="text-primary/70 shrink-0" />
+                                    <span>
+                                      Approved by{' '}
+                                      <span className="font-semibold text-foreground">
+                                        {m.approvedByName || m.reviewedByName}
+                                      </span>
+                                      {m.reviewedAt || m.joinedAt
+                                        ? ` • ${timeAgo(m.reviewedAt || m.joinedAt)}`
+                                        : ''}
+                                    </span>
+                                  </p>
+                                )}
                               </div>
                             </div>
 
@@ -530,6 +656,20 @@ export default function MembersClient() {
                             <p className="text-xs text-muted-foreground truncate">
                               {m.user?.email}
                             </p>
+                            {(m.approvedByName || m.reviewedByName) && (
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <UserCheck size={11} className="text-primary/70 shrink-0" />
+                                <span>
+                                  Approved by{' '}
+                                  <span className="font-semibold text-foreground">
+                                    {m.approvedByName || m.reviewedByName}
+                                  </span>
+                                  {m.reviewedAt || m.joinedAt
+                                    ? ` • ${timeAgo(m.reviewedAt || m.joinedAt)}`
+                                    : ''}
+                                </span>
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -565,76 +705,245 @@ export default function MembersClient() {
         )}
 
         {tab === 'requests' && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Request Filter Tabs & Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border">
+                <button
+                  type="button"
+                  onClick={() => setRequestFilter('pending')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    requestFilter === 'pending'
+                      ? 'bg-card text-primary shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Pending ({pendingJoinRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    requestFilter === 'all'
+                      ? 'bg-card text-primary shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All ({allJoinRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestFilter('approved')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    requestFilter === 'approved'
+                      ? 'bg-card text-primary shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Approved ({approvedJoinRequests.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestFilter('rejected')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                    requestFilter === 'rejected'
+                      ? 'bg-card text-primary shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Declined ({declinedJoinRequests.length})
+                </button>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  placeholder="Search requests or reviewer…"
+                  value={requestSearch}
+                  onChange={(e) => setRequestSearch(e.target.value)}
+                  className="pl-8 h-9 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
             {requestsLoading ? (
               <div className="space-y-3">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />
+                  <div key={i} className="h-24 bg-muted animate-pulse rounded-2xl" />
                 ))}
               </div>
-            ) : joinRequests.length === 0 ? (
-              <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+            ) : filteredJoinRequests.length === 0 ? (
+              <div className="text-center py-16 bg-card rounded-3xl border border-border p-6">
                 <Users size={36} className="text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-foreground">No pending join requests</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {requestFilter === 'pending'
+                    ? 'No pending join requests'
+                    : requestFilter === 'approved'
+                      ? 'No approved requests found'
+                      : requestFilter === 'rejected'
+                        ? 'No declined requests found'
+                        : 'No join requests found'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {requestSearch
+                    ? 'No requests match your search criteria.'
+                    : 'Requests to join the congregation will appear here.'}
+                </p>
               </div>
             ) : (
-              joinRequests.map((req) => (
-                <Card key={req.id} className="bg-card border-border shadow-xs">
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-bold text-sm text-foreground">
-                        {req.user?.name || req.user?.email || 'Publisher'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{req.user?.email}</p>
-                      {req.joinMessage && (
-                        <p className="text-xs italic text-muted-foreground mt-1 bg-muted/40 p-2 rounded-xl">
-                          &ldquo;{req.joinMessage}&rdquo;
-                        </p>
-                      )}
-                    </div>
+              <div className="space-y-3">
+                {filteredJoinRequests.map((req) => {
+                  const isPending = req.status === 'pending' || req.status === MemberStatus.PENDING;
+                  const isApproved =
+                    req.status === 'active' ||
+                    req.status === 'approved' ||
+                    req.status === MemberStatus.ACTIVE;
+                  const isRejected =
+                    req.status === 'rejected' || req.status === MemberStatus.REJECTED;
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={async () => {
-                          try {
-                            await reviewJoin({ requestId: req.id, status: MemberStatus.REJECTED });
-                            toast.success(
-                              `Declined join request for ${req.user?.name || req.user?.email || 'publisher'}`
-                            );
-                          } catch (err: any) {
-                            toast.error(err?.message || 'Failed to decline request');
-                          }
-                        }}
-                        disabled={reviewingJoin}
-                      >
-                        <X size={13} />
-                        <span>Decline</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="rounded-xl text-xs font-semibold gap-1"
-                        onClick={async () => {
-                          try {
-                            await reviewJoin({ requestId: req.id, status: MemberStatus.ACTIVE });
-                            toast.success(
-                              `Approved ${req.user?.name || req.user?.email || 'publisher'} into congregation`
-                            );
-                          } catch (err: any) {
-                            toast.error(err?.message || 'Failed to approve request');
-                          }
-                        }}
-                        disabled={reviewingJoin}
-                      >
-                        <Check size={13} />
-                        <span>Approve</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                  return (
+                    <Card key={req.id} className="bg-card border-border shadow-xs overflow-hidden">
+                      <CardContent className="p-4 sm:p-5 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Avatar className="w-9 h-9 rounded-xl border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+                              {req.user?.avatarUrl && (
+                                <AvatarImage
+                                  src={req.user.avatarUrl}
+                                  alt={req.user.name || 'Applicant'}
+                                  className="object-cover w-full h-full rounded-xl"
+                                />
+                              )}
+                              <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold text-xs">
+                                {(req.user?.name || req.user?.email || 'P')
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .toUpperCase()
+                                  .slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm text-foreground truncate">
+                                {req.user?.name || req.user?.email || 'Publisher'}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {req.user?.email}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {isPending && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                              >
+                                <Clock size={11} className="mr-1 inline" /> Pending Review
+                              </Badge>
+                            )}
+                            {isApproved && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                              >
+                                <CheckCircle2 size={11} className="mr-1 inline" /> Approved
+                              </Badge>
+                            )}
+                            {isRejected && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-semibold bg-destructive/10 text-destructive border-destructive/20"
+                              >
+                                <XCircle size={11} className="mr-1 inline" /> Declined
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {req.joinMessage && (
+                          <p className="text-xs italic text-muted-foreground bg-muted/40 p-2.5 rounded-xl border border-border/40">
+                            &ldquo;{req.joinMessage}&rdquo;
+                          </p>
+                        )}
+
+                        {/* Audit info: Who approved / declined */}
+                        {isApproved && (
+                          <div className="flex items-center gap-2.5 bg-emerald-500/5 dark:bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20 text-xs">
+                            <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                              <UserCheck size={13} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground truncate">
+                                Approved by{' '}
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                                  {req.approvedByName || req.reviewedByName || 'Service Overseer'}
+                                </span>
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {req.reviewedAt || req.joinedAt
+                                  ? timeAgo(req.reviewedAt || req.joinedAt)
+                                  : 'Recently'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {isRejected && (
+                          <div className="flex items-center gap-2.5 bg-destructive/5 dark:bg-destructive/10 p-2.5 rounded-xl border border-destructive/20 text-xs">
+                            <div className="w-6 h-6 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+                              <UserX size={13} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground truncate">
+                                Declined by{' '}
+                                <span className="text-destructive font-bold">
+                                  {req.declinedByName || req.reviewedByName || 'Service Overseer'}
+                                </span>
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {req.reviewedAt ? timeAgo(req.reviewedAt) : 'Recently'}
+                                {req.reviewNote ? ` • Note: “${req.reviewNote}”` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action buttons for pending requests */}
+                        {isPending && (
+                          <div className="flex items-center justify-end gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-xl text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 cursor-pointer"
+                              onClick={() => {
+                                setDeclineRequestItem(req);
+                                setDeclineRequestReason('');
+                              }}
+                              disabled={reviewingJoin}
+                            >
+                              <X size={13} />
+                              <span>Decline</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="rounded-xl text-xs font-semibold gap-1 cursor-pointer"
+                              onClick={() => handleApproveRequest(req)}
+                              disabled={reviewingJoin}
+                            >
+                              <Check size={13} />
+                              <span>Approve</span>
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -841,6 +1150,83 @@ export default function MembersClient() {
                 disabled={updatingRole || (!!editMember && isCurrentSelf(editMember))}
               >
                 {updatingRole ? 'Updating…' : 'Save Role'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
+
+        {/* Decline Join Request Dialog */}
+        <ResponsiveDialog
+          open={!!declineRequestItem}
+          onOpenChange={(op) => {
+            if (!op) {
+              setDeclineRequestItem(null);
+              setDeclineRequestReason('');
+            }
+          }}
+          title="Decline Join Request"
+          description="Specify an optional reason for declining this request. The applicant will be notified."
+        >
+          <div className="space-y-4">
+            {declineRequestItem && (
+              <div className="p-3 bg-muted/40 rounded-xl border border-border space-y-1 text-xs">
+                <p className="font-semibold text-foreground">
+                  {declineRequestItem.user?.name || 'Publisher'}
+                </p>
+                <p className="text-muted-foreground">{declineRequestItem.user?.email}</p>
+                {declineRequestItem.joinMessage && (
+                  <p className="text-muted-foreground italic">
+                    &ldquo;{declineRequestItem.joinMessage}&rdquo;
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="request-decline-reason"
+                  className="text-xs font-semibold text-foreground"
+                >
+                  Reason for Declining (Optional)
+                </Label>
+                <span className="text-[10px] text-muted-foreground">
+                  {declineRequestReason.length}/500
+                </span>
+              </div>
+              <Textarea
+                id="request-decline-reason"
+                placeholder="e.g. Please speak with the coordinator of the body of elders before requesting access."
+                value={declineRequestReason}
+                onChange={(e) => setDeclineRequestReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => {
+                  setDeclineRequestItem(null);
+                  setDeclineRequestReason('');
+                }}
+                disabled={isSubmittingRequestDecline}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="rounded-xl text-xs font-semibold gap-1"
+                onClick={handleConfirmDeclineRequest}
+                disabled={isSubmittingRequestDecline}
+              >
+                <X size={13} />
+                <span>{isSubmittingRequestDecline ? 'Declining…' : 'Decline Request'}</span>
               </Button>
             </div>
           </div>

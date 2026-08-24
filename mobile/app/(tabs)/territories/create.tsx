@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLocation } from '@/hooks/useLocation';
-import { useCreateTerritory } from '@/hooks/useTerritories';
+import { useCongregationTerritories, useCreateTerritory } from '@/hooks/useTerritories';
+import { findDuplicateTerritory } from '@/lib/territories';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function CreateTerritoryScreen() {
@@ -19,6 +20,7 @@ export default function CreateTerritoryScreen() {
   const { activeCongregationId } = useAuth();
   const { colors, typography, spacing, radius } = useTheme();
 
+  const { territories = [] } = useCongregationTerritories(activeCongregationId || '');
   const { create, isCreating } = useCreateTerritory(activeCongregationId || '');
   const { location } = useLocation(true);
 
@@ -35,6 +37,13 @@ export default function CreateTerritoryScreen() {
     }
     if (!name.trim()) {
       setErrorMessage('Please enter a territory name or locality description');
+      return;
+    }
+
+    const duplicate = findDuplicateTerritory(number, territories);
+    if (duplicate) {
+      setErrorMessage(`Territory #${duplicate.number} already exists in this congregation.`);
+      triggerHaptic('error');
       return;
     }
 

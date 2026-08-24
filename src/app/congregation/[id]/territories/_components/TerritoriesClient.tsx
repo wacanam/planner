@@ -60,6 +60,7 @@ import {
   canEditTerritory,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import { findDuplicateTerritory } from '@/lib/territories';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,
@@ -177,12 +178,22 @@ export default function TerritoriesClient() {
   }, [territories, statusFilter, search]);
 
   const handleCreateSubmit = async (data: CreateTerritoryFormData) => {
-    await createTerritory({
-      ...data,
-      congregationId,
-    });
-    setCreateDialogOpen(false);
-    createForm.reset();
+    const duplicate = findDuplicateTerritory(data.number, territories);
+    if (duplicate) {
+      toast.error(`Territory #${duplicate.number} already exists in this congregation.`);
+      return;
+    }
+    try {
+      await createTerritory({
+        ...data,
+        congregationId,
+      });
+      toast.success(`Territory #${data.number.trim()} created successfully`);
+      setCreateDialogOpen(false);
+      createForm.reset();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create territory');
+    }
   };
 
   const handleOpenEdit = (t: Territory) => {
@@ -198,6 +209,11 @@ export default function TerritoriesClient() {
 
   const handleEditSubmit = async (data: UpdateTerritoryFormData) => {
     if (!editTerritory) return;
+    const duplicate = findDuplicateTerritory(data.number, territories, editTerritory.id);
+    if (duplicate) {
+      toast.error(`Territory #${duplicate.number} already exists in this congregation.`);
+      return;
+    }
     try {
       await updateTerritory(editTerritory.id, {
         number: data.number.trim(),
@@ -206,7 +222,7 @@ export default function TerritoriesClient() {
         type: data.type || 'regular',
         notes: data.notes?.trim() || null,
       });
-      toast.success(`Territory #${data.number} updated successfully`);
+      toast.success(`Territory #${data.number.trim()} updated successfully`);
       setEditTerritory(null);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to update territory');

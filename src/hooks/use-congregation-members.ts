@@ -35,9 +35,21 @@ export function memberFromData(id: string, data: Partial<Member>): Member {
     userId,
     congregationId: data.congregationId ?? '',
     congregationRole: data.congregationRole ?? null,
+    groupId: data.groupId ?? null,
     status,
     joinMessage: data.joinMessage ?? null,
     joinedAt: data.joinedAt ?? now,
+    reviewedAt: data.reviewedAt ?? null,
+    reviewedBy: data.reviewedBy ?? null,
+    reviewedByName: data.reviewedByName ?? null,
+    reviewedByRole: data.reviewedByRole ?? null,
+    approvedBy: data.approvedBy ?? (status === 'active' ? data.reviewedBy ?? null : null),
+    approvedByName:
+      data.approvedByName ?? (status === 'active' ? data.reviewedByName ?? null : null),
+    declinedBy: data.declinedBy ?? (status === 'rejected' ? data.reviewedBy ?? null : null),
+    declinedByName:
+      data.declinedByName ?? (status === 'rejected' ? data.reviewedByName ?? null : null),
+    reviewNote: data.reviewNote ?? null,
     user: data.user ?? {
       id: userId,
       name: null,
@@ -59,6 +71,13 @@ export function joinRequestFromMember(
     reviewNote: member.reviewNote ?? null,
     joinedAt: member.joinedAt,
     reviewedAt: member.reviewedAt ?? null,
+    reviewedBy: member.reviewedBy ?? null,
+    reviewedByName: member.reviewedByName ?? null,
+    reviewedByRole: member.reviewedByRole ?? null,
+    approvedBy: member.approvedBy ?? null,
+    approvedByName: member.approvedByName ?? null,
+    declinedBy: member.declinedBy ?? null,
+    declinedByName: member.declinedByName ?? null,
     user: member.user
       ? {
           id: member.user.id,
@@ -156,7 +175,14 @@ export function useCongregationJoinRequests(
 export function useReviewJoinRequest(congregationId: string) {
   const [isReviewing, setIsReviewing] = useState(false);
   const review = useCallback(
-    async (arg: { requestId: string; status: string; reviewNote?: string }) => {
+    async (arg: {
+      requestId: string;
+      status: string;
+      reviewNote?: string;
+      reviewerId?: string;
+      reviewerName?: string;
+      reviewerRole?: string;
+    }) => {
       setIsReviewing(true);
       try {
         const now = nowIso();
@@ -201,12 +227,23 @@ export function useReviewJoinRequest(congregationId: string) {
         const userAvatarUrl = userData?.avatarUrl || memberData?.user?.avatarUrl || null;
         const userRole = userData?.role || memberData?.user?.role || UserRole.PUBLISHER;
 
+        const reviewerId = arg.reviewerId || null;
+        const reviewerName = arg.reviewerName || null;
+        const reviewerRole = arg.reviewerRole || null;
+
         await updateDoc(memberRef, {
           status: finalStatus,
           congregationRole:
             memberData?.congregationRole || (isApproved ? CongregationRole.PUBLISHER : null),
           reviewNote: arg.reviewNote ?? null,
           reviewedAt: now,
+          reviewedBy: reviewerId,
+          reviewedByName: reviewerName,
+          reviewedByRole: reviewerRole,
+          approvedBy: isApproved ? reviewerId : null,
+          approvedByName: isApproved ? reviewerName : null,
+          declinedBy: !isApproved ? reviewerId : null,
+          declinedByName: !isApproved ? reviewerName : null,
           updatedAt: now,
           user: {
             id: targetUserId,
@@ -253,6 +290,9 @@ export function useReviewJoinRequest(congregationId: string) {
           );
         }
 
+        const approverDisplay = reviewerName ? ` by ${reviewerName}` : ' by the Service Overseer';
+        const declinerDisplay = reviewerName ? ` by ${reviewerName}` : '';
+
         const notificationId = createClientId();
         await setDoc(doc(db, FIRESTORE_COLLECTIONS.notifications, notificationId), {
           id: notificationId,
@@ -262,11 +302,13 @@ export function useReviewJoinRequest(congregationId: string) {
             ? `Welcome to ${congregationName}!`
             : 'Congregation request not approved',
           body: isApproved
-            ? `Your request to join ${congregationName} has been approved by the Service Overseer.`
-            : `Your request to join ${congregationName} was not approved.${arg.reviewNote ? ` Note: ${arg.reviewNote}` : ''}`,
+            ? `Your request to join ${congregationName} has been approved${approverDisplay}.`
+            : `Your request to join ${congregationName} was not approved${declinerDisplay}.${arg.reviewNote ? ` Note: ${arg.reviewNote}` : ''}`,
           data: JSON.stringify({
             congregationId,
             congregationName,
+            reviewedBy: reviewerId,
+            reviewedByName: reviewerName,
             reviewNote: arg.reviewNote || null,
           }),
           isRead: false,

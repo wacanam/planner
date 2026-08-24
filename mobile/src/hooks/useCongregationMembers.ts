@@ -14,15 +14,28 @@ function memberDocument(id: string) {
 
 function memberFromData(id: string, data: Partial<Member>): Member {
   const now = nowIso();
+  const rawStatus = data.status ?? 'active';
+  const status = rawStatus === 'approved' ? 'active' : rawStatus;
   return {
     id,
     userId: data.userId ?? '',
     congregationId: data.congregationId ?? '',
     congregationRole: data.congregationRole ?? 'publisher',
     groupId: data.groupId ?? null,
-    status: data.status ?? 'active',
+    status,
     joinMessage: data.joinMessage ?? null,
     joinedAt: data.joinedAt ?? now,
+    reviewedAt: data.reviewedAt ?? null,
+    reviewedBy: data.reviewedBy ?? null,
+    reviewedByName: data.reviewedByName ?? null,
+    reviewedByRole: data.reviewedByRole ?? null,
+    approvedBy: data.approvedBy ?? (status === 'active' ? data.reviewedBy ?? null : null),
+    approvedByName:
+      data.approvedByName ?? (status === 'active' ? data.reviewedByName ?? null : null),
+    declinedBy: data.declinedBy ?? (status === 'rejected' ? data.reviewedBy ?? null : null),
+    declinedByName:
+      data.declinedByName ?? (status === 'rejected' ? data.reviewedByName ?? null : null),
+    reviewNote: data.reviewNote ?? null,
     user: data.user ?? null,
   };
 }
@@ -129,17 +142,38 @@ export function useUpdateMemberRole() {
 export function useApproveMember() {
   const [isApproving, setIsApproving] = useState(false);
 
-  const approve = useCallback(async (memberId: string, status: 'active' | 'rejected') => {
-    setIsApproving(true);
-    try {
-      await updateDoc(memberDocument(memberId), {
-        status,
-        updatedAt: nowIso(),
-      });
-    } finally {
-      setIsApproving(false);
-    }
-  }, []);
+  const approve = useCallback(
+    async (
+      memberId: string,
+      status: 'active' | 'rejected',
+      reviewer?: { id?: string | null; name?: string | null; role?: string | null }
+    ) => {
+      setIsApproving(true);
+      try {
+        const now = nowIso();
+        const reviewerId = reviewer?.id || null;
+        const reviewerName = reviewer?.name || null;
+        const reviewerRole = reviewer?.role || null;
+        const isApproved = status === 'active';
+
+        await updateDoc(memberDocument(memberId), {
+          status,
+          reviewedAt: now,
+          reviewedBy: reviewerId,
+          reviewedByName: reviewerName,
+          reviewedByRole: reviewerRole,
+          approvedBy: isApproved ? reviewerId : null,
+          approvedByName: isApproved ? reviewerName : null,
+          declinedBy: !isApproved ? reviewerId : null,
+          declinedByName: !isApproved ? reviewerName : null,
+          updatedAt: now,
+        });
+      } finally {
+        setIsApproving(false);
+      }
+    },
+    []
+  );
 
   return { approve, isApproving };
 }

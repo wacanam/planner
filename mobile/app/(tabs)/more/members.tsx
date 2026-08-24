@@ -85,7 +85,12 @@ export default function CongregationMembersScreen() {
 
   const handleApprove = async (m: Member) => {
     try {
-      await approveMember(m.id, 'active');
+      const reviewerName = user?.name || user?.email || 'Service Overseer';
+      await approveMember(m.id, 'active', {
+        id: user?.id || null,
+        name: reviewerName,
+        role: user?.role || null,
+      });
       await triggerHaptic('success');
     } catch {
       triggerHaptic('error');
@@ -94,7 +99,12 @@ export default function CongregationMembersScreen() {
 
   const handleDecline = async (m: Member) => {
     try {
-      await approveMember(m.id, 'rejected');
+      const reviewerName = user?.name || user?.email || 'Service Overseer';
+      await approveMember(m.id, 'rejected', {
+        id: user?.id || null,
+        name: reviewerName,
+        role: user?.role || null,
+      });
       await triggerHaptic('warning');
     } catch {
       triggerHaptic('error');
@@ -384,6 +394,17 @@ export default function CongregationMembersScreen() {
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                         {item.user?.email || 'No email provided'}
                       </Text>
+                      {(item.approvedByName || item.reviewedByName) && (
+                        <Text
+                          style={{
+                            color: colors.mutedForeground,
+                            fontSize: 10,
+                            marginTop: 2,
+                          }}
+                        >
+                          Approved by {item.approvedByName || item.reviewedByName}
+                        </Text>
+                      )}
                     </View>
 
                     {isOverseer ? (
@@ -452,6 +473,17 @@ export default function CongregationMembersScreen() {
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                         {item.user?.email || 'No email provided'}
                       </Text>
+                      {(item.approvedByName || item.reviewedByName) && (
+                        <Text
+                          style={{
+                            color: colors.mutedForeground,
+                            fontSize: 10,
+                            marginTop: 2,
+                          }}
+                        >
+                          Approved by {item.approvedByName || item.reviewedByName}
+                        </Text>
+                      )}
                       {memberGroup && (
                         <Text
                           style={{

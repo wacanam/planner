@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const createTerritorySchema = z.object({
-  name: z.string().min(1, 'Territory name is required').max(255),
-  number: z.string().min(1, 'Territory number is required').max(50),
+  name: z.string().trim().min(1, 'Territory name is required').max(255),
+  number: z.string().trim().min(1, 'Territory number is required').max(50),
   city: z.string().max(255).optional(),
   type: z.string().optional(),
   notes: z.string().max(2000).optional(),
@@ -10,8 +10,8 @@ export const createTerritorySchema = z.object({
 export type CreateTerritoryFormData = z.infer<typeof createTerritorySchema>;
 
 export const updateTerritorySchema = z.object({
-  name: z.string().min(1, 'Territory name is required').max(255),
-  number: z.string().min(1, 'Territory number is required').max(50),
+  name: z.string().trim().min(1, 'Territory name is required').max(255),
+  number: z.string().trim().min(1, 'Territory number is required').max(50),
   city: z.string().max(255).optional().nullable(),
   type: z.string().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),

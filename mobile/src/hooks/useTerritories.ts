@@ -1,7 +1,7 @@
-// mobile/src/hooks/useTerritories.ts
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -12,6 +12,10 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
+import {
+  checkTerritoryDuplicateInFirestore,
+  normalizeTerritoryNumber,
+} from '@/lib/territories';
 import type { Territory, TerritoryRequest } from '@/types/api';
 
 function territoryCollection() {
@@ -189,10 +193,26 @@ export function useCreateTerritory(congregationId: string) {
     }) => {
       setIsCreating(true);
       try {
+        const name = arg.name.trim() || 'Unnamed territory';
+        const rawNumber = arg.number.trim() || name;
+        const number = normalizeTerritoryNumber(rawNumber);
+
+        if (!number) {
+          throw new Error('Territory number is required.');
+        }
+
+        const firestore = getPlannerFirestore();
+        const { isDuplicate, duplicate } = await checkTerritoryDuplicateInFirestore(
+          firestore,
+          congregationId,
+          number
+        );
+        if (isDuplicate && duplicate) {
+          throw new Error(`Territory #${duplicate.number} already exists in this congregation.`);
+        }
+
         const now = nowIso();
         const id = createClientId();
-        const name = arg.name.trim() || 'Unnamed territory';
-        const number = arg.number.trim() || name;
 
         await setDoc(territoryDocument(id), {
           id,
@@ -230,6 +250,33 @@ export function useUpdateTerritory() {
     setIsUpdating(true);
     try {
       const now = nowIso();
+      const firestore = getPlannerFirestore();
+
+      if (body.number !== undefined) {
+        const normNumber = normalizeTerritoryNumber(String(body.number));
+        if (!normNumber) {
+          throw new Error('Territory number cannot be empty.');
+        }
+        const existingDoc = await getDoc(territoryDocument(id));
+        if (existingDoc.exists()) {
+          const data = existingDoc.data() as Partial<Territory>;
+          const congId = data.congregationId;
+          if (congId) {
+            const { isDuplicate, duplicate } = await checkTerritoryDuplicateInFirestore(
+              firestore,
+              congId,
+              normNumber,
+              id
+            );
+            if (isDuplicate && duplicate) {
+              throw new Error(
+                `Territory #${duplicate.number} already exists in this congregation.`
+              );
+            }
+          }
+        }
+      }
+
       await updateDoc(territoryDocument(id), { ...body, updatedAt: now });
     } finally {
       setIsUpdating(false);

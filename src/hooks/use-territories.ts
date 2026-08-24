@@ -15,6 +15,10 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import {
+  checkTerritoryDuplicateInFirestore,
+  normalizeTerritoryNumber,
+} from '@/lib/territories';
 import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
 
 type MutationOptions = { throwOnError?: boolean };
@@ -168,16 +172,34 @@ export function useCreateTerritory(congregationId: string) {
     async (arg: Record<string, unknown>) => {
       setIsCreating(true);
       try {
+        const name = String(arg.name ?? '').trim() || 'Unnamed territory';
+        const rawNumber = String(arg.number ?? '').trim() || name;
+        const number = normalizeTerritoryNumber(rawNumber);
+
+        if (!number) {
+          throw new Error('Territory number is required.');
+        }
+
+        const firestore = getPlannerFirestore();
+        const { isDuplicate, duplicate } = await checkTerritoryDuplicateInFirestore(
+          firestore,
+          congregationId,
+          number
+        );
+        if (isDuplicate && duplicate) {
+          throw new Error(`Territory #${duplicate.number} already exists in this congregation.`);
+        }
+
         const now = nowIso();
         const id = createClientId();
-        const name = String(arg.name ?? '').trim() || 'Unnamed territory';
-        const number = String(arg.number ?? '').trim() || name;
         await setDoc(territoryDocument(id), {
           id,
           congregationId,
           name,
           number,
-          notes: arg.notes ? String(arg.notes) : null,
+          city: arg.city ? String(arg.city).trim() : null,
+          type: arg.type ? String(arg.type).trim() : 'regular',
+          notes: arg.notes ? String(arg.notes).trim() : null,
           status: 'available',
           householdsCount: 0,
           coveragePercent: '0',
@@ -208,6 +230,32 @@ export function useUpdateTerritory() {
     try {
       const now = nowIso();
       const firestore = getPlannerFirestore();
+
+      if (body.number !== undefined) {
+        const normNumber = normalizeTerritoryNumber(String(body.number));
+        if (!normNumber) {
+          throw new Error('Territory number cannot be empty.');
+        }
+        const existingDoc = await getDoc(territoryDocument(id));
+        if (existingDoc.exists()) {
+          const data = existingDoc.data() as Partial<Territory>;
+          const congId = data.congregationId;
+          if (congId) {
+            const { isDuplicate, duplicate } = await checkTerritoryDuplicateInFirestore(
+              firestore,
+              congId,
+              normNumber,
+              id
+            );
+            if (isDuplicate && duplicate) {
+              throw new Error(
+                `Territory #${duplicate.number} already exists in this congregation.`
+              );
+            }
+          }
+        }
+      }
+
       await updateDoc(territoryDocument(id), { ...body, updatedAt: now });
 
       // If territory name or number changed, update assignments referencing this territoryId

@@ -133,6 +133,15 @@ export interface Member {
   status: string;
   joinMessage: string | null;
   joinedAt: string;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedByRole?: string | null;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  declinedBy?: string | null;
+  declinedByName?: string | null;
+  reviewNote?: string | null;
   user: {
     id: string | null;
     name: string | null;
@@ -151,6 +160,13 @@ export interface JoinRequest {
   reviewNote: string | null;
   joinedAt: string;
   reviewedAt: string | null;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedByRole?: string | null;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  declinedBy?: string | null;
+  declinedByName?: string | null;
   user: {
     id: string | null;
     name: string | null;

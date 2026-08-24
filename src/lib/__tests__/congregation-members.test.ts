@@ -57,10 +57,63 @@ describe('useCongregationMembers helpers', () => {
         role: null,
       });
     });
+    it('populates approver and reviewer metadata on active members', () => {
+      const member = memberFromData('user-777', {
+        id: 'user-777',
+        userId: 'user-777',
+        congregationId: 'cong-1',
+        status: 'active',
+        approvedBy: 'overseer-1',
+        approvedByName: 'John Elder',
+        reviewedBy: 'overseer-1',
+        reviewedByName: 'John Elder',
+        reviewedByRole: 'service_overseer',
+        reviewedAt: '2026-08-20T10:00:00.000Z',
+      });
+
+      expect(member.approvedBy).toBe('overseer-1');
+      expect(member.approvedByName).toBe('John Elder');
+      expect(member.reviewedBy).toBe('overseer-1');
+      expect(member.reviewedByName).toBe('John Elder');
+      expect(member.reviewedByRole).toBe('service_overseer');
+      expect(member.reviewedAt).toBe('2026-08-20T10:00:00.000Z');
+    });
+
+    it('populates decliner and reviewNote metadata on rejected members', () => {
+      const member = memberFromData('user-888', {
+        id: 'user-888',
+        userId: 'user-888',
+        congregationId: 'cong-1',
+        status: 'rejected',
+        declinedBy: 'overseer-2',
+        declinedByName: 'Mark Secretary',
+        reviewNote: 'Please contact the local elders first.',
+        reviewedAt: '2026-08-21T12:00:00.000Z',
+      });
+
+      expect(member.status).toBe('rejected');
+      expect(member.declinedBy).toBe('overseer-2');
+      expect(member.declinedByName).toBe('Mark Secretary');
+      expect(member.reviewNote).toBe('Please contact the local elders first.');
+      expect(member.reviewedAt).toBe('2026-08-21T12:00:00.000Z');
+    });
+
+    it('falls back to reviewedByName for approvedByName if status is active', () => {
+      const member = memberFromData('user-999', {
+        id: 'user-999',
+        userId: 'user-999',
+        status: 'active',
+        reviewedBy: 'overseer-3',
+        reviewedByName: 'David Elder',
+      });
+
+      expect(member.approvedByName).toBe('David Elder');
+      expect(member.approvedBy).toBe('overseer-3');
+    });
   });
 
   describe('joinRequestFromMember', () => {
-    it('transforms member into a JoinRequest object correctly', () => {
+    it('transforms member into a JoinRequest object correctly including approver/decliner metadata', () => {
       const member: Member = {
         id: 'user-789',
         userId: 'user-789',
@@ -69,6 +122,12 @@ describe('useCongregationMembers helpers', () => {
         status: 'pending',
         joinMessage: 'Hello, please approve my request',
         joinedAt: '2026-08-17T00:00:00.000Z',
+        reviewedAt: '2026-08-18T00:00:00.000Z',
+        reviewedBy: 'overseer-1',
+        reviewedByName: 'Brother Approver',
+        approvedBy: 'overseer-1',
+        approvedByName: 'Brother Approver',
+        reviewNote: null,
         user: {
           id: 'user-789',
           name: 'John Doe',
@@ -85,6 +144,9 @@ describe('useCongregationMembers helpers', () => {
       expect(joinRequest.congregationId).toBe('cong-1');
       expect(joinRequest.status).toBe('pending');
       expect(joinRequest.joinMessage).toBe('Hello, please approve my request');
+      expect(joinRequest.reviewedByName).toBe('Brother Approver');
+      expect(joinRequest.approvedByName).toBe('Brother Approver');
+      expect(joinRequest.reviewedAt).toBe('2026-08-18T00:00:00.000Z');
       expect(joinRequest.user?.name).toBe('John Doe');
       expect(joinRequest.user?.email).toBe('john@example.com');
       expect(joinRequest.user?.avatarUrl).toBe('https://example.com/avatar.jpg');
