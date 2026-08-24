@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TerritoryDetailLoading() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
       {/* Header Skeleton */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
@@ -64,7 +64,6 @@ export default function TerritoryDetailLoading() {
         </div>
         <div className="divide-y">
           {Array.from({ length: 4 }).map((_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
             <div key={i} className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1">
                 <Skeleton className="h-8 w-12 rounded-md" />

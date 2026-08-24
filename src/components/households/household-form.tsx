@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useKeyboardShortcuts } from '@/hooks';
 import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
 import type { Household } from '@/types/api';
 
@@ -104,6 +105,15 @@ export function HouseholdForm({
     }
     await onSubmit(values);
   };
+
+  useKeyboardShortcuts([
+    {
+      key: 'Mod+Enter',
+      handler: () => {
+        void form.handleSubmit(handleFormSubmit)();
+      },
+    },
+  ]);
 
   return (
     <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">

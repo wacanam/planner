@@ -2,7 +2,6 @@
 
 import {
   ChevronRight,
-  Filter,
   Home,
   MapPin,
   Pencil,
@@ -11,12 +10,10 @@ import {
   Share2,
   Sparkles,
   Trash2,
-  User,
-  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   HouseholdEncounterSheet,
   HouseholdLogVisitSheet,
@@ -25,7 +22,6 @@ import { HouseholdForm, type HouseholdFormValues } from '@/components/households
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,9 +32,11 @@ import {
   useCongregationTerritories,
   useCurrentUser,
   useHouseholds,
+  useKeyboardShortcuts,
   useMyVisits,
   useOverseenGroupMates,
 } from '@/hooks';
+import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import {
   canDeleteHousehold,
   canEditHousehold,
@@ -112,6 +110,8 @@ export default function HouseholdsClient() {
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: members = [] } = useCongregationMembers(congregationId);
 
@@ -264,6 +264,109 @@ export default function HouseholdsClient() {
     setEditHousehold(null);
   };
 
+  const selectedItem =
+    selectedIndex >= 0 && selectedIndex < filtered.length ? filtered[selectedIndex] : null;
+
+  useKeyboardShortcuts([
+    {
+      key: ['m', 'M'],
+      handler: () => {
+        setRecordScope('mine');
+        setPublisherFilter('all');
+      },
+    },
+    {
+      key: ['g', 'G'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'group')) {
+          setRecordScope('group');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['c', 'C'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'congregation')) {
+          setRecordScope('congregation');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['/', 'Mod+k'],
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+    },
+    {
+      key: ['n', 'N', '+'],
+      handler: () => {
+        setAddHouseholdOpen(true);
+      },
+    },
+    {
+      key: ['j', 'J', 'ArrowDown'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.min(filtered.length - 1, prev + 1));
+      },
+    },
+    {
+      key: ['k', 'K', 'ArrowUp'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.max(0, prev - 1));
+      },
+    },
+    {
+      key: 'Enter',
+      handler: () => {
+        if (selectedItem) {
+          router.push(`/congregation/${congregationId}/records/households/${selectedItem.id}`);
+        }
+      },
+    },
+    {
+      key: ['v', 'V'],
+      handler: () => {
+        if (selectedItem && canLogVisitOrEncounter(user, selectedItem)) {
+          setLogVisitHousehold(selectedItem);
+        }
+      },
+    },
+    {
+      key: ['e', 'E'],
+      handler: () => {
+        if (selectedItem && canEditHousehold(user, selectedItem, groups)) {
+          setEditHousehold(selectedItem);
+        }
+      },
+    },
+    {
+      key: ['s', 'S'],
+      handler: () => {
+        if (selectedItem && canShareHousehold(user, selectedItem, groups)) {
+          setShareHousehold(selectedItem);
+        }
+      },
+    },
+    {
+      key: ['Delete', 'Backspace'],
+      handler: () => {
+        if (selectedItem && canDeleteHousehold(user, selectedItem, groups)) {
+          setDeleteConfirmId(selectedItem.id);
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (search) setSearch('');
+        searchInputRef.current?.blur();
+        setSelectedIndex(-1);
+      },
+    },
+  ]);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
@@ -372,7 +475,8 @@ export default function HouseholdsClient() {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            placeholder="Search address, street, or publisher…"
+            ref={searchInputRef}
+            placeholder="Search address, street, or publisher… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-9 rounded-xl text-xs"
@@ -435,7 +539,7 @@ export default function HouseholdsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((h) => {
+          {filtered.map((h, idx) => {
             const isTransferred = Boolean(h.transferredFrom && h.createdById === user?.id);
             const isCollaborator = Boolean(user?.id && h.collaboratorIds?.includes(user.id));
             const isReadOnly = Boolean(user?.id && h.readOnlyUserIds?.includes(user.id));
@@ -453,11 +557,17 @@ export default function HouseholdsClient() {
             const canEdit = canEditHousehold(user, h, groups);
             const canDelete = canDeleteHousehold(user, h, groups);
             const canLog = canLogVisitOrEncounter(user, h);
+            const isFocused = selectedIndex === idx;
 
             return (
               <Card
                 key={h.id}
-                className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
+                onClick={() => setSelectedIndex(idx)}
+                className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all ${
+                  isFocused
+                    ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10'
+                    : ''
+                }`}
               >
                 <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
                   <div className="min-w-0 flex-1">

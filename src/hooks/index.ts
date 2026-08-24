@@ -20,3 +20,4 @@ export * from './use-territory-boundary';
 export * from './use-user-location';
 export * from './use-visits';
 export * from './use-basemap-preference';
+export * from './use-keyboard-shortcuts';

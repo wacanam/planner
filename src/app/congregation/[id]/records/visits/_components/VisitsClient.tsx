@@ -4,18 +4,16 @@ import {
   BookOpen,
   Calendar,
   Clock,
-  Filter,
   Home,
   Pencil,
   Search,
   Trash2,
-  User,
   UserPlus,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AddEncounterForm } from '@/components/households/add-encounter-form';
 import { EditVisitForm } from '@/components/households/edit-visit-form';
@@ -26,8 +24,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  useCongregationGroups,
   useCongregationMembers,
   useCurrentUser,
+  useKeyboardShortcuts,
   useMyEncounters,
   useMyVisits,
   useOverseenGroupMates,
@@ -99,6 +99,9 @@ export default function VisitsClient() {
   const [savingEncounter, setSavingEncounter] = useState(false);
   const [editVisit, setEditVisit] = useState<Visit | null>(null);
   const [editingVisit, setEditingVisit] = useState(false);
+  const { groups = [] } = useCongregationGroups(congregationId);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: members = [] } = useCongregationMembers(congregationId);
 
@@ -235,6 +238,96 @@ export default function VisitsClient() {
     }
   };
 
+  const selectedVisit =
+    selectedIndex >= 0 && selectedIndex < filtered.length ? filtered[selectedIndex] : null;
+
+  useKeyboardShortcuts([
+    {
+      key: ['m', 'M'],
+      handler: () => {
+        setRecordScope('mine');
+        setPublisherFilter('all');
+      },
+    },
+    {
+      key: ['g', 'G'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'group')) {
+          setRecordScope('group');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['c', 'C'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'congregation')) {
+          setRecordScope('congregation');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['/', 'Mod+k'],
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+    },
+    {
+      key: ['j', 'J', 'ArrowDown'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.min(filtered.length - 1, prev + 1));
+      },
+    },
+    {
+      key: ['k', 'K', 'ArrowUp'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.max(0, prev - 1));
+      },
+    },
+    {
+      key: ['e', 'E', 'Enter'],
+      handler: () => {
+        if (selectedVisit) {
+          const household = households.find((h) => h.id === selectedVisit.householdId);
+          if (canEditVisit(user, selectedVisit, household)) {
+            setEditVisit(selectedVisit);
+          }
+        }
+      },
+    },
+    {
+      key: ['n', 'N', '+'],
+      handler: () => {
+        if (selectedVisit) {
+          const household = households.find((h) => h.id === selectedVisit.householdId);
+          if (canLogVisitOrEncounter(user, household)) {
+            setAddEncounterVisit(selectedVisit);
+          }
+        }
+      },
+    },
+    {
+      key: ['Delete', 'Backspace'],
+      handler: () => {
+        if (selectedVisit) {
+          const household = households.find((h) => h.id === selectedVisit.householdId);
+          if (canDeleteVisit(user, selectedVisit, household)) {
+            setDeleteConfirmId(selectedVisit.id);
+          }
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (search) setSearch('');
+        searchInputRef.current?.blur();
+        setSelectedIndex(-1);
+      },
+    },
+  ]);
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
@@ -290,7 +383,8 @@ export default function VisitsClient() {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            placeholder="Search by address, street, city, notes, topic, publisher…"
+            ref={searchInputRef}
+            placeholder="Search by address, street, city, notes, topic, publisher… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-9 rounded-xl text-xs bg-card"
@@ -359,14 +453,20 @@ export default function VisitsClient() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((v) => {
+          {filtered.map((v, idx) => {
             const linkedEncounters = encountersByVisit.get(v.id) ?? [];
             const household = households.find((h) => h.id === v.householdId);
+            const isFocused = selectedIndex === idx;
 
             return (
               <Card
                 key={v.id}
-                className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
+                onClick={() => setSelectedIndex(idx)}
+                className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all ${
+                  isFocused
+                    ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10'
+                    : ''
+                }`}
               >
                 <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
                   <div className="min-w-0 flex-1 space-y-1.5">

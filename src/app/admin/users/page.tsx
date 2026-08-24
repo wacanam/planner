@@ -10,7 +10,7 @@ export default function AdminUsersPage() {
   return (
     <Suspense
       fallback={
-        <div className="space-y-6 animate-pulse p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full animate-pulse">
           <div className="space-y-2">
             <div className="h-8 w-48 bg-muted rounded-md" />
             <div className="h-4 w-72 bg-muted rounded-md" />

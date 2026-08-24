@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,11 +27,13 @@ import { Input } from '@/components/ui/input';
 import {
   useCongregationGroups,
   useCurrentUser,
+  useKeyboardShortcuts,
   useLocationSharing,
   useMemberLocations,
   useUserLocation,
 } from '@/hooks';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import { useBasemapPreference } from '@/lib/map-preferences';
 import { canViewMemberLocations } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
 import type {
@@ -43,6 +46,7 @@ import type {
 } from '@/types/api';
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
+import type { BasemapMode } from './StudioBasemapPopup';
 import {
   type BoundaryDisplaySettings,
   DEFAULT_BOUNDARY_DISPLAY,
@@ -50,7 +54,6 @@ import {
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
-import { useBasemapPreference } from '@/lib/map-preferences';
 
 export interface CongregationStudioLayoutProps {
   congregationId: string;
@@ -143,6 +146,8 @@ export function CongregationStudioLayout({
     toggleTracking: toggleUserLocation,
   } = useUserLocation();
 
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
+
   const dismissAllFloatingCards = () => {
     setSelectedTerritory(null);
     setSelectedHousehold(null);
@@ -151,6 +156,19 @@ export function CongregationStudioLayout({
     setSelectedStartFlagTerritory(null);
     setSelectedMemberLocation(null);
   };
+
+  const cycleBasemap = () => {
+    const nextMode: BasemapMode = basemapMode === 'satellite' ? 'street' : 'satellite';
+    setBasemapMode(nextMode);
+    toast.info(`Basemap: ${nextMode === 'satellite' ? 'Satellite' : 'Street'}`);
+  };
+
+  useKeyboardShortcuts([
+    { key: ['Escape'], handler: () => dismissAllFloatingCards() },
+    { key: ['m', 'M'], handler: () => cycleBasemap() },
+    { key: ['['], handler: () => setSidebarOpen((prev) => !prev) },
+    { key: ['?', 'Shift+?'], handler: () => setShortcutsDialogOpen(true) },
+  ]);
 
   const handleSetHeading = (heading: number, immediate = false) => {
     const h = ((heading % 360) + 360) % 360;
@@ -959,6 +977,13 @@ export function CongregationStudioLayout({
           </div>
         </div>
       )}
+
+      {/* Global Keyboard Shortcuts Cheat Sheet Dialog */}
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+        defaultTab="studio"
+      />
     </div>
   );
 }

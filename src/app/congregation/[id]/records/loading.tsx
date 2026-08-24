@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function RecordsLoading() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
       {/* Header Skeleton */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
@@ -32,7 +32,6 @@ export default function RecordsLoading() {
       {/* Records List Cards Skeleton */}
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
           <div key={i} className="p-5 rounded-xl border bg-card shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

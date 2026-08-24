@@ -127,10 +127,13 @@ export function StudioContextActionCard({
                 size="sm"
                 className="h-8 rounded-xl text-xs gap-1 px-2.5 whitespace-nowrap"
                 onClick={onUndoPoint}
-                title="Undo last placed point"
+                title="Undo last placed point (Ctrl+Z / ⌘Z)"
               >
                 <Undo2 size={13} />
                 <span>Undo</span>
+                <kbd className="hidden sm:inline-block text-[9px] font-mono px-1 rounded bg-muted text-muted-foreground">
+                  Z
+                </kbd>
               </Button>
             )}
 
@@ -141,9 +144,13 @@ export function StudioContextActionCard({
                 size="sm"
                 className="h-8 rounded-xl text-xs text-muted-foreground hover:text-foreground px-2.5 whitespace-nowrap gap-1"
                 onClick={onCancel}
+                title="Exit tool / Cancel (Esc)"
               >
                 {isPoint ? <X size={13} /> : null}
                 <span>{isPoint ? 'Exit Tool' : 'Cancel'}</span>
+                <kbd className="hidden sm:inline-block text-[9px] font-mono px-1 rounded bg-muted/60 text-muted-foreground">
+                  Esc
+                </kbd>
               </Button>
             )}
           </div>
@@ -159,9 +166,13 @@ export function StudioContextActionCard({
               }
               className="h-8 rounded-xl text-xs font-semibold gap-1.5 shadow-sm px-3 ml-auto whitespace-nowrap"
               onClick={onDone}
+              title={`${config.doneLabel} (Enter)`}
             >
               <Check size={13} />
               <span>{isSaving ? 'Saving…' : config.doneLabel}</span>
+              <kbd className="hidden sm:inline-block text-[9px] font-mono px-1 rounded bg-primary-foreground/20 text-primary-foreground">
+                ↵
+              </kbd>
             </Button>
           )}
         </div>

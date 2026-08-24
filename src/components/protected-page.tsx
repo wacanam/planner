@@ -118,7 +118,7 @@ export function ProtectedPage({
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse p-4 sm:p-6 max-w-7xl mx-auto w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full animate-pulse">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-2">
             <div className="h-8 w-48 bg-muted rounded-md" />

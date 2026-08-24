@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MyAssignmentsLoading() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
       {/* Header Skeleton */}
       <div className="space-y-2">
         <Skeleton className="h-8 w-52 rounded-md" />
@@ -27,7 +27,6 @@ export default function MyAssignmentsLoading() {
       {/* Assignments Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
           <div key={i} className="p-5 rounded-xl border bg-card shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

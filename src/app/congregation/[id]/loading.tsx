@@ -2,7 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CongregationLoading() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
       {/* Title & Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
@@ -18,7 +18,6 @@ export default function CongregationLoading() {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
           <div
             key={i}
             className="p-5 rounded-xl border bg-card text-card-foreground shadow-xs space-y-3"
@@ -36,7 +35,6 @@ export default function CongregationLoading() {
       {/* Main Content Skeleton Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
           <div
             key={i}
             className="p-5 rounded-xl border bg-card text-card-foreground shadow-xs space-y-4"

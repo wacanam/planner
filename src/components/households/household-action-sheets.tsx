@@ -18,9 +18,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useHouseholdContacts } from '@/hooks/use-contacts';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { useMyEncounters } from '@/hooks/use-encounters';
+import {
+  useCurrentUser,
+  useHouseholdContacts,
+  useKeyboardShortcuts,
+  useMyEncounters,
+} from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
@@ -453,6 +456,18 @@ export function HouseholdLogVisitSheet({
       setSubmitting(false);
     }
   };
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'Mod+Enter',
+        handler: () => {
+          void form.handleSubmit(onSubmit)();
+        },
+      },
+    ],
+    { disabled: !open }
+  );
 
   return (
     <ResponsiveDialog

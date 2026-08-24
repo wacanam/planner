@@ -23,6 +23,7 @@ import {
   HouseholdLogVisitSheet,
 } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
+import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import { Label } from '@/components/ui/label';
 import {
   useCongregationGroups,
   useCurrentUser,
+  useKeyboardShortcuts,
   useLocationSharing,
   useMemberLocations,
   useSaveAnnotations,
@@ -41,6 +43,9 @@ import {
 } from '@/hooks';
 import { createClientId } from '@/lib/firebase/schema';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import { findDuplicateHouseholdByNumber } from '@/lib/households';
+import { insertJunctionVertexIntoRoad } from '@/lib/map-geometry';
+import { useBasemapPreference } from '@/lib/map-preferences';
 import {
   canDeleteHousehold,
   canEditHousehold,
@@ -48,13 +53,11 @@ import {
   canModifyMapAnnotation,
   canViewMemberLocations,
 } from '@/lib/permissions';
-import { insertJunctionVertexIntoRoad } from '@/lib/map-geometry';
 import {
   deleteHouseholdRecord,
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
-import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import { findDuplicateTerritory } from '@/lib/territories';
 import { timeAgo } from '@/lib/time-ago';
 import type {
@@ -69,6 +72,7 @@ import type {
   Territory,
   TerritoryAnnotations,
 } from '@/types/api';
+import type { BasemapMode } from './StudioBasemapPopup';
 import { StudioBoundaryDialog } from './StudioBoundaryDialog';
 import { StudioContextActionCard } from './StudioContextActionCard';
 import { getTerritoryBoundaries, StudioGoogleMap } from './StudioGoogleMap';
@@ -80,7 +84,6 @@ import {
   type StudioLayerSettings,
   StudioMapToolbar,
 } from './StudioMapToolbar';
-import { useBasemapPreference } from '@/lib/map-preferences';
 import { StudioPrintViewport } from './StudioPrintViewport';
 import { StudioRoadDialog } from './StudioRoadDialog';
 import { type CardDimensionSettings, StudioSidebar } from './StudioSidebar';
@@ -222,6 +225,13 @@ export function StudioLayout({
   const [selectedStartFlag, setSelectedStartFlag] = useState<MapStartFlag | null>(null);
   const [startFlagDialogOpen, setStartFlagDialogOpen] = useState(false);
   const [startFlagLabel, setStartFlagLabel] = useState('');
+
+  // Keyboard Shortcuts Dialog
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
+
+  // Map Fit & Zoom Shortcut Triggers
+  const [fitBoundsTimestamp, setFitBoundsTimestamp] = useState<number | null>(null);
+  const [zoomChange, setZoomChange] = useState<{ delta: number; timestamp: number } | null>(null);
 
   // Edit Territory Details Dialog
   const [editTerritoryOpen, setEditTerritoryOpen] = useState(false);
@@ -679,6 +689,162 @@ export function StudioLayout({
     }
   };
 
+  const handleDeleteRoad = async (roadId: string) => {
+    if (!territory?.id) return;
+    try {
+      const existingRoads = territory.annotations?.roads || [];
+      const filtered = existingRoads.filter((r) => r.id !== roadId);
+      await saveAnnotations({
+        ...territory.annotations,
+        roads: filtered,
+      });
+      toast.success('Road deleted');
+      setSelectedRoad(null);
+      setRoadDialogOpen(false);
+    } catch (_err) {
+      toast.error('Failed to delete road.');
+    }
+  };
+
+  const handleDeleteLandmark = async (landmarkId: string) => {
+    if (!territory?.id) return;
+    try {
+      const existingLandmarks = territory.annotations?.landmarks || [];
+      const filtered = existingLandmarks.filter((lm) => lm.id !== landmarkId);
+      await saveAnnotations({
+        ...territory.annotations,
+        landmarks: filtered,
+      });
+      toast.success('Landmark deleted');
+      setSelectedLandmark(null);
+      setLandmarkDialogOpen(false);
+    } catch (_err) {
+      toast.error('Failed to delete landmark.');
+    }
+  };
+
+  const handleDeleteBoundary = async (boundaryId: string) => {
+    if (!territory?.id) return;
+    const existingBoundaries = getTerritoryBoundaries(territory);
+    const updated = existingBoundaries.filter((b) => b.id !== boundaryId);
+    await saveAnnotations({
+      ...territory.annotations,
+      boundaries: updated,
+    });
+    toast.success('Boundary polygon deleted');
+    setSelectedBoundary(null);
+    setBoundaryDialogOpen(false);
+  };
+
+  const handleDeleteStartFlag = async () => {
+    if (!territory?.id) return;
+    try {
+      const ann = { ...territory.annotations };
+      delete ann.startFlag;
+      await saveAnnotations(ann);
+      toast.success('Start flag removed');
+      setSelectedStartFlag(null);
+      setStartFlagDialogOpen(false);
+    } catch (_err) {
+      toast.error('Failed to remove start flag');
+    }
+  };
+
+  const handleSelectTool = (tool: StudioTool) => {
+    if (isReadOnly) {
+      setActiveTool('pointer');
+      return;
+    }
+    dismissAllFloatingCards();
+    setActiveTool(tool);
+    setDrawnPoints([]);
+    setHistory([]);
+    setHistoryIndex(-1);
+    if (tool === 'pin') {
+      toast.info('Tap anywhere on the map to place a house pin');
+    } else if (tool === 'landmark') {
+      toast.info('Tap on the map to place a landmark');
+    } else if (tool === 'start') {
+      toast.info('Tap on the map to place the start meeting flag');
+    }
+  };
+
+  const handleDeleteSelectedItem = () => {
+    if (drawnPoints.length > 0) {
+      handleDeleteDrawnPoint(drawnPoints.length - 1);
+      return;
+    }
+    if (selectedRoad?.id) {
+      void handleDeleteRoad(selectedRoad.id);
+    } else if (selectedLandmark?.id) {
+      void handleDeleteLandmark(selectedLandmark.id);
+    } else if (selectedBoundary?.id) {
+      void handleDeleteBoundary(selectedBoundary.id);
+    } else if (selectedHousehold?.id) {
+      void handleDeleteHousehold(selectedHousehold.id);
+    } else if (selectedStartFlag) {
+      void handleDeleteStartFlag();
+    }
+  };
+
+  const handleEditSelectedItem = () => {
+    if (selectedRoad) {
+      setRoadDialogOpen(true);
+    } else if (selectedLandmark) {
+      setLandmarkDialogOpen(true);
+    } else if (selectedBoundary) {
+      setBoundaryDialogOpen(true);
+    } else if (selectedHousehold) {
+      setEditingHousehold(selectedHousehold);
+    } else if (selectedStartFlag) {
+      setStartFlagLabel(selectedStartFlag.label || '');
+      setStartFlagDialogOpen(true);
+    }
+  };
+
+  const cycleBasemap = () => {
+    const nextMode: BasemapMode = basemapMode === 'satellite' ? 'street' : 'satellite';
+    setBasemapMode(nextMode);
+    toast.info(`Basemap: ${nextMode === 'satellite' ? 'Satellite' : 'Street'}`);
+  };
+
+  useKeyboardShortcuts([
+    { key: ['1', 'v', 'V'], handler: () => handleSelectTool('pointer') },
+    { key: ['2', 'b', 'B'], handler: () => handleSelectTool('boundary') },
+    { key: ['3', 'r', 'R'], handler: () => handleSelectTool('road') },
+    { key: ['4', 'h', 'H'], handler: () => handleSelectTool('pin') },
+    { key: ['5', 'l', 'L'], handler: () => handleSelectTool('landmark') },
+    { key: ['6', 's', 'S'], handler: () => handleSelectTool('start') },
+    { key: 'Mod+z', handler: () => handleUndoPoint() },
+    { key: 'Enter', handler: () => void handleDoneTool() },
+    {
+      key: 'Escape',
+      handler: () => {
+        dismissAllFloatingCards();
+        setDrawnPoints([]);
+        setActiveTool('pointer');
+        if (householdToPin) onClearPinHouseholdId?.();
+      },
+    },
+    { key: ['Delete', 'Backspace'], handler: () => handleDeleteSelectedItem() },
+    { key: ['e', 'E'], handler: () => handleEditSelectedItem() },
+    {
+      key: ['v', 'V'],
+      handler: () => {
+        if (selectedHousehold) {
+          setLogVisitHousehold(selectedHousehold);
+        }
+      },
+    },
+    { key: ['m', 'M'], handler: () => cycleBasemap() },
+    { key: ['+', '='], handler: () => setZoomChange({ delta: 1, timestamp: Date.now() }) },
+    { key: ['-', '_'], handler: () => setZoomChange({ delta: -1, timestamp: Date.now() }) },
+    { key: ['0', 'f', 'F'], handler: () => setFitBoundsTimestamp(Date.now()) },
+    { key: '[', handler: () => setSidebarOpen((prev) => !prev) },
+    { key: ['p', 'P', 'Alt+p'], handler: () => setIsPrintViewportActive((prev) => !prev) },
+    { key: ['?', 'Shift+?'], handler: () => setShortcutsDialogOpen(true) },
+  ]);
+
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-muted/20 select-none">
       {/* Deferred Pinning Banner */}
@@ -705,24 +871,8 @@ export function StudioLayout({
           territoryName={territory?.name}
           activeTool={effectiveActiveTool}
           isReadOnly={isReadOnly}
-          onSelectTool={(tool) => {
-            if (isReadOnly) {
-              setActiveTool('pointer');
-              return;
-            }
-            dismissAllFloatingCards();
-            setActiveTool(tool);
-            setDrawnPoints([]);
-            setHistory([]);
-            setHistoryIndex(-1);
-            if (tool === 'pin') {
-              toast.info('Tap anywhere on the map to place a house pin');
-            } else if (tool === 'landmark') {
-              toast.info('Tap on the map to place a landmark');
-            } else if (tool === 'start') {
-              toast.info('Tap on the map to place the start meeting flag');
-            }
-          }}
+          onSelectTool={handleSelectTool}
+          onOpenShortcutsDialog={() => setShortcutsDialogOpen(true)}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           sidebarOpen={sidebarOpen}
           onUndo={handleUndoPoint}
@@ -979,6 +1129,8 @@ export function StudioLayout({
           currentUser={user}
           groups={groups}
           fitPrintViewportPadding={fitPrintViewportPadding}
+          fitBoundsTimestamp={fitBoundsTimestamp}
+          zoomChange={zoomChange}
           isPrintViewportActive={isPrintViewportActive}
         />
 
@@ -2150,6 +2302,13 @@ export function StudioLayout({
           </div>
         </form>
       </ResponsiveDialog>
+
+      {/* Global Keyboard Shortcuts Cheat Sheet Dialog */}
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+        defaultTab="studio"
+      />
     </div>
   );
 }

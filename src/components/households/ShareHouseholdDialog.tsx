@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useCongregationMembers, useCreateShare, useShares } from '@/hooks';
+import { useCongregationMembers, useCreateShare, useKeyboardShortcuts, useShares } from '@/hooks';
 import type { Household } from '@/types/api';
 
 interface ShareHouseholdDialogProps {
@@ -132,6 +132,20 @@ export function ShareHouseholdDialog({ open, onOpenChange, household }: ShareHou
       setActionInProgress(null);
     }
   };
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'Mod+Enter',
+        handler: () => {
+          if (activeTab === 'share' && targetUserId && !submitting) {
+            void handleShare();
+          }
+        },
+      },
+    ],
+    { disabled: !open }
+  );
 
   return (
     <ResponsiveDialog

@@ -6,6 +6,7 @@ import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useKeyboardShortcuts } from '@/hooks';
 import type { MapBoundaryPolygon } from '@/types/api';
 
 interface StudioBoundaryDialogProps {
@@ -35,9 +36,9 @@ export function StudioBoundaryDialog({
     }
   }, [boundary]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!boundary) return;
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!boundary || isSaving) return;
 
     setIsSaving(true);
     try {
@@ -47,6 +48,19 @@ export function StudioBoundaryDialog({
       setIsSaving(false);
     }
   };
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'Mod+Enter',
+        handler: () => {
+          void handleSubmit();
+        },
+        enableInInputs: true,
+      },
+    ],
+    { disabled: !open }
+  );
 
   const handleDelete = async () => {
     if (!boundary || !onDelete) return;

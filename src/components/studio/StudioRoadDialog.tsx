@@ -6,6 +6,7 @@ import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useKeyboardShortcuts } from '@/hooks';
 import type { MapRoad, RoadType } from '@/types/api';
 
 export type { RoadType };
@@ -150,8 +151,8 @@ export function StudioRoadDialog({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     onSave({
       id: initialData?.id,
       name: name.trim() || DEFAULT_ROAD_NAMES[selectedType],
@@ -159,6 +160,17 @@ export function StudioRoadDialog({
     });
     onOpenChange(false);
   };
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'Mod+Enter',
+        handler: () => handleSubmit(),
+        enableInInputs: true,
+      },
+    ],
+    { disabled: !open }
+  );
 
   const handleDelete = () => {
     if (initialData?.id && onDelete) {

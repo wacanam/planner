@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   HouseholdEncounterSheet,
@@ -22,7 +22,7 @@ import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDial
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
   getContactsByHousehold,
@@ -72,6 +72,7 @@ const outcomeBadgeColors: Record<string, string> = {
 
 export default function HouseholdDetailPage() {
   const params = useParams<{ id: string; householdId: string }>();
+  const router = useRouter();
   const congregationId = params?.id;
   const householdId = params?.householdId;
   const { user } = useCurrentUser();
@@ -204,6 +205,36 @@ export default function HouseholdDetailPage() {
     setInitialEncounterValues(undefined);
     setEncounterOpen(true);
   };
+
+  useKeyboardShortcuts([
+    {
+      key: ['v', 'V'],
+      handler: () => {
+        if (canLog) handleOpenGeneralLogVisit();
+      },
+    },
+    {
+      key: ['e', 'E'],
+      handler: () => {
+        if (canLog) handleOpenGeneralEncounter();
+      },
+    },
+    {
+      key: ['s', 'S'],
+      handler: () => {
+        if (canShare) setShareOpen(true);
+      },
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (logVisitOpen) setLogVisitOpen(false);
+        else if (encounterOpen) setEncounterOpen(false);
+        else if (shareOpen) setShareOpen(false);
+        else router.push(`/congregation/${congregationId}/records/households`);
+      },
+    },
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-6xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-8">

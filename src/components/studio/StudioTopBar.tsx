@@ -7,6 +7,7 @@ import {
   Flag,
   Hexagon,
   Home,
+  Keyboard,
   Map as MapIcon,
   MapPin,
   Menu,
@@ -47,6 +48,7 @@ interface StudioTopBarProps {
   sidebarOpen?: boolean;
   onSearchLocation?: (query: string) => void;
   onOpenPrintViewport?: () => void;
+  onOpenShortcutsDialog?: () => void;
   households?: Household[];
   landmarks?: MapLandmark[];
   roads?: MapRoad[];
@@ -125,6 +127,7 @@ export function StudioTopBar({
   sidebarOpen,
   onSearchLocation,
   onOpenPrintViewport,
+  onOpenShortcutsDialog,
   households = [],
   landmarks = [],
   roads = [],
@@ -196,13 +199,14 @@ export function StudioTopBar({
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
     servantOnly?: boolean;
+    shortcut: string;
   }> = [
-    { id: 'pointer', label: 'Select', icon: MousePointer },
-    { id: 'boundary', label: 'Boundary', icon: Hexagon, servantOnly: true },
-    { id: 'road', label: 'Road', icon: Milestone },
-    { id: 'pin', label: 'House Pin', icon: Home },
-    { id: 'landmark', label: 'Landmark', icon: MapPin },
-    { id: 'start', label: 'Start Flag', icon: Flag },
+    { id: 'pointer', label: 'Select', icon: MousePointer, shortcut: '1' },
+    { id: 'boundary', label: 'Boundary', icon: Hexagon, servantOnly: true, shortcut: '2' },
+    { id: 'road', label: 'Road', icon: Milestone, shortcut: '3' },
+    { id: 'pin', label: 'House Pin', icon: Home, shortcut: '4' },
+    { id: 'landmark', label: 'Landmark', icon: MapPin, shortcut: '5' },
+    { id: 'start', label: 'Start Flag', icon: Flag, shortcut: '6' },
   ];
 
   useEffect(() => {
@@ -380,7 +384,7 @@ export function StudioTopBar({
                   key={t.id}
                   type="button"
                   onClick={() => onSelectTool(t.id)}
-                  title={t.label}
+                  title={`${t.label} (Press ${t.shortcut})`}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-150 ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
@@ -389,6 +393,15 @@ export function StudioTopBar({
                 >
                   <Icon size={14} />
                   <span className="hidden lg:inline">{t.label}</span>
+                  <kbd
+                    className={`hidden xl:inline-flex items-center justify-center min-w-4 h-4 px-1 rounded text-[9px] font-mono font-bold leading-none ${
+                      isActive
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {t.shortcut}
+                  </kbd>
                 </button>
               );
             })}
@@ -836,7 +849,7 @@ export function StudioTopBar({
           disabled={isReadOnly || !canUndo}
           onClick={onUndo}
           className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground disabled:opacity-30 shrink-0"
-          title="Undo"
+          title="Undo point (Ctrl+Z / ⌘Z)"
         >
           <Undo2 size={15} />
         </Button>
@@ -851,6 +864,20 @@ export function StudioTopBar({
         >
           <Redo2 size={15} />
         </Button>
+
+        {/* Keyboard Shortcuts Help Dialog Trigger */}
+        {onOpenShortcutsDialog && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onOpenShortcutsDialog}
+            className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 shrink-0"
+            title="Keyboard shortcuts (?)"
+          >
+            <Keyboard size={15} />
+          </Button>
+        )}
       </div>
 
       {/* Live Search Results Dropdown */}

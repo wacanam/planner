@@ -6,6 +6,7 @@ import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useKeyboardShortcuts } from '@/hooks';
 import type { LandmarkType, MapLandmark } from '@/types/api';
 
 export interface LandmarkFormData {
@@ -195,8 +196,8 @@ export function StudioLandmarkDialog({
   const targetCoords =
     coordinates || (initialData ? { lat: initialData.lat, lng: initialData.lng } : null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!targetCoords) return;
 
     onSave({
@@ -209,6 +210,17 @@ export function StudioLandmarkDialog({
 
     onOpenChange(false);
   };
+
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'Mod+Enter',
+        handler: () => handleSubmit(),
+        enableInInputs: true,
+      },
+    ],
+    { disabled: !open }
+  );
 
   const handleDelete = () => {
     if (initialData?.id && onDelete) {

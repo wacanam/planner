@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useKeyboardShortcuts } from '@/hooks';
 import type { Visit } from '@/types/api';
 
 export const editVisitSchema = z.object({
@@ -66,6 +67,15 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
   });
 
   const returnVisitPlanned = form.watch('returnVisitPlanned');
+
+  useKeyboardShortcuts([
+    {
+      key: 'Mod+Enter',
+      handler: () => {
+        void form.handleSubmit(onSubmit)();
+      },
+    },
+  ]);
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

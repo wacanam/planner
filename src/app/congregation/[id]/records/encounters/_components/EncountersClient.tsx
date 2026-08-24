@@ -5,7 +5,6 @@ import {
   Calendar,
   ChevronDown,
   Clock,
-  Filter,
   Home,
   LayoutList,
   Mail,
@@ -15,12 +14,11 @@ import {
   Plus,
   Search,
   Trash2,
-  User,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AddEncounterForm,
@@ -33,9 +31,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  useCongregationGroups,
   useCongregationMembers,
   useCurrentUser,
   useHouseholds,
+  useKeyboardShortcuts,
   useMyEncounters,
   useOverseenGroupMates,
 } from '@/hooks';
@@ -133,6 +133,9 @@ export default function EncountersClient() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editEncounter, setEditEncounter] = useState<Encounter | null>(null);
   const [editingEncounter, setEditingEncounter] = useState(false);
+  const { groups = [] } = useCongregationGroups(congregationId);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -249,6 +252,92 @@ export default function EncountersClient() {
       setDeletingId(null);
     }
   };
+
+  const selectedEncounter =
+    selectedIndex >= 0 && selectedIndex < filtered.length ? filtered[selectedIndex] : null;
+
+  useKeyboardShortcuts([
+    {
+      key: ['m', 'M'],
+      handler: () => {
+        setRecordScope('mine');
+        setPublisherFilter('all');
+      },
+    },
+    {
+      key: ['g', 'G'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'group')) {
+          setRecordScope('group');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['c', 'C'],
+      handler: () => {
+        if (availableScopes.some((s) => s.id === 'congregation')) {
+          setRecordScope('congregation');
+          setPublisherFilter('all');
+        }
+      },
+    },
+    {
+      key: ['/', 'Mod+k'],
+      handler: () => {
+        searchInputRef.current?.focus();
+      },
+    },
+    {
+      key: ['n', 'N', '+'],
+      handler: () => {
+        setPresetContact(null);
+        setAddDialogOpen(true);
+      },
+    },
+    {
+      key: ['j', 'J', 'ArrowDown'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.min(filtered.length - 1, prev + 1));
+      },
+    },
+    {
+      key: ['k', 'K', 'ArrowUp'],
+      handler: () => {
+        setSelectedIndex((prev) => Math.max(0, prev - 1));
+      },
+    },
+    {
+      key: ['e', 'E', 'Enter'],
+      handler: () => {
+        if (selectedEncounter) {
+          const household = households.find((h) => h.id === selectedEncounter.householdId);
+          if (canEditEncounter(user, selectedEncounter, household)) {
+            setEditEncounter(selectedEncounter);
+          }
+        }
+      },
+    },
+    {
+      key: ['Delete', 'Backspace'],
+      handler: () => {
+        if (selectedEncounter) {
+          const household = households.find((h) => h.id === selectedEncounter.householdId);
+          if (canDeleteEncounter(user, selectedEncounter, household)) {
+            setDeleteConfirmId(selectedEncounter.id);
+          }
+        }
+      },
+    },
+    {
+      key: 'Escape',
+      handler: () => {
+        if (search) setSearch('');
+        searchInputRef.current?.blur();
+        setSelectedIndex(-1);
+      },
+    },
+  ]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
@@ -373,7 +462,8 @@ export default function EncountersClient() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              placeholder="Search person, topic, or publisher…"
+              ref={searchInputRef}
+              placeholder="Search person, topic, or publisher… (/)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-9 rounded-xl text-xs"
@@ -753,200 +843,208 @@ export default function EncountersClient() {
       ) : (
         /* Timeline View (All Encounters) */
         <div className="space-y-3">
-          {filtered.map((e) => (
-            <Card
-              key={e.id}
-              className="bg-card border-border shadow-xs hover:border-primary/40 transition-all"
-            >
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-foreground">{e.name}</p>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-bold capitalize py-0 ${responseColors[e.response] ?? ''}`}
-                    >
-                      {e.response.replace(/_/g, ' ')}
-                    </Badge>
-                    {e.userId === user?.id && (
+          {filtered.map((e, idx) => {
+            const isFocused = selectedIndex === idx;
+            return (
+              <Card
+                key={e.id}
+                onClick={() => setSelectedIndex(idx)}
+                className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all ${
+                  isFocused
+                    ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10'
+                    : ''
+                }`}
+              >
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-sm text-foreground">{e.name}</p>
                       <Badge
                         variant="outline"
-                        className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                        className={`text-[10px] font-bold capitalize py-0 ${responseColors[e.response] ?? ''}`}
                       >
-                        👤 My Encounter
+                        {e.response.replace(/_/g, ' ')}
                       </Badge>
-                    )}
-                    {e.role && e.role !== 'unknown' && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] capitalize py-0 font-medium bg-muted/40"
+                      {e.userId === user?.id && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                        >
+                          👤 My Encounter
+                        </Badge>
+                      )}
+                      {e.role && e.role !== 'unknown' && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] capitalize py-0 font-medium bg-muted/40"
+                        >
+                          {e.role.replace(/_/g, ' ')}
+                        </Badge>
+                      )}
+                      {(e.language || e.languageSpoken) && (
+                        <Badge variant="outline" className="text-[10px] py-0">
+                          {e.language || e.languageSpoken}
+                        </Badge>
+                      )}
+                    </div>
+                    {/* Household / Location Indicator */}
+                    {e.householdAddress ? (
+                      <Link
+                        href={
+                          e.householdId
+                            ? `/congregation/${congregationId}/records/households/${e.householdId}`
+                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(e.streetName || e.householdAddress || '')}`
+                        }
+                        className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold flex-wrap"
                       >
-                        {e.role.replace(/_/g, ' ')}
-                      </Badge>
+                        <Home size={12} className="shrink-0" />
+                        <span>
+                          {e.houseNumber ? `#${e.houseNumber} ` : ''}
+                          {e.streetName || e.householdAddress}
+                          {e.unitNumber ? ` (Unit ${e.unitNumber})` : ''}
+                          {e.householdCity ? ` · ${e.householdCity}` : ''}
+                        </span>
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
+                        <MapPin size={11} className="shrink-0" />
+                        <span>
+                          {e.locationDescription
+                            ? `🚶 ${e.locationDescription}`
+                            : '🚶 Street / Public Witnessing / Informal'}
+                        </span>
+                      </div>
                     )}
-                    {(e.language || e.languageSpoken) && (
-                      <Badge variant="outline" className="text-[10px] py-0">
-                        {e.language || e.languageSpoken}
-                      </Badge>
+
+                    {/* Contact Info (Phone / Email / Best time) */}
+                    {(e.phoneNumber || e.email || e.bestTimeToCall) && (
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                        {e.phoneNumber && (
+                          <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                            <Phone size={11} className="text-primary" />
+                            <span>{e.phoneNumber}</span>
+                          </span>
+                        )}
+                        {e.email && (
+                          <span className="inline-flex items-center gap-1 text-foreground font-medium">
+                            <Mail size={11} className="text-primary" />
+                            <span>{e.email}</span>
+                          </span>
+                        )}
+                        {e.bestTimeToCall && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Clock size={11} className="text-primary" />
+                            <span>Call: {e.bestTimeToCall}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Date & Linked Visit */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={12} className="shrink-0" />
+                        <span>{new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      {e.userId !== user?.id && e.publisherName && (
+                        <span className="text-foreground/80 font-medium">
+                          · Recorded by {e.publisherName}
+                        </span>
+                      )}
+                      {e.visitId && (
+                        <span className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md font-medium">
+                          Linked to Visit {e.visitOutcome ? `(${e.visitOutcome})` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {(e.topicsDiscussed || e.topicDiscussed) && (
+                      <div className="flex items-center gap-1 text-xs text-foreground font-medium">
+                        <BookOpen size={12} className="text-primary shrink-0" />
+                        <span>Topic: {e.topicsDiscussed || e.topicDiscussed}</span>
+                      </div>
+                    )}
+
+                    {(e.literatureOffered || e.literatureAccepted) && (
+                      <p className="text-xs text-primary font-medium">
+                        Literature: {e.literatureOffered || e.literatureAccepted}
+                      </p>
+                    )}
+
+                    {/* Return Visit & Bible Study Indicators */}
+                    {(e.returnVisitRequested || e.bibleStudyInterest || e.nextVisitDate) && (
+                      <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
+                        {e.returnVisitRequested && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md border border-purple-200/60 dark:border-purple-800/40 text-[11px]">
+                            <span>📅 Next Visit Planned</span>
+                            {e.nextVisitDate && (
+                              <span className="font-normal text-purple-600 dark:text-purple-400">
+                                ({new Date(e.nextVisitDate).toLocaleDateString()}
+                                {e.nextVisitTime ? ` at ${e.nextVisitTime}` : ''})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {e.bibleStudyInterest && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40 text-[11px]">
+                            📖 Bible Study{' '}
+                            {e.bibleStudyPublication ? `· ${e.bibleStudyPublication}` : 'Interest'}
+                            {e.bibleStudyLesson ? ` (${e.bibleStudyLesson})` : ''}
+                          </span>
+                        )}
+                        {e.nextVisitNotes && (
+                          <p className="w-full text-xs text-muted-foreground italic">
+                            Next visit note: {e.nextVisitNotes}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {e.notes && (
+                      <p className="text-xs text-muted-foreground/90 italic line-clamp-2">
+                        &ldquo;{e.notes}&rdquo;
+                      </p>
                     )}
                   </div>
-                  {/* Household / Location Indicator */}
-                  {e.householdAddress ? (
-                    <Link
-                      href={
-                        e.householdId
-                          ? `/congregation/${congregationId}/records/households/${e.householdId}`
-                          : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(e.streetName || e.householdAddress || '')}`
-                      }
-                      className="flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold flex-wrap"
-                    >
-                      <Home size={12} className="shrink-0" />
-                      <span>
-                        {e.houseNumber ? `#${e.houseNumber} ` : ''}
-                        {e.streetName || e.householdAddress}
-                        {e.unitNumber ? ` (Unit ${e.unitNumber})` : ''}
-                        {e.householdCity ? ` · ${e.householdCity}` : ''}
-                      </span>
-                    </Link>
-                  ) : (
-                    <div className="flex items-center gap-1 text-[11px] text-blue-700 dark:text-blue-400 font-medium">
-                      <MapPin size={11} className="shrink-0" />
-                      <span>
-                        {e.locationDescription
-                          ? `🚶 ${e.locationDescription}`
-                          : '🚶 Street / Public Witnessing / Informal'}
-                      </span>
-                    </div>
-                  )}
 
-                  {/* Contact Info (Phone / Email / Best time) */}
-                  {(e.phoneNumber || e.email || e.bestTimeToCall) && (
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                      {e.phoneNumber && (
-                        <span className="inline-flex items-center gap-1 text-foreground font-medium">
-                          <Phone size={11} className="text-primary" />
-                          <span>{e.phoneNumber}</span>
-                        </span>
-                      )}
-                      {e.email && (
-                        <span className="inline-flex items-center gap-1 text-foreground font-medium">
-                          <Mail size={11} className="text-primary" />
-                          <span>{e.email}</span>
-                        </span>
-                      )}
-                      {e.bestTimeToCall && (
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <Clock size={11} className="text-primary" />
-                          <span>Call: {e.bestTimeToCall}</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Date & Linked Visit */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} className="shrink-0" />
-                      <span>{new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    {e.userId !== user?.id && e.publisherName && (
-                      <span className="text-foreground/80 font-medium">
-                        · Recorded by {e.publisherName}
-                      </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canEditEncounter(
+                      user,
+                      e,
+                      households.find((h) => h.id === e.householdId)
+                    ) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        onClick={() => setEditEncounter(e)}
+                        title="Edit encounter details"
+                      >
+                        <Pencil size={14} />
+                      </Button>
                     )}
-                    {e.visitId && (
-                      <span className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md font-medium">
-                        Linked to Visit {e.visitOutcome ? `(${e.visitOutcome})` : ''}
-                      </span>
+
+                    {canDeleteEncounter(
+                      user,
+                      e,
+                      households.find((h) => h.id === e.householdId)
+                    ) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteConfirmId(e.id)}
+                        disabled={deletingId === e.id}
+                        title="Delete encounter"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
                     )}
                   </div>
-
-                  {(e.topicsDiscussed || e.topicDiscussed) && (
-                    <div className="flex items-center gap-1 text-xs text-foreground font-medium">
-                      <BookOpen size={12} className="text-primary shrink-0" />
-                      <span>Topic: {e.topicsDiscussed || e.topicDiscussed}</span>
-                    </div>
-                  )}
-
-                  {(e.literatureOffered || e.literatureAccepted) && (
-                    <p className="text-xs text-primary font-medium">
-                      Literature: {e.literatureOffered || e.literatureAccepted}
-                    </p>
-                  )}
-
-                  {/* Return Visit & Bible Study Indicators */}
-                  {(e.returnVisitRequested || e.bibleStudyInterest || e.nextVisitDate) && (
-                    <div className="flex items-center gap-2 flex-wrap text-xs pt-0.5">
-                      {e.returnVisitRequested && (
-                        <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md border border-purple-200/60 dark:border-purple-800/40 text-[11px]">
-                          <span>📅 Next Visit Planned</span>
-                          {e.nextVisitDate && (
-                            <span className="font-normal text-purple-600 dark:text-purple-400">
-                              ({new Date(e.nextVisitDate).toLocaleDateString()}
-                              {e.nextVisitTime ? ` at ${e.nextVisitTime}` : ''})
-                            </span>
-                          )}
-                        </span>
-                      )}
-                      {e.bibleStudyInterest && (
-                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40 text-[11px]">
-                          📖 Bible Study{' '}
-                          {e.bibleStudyPublication ? `· ${e.bibleStudyPublication}` : 'Interest'}
-                          {e.bibleStudyLesson ? ` (${e.bibleStudyLesson})` : ''}
-                        </span>
-                      )}
-                      {e.nextVisitNotes && (
-                        <p className="w-full text-xs text-muted-foreground italic">
-                          Next visit note: {e.nextVisitNotes}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {e.notes && (
-                    <p className="text-xs text-muted-foreground/90 italic line-clamp-2">
-                      &ldquo;{e.notes}&rdquo;
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {canEditEncounter(
-                    user,
-                    e,
-                    households.find((h) => h.id === e.householdId)
-                  ) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 rounded-xl p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                      onClick={() => setEditEncounter(e)}
-                      title="Edit encounter details"
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                  )}
-
-                  {canDeleteEncounter(
-                    user,
-                    e,
-                    households.find((h) => h.id === e.householdId)
-                  ) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 rounded-xl p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteConfirmId(e.id)}
-                      disabled={deletingId === e.id}
-                      title="Delete encounter"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 

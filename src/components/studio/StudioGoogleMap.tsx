@@ -81,6 +81,13 @@ interface StudioGoogleMapProps {
   selectedMemberLocationId?: string | null;
   onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
   currentUserId?: string | null;
+  fitBoundsPadding?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+    timestamp: number;
+  } | null;
   fitPrintViewportPadding?: {
     top: number;
     right: number;
@@ -88,6 +95,8 @@ interface StudioGoogleMapProps {
     left: number;
     timestamp: number;
   } | null;
+  fitBoundsTimestamp?: number | null;
+  zoomChange?: { delta: number; timestamp: number } | null;
   isPrintViewportActive?: boolean;
   isReadOnly?: boolean;
   currentUser?: { id?: string | null; role?: string | null } | null;
@@ -752,7 +761,10 @@ export function StudioGoogleMap({
   selectedMemberLocationId,
   onSelectMemberLocation,
   currentUserId,
+  fitBoundsPadding,
   fitPrintViewportPadding,
+  fitBoundsTimestamp,
+  zoomChange,
   isPrintViewportActive = false,
   isReadOnly = false,
   currentUser,
@@ -783,7 +795,6 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
-  const selectedVertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 
   // Member Shared Locations ref
   const memberMarkersDataRef = useRef<
@@ -1394,10 +1405,6 @@ export function StudioGoogleMap({
         entry.accuracyCircle?.setMap(null);
       });
       memberMarkersDataRef.current.clear();
-      selectedVertexMarkersRef.current.forEach((m) => {
-        m.map = null;
-      });
-      selectedVertexMarkersRef.current = [];
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
@@ -1428,10 +1435,12 @@ export function StudioGoogleMap({
     }
   }, [mapReady, territory?.id]);
 
-  // Fit territory or households inside print viewport framing with exact custom padding
+  // Fit territory or households inside print viewport framing or on manual fit bounds shortcut
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !mapReady || !fitPrintViewportPadding || typeof google === 'undefined') return;
+    const padding = fitBoundsPadding || fitPrintViewportPadding;
+    if (!map || !mapReady || typeof google === 'undefined') return;
+    if (!padding && !fitBoundsTimestamp) return;
 
     const boundaries = getTerritoryBoundaries(territory);
     let hasValidPoints = false;
@@ -1458,14 +1467,34 @@ export function StudioGoogleMap({
     }
 
     if (hasValidPoints) {
-      map.fitBounds(bounds, {
-        top: fitPrintViewportPadding.top,
-        right: fitPrintViewportPadding.right,
-        bottom: fitPrintViewportPadding.bottom,
-        left: fitPrintViewportPadding.left,
-      });
+      if (padding) {
+        map.fitBounds(bounds, {
+          top: padding.top,
+          right: padding.right,
+          bottom: padding.bottom,
+          left: padding.left,
+        });
+      } else {
+        map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+      }
     }
-  }, [mapReady, fitPrintViewportPadding, territory, households]);
+  }, [
+    mapReady,
+    fitBoundsPadding,
+    fitPrintViewportPadding,
+    fitBoundsTimestamp,
+    territory,
+    households,
+  ]);
+
+  // Zoom In / Zoom Out shortcut trigger
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !zoomChange) return;
+    const currentZoom = map.getZoom() || 16;
+    const nextZoom = Math.min(22, Math.max(1, currentZoom + zoomChange.delta));
+    map.setZoom(nextZoom);
+  }, [mapReady, zoomChange]);
 
   // Smooth cinematic distance-adaptive parabolic fly-in animation (user GPS or search)
   useEffect(() => {
@@ -1779,15 +1808,56 @@ export function StudioGoogleMap({
           if (e.vertex != null) {
             const path = polygon.getPath();
             if (path.getLength() > 3) {
+              try {
+                if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                  navigator.vibrate(50);
+                }
+              } catch {}
               path.removeAt(e.vertex);
             }
           }
         });
 
-        // Click to select boundary in pointer mode, OR pass click to map active tool
+        // Click to select boundary in pointer mode, OR delete tapped vertex if already selected, OR pass click to map active tool
         polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
+            const isCurrentlySelected = selectedBoundaryIdRef.current === boundary.id;
+            const bPath = polygon.getPath();
+
+            if (isCurrentlySelected && bPath.getLength() > 3) {
+              const projection = overlayRef.current?.getProjection();
+              const latLngToPixel =
+                projection && e.latLng
+                  ? (c: LatLng) =>
+                      projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
+                  : undefined;
+
+              const vIndex =
+                e.vertex != null
+                  ? e.vertex
+                  : e.latLng
+                    ? findClosestVertexIndex({
+                        point: { lat: e.latLng.lat(), lng: e.latLng.lng() },
+                        vertices: bPath.getArray().map((p) => ({ lat: p.lat(), lng: p.lng() })),
+                        pixelTolerance: 26,
+                        meterTolerance: 20,
+                        latLngToPixel,
+                      })?.index
+                    : undefined;
+
+              if (vIndex != null) {
+                e.stop();
+                try {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                    navigator.vibrate(50);
+                  }
+                } catch {}
+                bPath.removeAt(vIndex);
+                return;
+              }
+            }
+
             e.stop();
             handleSelectBoundaryRef.current?.(boundary);
           } else {
@@ -2428,6 +2498,11 @@ export function StudioGoogleMap({
           if (e.vertex != null) {
             const path = pavement.getPath();
             if (path.getLength() > 2) {
+              try {
+                if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                  navigator.vibrate(50);
+                }
+              } catch {}
               path.removeAt(e.vertex);
             }
           }
@@ -2460,6 +2535,42 @@ export function StudioGoogleMap({
         const handleRoadClick = (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
+            const isCurrentlySelected = selectedRoadIdRef.current === road.id;
+            const rPath = pavement.getPath();
+
+            if (isCurrentlySelected && rPath.getLength() > 2) {
+              const projection = overlayRef.current?.getProjection();
+              const latLngToPixel =
+                projection && e.latLng
+                  ? (c: LatLng) =>
+                      projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
+                  : undefined;
+
+              const vIndex =
+                e.vertex != null
+                  ? e.vertex
+                  : e.latLng
+                    ? findClosestVertexIndex({
+                        point: { lat: e.latLng.lat(), lng: e.latLng.lng() },
+                        vertices: rPath.getArray().map((p) => ({ lat: p.lat(), lng: p.lng() })),
+                        pixelTolerance: 26,
+                        meterTolerance: 20,
+                        latLngToPixel,
+                      })?.index
+                    : undefined;
+
+              if (vIndex != null) {
+                e.stop();
+                try {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                    navigator.vibrate(50);
+                  }
+                } catch {}
+                rPath.removeAt(vIndex);
+                return;
+              }
+            }
+
             handleSelectRoadRef.current?.(road);
           } else {
             if (!e.latLng) return;
@@ -2863,127 +2974,6 @@ export function StudioGoogleMap({
       }
     });
   }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
-
-  // 8c. Touch-Friendly Vertex Handles for Selected Boundary or Road on Mobile & Touch Screens
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
-
-    selectedVertexMarkersRef.current.forEach((m) => {
-      m.map = null;
-    });
-    selectedVertexMarkersRef.current = [];
-
-    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
-    if (!isPointerMode || isReadOnly) return;
-
-    const { AdvancedMarkerElement } = google.maps.marker;
-
-    // If a boundary is selected, render touch-friendly vertex deletion handles
-    if (selectedBoundaryId) {
-      const boundaries = getTerritoryBoundaries(territory);
-      const targetBoundary = boundaries.find((b) => b.id === selectedBoundaryId);
-      if (targetBoundary && targetBoundary.points && targetBoundary.points.length > 0) {
-        targetBoundary.points.forEach((pt, idx) => {
-          const handleEl = document.createElement('div');
-          handleEl.style.width = '18px';
-          handleEl.style.height = '18px';
-          handleEl.style.borderRadius = '50%';
-          handleEl.style.backgroundColor = '#FFFFFF';
-          handleEl.style.border = '3px solid #2563EB';
-          handleEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
-          handleEl.style.cursor = 'pointer';
-          handleEl.style.transform = 'scale(1)';
-          handleEl.style.transition = 'transform 0.15s ease-out';
-          handleEl.title = 'Tap or right-click to delete this vertex';
-
-          attachVertexTouchDelete(handleEl, () => {
-            if (targetBoundary.points.length <= 3) return;
-            const updated = targetBoundary.points.filter((_, i) => i !== idx);
-            handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
-          });
-
-          const marker = new AdvancedMarkerElement({
-            map,
-            position: pt,
-            content: handleEl,
-            gmpClickable: true,
-            zIndex: 60 + idx,
-          });
-
-          marker.addListener('gmp-click', () => {
-            if (targetBoundary.points.length <= 3) return;
-            try {
-              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                navigator.vibrate(50);
-              }
-            } catch {}
-            const updated = targetBoundary.points.filter((_, i) => i !== idx);
-            handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
-          });
-
-          selectedVertexMarkersRef.current.push(marker);
-        });
-      }
-    }
-
-    // If a road is selected, render touch-friendly vertex deletion handles
-    if (selectedRoadId) {
-      const roads = territory?.annotations?.roads || [];
-      const targetRoad = roads.find((r) => r.id === selectedRoadId);
-      if (targetRoad && targetRoad.points && targetRoad.points.length > 0) {
-        targetRoad.points.forEach((pt, idx) => {
-          const handleEl = document.createElement('div');
-          handleEl.style.width = '18px';
-          handleEl.style.height = '18px';
-          handleEl.style.borderRadius = '50%';
-          handleEl.style.backgroundColor = '#FFFFFF';
-          handleEl.style.border = '3px solid #1D4ED8';
-          handleEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
-          handleEl.style.cursor = 'pointer';
-          handleEl.style.transform = 'scale(1)';
-          handleEl.style.transition = 'transform 0.15s ease-out';
-          handleEl.title = 'Tap or right-click to delete this vertex';
-
-          attachVertexTouchDelete(handleEl, () => {
-            if (targetRoad.points.length <= 2) return;
-            const updated = targetRoad.points.filter((_, i) => i !== idx);
-            handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
-          });
-
-          const marker = new AdvancedMarkerElement({
-            map,
-            position: pt,
-            content: handleEl,
-            gmpClickable: true,
-            zIndex: 60 + idx,
-          });
-
-          marker.addListener('gmp-click', () => {
-            if (targetRoad.points.length <= 2) return;
-            try {
-              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                navigator.vibrate(50);
-              }
-            } catch {}
-            const updated = targetRoad.points.filter((_, i) => i !== idx);
-            handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
-          });
-
-          selectedVertexMarkersRef.current.push(marker);
-        });
-      }
-    }
-  }, [
-    mapReady,
-    selectedBoundaryId,
-    selectedRoadId,
-    activeTool,
-    isReadOnly,
-    isPrintViewportActive,
-    boundariesKey,
-    roadsAndLandmarksKey,
-  ]);
 
   // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {

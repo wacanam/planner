@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useHouseholdContacts, useMyEncounters } from '@/hooks';
+import { useHouseholdContacts, useKeyboardShortcuts, useMyEncounters } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household } from '@/types/api';
@@ -302,6 +302,15 @@ export function AddEncounterForm({
     setCopiedTopic(true);
     setTimeout(() => setCopiedTopic(false), 2000);
   };
+
+  useKeyboardShortcuts([
+    {
+      key: 'Mod+Enter',
+      handler: () => {
+        void form.handleSubmit(onSubmit)();
+      },
+    },
+  ]);
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
