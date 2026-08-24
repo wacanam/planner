@@ -130,6 +130,7 @@ export function HouseholdForm({
           </Label>
           <Input
             id="streetName"
+            autoFocus
             placeholder="e.g. Maple Street"
             className="h-9 rounded-xl text-xs"
             {...form.register('streetName')}

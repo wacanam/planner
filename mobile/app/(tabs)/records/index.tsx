@@ -1130,27 +1130,11 @@ export default function RecordsScreen() {
             </Text>
 
             <Input
-              label="House / Door Number *"
-              placeholder="e.g. 104"
-              value={houseNumber}
-              onChangeText={setHouseNumber}
-            />
-            <Text
-              style={{
-                color: colors.mutedForeground,
-                fontSize: typography.xs,
-                marginTop: -4,
-                marginBottom: spacing.sm,
-              }}
-            >
-              Auto-assigned for congregation. Override with actual number if known.
-            </Text>
-
-            <Input
               label="Address / Street Name *"
               placeholder="e.g. 742 Evergreen Terrace"
               value={address}
               onChangeText={setAddress}
+              autoFocus
             />
 
             <Input

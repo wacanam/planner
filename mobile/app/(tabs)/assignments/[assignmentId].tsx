@@ -699,6 +699,7 @@ export default function AssignmentDetailScreen() {
               placeholder="e.g. Jasmine St."
               value={newDoorAddress}
               onChangeText={setNewDoorAddress}
+              autoFocus
             />
 
             <Input
