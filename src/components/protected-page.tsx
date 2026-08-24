@@ -118,29 +118,46 @@ export function ProtectedPage({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <svg
-            className="animate-spin h-8 w-8 text-primary"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-          </svg>
-          <p className="text-sm text-muted-foreground">Loading…</p>
+      <div className="space-y-6 animate-pulse p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-muted rounded-md" />
+            <div className="h-4 w-72 bg-muted rounded-md" />
+          </div>
+          <div className="h-10 w-32 bg-muted rounded-md" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
+            <div key={i} className="p-5 rounded-xl border bg-card shadow-xs space-y-3">
+              <div className="h-4 w-24 bg-muted rounded-md" />
+              <div className="h-7 w-16 bg-muted rounded-md" />
+              <div className="h-3 w-36 bg-muted rounded-md" />
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border bg-card p-6 shadow-xs space-y-4">
+          <div className="h-5 w-36 bg-muted rounded-md pb-2" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
+              <div
+                key={i}
+                className="flex items-center justify-between py-3 border-b last:border-0"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="h-9 w-9 bg-muted rounded-lg" />
+                  <div className="space-y-1 flex-1">
+                    <div className="h-4 w-40 bg-muted rounded-md" />
+                    <div className="h-3 w-64 bg-muted rounded-md" />
+                  </div>
+                </div>
+                <div className="h-6 w-20 bg-muted rounded-full" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

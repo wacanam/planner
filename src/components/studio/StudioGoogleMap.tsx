@@ -592,11 +592,7 @@ function attachLongPressDrag({
   wrapper.addEventListener('click', handleClick);
 }
 
-function attachVertexTouchDelete(
-  el: HTMLElement,
-  onDelete: () => void,
-  onClick?: () => void
-) {
+function attachVertexTouchDelete(el: HTMLElement, onDelete: () => void, onClick?: () => void) {
   let timer: NodeJS.Timeout | null = null;
   let isLongPress = false;
   let startX = 0;
@@ -1284,9 +1280,7 @@ export function StudioGoogleMap({
             // Check if user tapped a vertex on the selected boundary
             if (selectedBoundaryIdRef.current) {
               const boundaries = getTerritoryBoundaries(territoryRef.current);
-              const targetBoundary = boundaries.find(
-                (b) => b.id === selectedBoundaryIdRef.current
-              );
+              const targetBoundary = boundaries.find((b) => b.id === selectedBoundaryIdRef.current);
               if (targetBoundary && targetBoundary.points && targetBoundary.points.length > 0) {
                 const match = findClosestVertexIndex({
                   point: { lat, lng },
@@ -2234,10 +2228,7 @@ export function StudioGoogleMap({
           );
         } else {
           dotWrapper.title = 'Tap or right-click to delete vertex';
-          attachVertexTouchDelete(
-            dotWrapper,
-            () => handleDeleteDrawnPointRef.current?.(idx)
-          );
+          attachVertexTouchDelete(dotWrapper, () => handleDeleteDrawnPointRef.current?.(idx));
         }
 
         dotWrapper.appendChild(dot);

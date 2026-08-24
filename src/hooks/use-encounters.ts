@@ -61,7 +61,17 @@ function useEncounterRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { congregationId, visitId, householdId, userId, userRole, congregationRole, scope, publisherId, groupMateUserIds },
+      {
+        congregationId,
+        visitId,
+        householdId,
+        userId,
+        userRole,
+        congregationRole,
+        scope,
+        publisherId,
+        groupMateUserIds,
+      },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -70,7 +80,16 @@ function useEncounterRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { congregationId, personalOnly: true, userId, userRole, congregationRole, scope, publisherId, groupMateUserIds },
+      {
+        congregationId,
+        personalOnly: true,
+        userId,
+        userRole,
+        congregationRole,
+        scope,
+        publisherId,
+        groupMateUserIds,
+      },
       setHouseholds,
       handleError
     );
@@ -110,7 +129,17 @@ function useEncounterRecords(filters?: {
       unsubscribeVisits();
       unsubscribeMembers();
     };
-  }, [congregationId, congregationRole, groupMateUserIds, householdId, publisherId, scope, userId, userRole, visitId]);
+  }, [
+    congregationId,
+    congregationRole,
+    groupMateUserIds,
+    householdId,
+    publisherId,
+    scope,
+    userId,
+    userRole,
+    visitId,
+  ]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),

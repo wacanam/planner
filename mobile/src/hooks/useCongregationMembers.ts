@@ -29,12 +29,12 @@ function memberFromData(id: string, data: Partial<Member>): Member {
     reviewedBy: data.reviewedBy ?? null,
     reviewedByName: data.reviewedByName ?? null,
     reviewedByRole: data.reviewedByRole ?? null,
-    approvedBy: data.approvedBy ?? (status === 'active' ? data.reviewedBy ?? null : null),
+    approvedBy: data.approvedBy ?? (status === 'active' ? (data.reviewedBy ?? null) : null),
     approvedByName:
-      data.approvedByName ?? (status === 'active' ? data.reviewedByName ?? null : null),
-    declinedBy: data.declinedBy ?? (status === 'rejected' ? data.reviewedBy ?? null : null),
+      data.approvedByName ?? (status === 'active' ? (data.reviewedByName ?? null) : null),
+    declinedBy: data.declinedBy ?? (status === 'rejected' ? (data.reviewedBy ?? null) : null),
     declinedByName:
-      data.declinedByName ?? (status === 'rejected' ? data.reviewedByName ?? null : null),
+      data.declinedByName ?? (status === 'rejected' ? (data.reviewedByName ?? null) : null),
     reviewNote: data.reviewNote ?? null,
     user: data.user ?? null,
   };

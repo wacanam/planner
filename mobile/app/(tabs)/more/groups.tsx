@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { ChevronRight, Crown, Edit2, Plus, Shield, Trash2, Users, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -21,6 +20,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import { GroupsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -176,9 +176,7 @@ export default function ServiceGroupsScreen() {
       />
 
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <GroupsSkeleton />
       ) : groups.length === 0 ? (
         <EmptyState
           icon={<Users size={44} color={colors.mutedForeground} />}

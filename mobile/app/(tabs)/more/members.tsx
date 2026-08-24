@@ -2,22 +2,14 @@
 import { useRouter } from 'expo-router';
 import { Clock, Crown, Search, Shield, User as UserIcon, Users, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
+import { MembersSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
@@ -225,9 +217,7 @@ export default function CongregationMembersScreen() {
       )}
 
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <MembersSkeleton />
       ) : activeTab === 'my_group' ? (
         /* MY GROUP TAB */
         !myGroup ? (

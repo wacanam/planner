@@ -575,7 +575,9 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
 
     it('denies groupmate publisher from modifying other member annotation (read-only)', () => {
       const otherGroupmate = { id: 'member-2', role: UserRole.USER };
-      expect(canModifyMapAnnotation(otherGroupmate, annotationCreatedByMember1, groups)).toBe(false);
+      expect(canModifyMapAnnotation(otherGroupmate, annotationCreatedByMember1, groups)).toBe(
+        false
+      );
     });
 
     it('denies publisher from different group from modifying annotation', () => {
@@ -604,12 +606,16 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
 
     it('allows Service Overseer to modify any annotation', () => {
       const serviceOverseer = { id: 'so-1', role: UserRole.SERVICE_OVERSEER };
-      expect(canModifyMapAnnotation(serviceOverseer, annotationCreatedByMember1, groups)).toBe(true);
+      expect(canModifyMapAnnotation(serviceOverseer, annotationCreatedByMember1, groups)).toBe(
+        true
+      );
     });
 
     it('allows Territory Servant to modify any annotation', () => {
       const territoryServant = { id: 'ts-1', role: UserRole.TERRITORY_SERVANT };
-      expect(canModifyMapAnnotation(territoryServant, annotationCreatedByMember1, groups)).toBe(true);
+      expect(canModifyMapAnnotation(territoryServant, annotationCreatedByMember1, groups)).toBe(
+        true
+      );
     });
 
     it('allows Super Admin to modify any annotation', () => {
@@ -654,4 +660,3 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
     });
   });
 });
-

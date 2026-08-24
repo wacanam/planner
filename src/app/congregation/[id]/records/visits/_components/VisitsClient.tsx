@@ -25,8 +25,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCongregationMembers, useCurrentUser, useMyEncounters, useMyVisits, useOverseenGroupMates } from '@/hooks';
-import { canDeleteVisit, canEditVisit, canLogVisitOrEncounter, canViewAllCongregationRecords } from '@/lib/permissions';
+import {
+  useCongregationMembers,
+  useCurrentUser,
+  useMyEncounters,
+  useMyVisits,
+  useOverseenGroupMates,
+} from '@/hooks';
+import {
+  canDeleteVisit,
+  canEditVisit,
+  canLogVisitOrEncounter,
+  canViewAllCongregationRecords,
+} from '@/lib/permissions';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';

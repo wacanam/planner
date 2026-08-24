@@ -95,8 +95,7 @@ const SelectContent = React.forwardRef<
         <SelectPrimitive.Viewport
           className={cn(
             'p-1.5 overflow-y-auto overscroll-contain max-h-[var(--radix-select-content-available-height,calc(100dvh-3rem))]',
-            position === 'popper' &&
-              'w-full min-w-[var(--radix-select-trigger-width)]'
+            position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]'
           )}
         >
           {children}

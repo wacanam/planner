@@ -1317,7 +1317,9 @@ export function StudioLayout({
                     onClick={async () => {
                       if (!territory?.id) return;
                       if (
-                        window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
+                        window.confirm(
+                          `Delete ${selectedBoundary.name || 'this boundary polygon'}?`
+                        )
                       ) {
                         const existingBoundaries = getTerritoryBoundaries(territory);
                         const updated = existingBoundaries.filter(

@@ -60,10 +60,7 @@ import {
   canEditTerritory,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import {
-  findDuplicateTerritory,
-  getNextCongregationTerritoryNumber,
-} from '@/lib/territories';
+import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,

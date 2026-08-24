@@ -2,21 +2,14 @@
 import { useRouter } from 'expo-router';
 import { ChevronRight, FolderOpen, Plus, Search, Users } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import { TerritoriesDirectorySkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
@@ -166,9 +159,7 @@ export default function TerritoriesDirectoryScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <TerritoriesDirectorySkeleton />
       ) : filteredTerritories.length === 0 ? (
         <EmptyState
           icon={<FolderOpen size={48} color={colors.mutedForeground} />}

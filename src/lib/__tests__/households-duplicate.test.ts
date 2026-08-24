@@ -153,7 +153,11 @@ describe('Household Number & Duplicate Prevention Utilities', () => {
         },
         {
           id: 'doc-2',
-          data: () => ({ houseNumber: '#102-A', address: '102A Oak Ave', congregationId: 'cong-123' }),
+          data: () => ({
+            houseNumber: '#102-A',
+            address: '102A Oak Ave',
+            congregationId: 'cong-123',
+          }),
         },
       ];
 

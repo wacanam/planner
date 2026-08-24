@@ -12,10 +12,7 @@ import {
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
-import {
-  checkTerritoryDuplicateInFirestore,
-  normalizeTerritoryNumber,
-} from '@/lib/territories';
+import { checkTerritoryDuplicateInFirestore, normalizeTerritoryNumber } from '@/lib/territories';
 import type { Territory, TerritoryRequest } from '@/types/api';
 
 function territoryCollection() {

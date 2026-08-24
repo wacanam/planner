@@ -53,7 +53,17 @@ export function useVisitRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeVisits = watchVisits(
-      { congregationId, householdId, assignmentId, userId, userRole, congregationRole, scope, publisherId, groupMateUserIds },
+      {
+        congregationId,
+        householdId,
+        assignmentId,
+        userId,
+        userRole,
+        congregationRole,
+        scope,
+        publisherId,
+        groupMateUserIds,
+      },
       (records) => {
         setVisits(records);
         setError(null);
@@ -62,7 +72,16 @@ export function useVisitRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { congregationId, personalOnly: true, userId, userRole, congregationRole, scope, publisherId, groupMateUserIds },
+      {
+        congregationId,
+        personalOnly: true,
+        userId,
+        userRole,
+        congregationRole,
+        scope,
+        publisherId,
+        groupMateUserIds,
+      },
       (records) => {
         setHouseholds(records);
         setError(null);
@@ -100,7 +119,17 @@ export function useVisitRecords(filters?: {
       unsubscribeHouseholds();
       unsubscribeMembers();
     };
-  }, [assignmentId, congregationId, congregationRole, groupMateUserIds, householdId, publisherId, scope, userId, userRole]);
+  }, [
+    assignmentId,
+    congregationId,
+    congregationRole,
+    groupMateUserIds,
+    householdId,
+    publisherId,
+    scope,
+    userId,
+    userRole,
+  ]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),
@@ -153,7 +182,16 @@ export function useVisitRecords(filters?: {
         )
       )
     );
-  }, [congregationId, congregationRole, groupMateSet, householdMap, memberUserIds, userId, userRole, visits]);
+  }, [
+    congregationId,
+    congregationRole,
+    groupMateSet,
+    householdMap,
+    memberUserIds,
+    userId,
+    userRole,
+    visits,
+  ]);
 
   return { visits: mappedVisits, households, isLoading, error };
 }
@@ -258,7 +296,17 @@ export function useHouseholds(filters?: HouseholdFilters) {
 
     setIsLoading(true);
     const unsubscribe = watchHouseholds(
-      { congregationId, territoryId, userId, userRole, congregationRole, personalOnly, scope, publisherId, groupMateUserIds },
+      {
+        congregationId,
+        territoryId,
+        userId,
+        userRole,
+        congregationRole,
+        personalOnly,
+        scope,
+        publisherId,
+        groupMateUserIds,
+      },
       (households) => {
         setRecords(households);
         setError(null);
@@ -270,7 +318,17 @@ export function useHouseholds(filters?: HouseholdFilters) {
       }
     );
     return unsubscribe;
-  }, [congregationId, congregationRole, groupMateUserIds, personalOnly, publisherId, scope, territoryId, userId, userRole]);
+  }, [
+    congregationId,
+    congregationRole,
+    groupMateUserIds,
+    personalOnly,
+    publisherId,
+    scope,
+    territoryId,
+    userId,
+    userRole,
+  ]);
 
   const households = useMemo(
     () =>

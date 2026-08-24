@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import { TerritoryDetailSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useReturnAssignment, useTerritoryAssignments } from '@/hooks/useAssignments';
@@ -349,6 +350,15 @@ export default function AssignmentDetailScreen() {
         onPress: () => setSelectedHousehold(h),
       }));
   }, [households]);
+
+  if (territoryLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Header showBack title="Territory" />
+        <TerritoryDetailSkeleton />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

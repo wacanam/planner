@@ -10,8 +10,32 @@ export default function AdminRequestsPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="space-y-6 animate-pulse p-4 sm:p-6 max-w-7xl mx-auto w-full">
+          <div className="space-y-2">
+            <div className="h-8 w-64 bg-muted rounded-md" />
+            <div className="h-4 w-96 bg-muted rounded-md" />
+          </div>
+          <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
+            <div className="p-4 border-b flex justify-between">
+              <div className="h-10 w-64 bg-muted rounded-md" />
+              <div className="h-10 w-32 bg-muted rounded-md" />
+            </div>
+            <div className="divide-y">
+              {Array.from({ length: 4 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
+                <div key={i} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-muted rounded-full" />
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-40 bg-muted rounded-md" />
+                      <div className="h-3 w-56 bg-muted rounded-md" />
+                    </div>
+                  </div>
+                  <div className="h-8 w-24 bg-muted rounded-md" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       }
     >

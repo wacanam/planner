@@ -136,11 +136,7 @@ describe('Territory Duplicate Prevention & Validation Utilities', () => {
       } as any);
 
       const fakeFirestore = {} as any;
-      const result = await checkTerritoryDuplicateInFirestore(
-        fakeFirestore,
-        'cong-123',
-        ' 102-a '
-      );
+      const result = await checkTerritoryDuplicateInFirestore(fakeFirestore, 'cong-123', ' 102-a ');
 
       expect(result.isDuplicate).toBe(true);
       expect(result.duplicate?.id).toBe('doc-2');
@@ -184,11 +180,7 @@ describe('Territory Duplicate Prevention & Validation Utilities', () => {
       } as any);
 
       const fakeFirestore = {} as any;
-      const result = await checkTerritoryDuplicateInFirestore(
-        fakeFirestore,
-        'cong-123',
-        '999'
-      );
+      const result = await checkTerritoryDuplicateInFirestore(fakeFirestore, 'cong-123', '999');
 
       expect(result.isDuplicate).toBe(false);
       expect(result.duplicate).toBeNull();
@@ -196,18 +188,10 @@ describe('Territory Duplicate Prevention & Validation Utilities', () => {
 
     it('returns isDuplicate: false when congregationId or number is empty', async () => {
       const fakeFirestore = {} as any;
-      const resultNoCong = await checkTerritoryDuplicateInFirestore(
-        fakeFirestore,
-        '',
-        '101'
-      );
+      const resultNoCong = await checkTerritoryDuplicateInFirestore(fakeFirestore, '', '101');
       expect(resultNoCong.isDuplicate).toBe(false);
 
-      const resultNoNum = await checkTerritoryDuplicateInFirestore(
-        fakeFirestore,
-        'cong-123',
-        '  '
-      );
+      const resultNoNum = await checkTerritoryDuplicateInFirestore(fakeFirestore, 'cong-123', '  ');
       expect(resultNoNum.isDuplicate).toBe(false);
     });
   });

@@ -2,20 +2,13 @@
 import { useRouter } from 'expo-router';
 import { Calendar, ChevronRight, Sparkles, Users } from 'lucide-react-native';
 import { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
+import { MyAssignmentsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useMyAssignments } from '@/hooks/useAssignments';
@@ -129,9 +122,7 @@ export default function MyAssignmentsScreen() {
       <Header title="My Assignments" subtitle="Your assigned territories and active field work" />
 
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <MyAssignmentsSkeleton />
       ) : activeAssignments.length === 0 ? (
         <ScrollView
           contentContainerStyle={{

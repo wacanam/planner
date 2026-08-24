@@ -169,49 +169,117 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
 
     it('filters strictly to personal + shared records when scope is "mine"', () => {
       // Household filtering
-      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(sharedWithMeHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
+      expect(
+        filterHousehold(myHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(sharedWithMeHousehold, {
+          userId,
+          userRole,
+          scope: 'mine',
+          groupMateUserIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
+      expect(
+        filterHousehold(otherCongregationHousehold, {
+          userId,
+          userRole,
+          scope: 'mine',
+          groupMateUserIds,
+        })
+      ).toBe(false);
 
       // Visit filtering
-      expect(filterVisit(myVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
-      expect(filterVisit(otherGroupVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
+      expect(filterVisit(myVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(
+        true
+      );
+      expect(
+        filterVisit(groupMateVisit, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
+      expect(
+        filterVisit(otherGroupVisit, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
 
       // Encounter filtering
-      expect(filterEncounter(myEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
-      expect(filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
+      expect(
+        filterEncounter(myEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterEncounter(groupMateEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
+      expect(
+        filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
     });
 
     it('filters to personal + group records when scope is "group"', () => {
-      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(sharedWithMeHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
+      expect(
+        filterHousehold(myHousehold, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(sharedWithMeHousehold, {
+          userId,
+          userRole,
+          scope: 'group',
+          groupMateUserIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(otherCongregationHousehold, {
+          userId,
+          userRole,
+          scope: 'group',
+          groupMateUserIds,
+        })
+      ).toBe(false);
 
-      expect(filterVisit(myVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterVisit(otherGroupVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
+      expect(filterVisit(myVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(
+        true
+      );
+      expect(
+        filterVisit(groupMateVisit, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterVisit(otherGroupVisit, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(false);
 
-      expect(filterEncounter(myEncounter, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
+      expect(
+        filterEncounter(myEncounter, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterEncounter(groupMateEncounter, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(false);
     });
 
     it('shows all congregation records when scope is "congregation"', () => {
       expect(filterHousehold(myHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation' })).toBe(
+        true
+      );
+      expect(
+        filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation' })
+      ).toBe(true);
 
       expect(filterVisit(myVisit, { userId, userRole, scope: 'congregation' })).toBe(true);
       expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'congregation' })).toBe(true);
       expect(filterVisit(otherGroupVisit, { userId, userRole, scope: 'congregation' })).toBe(true);
 
       expect(filterEncounter(myEncounter, { userId, userRole, scope: 'congregation' })).toBe(true);
-      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'congregation' })).toBe(true);
-      expect(filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'congregation' })).toBe(
+        true
+      );
+      expect(
+        filterEncounter(otherGroupEncounter, { userId, userRole, scope: 'congregation' })
+      ).toBe(true);
     });
   });
 
@@ -220,28 +288,76 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
     const userId = 'user-elder-1';
 
     it('filters strictly to personal records in "mine" scope', () => {
-      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
+      expect(
+        filterHousehold(myHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
 
-      expect(filterVisit(myVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(true);
-      expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(false);
+      expect(filterVisit(myVisit, { userId, userRole, scope: 'mine', groupMateUserIds })).toBe(
+        true
+      );
+      expect(
+        filterVisit(groupMateVisit, { userId, userRole, scope: 'mine', groupMateUserIds })
+      ).toBe(false);
     });
 
     it('shows personal + group records in "group" scope', () => {
-      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
+      expect(
+        filterHousehold(myHousehold, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(otherCongregationHousehold, {
+          userId,
+          userRole,
+          scope: 'group',
+          groupMateUserIds,
+        })
+      ).toBe(false);
 
-      expect(filterVisit(myVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(true);
-      expect(filterVisit(otherGroupVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(false);
+      expect(filterVisit(myVisit, { userId, userRole, scope: 'group', groupMateUserIds })).toBe(
+        true
+      );
+      expect(
+        filterVisit(groupMateVisit, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterVisit(otherGroupVisit, { userId, userRole, scope: 'group', groupMateUserIds })
+      ).toBe(false);
     });
 
     it('denies access to unauthorized congregation records if regular publisher attempts congregation scope', () => {
-      expect(filterHousehold(myHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(sharedWithMeHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(false);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })).toBe(false);
+      expect(
+        filterHousehold(myHousehold, { userId, userRole, scope: 'congregation', groupMateUserIds })
+      ).toBe(true);
+      expect(
+        filterHousehold(sharedWithMeHousehold, {
+          userId,
+          userRole,
+          scope: 'congregation',
+          groupMateUserIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, {
+          userId,
+          userRole,
+          scope: 'congregation',
+          groupMateUserIds,
+        })
+      ).toBe(false);
+      expect(
+        filterHousehold(otherCongregationHousehold, {
+          userId,
+          userRole,
+          scope: 'congregation',
+          groupMateUserIds,
+        })
+      ).toBe(false);
     });
   });
 
@@ -280,24 +396,40 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
     it('NEVER allows viewing unshared household records of other publishers under ANY scope', () => {
       // "mine" scope
       expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'mine' })).toBe(true);
-      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'mine' })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'mine' })).toBe(
+        true
+      );
       expect(filterHousehold(myHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
       expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'mine' })).toBe(false);
+      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'mine' })).toBe(
+        false
+      );
 
       // "group" scope attempt (without oversight)
       expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'group' })).toBe(true);
-      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'group' })).toBe(true);
+      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'group' })).toBe(
+        true
+      );
       expect(filterHousehold(myHousehold, { userId, userRole, scope: 'group' })).toBe(false);
       expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'group' })).toBe(false);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'group' })).toBe(false);
+      expect(
+        filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'group' })
+      ).toBe(false);
 
       // "congregation" scope attempt (unauthorized)
-      expect(filterHousehold(regularPubHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
-      expect(filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(
+        filterHousehold(regularPubHousehold, { userId, userRole, scope: 'congregation' })
+      ).toBe(true);
+      expect(
+        filterHousehold(sharedWithPubHousehold, { userId, userRole, scope: 'congregation' })
+      ).toBe(true);
       expect(filterHousehold(myHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterHousehold(groupMateHousehold, { userId, userRole, scope: 'congregation' })).toBe(
+        false
+      );
+      expect(
+        filterHousehold(otherCongregationHousehold, { userId, userRole, scope: 'congregation' })
+      ).toBe(false);
 
       // default / no scope passed
       expect(filterHousehold(regularPubHousehold, { userId, userRole })).toBe(true);
@@ -314,9 +446,13 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
       expect(filterVisit(groupMateVisit, { userId, userRole, scope: 'congregation' })).toBe(false);
 
       // Encounters
-      expect(filterEncounter(regularPubEncounter, { userId, userRole, scope: 'congregation' })).toBe(true);
+      expect(
+        filterEncounter(regularPubEncounter, { userId, userRole, scope: 'congregation' })
+      ).toBe(true);
       expect(filterEncounter(myEncounter, { userId, userRole, scope: 'congregation' })).toBe(false);
-      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'congregation' })).toBe(false);
+      expect(filterEncounter(groupMateEncounter, { userId, userRole, scope: 'congregation' })).toBe(
+        false
+      );
     });
   });
 
@@ -335,17 +471,75 @@ describe('Records Scoping Logic (Personal vs Group vs Congregation)', () => {
 
     it('correctly filters in "mine" and "group" scopes for assistant overseer', () => {
       // In "mine" scope: only personal
-      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'mine', groupMateUserIds: asstGroupMateIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'mine', groupMateUserIds: asstGroupMateIds })).toBe(false);
+      expect(
+        filterHousehold(asstHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'mine',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'mine',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(false);
 
       // In "group" scope: personal + group mate
-      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(true);
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(true);
-      expect(filterHousehold(otherCongregationHousehold, { userId, userRole, congregationRole, scope: 'group', groupMateUserIds: asstGroupMateIds })).toBe(false);
+      expect(
+        filterHousehold(asstHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'group',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(groupMateHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'group',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(otherCongregationHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'group',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(false);
 
       // With publisher filter in "group" scope
-      expect(filterHousehold(groupMateHousehold, { userId, userRole, congregationRole, scope: 'group', publisherId: 'user-groupmate-1', groupMateUserIds: asstGroupMateIds })).toBe(true);
-      expect(filterHousehold(asstHousehold, { userId, userRole, congregationRole, scope: 'group', publisherId: 'user-groupmate-1', groupMateUserIds: asstGroupMateIds })).toBe(false);
+      expect(
+        filterHousehold(groupMateHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'group',
+          publisherId: 'user-groupmate-1',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(true);
+      expect(
+        filterHousehold(asstHousehold, {
+          userId,
+          userRole,
+          congregationRole,
+          scope: 'group',
+          publisherId: 'user-groupmate-1',
+          groupMateUserIds: asstGroupMateIds,
+        })
+      ).toBe(false);
     });
   });
 });

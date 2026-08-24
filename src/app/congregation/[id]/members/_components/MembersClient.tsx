@@ -153,9 +153,7 @@ export default function MembersClient() {
 
   const pendingJoinRequests = useMemo(
     () =>
-      allJoinRequests.filter(
-        (r) => r.status === 'pending' || r.status === MemberStatus.PENDING
-      ),
+      allJoinRequests.filter((r) => r.status === 'pending' || r.status === MemberStatus.PENDING),
     [allJoinRequests]
   );
 
@@ -169,9 +167,7 @@ export default function MembersClient() {
 
   const declinedJoinRequests = useMemo(
     () =>
-      allJoinRequests.filter(
-        (r) => r.status === 'rejected' || r.status === MemberStatus.REJECTED
-      ),
+      allJoinRequests.filter((r) => r.status === 'rejected' || r.status === MemberStatus.REJECTED),
     [allJoinRequests]
   );
 

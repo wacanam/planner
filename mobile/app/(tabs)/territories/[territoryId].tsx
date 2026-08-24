@@ -11,16 +11,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TerritoryMapView } from '@/components/map';
 import { Badge } from '@/components/ui/Badge';
@@ -28,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import { TerritoryDetailSkeleton, TerritoryHistorySkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
@@ -258,10 +250,9 @@ export default function TerritoryDetailScreen() {
 
   if (territoryLoading) {
     return (
-      <View
-        style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Header showBack title="Territory" />
+        <TerritoryDetailSkeleton />
       </View>
     );
   }
@@ -692,7 +683,7 @@ export default function TerritoryDetailScreen() {
 
             <ScrollView style={{ maxHeight: 380 }}>
               {assignmentsLoading ? (
-                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                <TerritoryHistorySkeleton />
               ) : assignments.length === 0 ? (
                 <Text
                   style={{

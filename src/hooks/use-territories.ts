@@ -15,10 +15,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
-import {
-  checkTerritoryDuplicateInFirestore,
-  normalizeTerritoryNumber,
-} from '@/lib/territories';
+import { checkTerritoryDuplicateInFirestore, normalizeTerritoryNumber } from '@/lib/territories';
 import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
 
 type MutationOptions = { throwOnError?: boolean };

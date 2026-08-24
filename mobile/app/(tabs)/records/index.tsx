@@ -16,7 +16,6 @@ import {
 } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -33,6 +32,11 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import {
+  RecordsEncountersSkeleton,
+  RecordsHouseholdsSkeleton,
+  RecordsVisitsSkeleton,
+} from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
@@ -147,7 +151,8 @@ export default function RecordsScreen() {
     if (!user?.id) return { isMine: false, isCollaborator: false, isGroup: false };
     const isMine = createdById === user.id;
     const isCollaborator = Boolean(collaboratorIds?.includes(user.id));
-    const isGroup = !isMine && !isCollaborator && Boolean(createdById && groupMateIds.has(createdById));
+    const isGroup =
+      !isMine && !isCollaborator && Boolean(createdById && groupMateIds.has(createdById));
     return { isMine, isCollaborator, isGroup };
   };
 
@@ -205,7 +210,15 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return (a.streetName || a.address).localeCompare(b.streetName || b.address);
     });
-  }, [households, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
+  }, [
+    households,
+    recordScope,
+    publisherFilter,
+    user?.id,
+    groupMateIds,
+    canViewCongregation,
+    isOverseer,
+  ]);
 
   // Scope-Filtered Visits
   const scopedVisits = useMemo(() => {
@@ -216,9 +229,7 @@ export default function RecordsScreen() {
       list = list.filter((v) => v.userId === user.id);
     } else if (recordScope === 'group') {
       if (canViewCongregation || isOverseer) {
-        list = list.filter(
-          (v) => v.userId === user.id || (v.userId && groupMateIds.has(v.userId))
-        );
+        list = list.filter((v) => v.userId === user.id || (v.userId && groupMateIds.has(v.userId)));
       } else {
         list = list.filter((v) => v.userId === user.id);
       }
@@ -239,7 +250,15 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return b.visitDate.localeCompare(a.visitDate);
     });
-  }, [visits, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
+  }, [
+    visits,
+    recordScope,
+    publisherFilter,
+    user?.id,
+    groupMateIds,
+    canViewCongregation,
+    isOverseer,
+  ]);
 
   // Scope-Filtered Encounters
   const scopedEncounters = useMemo(() => {
@@ -250,9 +269,7 @@ export default function RecordsScreen() {
       list = list.filter((e) => e.userId === user.id);
     } else if (recordScope === 'group') {
       if (canViewCongregation || isOverseer) {
-        list = list.filter(
-          (e) => e.userId === user.id || (e.userId && groupMateIds.has(e.userId))
-        );
+        list = list.filter((e) => e.userId === user.id || (e.userId && groupMateIds.has(e.userId)));
       } else {
         list = list.filter((e) => e.userId === user.id);
       }
@@ -273,7 +290,15 @@ export default function RecordsScreen() {
       if (!aMine && bMine) return 1;
       return b.createdAt.localeCompare(a.createdAt);
     });
-  }, [encounters, recordScope, publisherFilter, user?.id, groupMateIds, canViewCongregation, isOverseer]);
+  }, [
+    encounters,
+    recordScope,
+    publisherFilter,
+    user?.id,
+    groupMateIds,
+    canViewCongregation,
+    isOverseer,
+  ]);
 
   // Search filtered results
   const filteredHouseholds = useMemo(() => {
@@ -429,8 +454,7 @@ export default function RecordsScreen() {
                 ? activeTab === 'households'
                   ? households.filter(
                       (h) =>
-                        h.createdById === user?.id ||
-                        h.collaboratorIds?.includes(user?.id || '')
+                        h.createdById === user?.id || h.collaboratorIds?.includes(user?.id || '')
                     ).length
                   : activeTab === 'visits'
                     ? visits.filter((v) => v.userId === user?.id).length
@@ -663,7 +687,9 @@ export default function RecordsScreen() {
       )}
 
       {/* Search & Publisher Filter Row */}
-      <View style={{ padding: spacing.md, paddingBottom: spacing.xs, flexDirection: 'row', gap: 8 }}>
+      <View
+        style={{ padding: spacing.md, paddingBottom: spacing.xs, flexDirection: 'row', gap: 8 }}
+      >
         <View style={{ flex: 1 }}>
           <Input
             placeholder={`Search ${recordScope === 'mine' ? 'my' : recordScope} ${activeTab}...`}
@@ -725,17 +751,11 @@ export default function RecordsScreen() {
       {/* Tab 1: Households List */}
       {activeTab === 'households' &&
         (householdsLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <RecordsHouseholdsSkeleton />
         ) : filteredHouseholds.length === 0 ? (
           <EmptyState
             icon={<Home size={44} color={colors.mutedForeground} />}
-            title={
-              recordScope === 'mine'
-                ? 'No Personal Households'
-                : 'No Households in this View'
-            }
+            title={recordScope === 'mine' ? 'No Personal Households' : 'No Households in this View'}
             description={
               recordScope === 'mine'
                 ? 'Add your first household or pin doors in your assigned territories.'
@@ -774,7 +794,14 @@ export default function RecordsScreen() {
                 >
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <Text
                           style={[
                             styles.addressText,
@@ -786,12 +813,8 @@ export default function RecordsScreen() {
                         </Text>
 
                         {/* Ownership Badges */}
-                        {isMine && (
-                          <Badge label="👤 Mine" variant="primary" size="sm" />
-                        )}
-                        {isCollaborator && (
-                          <Badge label="🤝 Collab" variant="success" size="sm" />
-                        )}
+                        {isMine && <Badge label="👤 Mine" variant="primary" size="sm" />}
+                        {isCollaborator && <Badge label="🤝 Collab" variant="success" size="sm" />}
                         {isGroup && (
                           <Badge
                             label={item.creatorName ? `👥 ${item.creatorName}` : '👥 Group'}
@@ -800,11 +823,7 @@ export default function RecordsScreen() {
                           />
                         )}
                         {!isMine && !isCollaborator && !isGroup && item.creatorName && (
-                          <Badge
-                            label={`🏛️ ${item.creatorName}`}
-                            variant="secondary"
-                            size="sm"
-                          />
+                          <Badge label={`🏛️ ${item.creatorName}`} variant="secondary" size="sm" />
                         )}
                       </View>
 
@@ -853,9 +872,7 @@ export default function RecordsScreen() {
       {/* Tab 2: Visits List */}
       {activeTab === 'visits' &&
         (visitsLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <RecordsVisitsSkeleton />
         ) : filteredVisits.length === 0 ? (
           <EmptyState
             icon={<Calendar size={44} color={colors.mutedForeground} />}
@@ -886,7 +903,14 @@ export default function RecordsScreen() {
                 >
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <Text
                           style={[
                             styles.addressText,
@@ -963,9 +987,7 @@ export default function RecordsScreen() {
       {/* Tab 3: Encounters List */}
       {activeTab === 'encounters' &&
         (encountersLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <RecordsEncountersSkeleton />
         ) : filteredEncounters.length === 0 ? (
           <EmptyState
             icon={<MessageSquare size={44} color={colors.mutedForeground} />}
@@ -1080,11 +1102,15 @@ export default function RecordsScreen() {
                   styles.filterOptionRow,
                   {
                     borderColor: publisherFilter === 'all' ? colors.primary : colors.border,
-                    backgroundColor: publisherFilter === 'all' ? `${colors.primary}15` : colors.card,
+                    backgroundColor:
+                      publisherFilter === 'all' ? `${colors.primary}15` : colors.card,
                   },
                 ]}
               >
-                <Users size={16} color={publisherFilter === 'all' ? colors.primary : colors.mutedForeground} />
+                <Users
+                  size={16}
+                  color={publisherFilter === 'all' ? colors.primary : colors.mutedForeground}
+                />
                 <Text
                   style={{
                     color: colors.foreground,
@@ -1097,7 +1123,9 @@ export default function RecordsScreen() {
               </TouchableOpacity>
 
               {members
-                .filter((m) => (recordScope === 'group' ? groupMateIds.has(m.userId || m.id) : true))
+                .filter((m) =>
+                  recordScope === 'group' ? groupMateIds.has(m.userId || m.id) : true
+                )
                 .map((m) => {
                   const uid = m.userId || m.id;
                   const isSelected = publisherFilter === uid;
@@ -1117,9 +1145,17 @@ export default function RecordsScreen() {
                         },
                       ]}
                     >
-                      <User size={16} color={isSelected ? colors.primary : colors.mutedForeground} />
+                      <User
+                        size={16}
+                        color={isSelected ? colors.primary : colors.mutedForeground}
+                      />
                       <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={{ color: colors.foreground, fontWeight: isSelected ? '700' : '500' }}>
+                        <Text
+                          style={{
+                            color: colors.foreground,
+                            fontWeight: isSelected ? '700' : '500',
+                          }}
+                        >
                           {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
                         </Text>
                         <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>

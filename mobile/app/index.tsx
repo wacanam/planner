@@ -1,7 +1,7 @@
-// mobile/app/index.tsx
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -38,7 +38,12 @@ export default function IndexScreen() {
         >
           Ministry & Territory Planner
         </Text>
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <Skeleton
+          width={120}
+          height={6}
+          borderRadius={9999}
+          style={{ marginTop: spacing.xl, backgroundColor: colors.primary }}
+        />
       </View>
     </View>
   );

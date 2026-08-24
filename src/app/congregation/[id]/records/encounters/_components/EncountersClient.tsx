@@ -32,9 +32,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useCongregationMembers, useCurrentUser, useHouseholds, useMyEncounters, useOverseenGroupMates } from '@/hooks';
+import {
+  useCongregationMembers,
+  useCurrentUser,
+  useHouseholds,
+  useMyEncounters,
+  useOverseenGroupMates,
+} from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
-import { canDeleteEncounter, canEditEncounter, canViewAllCongregationRecords } from '@/lib/permissions';
+import {
+  canDeleteEncounter,
+  canEditEncounter,
+  canViewAllCongregationRecords,
+} from '@/lib/permissions';
 import {
   deleteEncounterRecord,
   saveEncounterRecord,
@@ -378,19 +388,19 @@ export default function EncountersClient() {
             >
               <option value="all">All Publishers</option>
               {members
-              .filter((m) => {
-                const uid = m.userId || m.id;
-                if (recordScope === 'group') return groupMateUserIds.has(uid);
-                return true;
-              })
-              .map((m) => {
-                const uid = m.userId || m.id;
-                return (
-                  <option key={m.id} value={uid}>
-                    {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
-                  </option>
-                );
-              })}
+                .filter((m) => {
+                  const uid = m.userId || m.id;
+                  if (recordScope === 'group') return groupMateUserIds.has(uid);
+                  return true;
+                })
+                .map((m) => {
+                  const uid = m.userId || m.id;
+                  return (
+                    <option key={m.id} value={uid}>
+                      {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
+                    </option>
+                  );
+                })}
             </select>
           )}
 

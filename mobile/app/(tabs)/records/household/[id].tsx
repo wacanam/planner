@@ -2,22 +2,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, MapPin, Pencil, Share2, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
+import { HouseholdDetailSkeleton, HouseholdVisitsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
@@ -252,10 +244,9 @@ export default function HouseholdDetailScreen() {
 
   if (householdLoading) {
     return (
-      <View
-        style={[styles.container, styles.centerContainer, { backgroundColor: colors.background }]}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Header showBack title="Household" />
+        <HouseholdDetailSkeleton />
       </View>
     );
   }
@@ -378,7 +369,7 @@ export default function HouseholdDetailScreen() {
         </Text>
 
         {visitsLoading ? (
-          <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
+          <HouseholdVisitsSkeleton />
         ) : visits.length === 0 ? (
           <Card style={{ padding: 16, alignItems: 'center' }}>
             <Text style={{ color: colors.mutedForeground, fontSize: typography.sm }}>

@@ -43,10 +43,7 @@ export function areCoordinatesCoincident(
   p2: LatLng,
   toleranceDeg: number = COINCIDENT_THRESHOLD_DEG
 ): boolean {
-  return (
-    Math.abs(p1.lat - p2.lat) <= toleranceDeg &&
-    Math.abs(p1.lng - p2.lng) <= toleranceDeg
-  );
+  return Math.abs(p1.lat - p2.lat) <= toleranceDeg && Math.abs(p1.lng - p2.lng) <= toleranceDeg;
 }
 
 /**
@@ -141,8 +138,7 @@ export function findNearestRoadSnapPoint({
       }
 
       const isVertexMatchA =
-        vDistPixelsA <= pixelTolerance ||
-        (!curPixel && vDistMetersA <= meterTolerance);
+        vDistPixelsA <= pixelTolerance || (!curPixel && vDistMetersA <= meterTolerance);
 
       if (isVertexMatchA) {
         const score = curPixel ? vDistPixelsA : vDistMetersA;
@@ -175,8 +171,7 @@ export function findNearestRoadSnapPoint({
       }
 
       const isVertexMatchB =
-        vDistPixelsB <= pixelTolerance ||
-        (!curPixel && vDistMetersB <= meterTolerance);
+        vDistPixelsB <= pixelTolerance || (!curPixel && vDistMetersB <= meterTolerance);
 
       if (isVertexMatchB) {
         const score = curPixel ? vDistPixelsB : vDistMetersB;
@@ -211,17 +206,12 @@ export function findNearestRoadSnapPoint({
       }
 
       const isSegMatch =
-        segDistPixels <= pixelTolerance ||
-        (!curPixel && segDistMeters <= meterTolerance);
+        segDistPixels <= pixelTolerance || (!curPixel && segDistMeters <= meterTolerance);
 
       if (isSegMatch) {
         const isNearVertex = t < 0.05 || t > 0.95;
         const vertexIndex = t < 0.05 ? i : i + 1;
-        const snappedTarget = isNearVertex
-          ? t < 0.05
-            ? a
-            : b
-          : projPoint;
+        const snappedTarget = isNearVertex ? (t < 0.05 ? a : b) : projPoint;
 
         const score = curPixel ? segDistPixels : segDistMeters;
         const currentBest = curPixel ? bestDistancePixels : bestDistanceMeters;
@@ -269,9 +259,7 @@ export function insertJunctionVertexIntoRoad(
   }
 
   // Also check all points to prevent duplicate vertices
-  const alreadyExists = road.points.some((p) =>
-    areCoordinatesCoincident(p, junctionPoint)
-  );
+  const alreadyExists = road.points.some((p) => areCoordinatesCoincident(p, junctionPoint));
   if (alreadyExists) {
     return road;
   }
@@ -344,4 +332,3 @@ export function findClosestVertexIndex({
   }
   return null;
 }
-

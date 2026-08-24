@@ -432,8 +432,6 @@ export function isGroupLeaderOfUser(
   return getGroupLeadershipMateIds(leaderUserId, groups).has(targetUserId);
 }
 
-
-
 /**
  * Checks if a user belongs to a service group as overseer, assistant overseer, or group member.
  * Strictly uses deterministic user identifiers (auth UID / userId, verified email, or explicit groupId).
@@ -791,7 +789,11 @@ export function canShareHousehold(
   if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
   if (household.createdById === user.id) return true;
-  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+  if (
+    groups &&
+    household.createdById &&
+    isGroupLeaderOfUser(user.id, household.createdById, groups)
+  ) {
     return true;
   }
   return false;
@@ -814,7 +816,11 @@ export function canEditHousehold(
   if (canCreateTerritory(user.role) || canManageCongregation(user.role)) return true;
   if (!household) return false;
   if (household.createdById === user.id) return true;
-  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+  if (
+    groups &&
+    household.createdById &&
+    isGroupLeaderOfUser(user.id, household.createdById, groups)
+  ) {
     return true;
   }
   return false;
@@ -837,7 +843,11 @@ export function canDeleteHousehold(
   if (canDeleteTerritory(user.role)) return true;
   if (!household) return false;
   if (household.createdById === user.id) return true;
-  if (groups && household.createdById && isGroupLeaderOfUser(user.id, household.createdById, groups)) {
+  if (
+    groups &&
+    household.createdById &&
+    isGroupLeaderOfUser(user.id, household.createdById, groups)
+  ) {
     return true;
   }
   return false;
@@ -864,7 +874,11 @@ export function canModifyMapAnnotation(
   if (canEditTerritory(user.role)) return true;
   if (!annotation) return false;
   if (annotation.createdById === user.id) return true;
-  if (groups && annotation.createdById && isGroupLeaderOfUser(user.id, annotation.createdById, groups)) {
+  if (
+    groups &&
+    annotation.createdById &&
+    isGroupLeaderOfUser(user.id, annotation.createdById, groups)
+  ) {
     return true;
   }
   return false;

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
+import { ReportsOverviewSkeleton, ReportsS13Skeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregation } from '@/hooks/useCongregations';
@@ -136,114 +137,128 @@ export default function ReportsScreen() {
 
       {activeSegment === 'overview' ? (
         /* Coverage Overview */
-        <ScrollView
-          contentContainerStyle={{
-            padding: spacing.md,
-            paddingBottom: insets.bottom + spacing.xxl,
-          }}
-        >
-          {/* Top KPI Cards */}
-          <View style={styles.kpiGrid}>
-            <Card style={[styles.kpiCard, { flex: 1 }]}>
-              <BarChart2 size={18} color={colors.primary} />
-              <Text style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}>
-                {coverageData.avgCoveragePercent}%
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                Average Coverage
-              </Text>
-            </Card>
-
-            <Card style={[styles.kpiCard, { flex: 1 }]}>
-              <Home size={18} color={colors.success} />
-              <Text style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}>
-                {coverageData.workedDoors}/{coverageData.totalDoors}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                Worked Doors
-              </Text>
-            </Card>
-          </View>
-
-          {/* Status Breakdown Card */}
-          <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
-            <Text
-              style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}
-            >
-              Territory Distribution
-            </Text>
-
-            <View style={styles.breakdownGrid}>
-              <View style={styles.breakdownItem}>
-                <Badge label="Available" variant="success" size="sm" />
-                <Text
-                  style={[
-                    styles.breakdownVal,
-                    { color: colors.foreground, fontSize: typography.lg },
-                  ]}
-                >
-                  {coverageData.byStatus.available}
-                </Text>
-              </View>
-
-              <View style={styles.breakdownItem}>
-                <Badge label="Assigned" variant="primary" size="sm" />
-                <Text
-                  style={[
-                    styles.breakdownVal,
-                    { color: colors.foreground, fontSize: typography.lg },
-                  ]}
-                >
-                  {coverageData.byStatus.assigned}
-                </Text>
-              </View>
-
-              <View style={styles.breakdownItem}>
-                <Badge label="Completed" variant="secondary" size="sm" />
-                <Text
-                  style={[
-                    styles.breakdownVal,
-                    { color: colors.foreground, fontSize: typography.lg },
-                  ]}
-                >
-                  {coverageData.byStatus.completed}
-                </Text>
-              </View>
-            </View>
-          </Card>
-
-          {/* S-13 PDF Download Action Card */}
-          <Card
-            style={[
-              styles.sectionCard,
-              {
-                marginTop: spacing.md,
-                backgroundColor: `${colors.primary}12`,
-                borderColor: `${colors.primary}35`,
-              },
-            ]}
+        coverageLoading ? (
+          <ReportsOverviewSkeleton />
+        ) : (
+          <ScrollView
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <FileText size={28} color={colors.primary} />
-              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+            {/* Top KPI Cards */}
+            <View style={styles.kpiGrid}>
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <BarChart2 size={18} color={colors.primary} />
                 <Text
-                  style={{ fontWeight: '700', color: colors.foreground, fontSize: typography.base }}
+                  style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}
                 >
-                  Export Form S-13 (8/19)
+                  {coverageData.avgCoveragePercent}%
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                  Generate official congregation territory assignment PDF
+                  Average Coverage
                 </Text>
-              </View>
+              </Card>
+
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <Home size={18} color={colors.success} />
+                <Text
+                  style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}
+                >
+                  {coverageData.workedDoors}/{coverageData.totalDoors}
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                  Worked Doors
+                </Text>
+              </Card>
             </View>
-            <Button
-              title="Generate & Share S-13 PDF"
-              onPress={handleExportS13Pdf}
-              loading={isExporting}
-              style={{ marginTop: spacing.md }}
-            />
-          </Card>
-        </ScrollView>
+
+            {/* Status Breakdown Card */}
+            <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
+              <Text
+                style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}
+              >
+                Territory Distribution
+              </Text>
+
+              <View style={styles.breakdownGrid}>
+                <View style={styles.breakdownItem}>
+                  <Badge label="Available" variant="success" size="sm" />
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: colors.foreground, fontSize: typography.lg },
+                    ]}
+                  >
+                    {coverageData.byStatus.available}
+                  </Text>
+                </View>
+
+                <View style={styles.breakdownItem}>
+                  <Badge label="Assigned" variant="primary" size="sm" />
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: colors.foreground, fontSize: typography.lg },
+                    ]}
+                  >
+                    {coverageData.byStatus.assigned}
+                  </Text>
+                </View>
+
+                <View style={styles.breakdownItem}>
+                  <Badge label="Completed" variant="secondary" size="sm" />
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: colors.foreground, fontSize: typography.lg },
+                    ]}
+                  >
+                    {coverageData.byStatus.completed}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+
+            {/* S-13 PDF Download Action Card */}
+            <Card
+              style={[
+                styles.sectionCard,
+                {
+                  marginTop: spacing.md,
+                  backgroundColor: `${colors.primary}12`,
+                  borderColor: `${colors.primary}35`,
+                },
+              ]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <FileText size={28} color={colors.primary} />
+                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                  <Text
+                    style={{
+                      fontWeight: '700',
+                      color: colors.foreground,
+                      fontSize: typography.base,
+                    }}
+                  >
+                    Export Form S-13 (8/19)
+                  </Text>
+                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                    Generate official congregation territory assignment PDF
+                  </Text>
+                </View>
+              </View>
+              <Button
+                title="Generate & Share S-13 PDF"
+                onPress={handleExportS13Pdf}
+                loading={isExporting}
+                style={{ marginTop: spacing.md }}
+              />
+            </Card>
+          </ScrollView>
+        )
+      ) : s13Loading ? (
+        <ReportsS13Skeleton />
       ) : (
         /* S-13 Assignment Records Table / List */
         <FlatList

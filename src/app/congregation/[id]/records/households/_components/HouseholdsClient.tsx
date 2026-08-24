@@ -1,6 +1,19 @@
 'use client';
 
-import { ChevronRight, Filter, Home, MapPin, Pencil, Plus, Search, Share2, Sparkles, Trash2, User, Users } from 'lucide-react';
+import {
+  ChevronRight,
+  Filter,
+  Home,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  Share2,
+  Sparkles,
+  Trash2,
+  User,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -236,7 +249,11 @@ export default function HouseholdsClient() {
 
   const handleUpdateHousehold = async (values: HouseholdFormValues) => {
     if (!editHousehold) return;
-    const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, households, editHousehold.id);
+    const duplicate = findDuplicateHouseholdByNumber(
+      values.houseNumber,
+      households,
+      editHousehold.id
+    );
     if (duplicate) return;
 
     await updateHouseholdRecord(editHousehold.id, {
@@ -314,7 +331,10 @@ export default function HouseholdsClient() {
                 My Active Return Visits & Studies ({myActiveFollowups.length})
               </h2>
             </div>
-            <Badge variant="outline" className="border-primary/40 text-primary text-[10px] py-0 font-bold">
+            <Badge
+              variant="outline"
+              className="border-primary/40 text-primary text-[10px] py-0 font-bold"
+            >
               Personal Follow-ups
             </Badge>
           </div>
@@ -330,7 +350,10 @@ export default function HouseholdsClient() {
                     {item.houseNumber ? `#${item.houseNumber} ` : ''}
                     {item.streetName || item.address}
                   </span>
-                  <ChevronRight size={12} className="text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 shrink-0" />
+                  <ChevronRight
+                    size={12}
+                    className="text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 shrink-0"
+                  />
                 </div>
                 <p className="text-[11px] text-muted-foreground truncate mt-1">
                   {item.notes ? `"${item.notes}"` : 'Active Follow-up'}

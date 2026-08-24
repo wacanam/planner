@@ -3,11 +3,12 @@ import { useRouter } from 'expo-router';
 import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { Bell } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
+import { NotificationsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
@@ -71,9 +72,7 @@ export default function NotificationsScreen() {
       />
 
       {isLoading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <NotificationsSkeleton />
       ) : notifications.length === 0 ? (
         <EmptyState
           icon={<Bell size={44} color={colors.mutedForeground} />}
