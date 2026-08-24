@@ -62,7 +62,16 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(
   (
-    { className, children, position = 'popper', sideOffset = 4, collisionPadding = 12, ...props },
+    {
+      className,
+      children,
+      position = 'popper',
+      sideOffset = 4,
+      collisionPadding = 12,
+      avoidCollisions = true,
+      sticky = 'always',
+      ...props
+    },
     ref
   ) => (
     <SelectPrimitive.Portal>
@@ -78,6 +87,8 @@ const SelectContent = React.forwardRef<
         position={position}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
+        avoidCollisions={avoidCollisions}
+        sticky={sticky}
         {...props}
       >
         <SelectScrollUpButton />
