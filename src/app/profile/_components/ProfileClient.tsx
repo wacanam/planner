@@ -341,6 +341,13 @@ export default function ProfilePage() {
         icon: '👑',
       };
     }
+    if (rawRole === 'SECRETARY' || rawRole === 'CONGREGATION_SECRETARY') {
+      return {
+        title: 'Secretary',
+        badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
+        icon: '📋',
+      };
+    }
     if (rawRole === 'TERRITORY_SERVANT') {
       return {
         title: 'Territory Servant',

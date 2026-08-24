@@ -5,8 +5,11 @@ import type { Assignment, Household, HouseholdShare, Territory } from '@/types/a
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [
   UserRole.USER,
+  UserRole.VISITING_PUBLISHER,
   UserRole.TERRITORY_SERVANT,
+  UserRole.SECRETARY,
   UserRole.SERVICE_OVERSEER,
+  UserRole.CIRCUIT_OVERSEER,
   UserRole.ADMIN,
   UserRole.SUPER_ADMIN,
 ];

@@ -158,18 +158,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseUser?.uid]);
 
   const effectiveRole = useMemo((): UserRole => {
-    const rawRole = (userProfile?.role || '').toUpperCase();
+    const rawRole = (userProfile?.role || '').toUpperCase().replace(/\s+/g, '_');
     if (rawRole === 'SUPER_ADMIN' || rawRole === 'ADMIN') {
       return (userProfile?.role as UserRole) || UserRole.ADMIN;
     }
+    if (rawRole === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
+    if (rawRole === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
+    if (rawRole === 'SECRETARY' || rawRole === 'CONGREGATION_SECRETARY') return UserRole.SECRETARY;
+    if (rawRole === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
+    if (rawRole === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
+
     if (membershipRole) {
       const normalized = membershipRole.toUpperCase().replace(/\s+/g, '_');
+      if (normalized === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
       if (normalized === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
+      if (normalized === 'SECRETARY' || normalized === 'CONGREGATION_SECRETARY') {
+        return UserRole.SECRETARY;
+      }
       if (normalized === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
+      if (normalized === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
       if (normalized === 'PUBLISHER' || normalized === 'USER') return UserRole.PUBLISHER;
     }
-    if (rawRole === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
-    if (rawRole === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
     return UserRole.PUBLISHER;
   }, [userProfile?.role, membershipRole]);
 

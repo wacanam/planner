@@ -12,6 +12,7 @@ const ROLE_HIERARCHY: UserRole[] = [
   UserRole.USER,
   UserRole.VISITING_PUBLISHER,
   UserRole.TERRITORY_SERVANT,
+  UserRole.SECRETARY,
   UserRole.SERVICE_OVERSEER,
   UserRole.CIRCUIT_OVERSEER,
   UserRole.ADMIN,

@@ -384,7 +384,7 @@ export function DashboardHeader() {
                           </DropdownMenuItem>
                         </>
                       )}
-                      {canViewReports(user.role) && (
+                      {canViewReports(user.role, user.congregationRole) && (
                         <DropdownMenuItem asChild className="rounded-xl cursor-pointer">
                           <Link
                             href={`/congregation/${id}/reports`}

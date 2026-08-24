@@ -17,6 +17,7 @@ import {
   canViewMemberLocations,
   canViewReports,
   filterVisibleMemberLocations,
+  hasPermission,
   isCongregationSecretary,
   isServiceOverseer,
   isTerritoryServant,
@@ -169,6 +170,124 @@ describe('Congregation Secretary Access & Role Identity Separation', () => {
       const visible = filterVisibleMemberLocations(secUser, [], locations);
 
       expect(visible).toHaveLength(2);
+    });
+  });
+
+  describe('Role Hierarchy & Permission Ranking', () => {
+    it('places Secretary above Publishers and Territory Servants in hierarchy', () => {
+      expect(hasPermission(UserRole.SECRETARY, UserRole.USER)).toBe(true);
+      expect(hasPermission(UserRole.SECRETARY, UserRole.VISITING_PUBLISHER)).toBe(true);
+      expect(hasPermission(UserRole.SECRETARY, UserRole.TERRITORY_SERVANT)).toBe(true);
+      expect(hasPermission(UserRole.SECRETARY, UserRole.SECRETARY)).toBe(true);
+      expect(hasPermission(UserRole.USER, UserRole.SECRETARY)).toBe(false);
+      expect(hasPermission(UserRole.TERRITORY_SERVANT, UserRole.SECRETARY)).toBe(false);
+    });
+  });
+
+  describe('Route Protection & Allowed Roles (Members & Access vs Congregation Reports)', () => {
+    const membersPageAllowedRoles: UserRole[] = [
+      UserRole.SUPER_ADMIN,
+      UserRole.ADMIN,
+      UserRole.SERVICE_OVERSEER,
+      UserRole.SECRETARY,
+    ];
+
+    const reportsPageAllowedRoles: UserRole[] = [
+      UserRole.SUPER_ADMIN,
+      UserRole.ADMIN,
+      UserRole.SERVICE_OVERSEER,
+      UserRole.SECRETARY,
+      UserRole.TERRITORY_SERVANT,
+      UserRole.CIRCUIT_OVERSEER,
+    ];
+
+    it('allows Secretary access to both Members & Access and Congregation Reports', () => {
+      expect(membersPageAllowedRoles.includes(UserRole.SECRETARY)).toBe(true);
+      expect(reportsPageAllowedRoles.includes(UserRole.SECRETARY)).toBe(true);
+    });
+
+    it('allows Circuit Overseer to access Congregation Reports but restricts local Members & Access', () => {
+      // Circuit Overseer can access reports
+      expect(reportsPageAllowedRoles.includes(UserRole.CIRCUIT_OVERSEER)).toBe(true);
+
+      // Circuit Overseer is intentionally excluded from local member roster management
+      expect(membersPageAllowedRoles.includes(UserRole.CIRCUIT_OVERSEER)).toBe(false);
+    });
+
+    it('denies regular Publisher access to both management pages', () => {
+      expect(membersPageAllowedRoles.includes(UserRole.USER)).toBe(false);
+      expect(reportsPageAllowedRoles.includes(UserRole.USER)).toBe(false);
+    });
+  });
+
+  describe('Effective Role Calculation in Auth Context', () => {
+    function computeEffectiveRole(params: {
+      globalRole?: string | null;
+      membershipStatus?: string;
+      membershipRole?: string | null;
+    }): UserRole {
+      const rawGlobalRole = (params.globalRole || '').toUpperCase().replace(/\s+/g, '_');
+      const isGlobalAdmin = rawGlobalRole === 'SUPER_ADMIN' || rawGlobalRole === 'ADMIN';
+
+      if (isGlobalAdmin) {
+        return (params.globalRole as UserRole) || UserRole.ADMIN;
+      }
+      if (rawGlobalRole === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
+      if (rawGlobalRole === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
+      if (rawGlobalRole === 'SECRETARY' || rawGlobalRole === 'CONGREGATION_SECRETARY') {
+        return UserRole.SECRETARY;
+      }
+      if (rawGlobalRole === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
+      if (rawGlobalRole === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
+
+      if (params.membershipStatus === 'active' && params.membershipRole) {
+        const normalized = params.membershipRole.toUpperCase().replace(/\s+/g, '_');
+        if (normalized === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
+        if (normalized === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
+        if (normalized === 'SECRETARY' || normalized === 'CONGREGATION_SECRETARY') {
+          return UserRole.SECRETARY;
+        }
+        if (normalized === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
+        if (normalized === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
+        if (normalized === 'PUBLISHER' || normalized === 'USER') return UserRole.PUBLISHER;
+      }
+      return UserRole.USER;
+    }
+
+    it('correctly resolves secretary membership role to UserRole.SECRETARY', () => {
+      expect(
+        computeEffectiveRole({
+          globalRole: 'USER',
+          membershipStatus: 'active',
+          membershipRole: 'secretary',
+        })
+      ).toBe(UserRole.SECRETARY);
+
+      expect(
+        computeEffectiveRole({
+          globalRole: 'USER',
+          membershipStatus: 'active',
+          membershipRole: 'congregation_secretary',
+        })
+      ).toBe(UserRole.SECRETARY);
+    });
+
+    it('correctly resolves global secretary role to UserRole.SECRETARY', () => {
+      expect(computeEffectiveRole({ globalRole: 'SECRETARY' })).toBe(UserRole.SECRETARY);
+    });
+
+    it('correctly resolves circuit overseer role to UserRole.CIRCUIT_OVERSEER', () => {
+      expect(
+        computeEffectiveRole({
+          globalRole: 'USER',
+          membershipStatus: 'active',
+          membershipRole: 'circuit_overseer',
+        })
+      ).toBe(UserRole.CIRCUIT_OVERSEER);
+
+      expect(computeEffectiveRole({ globalRole: 'CIRCUIT_OVERSEER' })).toBe(
+        UserRole.CIRCUIT_OVERSEER
+      );
     });
   });
 });

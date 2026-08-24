@@ -202,7 +202,7 @@ export function useCurrentUser(): {
     };
   }, [userId, selectedCongId]);
 
-  const rawGlobalRole = (session?.user?.role || '').toUpperCase();
+  const rawGlobalRole = (session?.user?.role || '').toUpperCase().replace(/\s+/g, '_');
   const isGlobalAdmin = rawGlobalRole === 'SUPER_ADMIN' || rawGlobalRole === 'ADMIN';
 
   const effectiveRole = (() => {
@@ -212,6 +212,15 @@ export function useCurrentUser(): {
     if (rawGlobalRole === 'CIRCUIT_OVERSEER') {
       return UserRole.CIRCUIT_OVERSEER;
     }
+    if (rawGlobalRole === 'SERVICE_OVERSEER') {
+      return UserRole.SERVICE_OVERSEER;
+    }
+    if (rawGlobalRole === 'SECRETARY' || rawGlobalRole === 'CONGREGATION_SECRETARY') {
+      return UserRole.SECRETARY;
+    }
+    if (rawGlobalRole === 'TERRITORY_SERVANT') {
+      return UserRole.TERRITORY_SERVANT;
+    }
     if (rawGlobalRole === 'VISITING_PUBLISHER') {
       return UserRole.VISITING_PUBLISHER;
     }
@@ -219,6 +228,9 @@ export function useCurrentUser(): {
       const normalized = membershipRole.toUpperCase().replace(/\s+/g, '_');
       if (normalized === 'CIRCUIT_OVERSEER') return UserRole.CIRCUIT_OVERSEER;
       if (normalized === 'SERVICE_OVERSEER') return UserRole.SERVICE_OVERSEER;
+      if (normalized === 'SECRETARY' || normalized === 'CONGREGATION_SECRETARY') {
+        return UserRole.SECRETARY;
+      }
       if (normalized === 'TERRITORY_SERVANT') return UserRole.TERRITORY_SERVANT;
       if (normalized === 'VISITING_PUBLISHER') return UserRole.VISITING_PUBLISHER;
       if (normalized === 'PUBLISHER' || normalized === 'USER') return UserRole.PUBLISHER;
@@ -300,4 +312,8 @@ export function useIsCircuitOverseer(): boolean {
 
 export function useIsServiceOverseer(): boolean {
   return useIsRole(UserRole.SERVICE_OVERSEER, UserRole.SUPER_ADMIN, UserRole.ADMIN);
+}
+
+export function useIsSecretary(): boolean {
+  return useIsRole(UserRole.SECRETARY, UserRole.SUPER_ADMIN, UserRole.ADMIN);
 }
