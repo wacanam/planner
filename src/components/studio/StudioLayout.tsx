@@ -543,6 +543,54 @@ export function StudioLayout({
     }
   };
 
+  const handleUpdateRoadPoints = async (
+    roadId: string,
+    points: Array<{ lat: number; lng: number }>
+  ) => {
+    if (!territory?.id || isReadOnly) return;
+    const existingRoads = territory.annotations?.roads || [];
+    const target = existingRoads.find((r) => r.id === roadId);
+    if (!target || !canModifyMapAnnotation(user, target, groups)) {
+      toast.error('You do not have permission to modify this road.');
+      return;
+    }
+    try {
+      const updated = existingRoads.map((r) => (r.id === roadId ? { ...r, points } : r));
+      setSelectedRoad((prev) => (prev?.id === roadId ? { ...prev, points } : prev));
+      await saveAnnotations({
+        ...territory.annotations,
+        roads: updated,
+      });
+      toast.success('Road route updated');
+    } catch (_err) {
+      toast.error('Failed to update road');
+    }
+  };
+
+  const handleUpdateBoundaryPolygon = async (
+    boundaryId: string,
+    points: Array<{ lat: number; lng: number }>
+  ) => {
+    if (!territory?.id || isReadOnly) return;
+    const existingBoundaries = getTerritoryBoundaries(territory);
+    const target = existingBoundaries.find((b) => b.id === boundaryId);
+    if (!target || !canModifyMapAnnotation(user, target, groups)) {
+      toast.error('You do not have permission to modify this boundary.');
+      return;
+    }
+    try {
+      const updated = existingBoundaries.map((b) => (b.id === boundaryId ? { ...b, points } : b));
+      setSelectedBoundary((prev) => (prev?.id === boundaryId ? { ...prev, points } : prev));
+      await saveAnnotations({
+        ...territory.annotations,
+        boundaries: updated,
+      });
+      toast.success('Boundary polygon updated');
+    } catch (_err) {
+      toast.error('Failed to update boundary');
+    }
+  };
+
   const handleCreateHousehold = async (values: HouseholdFormValues) => {
     const allList = allCongregationHouseholds ?? households;
     const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, allList);
@@ -832,50 +880,12 @@ export function StudioLayout({
             dismissAllFloatingCards();
             setSelectedRoad(road);
           }}
-          onUpdateRoadPoints={async (roadId, points) => {
-            if (!territory?.id || isReadOnly) return;
-            const existingRoads = territory.annotations?.roads || [];
-            const target = existingRoads.find((r) => r.id === roadId);
-            if (!target || !canModifyMapAnnotation(user, target, groups)) {
-              toast.error('You do not have permission to modify this road.');
-              return;
-            }
-            try {
-              const updated = existingRoads.map((r) => (r.id === roadId ? { ...r, points } : r));
-              await saveAnnotations({
-                ...territory.annotations,
-                roads: updated,
-              });
-              toast.success('Road route updated');
-            } catch (_err) {
-              toast.error('Failed to update road');
-            }
-          }}
+          onUpdateRoadPoints={handleUpdateRoadPoints}
           onSelectBoundary={(boundary) => {
             dismissAllFloatingCards();
             setSelectedBoundary(boundary);
           }}
-          onUpdateBoundaryPolygon={async (boundaryId, points) => {
-            if (!territory?.id || isReadOnly) return;
-            const existingBoundaries = getTerritoryBoundaries(territory);
-            const target = existingBoundaries.find((b) => b.id === boundaryId);
-            if (!target || !canModifyMapAnnotation(user, target, groups)) {
-              toast.error('You do not have permission to modify this boundary.');
-              return;
-            }
-            try {
-              const updated = existingBoundaries.map((b) =>
-                b.id === boundaryId ? { ...b, points } : b
-              );
-              await saveAnnotations({
-                ...territory.annotations,
-                boundaries: updated,
-              });
-              toast.success('Boundary polygon updated');
-            } catch (_err) {
-              toast.error('Failed to update boundary');
-            }
-          }}
+          onUpdateBoundaryPolygon={handleUpdateBoundaryPolygon}
           onSelectStartFlag={() => {
             dismissAllFloatingCards();
             if (territory?.annotations?.startFlag) {
@@ -1273,41 +1283,61 @@ export function StudioLayout({
             </div>
 
             {canModifyMapAnnotation(user, selectedBoundary, groups) && (
-              <div className="flex items-center gap-1.5 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
-                  onClick={() => setBoundaryDialogOpen(true)}
-                >
-                  <Edit size={13} />
-                  <span>Edit Zone Details</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                  title="Delete Boundary Polygon"
-                  onClick={async () => {
-                    if (!territory?.id) return;
-                    if (
-                      window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
-                    ) {
-                      const existingBoundaries = getTerritoryBoundaries(territory);
-                      const updated = existingBoundaries.filter(
-                        (b) => b.id !== selectedBoundary.id
-                      );
-                      await saveAnnotations({
-                        ...territory.annotations,
-                        boundaries: updated,
-                      });
-                      toast.success('Boundary polygon deleted');
-                      setSelectedBoundary(null);
-                    }
-                  }}
-                >
-                  <Trash2 size={14} />
-                </Button>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                    onClick={() => setBoundaryDialogOpen(true)}
+                  >
+                    <Edit size={13} />
+                    <span>Edit Zone Details</span>
+                  </Button>
+                  {selectedBoundary.points && selectedBoundary.points.length > 3 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl text-xs text-muted-foreground hover:text-foreground font-medium"
+                      title="Remove last vertex of polygon"
+                      onClick={async () => {
+                        const nextPts = selectedBoundary.points.slice(0, -1);
+                        await handleUpdateBoundaryPolygon(selectedBoundary.id, nextPts);
+                        toast.success(`Removed vertex. ${nextPts.length} vertices remaining.`);
+                      }}
+                    >
+                      Delete End Vertex
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                    title="Delete Boundary Polygon"
+                    onClick={async () => {
+                      if (!territory?.id) return;
+                      if (
+                        window.confirm(`Delete ${selectedBoundary.name || 'this boundary polygon'}?`)
+                      ) {
+                        const existingBoundaries = getTerritoryBoundaries(territory);
+                        const updated = existingBoundaries.filter(
+                          (b) => b.id !== selectedBoundary.id
+                        );
+                        await saveAnnotations({
+                          ...territory.annotations,
+                          boundaries: updated,
+                        });
+                        toast.success('Boundary polygon deleted');
+                        setSelectedBoundary(null);
+                      }
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Tip: Tap any vertex handle on the map to delete it.
+                </p>
               </div>
             )}
           </div>
@@ -1439,41 +1469,61 @@ export function StudioLayout({
             </div>
 
             {canModifyMapAnnotation(user, selectedRoad, groups) && (
-              <div className="flex items-center gap-1.5 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
-                  onClick={() => setRoadDialogOpen(true)}
-                >
-                  <Edit size={13} />
-                  <span>Edit Road Details</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                  title="Delete Road"
-                  onClick={async () => {
-                    if (!territory?.id) return;
-                    if (
-                      window.confirm(
-                        `Delete road "${selectedRoad.name || 'this road'}" from territory?`
-                      )
-                    ) {
-                      const existingRoads = territory.annotations?.roads || [];
-                      const filtered = existingRoads.filter((r) => r.id !== selectedRoad.id);
-                      await saveAnnotations({
-                        ...territory.annotations,
-                        roads: filtered,
-                      });
-                      toast.success('Road deleted');
-                      setSelectedRoad(null);
-                    }
-                  }}
-                >
-                  <Trash2 size={14} />
-                </Button>
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl text-xs font-semibold gap-1.5"
+                    onClick={() => setRoadDialogOpen(true)}
+                  >
+                    <Edit size={13} />
+                    <span>Edit Road Details</span>
+                  </Button>
+                  {selectedRoad.points && selectedRoad.points.length > 2 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl text-xs text-muted-foreground hover:text-foreground font-medium"
+                      title="Remove last vertex of road"
+                      onClick={async () => {
+                        const nextPts = selectedRoad.points.slice(0, -1);
+                        await handleUpdateRoadPoints(selectedRoad.id, nextPts);
+                        toast.success(`Removed vertex. ${nextPts.length} vertices remaining.`);
+                      }}
+                    >
+                      Delete End Vertex
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
+                    title="Delete Road"
+                    onClick={async () => {
+                      if (!territory?.id) return;
+                      if (
+                        window.confirm(
+                          `Delete road "${selectedRoad.name || 'this road'}" from territory?`
+                        )
+                      ) {
+                        const existingRoads = territory.annotations?.roads || [];
+                        const filtered = existingRoads.filter((r) => r.id !== selectedRoad.id);
+                        await saveAnnotations({
+                          ...territory.annotations,
+                          roads: filtered,
+                        });
+                        toast.success('Road deleted');
+                        setSelectedRoad(null);
+                      }
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Tip: Tap any vertex handle on the map to delete it.
+                </p>
               </div>
             )}
           </div>

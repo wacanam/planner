@@ -3,6 +3,7 @@ import type { MapRoad } from '@/types/api';
 import {
   areCoordinatesCoincident,
   computeDistanceMeters,
+  findClosestVertexIndex,
   findNearestRoadSnapPoint,
   insertJunctionVertexIntoRoad,
   projectPointOntoSegment,
@@ -179,6 +180,37 @@ describe('Map Geometry & Road Snapping', () => {
 
       expect(updated.points).toHaveLength(2);
       expect(updated.points).toEqual(road.points);
+    });
+  });
+
+  describe('findClosestVertexIndex', () => {
+    const vertices = [
+      { lat: 8.368, lng: 124.864 },
+      { lat: 8.37, lng: 124.864 },
+      { lat: 8.372, lng: 124.866 },
+    ];
+
+    it('finds closest vertex index when tapping close to a vertex', () => {
+      const query = { lat: 8.370001, lng: 124.864001 };
+      const result = findClosestVertexIndex({
+        point: query,
+        vertices,
+        meterTolerance: 20,
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.index).toBe(1);
+    });
+
+    it('returns null when tapping far from all vertices', () => {
+      const query = { lat: 8.38, lng: 124.89 };
+      const result = findClosestVertexIndex({
+        point: query,
+        vertices,
+        meterTolerance: 20,
+      });
+
+      expect(result).toBeNull();
     });
   });
 });

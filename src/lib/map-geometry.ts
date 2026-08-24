@@ -288,3 +288,60 @@ export function insertJunctionVertexIntoRoad(
     points: nextPoints,
   };
 }
+
+export interface FindClosestVertexOptions {
+  point: LatLng;
+  vertices: LatLng[];
+  pixelTolerance?: number;
+  meterTolerance?: number;
+  latLngToPixel?: (coord: LatLng) => PixelPoint | null;
+  cursorPixel?: PixelPoint | null;
+}
+
+/**
+ * Finds the index of the closest vertex within tolerance (pixels or meters).
+ */
+export function findClosestVertexIndex({
+  point,
+  vertices,
+  pixelTolerance = 24,
+  meterTolerance = 20,
+  latLngToPixel,
+  cursorPixel,
+}: FindClosestVertexOptions): { index: number; distance: number; isPixel: boolean } | null {
+  if (!vertices || vertices.length === 0) return null;
+
+  let bestIndex = -1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  const curPixel = cursorPixel || (latLngToPixel ? latLngToPixel(point) : null);
+
+  for (let i = 0; i < vertices.length; i++) {
+    const v = vertices[i];
+    if (curPixel && latLngToPixel) {
+      const vPixel = latLngToPixel(v);
+      if (vPixel) {
+        const dPixels = Math.hypot(curPixel.x - vPixel.x, curPixel.y - vPixel.y);
+        if (dPixels <= pixelTolerance && dPixels < bestDistance) {
+          bestDistance = dPixels;
+          bestIndex = i;
+        }
+      }
+    } else {
+      const dMeters = computeDistanceMeters(point, v);
+      if (dMeters <= meterTolerance && dMeters < bestDistance) {
+        bestDistance = dMeters;
+        bestIndex = i;
+      }
+    }
+  }
+
+  if (bestIndex !== -1) {
+    return {
+      index: bestIndex,
+      distance: bestDistance,
+      isPixel: Boolean(curPixel),
+    };
+  }
+  return null;
+}
+

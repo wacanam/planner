@@ -5,7 +5,9 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   computeDistanceMeters,
+  findClosestVertexIndex,
   findNearestRoadSnapPoint,
+  type LatLng,
   type RoadSnapResult,
 } from '@/lib/map-geometry';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
@@ -600,6 +602,15 @@ function attachVertexTouchDelete(
   let startX = 0;
   let startY = 0;
 
+  const triggerDelete = () => {
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+    } catch {}
+    onDelete();
+  };
+
   const handlePointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
     startX = e.clientX;
@@ -610,12 +621,7 @@ function attachVertexTouchDelete(
     timer = setTimeout(() => {
       timer = null;
       isLongPress = true;
-      try {
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-      } catch {}
-      onDelete();
+      triggerDelete();
     }, 450);
   };
 
@@ -636,12 +642,7 @@ function attachVertexTouchDelete(
         if (onClick) {
           onClick();
         } else {
-          try {
-            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-              navigator.vibrate(30);
-            }
-          } catch {}
-          onDelete();
+          triggerDelete();
         }
       }
     }
@@ -654,16 +655,63 @@ function attachVertexTouchDelete(
     }
   };
 
+  // Direct touch handlers for mobile browsers
+  const handleTouchStart = (e: TouchEvent) => {
+    e.stopPropagation();
+    if (e.touches.length > 0) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      isLongPress = false;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        isLongPress = true;
+        triggerDelete();
+      }, 450);
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length > 0) {
+      if (Math.hypot(e.touches[0].clientX - startX, e.touches[0].clientY - startY) > 8) {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+      if (!isLongPress) {
+        if (onClick) {
+          onClick();
+        } else {
+          triggerDelete();
+        }
+      }
+    }
+  };
+
   el.addEventListener('pointerdown', handlePointerDown);
   el.addEventListener('pointermove', handlePointerMove);
   el.addEventListener('pointerup', handlePointerUp);
   el.addEventListener('pointercancel', handlePointerCancel);
 
+  el.addEventListener('touchstart', handleTouchStart, { passive: false });
+  el.addEventListener('touchmove', handleTouchMove, { passive: true });
+  el.addEventListener('touchend', handleTouchEnd, { passive: false });
+
   // Right-click for desktop mouse
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    onDelete();
+    triggerDelete();
   });
 }
 
@@ -1164,13 +1212,57 @@ export function StudioGoogleMap({
           } else if (currentTool === 'start') {
             handleSetStartFlagRef.current?.({ lat, lng });
           } else if (currentTool === 'boundary') {
-            if (drawnPointsRef.current.length >= 3 && isNearBoundaryStartRef.current) {
-              handleCloseBoundaryRef.current?.();
+            const projection = overlayRef.current?.getProjection();
+            const latLngToPixel = projection
+              ? (c: LatLng) =>
+                  projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
+              : undefined;
+
+            const closeMatch = findClosestVertexIndex({
+              point: { lat, lng },
+              vertices: drawnPointsRef.current,
+              pixelTolerance: 28,
+              meterTolerance: 25,
+              latLngToPixel,
+            });
+
+            if (closeMatch) {
+              if (closeMatch.index === 0 && drawnPointsRef.current.length >= 3) {
+                handleCloseBoundaryRef.current?.();
+              } else {
+                try {
+                  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                    navigator.vibrate(50);
+                  }
+                } catch {}
+                handleDeleteDrawnPointRef.current?.(closeMatch.index);
+              }
             } else {
               handleAddPointRef.current?.({ lat, lng });
             }
           } else if (currentTool === 'road') {
-            if (activeRoadSnapRef.current) {
+            const projection = overlayRef.current?.getProjection();
+            const latLngToPixel = projection
+              ? (c: LatLng) =>
+                  projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
+              : undefined;
+
+            const closeMatch = findClosestVertexIndex({
+              point: { lat, lng },
+              vertices: drawnPointsRef.current,
+              pixelTolerance: 28,
+              meterTolerance: 25,
+              latLngToPixel,
+            });
+
+            if (closeMatch) {
+              try {
+                if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                  navigator.vibrate(50);
+                }
+              } catch {}
+              handleDeleteDrawnPointRef.current?.(closeMatch.index);
+            } else if (activeRoadSnapRef.current) {
               const snap = activeRoadSnapRef.current;
               handleRoadSnapJunctionRef.current?.({
                 roadId: snap.road.id,
@@ -1183,6 +1275,68 @@ export function StudioGoogleMap({
               handleAddPointRef.current?.({ lat, lng });
             }
           } else if (currentTool === 'pointer') {
+            const projection = overlayRef.current?.getProjection();
+            const latLngToPixel = projection
+              ? (c: LatLng) =>
+                  projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
+              : undefined;
+
+            // Check if user tapped a vertex on the selected boundary
+            if (selectedBoundaryIdRef.current) {
+              const boundaries = getTerritoryBoundaries(territoryRef.current);
+              const targetBoundary = boundaries.find(
+                (b) => b.id === selectedBoundaryIdRef.current
+              );
+              if (targetBoundary && targetBoundary.points && targetBoundary.points.length > 0) {
+                const match = findClosestVertexIndex({
+                  point: { lat, lng },
+                  vertices: targetBoundary.points,
+                  pixelTolerance: 30,
+                  meterTolerance: 25,
+                  latLngToPixel,
+                });
+                if (match) {
+                  if (targetBoundary.points.length > 3) {
+                    try {
+                      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                        navigator.vibrate(50);
+                      }
+                    } catch {}
+                    const updated = targetBoundary.points.filter((_, i) => i !== match.index);
+                    handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
+                  }
+                  return; // Do NOT deselect
+                }
+              }
+            }
+
+            // Check if user tapped a vertex on the selected road
+            if (selectedRoadIdRef.current) {
+              const roads = territoryRef.current?.annotations?.roads || [];
+              const targetRoad = roads.find((r) => r.id === selectedRoadIdRef.current);
+              if (targetRoad && targetRoad.points && targetRoad.points.length > 0) {
+                const match = findClosestVertexIndex({
+                  point: { lat, lng },
+                  vertices: targetRoad.points,
+                  pixelTolerance: 30,
+                  meterTolerance: 25,
+                  latLngToPixel,
+                });
+                if (match) {
+                  if (targetRoad.points.length > 2) {
+                    try {
+                      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                        navigator.vibrate(50);
+                      }
+                    } catch {}
+                    const updated = targetRoad.points.filter((_, i) => i !== match.index);
+                    handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
+                  }
+                  return; // Do NOT deselect
+                }
+              }
+            }
+
             handleDeselectAllRef.current?.();
           }
         });
@@ -2092,8 +2246,23 @@ export function StudioGoogleMap({
           map,
           position: pt,
           content: dotWrapper,
+          gmpClickable: true,
           zIndex: 30 + idx,
         });
+
+        marker.addListener('gmp-click', () => {
+          if (activeTool === 'boundary' && idx === 0 && drawnPoints.length >= 3) {
+            handleCloseBoundaryRef.current?.();
+          } else {
+            try {
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate(50);
+              }
+            } catch {}
+            handleDeleteDrawnPointRef.current?.(idx);
+          }
+        });
+
         drawingMarkersRef.current.push(marker);
       });
     }
@@ -2747,8 +2916,21 @@ export function StudioGoogleMap({
             map,
             position: pt,
             content: handleEl,
+            gmpClickable: true,
             zIndex: 60 + idx,
           });
+
+          marker.addListener('gmp-click', () => {
+            if (targetBoundary.points.length <= 3) return;
+            try {
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate(50);
+              }
+            } catch {}
+            const updated = targetBoundary.points.filter((_, i) => i !== idx);
+            handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
+          });
+
           selectedVertexMarkersRef.current.push(marker);
         });
       }
@@ -2782,8 +2964,21 @@ export function StudioGoogleMap({
             map,
             position: pt,
             content: handleEl,
+            gmpClickable: true,
             zIndex: 60 + idx,
           });
+
+          marker.addListener('gmp-click', () => {
+            if (targetRoad.points.length <= 2) return;
+            try {
+              if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                navigator.vibrate(50);
+              }
+            } catch {}
+            const updated = targetRoad.points.filter((_, i) => i !== idx);
+            handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
+          });
+
           selectedVertexMarkersRef.current.push(marker);
         });
       }
