@@ -13,12 +13,19 @@ import type {
   Territory,
 } from '@/types/api';
 import {
+  type ClusterProperties,
+  createClusterBadgeElement,
+  getBoundingBoxFromGoogleBounds,
+} from '@/lib/map-clustering';
+import Supercluster from 'supercluster';
+import {
   type BasemapMode,
   type BoundaryDisplaySettings,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
 } from './StudioBasemapPopup';
 import { getTerritoryBoundaries } from './StudioGoogleMap';
+
 
 export interface CongregationGoogleMapProps {
   territories: Territory[];
@@ -425,8 +432,12 @@ export function CongregationGoogleMap({
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(15);
+  const currentZoomRef = useRef(15);
+  currentZoomRef.current = currentZoom;
   const initialBoundsFittedRef = useRef(false);
   const isProgrammaticCameraUpdateRef = useRef(false);
+
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
@@ -560,6 +571,21 @@ export function CongregationGoogleMap({
         map.addListener('heading_changed', syncCameraState);
         map.addListener('tilt_changed', syncCameraState);
         map.addListener('camera_changed', syncCameraState);
+
+        const syncZoomState = () => {
+          const z = map.getZoom();
+          if (typeof z === 'number' && !Number.isNaN(z)) {
+            const roundedZoom = Math.round(z);
+            if (currentZoomRef.current !== roundedZoom) {
+              currentZoomRef.current = roundedZoom;
+              setCurrentZoom(roundedZoom);
+            }
+          }
+        };
+
+        map.addListener('zoom_changed', syncZoomState);
+        map.addListener('idle', syncZoomState);
+
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -922,12 +948,14 @@ export function CongregationGoogleMap({
 
     const { AdvancedMarkerElement } = google.maps.marker;
 
-    filteredHouseholds.forEach((h) => {
+    const shouldCluster = layerSettings.clusterHouseholds !== false && currentZoom < 17;
+
+    const renderSingleHouseholdPin = (h: Household) => {
       const lat =
         typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
       const lng =
         typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-      if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
+      if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return;
 
       const isSelected = selectedHouseholdId === h.id;
       const pinColor = getHouseholdStatusColor(h.status);
@@ -989,7 +1017,10 @@ export function CongregationGoogleMap({
       pinContainer.appendChild(pinTip);
       wrapper.appendChild(pinContainer);
 
-      if (layerSettings.showHouseLabels !== false) {
+      const shouldShowLabel =
+        layerSettings.showHouseLabels !== false && (currentZoom >= 15 || isSelected);
+
+      if (shouldShowLabel) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '14px';
@@ -1024,14 +1055,90 @@ export function CongregationGoogleMap({
       });
 
       householdMarkersRef.current.push(marker);
-    });
+    };
+
+    if (shouldCluster) {
+      const sc = new Supercluster<{ id: string; household: Household }, ClusterProperties>({
+        radius: 45,
+        maxZoom: 16,
+        minPoints: 2,
+      });
+
+      const validFeatures = filteredHouseholds
+        .map((h) => {
+          const lat =
+            typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+          const lng =
+            typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+          if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return null;
+
+          return {
+            type: 'Feature' as const,
+            properties: { id: h.id, household: h, cluster: false as const },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [lng, lat],
+            },
+          };
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+
+      sc.load(validFeatures);
+
+      const bounds = map.getBounds();
+      const bbox = bounds
+        ? getBoundingBoxFromGoogleBounds(bounds, 0.15)
+        : ([-180, -85, 180, 85] as [number, number, number, number]);
+
+      const items = sc.getClusters(bbox, currentZoom);
+
+      items.forEach((item) => {
+        const [lng, lat] = item.geometry.coordinates;
+
+        if ('cluster' in item.properties && item.properties.cluster) {
+          const clusterProps = item.properties as unknown as ClusterProperties;
+          const clusterId = clusterProps.cluster_id;
+          const pointCount = clusterProps.point_count;
+
+          const badgeEl = createClusterBadgeElement(pointCount, {
+            color: '#2563EB',
+            onClick: () => {
+              const expZoom = sc.getClusterExpansionZoom(clusterId);
+              map.setZoom(Math.max(currentZoom + 2, expZoom));
+              map.panTo({ lat, lng });
+            },
+          });
+
+          const clusterMarker = new AdvancedMarkerElement({
+            map,
+            position: { lat, lng },
+            title: `${pointCount} doors`,
+            content: badgeEl,
+            zIndex: 45,
+          });
+
+          householdMarkersRef.current.push(clusterMarker);
+        } else {
+          const pointProps = item.properties as unknown as { id: string; household: Household };
+          renderSingleHouseholdPin(pointProps.household);
+        }
+
+      });
+    } else {
+      filteredHouseholds.forEach((h) => {
+        renderSingleHouseholdPin(h);
+      });
+    }
   }, [
     mapReady,
     filteredHouseholds,
     layerSettings.showHouses,
     layerSettings.showHouseLabels,
+    layerSettings.clusterHouseholds,
+    currentZoom,
     selectedHouseholdId,
   ]);
+
 
   // 8. Render All Congregation Annotations (Landmarks, Roads, Start Meeting Flags)
   useEffect(() => {
