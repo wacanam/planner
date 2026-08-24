@@ -4,6 +4,7 @@ import { getDocs } from 'firebase/firestore';
 import {
   checkTerritoryDuplicateInFirestore,
   findDuplicateTerritory,
+  getNextCongregationTerritoryNumber,
   normalizeTerritoryNumber,
   toCanonicalTerritoryNumber,
 } from '@/lib/territories';
@@ -37,6 +38,29 @@ describe('Territory Duplicate Prevention & Validation Utilities', () => {
     it('converts normalized territory number to lower case', () => {
       expect(toCanonicalTerritoryNumber('  12-A ')).toBe('12-a');
       expect(toCanonicalTerritoryNumber('  NORTH-01 ')).toBe('north-01');
+    });
+  });
+
+  describe('getNextCongregationTerritoryNumber', () => {
+    it('returns "1" for empty list', () => {
+      expect(getNextCongregationTerritoryNumber([])).toBe('1');
+    });
+
+    it('increments highest integer in list', () => {
+      const list = [
+        { id: '1', number: '1' },
+        { id: '2', number: '2' },
+        { id: '3', number: '10' },
+      ];
+      expect(getNextCongregationTerritoryNumber(list)).toBe('11');
+    });
+
+    it('handles prefixes or alphanumeric numbers', () => {
+      const list = [
+        { id: '1', number: '#101' },
+        { id: '2', number: '102-A' },
+      ];
+      expect(getNextCongregationTerritoryNumber(list)).toBe('103');
     });
   });
 

@@ -51,6 +51,38 @@ export function findDuplicateTerritory<T extends TerritoryNumberLike>(
 }
 
 /**
+ * Calculates the next unique auto-incrementing territory number for a congregation.
+ * Finds the highest positive integer among existing territory numbers, increments by 1,
+ * and ensures the candidate does not collide with any existing custom territory numbers.
+ */
+export function getNextCongregationTerritoryNumber<T extends TerritoryNumberLike>(
+  existingList: T[]
+): string {
+  let maxInt = 0;
+
+  for (const item of existingList) {
+    const raw = normalizeTerritoryNumber(item.number || '');
+    if (!raw) continue;
+
+    // Match leading integer portion (e.g., "1", "104", "#42", "12-A" -> 12)
+    const match = raw.replace(/^#\s*/, '').match(/^(\d+)/);
+    if (match) {
+      const val = parseInt(match[1], 10);
+      if (!Number.isNaN(val) && val > maxInt) {
+        maxInt = val;
+      }
+    }
+  }
+
+  let candidate = maxInt + 1;
+  while (findDuplicateTerritory(String(candidate), existingList)) {
+    candidate++;
+  }
+
+  return String(candidate);
+}
+
+/**
  * Queries Firestore territories collection to check for duplicates by number within a congregation.
  */
 export async function checkTerritoryDuplicateInFirestore(

@@ -1,6 +1,6 @@
 // mobile/app/(tabs)/territories/create.tsx
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useLocation } from '@/hooks/useLocation';
 import { useCongregationTerritories, useCreateTerritory } from '@/hooks/useTerritories';
-import { findDuplicateTerritory } from '@/lib/territories';
+import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function CreateTerritoryScreen() {
@@ -29,6 +29,12 @@ export default function CreateTerritoryScreen() {
   const [city, setCity] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!number && territories.length > 0) {
+      setNumber(getNextCongregationTerritoryNumber(territories));
+    }
+  }, [territories, number]);
 
   const handleCreate = async () => {
     if (!number.trim()) {
@@ -113,6 +119,7 @@ export default function CreateTerritoryScreen() {
             placeholder="e.g. Downtown Commercial, West Hills"
             value={name}
             onChangeText={setName}
+            autoFocus
           />
 
           <Input

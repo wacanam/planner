@@ -60,7 +60,10 @@ import {
   canEditTerritory,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
-import { findDuplicateTerritory } from '@/lib/territories';
+import {
+  findDuplicateTerritory,
+  getNextCongregationTerritoryNumber,
+} from '@/lib/territories';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,
@@ -176,6 +179,17 @@ export default function TerritoriesClient() {
     }
     return list;
   }, [territories, statusFilter, search]);
+
+  const handleOpenCreate = () => {
+    const nextNumber = getNextCongregationTerritoryNumber(territories);
+    createForm.reset({
+      number: nextNumber,
+      name: '',
+      type: 'regular',
+      city: congregation?.city || '',
+    });
+    setCreateDialogOpen(true);
+  };
 
   const handleCreateSubmit = async (data: CreateTerritoryFormData) => {
     const duplicate = findDuplicateTerritory(data.number, territories);
@@ -370,7 +384,7 @@ export default function TerritoriesClient() {
                   <span>Map Center</span>
                 </Button>
                 <Button
-                  onClick={() => setCreateDialogOpen(true)}
+                  onClick={handleOpenCreate}
                   className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4"
                 >
                   <Plus size={15} />
@@ -619,6 +633,7 @@ export default function TerritoriesClient() {
                 </Label>
                 <Input
                   id="name"
+                  autoFocus
                   placeholder="e.g. Downtown West"
                   className="h-9 rounded-xl text-xs"
                   {...createForm.register('name')}
