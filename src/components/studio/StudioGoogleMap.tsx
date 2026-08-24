@@ -590,6 +590,83 @@ function attachLongPressDrag({
   wrapper.addEventListener('click', handleClick);
 }
 
+function attachVertexTouchDelete(
+  el: HTMLElement,
+  onDelete: () => void,
+  onClick?: () => void
+) {
+  let timer: NodeJS.Timeout | null = null;
+  let isLongPress = false;
+  let startX = 0;
+  let startY = 0;
+
+  const handlePointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    isLongPress = false;
+
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      isLongPress = true;
+      try {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      } catch {}
+      onDelete();
+    }, 450);
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: PointerEvent) => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+      if (!isLongPress) {
+        if (onClick) {
+          onClick();
+        } else {
+          try {
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+              navigator.vibrate(30);
+            }
+          } catch {}
+          onDelete();
+        }
+      }
+    }
+  };
+
+  const handlePointerCancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  el.addEventListener('pointerdown', handlePointerDown);
+  el.addEventListener('pointermove', handlePointerMove);
+  el.addEventListener('pointerup', handlePointerUp);
+  el.addEventListener('pointercancel', handlePointerCancel);
+
+  // Right-click for desktop mouse
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete();
+  });
+}
+
 export function StudioGoogleMap({
   territory,
   congregation,
@@ -662,6 +739,7 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const selectedVertexMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 
   // Member Shared Locations ref
   const memberMarkersDataRef = useRef<
@@ -1168,6 +1246,10 @@ export function StudioGoogleMap({
         entry.accuracyCircle?.setMap(null);
       });
       memberMarkersDataRef.current.clear();
+      selectedVertexMarkersRef.current.forEach((m) => {
+        m.map = null;
+      });
+      selectedVertexMarkersRef.current = [];
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
@@ -1971,8 +2053,8 @@ export function StudioGoogleMap({
         dotWrapper.style.cursor = 'pointer';
 
         const dot = document.createElement('div');
-        dot.style.width = '14px';
-        dot.style.height = '14px';
+        dot.style.width = '16px';
+        dot.style.height = '16px';
         dot.style.borderRadius = '50%';
         dot.style.backgroundColor = idx === 0 ? '#10B981' : '#F59E0B';
         dot.style.border = '2.5px solid #FFFFFF';
@@ -1989,21 +2071,19 @@ export function StudioGoogleMap({
           dot.style.transform = 'scale(1.0)';
         });
 
-        // Right-click to delete vertex
-        dotWrapper.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleDeleteDrawnPointRef.current?.(idx);
-        });
-
         if (activeTool === 'boundary' && idx === 0 && drawnPoints.length >= 3) {
-          dotWrapper.title = 'Click to close boundary polygon • Right-click to delete';
-          dotWrapper.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleCloseBoundaryRef.current?.();
-          });
+          dotWrapper.title = 'Tap to close boundary • Long-press or right-click to delete';
+          attachVertexTouchDelete(
+            dotWrapper,
+            () => handleDeleteDrawnPointRef.current?.(idx),
+            () => handleCloseBoundaryRef.current?.()
+          );
         } else {
-          dotWrapper.title = 'Right-click to delete vertex';
+          dotWrapper.title = 'Tap or right-click to delete vertex';
+          attachVertexTouchDelete(
+            dotWrapper,
+            () => handleDeleteDrawnPointRef.current?.(idx)
+          );
         }
 
         dotWrapper.appendChild(dot);
@@ -2623,6 +2703,101 @@ export function StudioGoogleMap({
       }
     });
   }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
+
+  // 8c. Touch-Friendly Vertex Handles for Selected Boundary or Road on Mobile & Touch Screens
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
+
+    selectedVertexMarkersRef.current.forEach((m) => {
+      m.map = null;
+    });
+    selectedVertexMarkersRef.current = [];
+
+    const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
+    if (!isPointerMode || isReadOnly) return;
+
+    const { AdvancedMarkerElement } = google.maps.marker;
+
+    // If a boundary is selected, render touch-friendly vertex deletion handles
+    if (selectedBoundaryId) {
+      const boundaries = getTerritoryBoundaries(territory);
+      const targetBoundary = boundaries.find((b) => b.id === selectedBoundaryId);
+      if (targetBoundary && targetBoundary.points && targetBoundary.points.length > 0) {
+        targetBoundary.points.forEach((pt, idx) => {
+          const handleEl = document.createElement('div');
+          handleEl.style.width = '18px';
+          handleEl.style.height = '18px';
+          handleEl.style.borderRadius = '50%';
+          handleEl.style.backgroundColor = '#FFFFFF';
+          handleEl.style.border = '3px solid #2563EB';
+          handleEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+          handleEl.style.cursor = 'pointer';
+          handleEl.style.transform = 'scale(1)';
+          handleEl.style.transition = 'transform 0.15s ease-out';
+          handleEl.title = 'Tap or right-click to delete this vertex';
+
+          attachVertexTouchDelete(handleEl, () => {
+            if (targetBoundary.points.length <= 3) return;
+            const updated = targetBoundary.points.filter((_, i) => i !== idx);
+            handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
+          });
+
+          const marker = new AdvancedMarkerElement({
+            map,
+            position: pt,
+            content: handleEl,
+            zIndex: 60 + idx,
+          });
+          selectedVertexMarkersRef.current.push(marker);
+        });
+      }
+    }
+
+    // If a road is selected, render touch-friendly vertex deletion handles
+    if (selectedRoadId) {
+      const roads = territory?.annotations?.roads || [];
+      const targetRoad = roads.find((r) => r.id === selectedRoadId);
+      if (targetRoad && targetRoad.points && targetRoad.points.length > 0) {
+        targetRoad.points.forEach((pt, idx) => {
+          const handleEl = document.createElement('div');
+          handleEl.style.width = '18px';
+          handleEl.style.height = '18px';
+          handleEl.style.borderRadius = '50%';
+          handleEl.style.backgroundColor = '#FFFFFF';
+          handleEl.style.border = '3px solid #1D4ED8';
+          handleEl.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
+          handleEl.style.cursor = 'pointer';
+          handleEl.style.transform = 'scale(1)';
+          handleEl.style.transition = 'transform 0.15s ease-out';
+          handleEl.title = 'Tap or right-click to delete this vertex';
+
+          attachVertexTouchDelete(handleEl, () => {
+            if (targetRoad.points.length <= 2) return;
+            const updated = targetRoad.points.filter((_, i) => i !== idx);
+            handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
+          });
+
+          const marker = new AdvancedMarkerElement({
+            map,
+            position: pt,
+            content: handleEl,
+            zIndex: 60 + idx,
+          });
+          selectedVertexMarkersRef.current.push(marker);
+        });
+      }
+    }
+  }, [
+    mapReady,
+    selectedBoundaryId,
+    selectedRoadId,
+    activeTool,
+    isReadOnly,
+    isPrintViewportActive,
+    boundariesKey,
+    roadsAndLandmarksKey,
+  ]);
 
   // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {
