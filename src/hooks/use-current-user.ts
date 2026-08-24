@@ -79,6 +79,13 @@ export function useCurrentUser(): {
       setMembershipCongregationId(null);
       setMembershipGroupId(null);
       setUserMemberships([]);
+      setSelectedCongId(null);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('kanataran_active_congregation');
+          localStorage.removeItem('planner_active_congregation_id');
+        } catch {}
+      }
       setMembershipLoading(false);
       return;
     }

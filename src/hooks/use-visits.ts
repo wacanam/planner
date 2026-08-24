@@ -29,6 +29,13 @@ export function useVisitRecords(filters?: {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!congregationId && !userId && !householdId && !assignmentId) {
+      setVisits([]);
+      setHouseholds([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
@@ -107,6 +114,13 @@ export function useTerritoryVisits(territoryId: string | null, congregationId?: 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!territoryId && !congregationId) {
+      setVisits([]);
+      setHouseholds([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
@@ -164,6 +178,12 @@ export function useHouseholds(filters?: HouseholdFilters) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!congregationId && !territoryId && !userId) {
+      setRecords([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const unsubscribe = watchHouseholds(
       { congregationId, territoryId, userId, userRole, personalOnly, groupMateUserIds },

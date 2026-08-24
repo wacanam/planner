@@ -70,6 +70,12 @@ export function useVisits(filters?: {
   const assignmentId = filters?.assignmentId ?? null;
 
   useEffect(() => {
+    if (!congregationId && !householdId && !assignmentId) {
+      setVisits([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 

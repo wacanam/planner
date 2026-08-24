@@ -103,15 +103,13 @@ export function useMyAssignments(congregationId?: string | null) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (congregationId === undefined) {
+    if (!congregationId) {
       setAssignments([]);
       setIsLoading(false);
       return;
     }
 
-    const q = congregationId
-      ? query(assignmentCollection(), where('congregationId', '==', congregationId))
-      : query(assignmentCollection());
+    const q = query(assignmentCollection(), where('congregationId', '==', congregationId));
 
     return onSnapshot(
       q,

@@ -79,6 +79,12 @@ export function useHouseholds(filters?: HouseholdFilters) {
   const congregationId = filters?.congregationId ?? null;
 
   useEffect(() => {
+    if (!congregationId && !territoryId) {
+      setHouseholds([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 

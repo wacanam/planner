@@ -272,7 +272,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = getPlannerAuth();
     await signOut(auth);
     await AsyncStorage.removeItem(ACTIVE_CONGREGATION_KEY);
+    await AsyncStorage.removeItem('kanataran_active_congregation');
     setActiveCongId(null);
+    setUserProfile(null);
+    setMembershipRole(null);
+    setMembershipCongregationId(null);
+    setMembershipGroupId(null);
+    setFirebaseUser(null);
   };
 
   return (

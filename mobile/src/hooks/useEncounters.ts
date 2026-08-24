@@ -77,6 +77,12 @@ export function useEncounters(filters?: {
   const visitId = filters?.visitId ?? null;
 
   useEffect(() => {
+    if (!congregationId && !householdId && !visitId) {
+      setEncounters([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 

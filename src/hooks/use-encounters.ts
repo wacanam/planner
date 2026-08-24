@@ -36,6 +36,14 @@ function useEncounterRecords(filters?: {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!congregationId && !userId && !householdId && !visitId) {
+      setEncounters([]);
+      setHouseholds([]);
+      setVisits([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
@@ -81,9 +89,9 @@ function useEncounterRecords(filters?: {
   }, [groupMateUserIds]);
 
   const mappedEncounters = useMemo(() => {
-    let filtered = encounters;
+    let filteredEncounters = encounters;
     if (userId && !canViewAllCongregationRecords(userRole)) {
-      filtered = encounters.filter(
+      filteredEncounters = encounters.filter(
         (e) =>
           e.userId === userId ||
           (e.householdId && householdMap.has(e.householdId)) ||
@@ -91,17 +99,17 @@ function useEncounterRecords(filters?: {
       );
     }
     return sortEncounters(
-      filtered.map((encounter) =>
+      filteredEncounters.map((encounter) =>
         toEncounterView(
           encounter,
           encounter.householdId ? householdMap.get(encounter.householdId) : null,
-          encounter.visitId ? visitMap.get(encounter.visitId) : null
+          encounter.visitId ? visitMap.get(encounter.visitId) : undefined
         )
       )
     );
   }, [encounters, groupMateSet, householdMap, userId, userRole, visitMap]);
 
-  return { encounters: mappedEncounters, households, isLoading, error };
+  return { encounters: mappedEncounters, isLoading, error };
 }
 
 export function useVisitEncounters(visitId: string | null) {
@@ -130,6 +138,14 @@ export function useTerritoryEncounters(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!territoryId && !congregationId) {
+      setEncounters([]);
+      setHouseholds([]);
+      setVisits([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handleError = (err: Error) => {
       setError(err.message);
