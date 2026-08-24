@@ -95,6 +95,7 @@ export default function TerritoryDetailView() {
         }}
         congregationId={congregationId}
         households={territoryHouseholds}
+        allCongregationHouseholds={households}
         activeAssignmentId={activeAssignment?.id}
         isReadOnly={isReadOnly}
         pinHouseholdId={isReadOnly ? null : pinHouseholdId}

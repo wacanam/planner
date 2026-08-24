@@ -54,6 +54,7 @@ import {
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
+import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import { findDuplicateTerritory } from '@/lib/territories';
 import { timeAgo } from '@/lib/time-ago';
 import type {
@@ -92,6 +93,7 @@ interface StudioLayoutProps {
   onSelectTerritory?: (id: string) => void;
   congregationId: string;
   households: Household[];
+  allCongregationHouseholds?: Household[];
   activeAssignmentId?: string | null;
   isReadOnly?: boolean;
   onAddHousehold?: () => void;
@@ -112,6 +114,7 @@ export function StudioLayout({
   onSelectTerritory,
   congregationId,
   households,
+  allCongregationHouseholds,
   activeAssignmentId,
   isReadOnly = false,
   onAddHousehold,
@@ -541,6 +544,13 @@ export function StudioLayout({
   };
 
   const handleCreateHousehold = async (values: HouseholdFormValues) => {
+    const allList = allCongregationHouseholds ?? households;
+    const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, allList);
+    if (duplicate) {
+      toast.error(`House #${values.houseNumber} already exists in this congregation.`);
+      return;
+    }
+
     try {
       await saveHouseholdRecord({
         congregationId,
@@ -575,6 +585,17 @@ export function StudioLayout({
 
   const handleUpdateHousehold = async (values: HouseholdFormValues) => {
     if (!editingHousehold) return;
+    const allList = allCongregationHouseholds ?? households;
+    const duplicate = findDuplicateHouseholdByNumber(
+      values.houseNumber,
+      allList,
+      editingHousehold.id
+    );
+    if (duplicate) {
+      toast.error(`House #${values.houseNumber} already exists in this congregation.`);
+      return;
+    }
+
     try {
       await updateHouseholdRecord(editingHousehold.id, {
         address: values.address,
@@ -1045,6 +1066,7 @@ export function StudioLayout({
             city: territory?.city || congregation?.city || '',
             territoryId: territory?.id,
           }}
+          existingHouseholds={allCongregationHouseholds ?? households}
           onSubmit={handleCreateHousehold}
           onCancel={() => {
             setAddHouseholdOpen(false);
@@ -1063,6 +1085,8 @@ export function StudioLayout({
         {editingHousehold && (
           <HouseholdForm
             initialValues={editingHousehold}
+            existingHouseholds={allCongregationHouseholds ?? households}
+            excludeHouseholdId={editingHousehold.id}
             onSubmit={handleUpdateHousehold}
             onCancel={() => setEditingHousehold(null)}
           />

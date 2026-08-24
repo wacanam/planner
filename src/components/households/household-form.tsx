@@ -14,11 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
 import type { Household } from '@/types/api';
 
 export const householdFormSchema = z.object({
   address: z.string().min(1, 'Address is required'),
-  houseNumber: z.string().optional(),
+  houseNumber: z.string().min(1, 'House number is required'),
   streetName: z.string().min(1, 'Name is required'),
   unit: z.string().optional(),
   city: z.string().min(1, 'City is required'),
@@ -51,6 +52,8 @@ interface HouseholdFormProps {
   loading?: boolean;
   onCancel?: () => void;
   territories?: Array<{ id: string; name: string; number: string }>;
+  existingHouseholds?: Household[];
+  excludeHouseholdId?: string;
 }
 
 export function HouseholdForm({
@@ -59,12 +62,18 @@ export function HouseholdForm({
   loading = false,
   onCancel,
   territories = [],
+  existingHouseholds,
+  excludeHouseholdId,
 }: HouseholdFormProps) {
+  const defaultHouseNumber =
+    initialValues?.houseNumber ??
+    (existingHouseholds ? getNextCongregationHouseNumber(existingHouseholds) : '');
+
   const form = useForm<HouseholdFormValues>({
     resolver: zodResolver(householdFormSchema) as any,
     defaultValues: {
       address: initialValues?.address ?? '',
-      houseNumber: initialValues?.houseNumber ?? '',
+      houseNumber: defaultHouseNumber,
       streetName: initialValues?.streetName ?? '',
       unit: initialValues?.unit ?? '',
       city: initialValues?.city ?? '',
@@ -78,12 +87,30 @@ export function HouseholdForm({
     },
   });
 
+  const handleFormSubmit = async (values: HouseholdFormValues) => {
+    if (existingHouseholds) {
+      const duplicate = findDuplicateHouseholdByNumber(
+        values.houseNumber,
+        existingHouseholds,
+        excludeHouseholdId || initialValues?.id
+      );
+      if (duplicate) {
+        form.setError('houseNumber', {
+          type: 'manual',
+          message: `House #${values.houseNumber} already exists in this congregation.`,
+        });
+        return;
+      }
+    }
+    await onSubmit(values);
+  };
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="grid grid-cols-3 gap-2">
         <div className="space-y-1 col-span-1">
           <Label htmlFor="houseNumber" className="text-xs font-semibold">
-            House / Bldg #
+            House / Bldg # *
           </Label>
           <Input
             id="houseNumber"
@@ -91,6 +118,11 @@ export function HouseholdForm({
             className="h-9 rounded-xl text-xs"
             {...form.register('houseNumber')}
           />
+          {form.formState.errors.houseNumber && (
+            <p className="text-[10px] text-destructive">
+              {form.formState.errors.houseNumber.message}
+            </p>
+          )}
         </div>
         <div className="space-y-1 col-span-2">
           <Label htmlFor="streetName" className="text-xs font-semibold">
