@@ -49,7 +49,6 @@ import {
   isUserInGroup,
 } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
-import type { Household } from '@/types/api';
 
 type Tab = 'households' | 'visits' | 'encounters';
 type RecordScope = 'mine' | 'group' | 'congregation';
