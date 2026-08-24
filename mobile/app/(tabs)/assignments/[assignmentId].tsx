@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -33,6 +34,7 @@ import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useLocation } from '@/hooks/useLocation';
 import { useTerritoryDetail } from '@/hooks/useTerritories';
 import { useCreateVisit } from '@/hooks/useVisits';
+import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
 import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Household } from '@/types/api';

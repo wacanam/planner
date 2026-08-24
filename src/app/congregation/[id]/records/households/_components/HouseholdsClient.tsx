@@ -12,6 +12,7 @@ import { HouseholdForm, type HouseholdFormValues } from '@/components/households
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
+import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -200,6 +201,9 @@ export default function HouseholdsClient() {
   }, [households, search, statusFilter, user?.id]);
 
   const handleCreateHousehold = async (values: HouseholdFormValues) => {
+    const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, households);
+    if (duplicate) return;
+
     await saveHouseholdRecord({
       congregationId,
       territoryId: values.territoryId || undefined,
@@ -225,6 +229,9 @@ export default function HouseholdsClient() {
 
   const handleUpdateHousehold = async (values: HouseholdFormValues) => {
     if (!editHousehold) return;
+    const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, households, editHousehold.id);
+    if (duplicate) return;
+
     await updateHouseholdRecord(editHousehold.id, {
       ...values,
       territoryId: values.territoryId || null,
@@ -618,6 +625,7 @@ export default function HouseholdsClient() {
       >
         <HouseholdForm
           territories={territories}
+          existingHouseholds={households}
           onSubmit={handleCreateHousehold}
           onCancel={() => setAddHouseholdOpen(false)}
         />
@@ -634,6 +642,8 @@ export default function HouseholdsClient() {
           <HouseholdForm
             initialValues={editHousehold}
             territories={territories}
+            existingHouseholds={households}
+            excludeHouseholdId={editHousehold.id}
             onSubmit={handleUpdateHousehold}
             onCancel={() => setEditHousehold(null)}
           />
