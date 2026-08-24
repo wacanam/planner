@@ -805,7 +805,7 @@ export default function TerritoriesClient() {
                   <SelectTrigger className="h-9 rounded-xl text-xs">
                     <SelectValue placeholder="Choose a publisher…" />
                   </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border max-h-56">
+                  <SelectContent className="bg-popover border-border max-h-56">
                     {members
                       .filter((m) => m.status === 'active')
                       .map((m) => (
@@ -828,7 +828,7 @@ export default function TerritoriesClient() {
                     <SelectTrigger className="h-9 rounded-xl text-xs">
                       <SelectValue placeholder="Choose a service group…" />
                     </SelectTrigger>
-                    <SelectContent side="top" className="bg-popover border-border max-h-56">
+                    <SelectContent className="bg-popover border-border max-h-56">
                       {groups.map((g) => (
                         <SelectItem key={g.id} value={g.id}>
                           {g.name} ({g.members?.length ?? 0} publishers)

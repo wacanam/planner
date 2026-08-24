@@ -507,7 +507,7 @@ export default function GroupsClient() {
                   <SelectTrigger className="h-9 rounded-xl text-xs">
                     <SelectValue placeholder="Choose Overseer…" />
                   </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                  <SelectContent className="bg-popover border-border max-h-52">
                     <SelectItem value="none">None (Unassigned)</SelectItem>
                     {activeMembers.map((m) => {
                       const uid = m.userId || m.id;
@@ -530,7 +530,7 @@ export default function GroupsClient() {
                   <SelectTrigger className="h-9 rounded-xl text-xs">
                     <SelectValue placeholder="Choose Assistant (Optional)…" />
                   </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border max-h-52">
+                  <SelectContent className="bg-popover border-border max-h-52">
                     <SelectItem value="none">None (Optional)</SelectItem>
                     {activeMembers.map((m) => {
                       const uid = m.userId || m.id;
@@ -655,7 +655,7 @@ export default function GroupsClient() {
                                 >
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent side="top" className="text-xs">
+                                <SelectContent className="text-xs">
                                   <SelectItem value="overseer">👑 Group Overseer</SelectItem>
                                   <SelectItem value="assistant">🛡️ Assistant</SelectItem>
                                   <SelectItem value="member">👤 Publisher</SelectItem>
@@ -948,7 +948,7 @@ export default function GroupsClient() {
                     <SelectTrigger className="h-9 rounded-xl text-xs">
                       <SelectValue placeholder="Choose Overseer…" />
                     </SelectTrigger>
-                    <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectContent className="bg-popover border-border max-h-52">
                       <SelectItem value="none">None (Unassigned)</SelectItem>
                       {availableMembers.map((m) => {
                         const uid = m.userId || m.id;
@@ -971,7 +971,7 @@ export default function GroupsClient() {
                     <SelectTrigger className="h-9 rounded-xl text-xs">
                       <SelectValue placeholder="Choose Assistant (Optional)…" />
                     </SelectTrigger>
-                    <SelectContent side="top" className="bg-popover border-border max-h-52">
+                    <SelectContent className="bg-popover border-border max-h-52">
                       <SelectItem value="none">None (Optional)</SelectItem>
                       {availableMembers.map((m) => {
                         const uid = m.userId || m.id;
@@ -1097,7 +1097,7 @@ export default function GroupsClient() {
                                   >
                                     <SelectValue />
                                   </SelectTrigger>
-                                  <SelectContent side="top" className="text-xs">
+                                  <SelectContent className="text-xs">
                                     <SelectItem value="overseer">👑 Group Overseer</SelectItem>
                                     <SelectItem value="assistant">🛡️ Assistant</SelectItem>
                                     <SelectItem value="member">👤 Publisher</SelectItem>

@@ -803,7 +803,7 @@ export default function MembersClient() {
                   <SelectTrigger className="h-9 rounded-xl text-xs">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
-                  <SelectContent side="top" className="bg-popover border-border shadow-2xl">
+                  <SelectContent className="bg-popover border-border shadow-2xl">
                     <SelectItem value={CongregationRole.SERVICE_OVERSEER}>
                       Service Overseer
                     </SelectItem>
