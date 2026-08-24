@@ -18,6 +18,7 @@ import {
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -40,6 +41,7 @@ import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useEncounters } from '@/hooks/useEncounters';
 import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useVisits } from '@/hooks/useVisits';
+import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
 import {
   canViewAllCongregationRecords,
   getOverseenGroupMateIds,

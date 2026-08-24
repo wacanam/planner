@@ -67,6 +67,9 @@ export default function AssignmentDetailScreen() {
   const { territory, isLoading: territoryLoading } = useTerritoryDetail(territoryId);
   const { assignments = [] } = useTerritoryAssignments(territoryId);
   const { households = [], isLoading: householdsLoading } = useHouseholds({ territoryId });
+  const { households: allCongregationHouseholds = [] } = useHouseholds({
+    congregationId: territory?.congregationId || user?.congregationId || null,
+  });
   const { returnTerritory, isReturning } = useReturnAssignment();
   const { create: createVisit, isCreating: isLoggingVisit } = useCreateVisit();
   const { create: createHousehold, isCreating: isCreatingHousehold } = useCreateHousehold();
@@ -85,6 +88,7 @@ export default function AssignmentDetailScreen() {
 
   // Add Household Modal State
   const [addDoorModalVisible, setAddDoorModalVisible] = useState(false);
+  const [newDoorHouseNumber, setNewDoorHouseNumber] = useState('');
   const [newDoorAddress, setNewDoorAddress] = useState('');
   const [newDoorNotes, setNewDoorNotes] = useState('');
 
@@ -241,14 +245,41 @@ export default function AssignmentDetailScreen() {
     }
   };
 
+  const handleOpenAddDoorModal = () => {
+    const list = allCongregationHouseholds.length > 0 ? allCongregationHouseholds : households;
+    setNewDoorHouseNumber(getNextCongregationHouseNumber(list));
+    setNewDoorAddress('');
+    setNewDoorNotes('');
+    setAddDoorModalVisible(true);
+  };
+
   const handleAddDoorAtCurrentLocation = async () => {
-    if (!newDoorAddress.trim()) return;
+    if (!newDoorHouseNumber.trim()) {
+      Alert.alert('Required Field', 'House / Door number is required.');
+      return;
+    }
+    if (!newDoorAddress.trim()) {
+      Alert.alert('Required Field', 'Street name or address is required.');
+      return;
+    }
+
+    const list = allCongregationHouseholds.length > 0 ? allCongregationHouseholds : households;
+    const duplicate = findDuplicateHouseholdByNumber(newDoorHouseNumber.trim(), list);
+    if (duplicate) {
+      Alert.alert(
+        'Duplicate House Number',
+        `House #${newDoorHouseNumber.trim()} already exists in this congregation.`
+      );
+      return;
+    }
+
     try {
       await createHousehold({
+        houseNumber: newDoorHouseNumber.trim(),
         address: newDoorAddress.trim(),
         streetName: newDoorAddress.trim(),
         territoryId,
-        congregationId: territory?.congregationId || null,
+        congregationId: territory?.congregationId || user?.congregationId || null,
         createdById: user?.id || null,
         creatorName: user?.name || null,
         latitude: location?.latitude || null,
@@ -258,6 +289,7 @@ export default function AssignmentDetailScreen() {
       });
       await triggerHaptic('success');
       setAddDoorModalVisible(false);
+      setNewDoorHouseNumber('');
       setNewDoorAddress('');
       setNewDoorNotes('');
     } catch {
@@ -385,7 +417,7 @@ export default function AssignmentDetailScreen() {
             )}
 
             <TouchableOpacity
-              onPress={() => setAddDoorModalVisible(true)}
+              onPress={handleOpenAddDoorModal}
               style={[
                 styles.mapFab,
                 { backgroundColor: colors.primary, borderColor: colors.primary, marginTop: 8 },
@@ -474,7 +506,7 @@ export default function AssignmentDetailScreen() {
                 title="Add Door"
                 size="sm"
                 variant="outline"
-                onPress={() => setAddDoorModalVisible(true)}
+                onPress={handleOpenAddDoorModal}
               />
             </View>
           }
@@ -646,8 +678,25 @@ export default function AssignmentDetailScreen() {
             </View>
 
             <Input
-              label="Address / House Number *"
-              placeholder="e.g. 124 Jasmine St."
+              label="House / Door Number *"
+              placeholder="e.g. 104"
+              value={newDoorHouseNumber}
+              onChangeText={setNewDoorHouseNumber}
+            />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.sm,
+              }}
+            >
+              Auto-assigned for congregation. Override with actual number if known.
+            </Text>
+
+            <Input
+              label="Street Name / Address *"
+              placeholder="e.g. Jasmine St."
               value={newDoorAddress}
               onChangeText={setNewDoorAddress}
             />
