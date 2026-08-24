@@ -21,6 +21,7 @@ import type { LocalHousehold, LocalVisit } from './types';
 
 export interface CreateVisitInput {
   householdId: string;
+  congregationId?: string | null;
   userId?: string | null;
   assignmentId?: string | null;
   outcome: string;
@@ -36,6 +37,7 @@ export interface CreateVisitInput {
 }
 
 export interface VisitFilters {
+  congregationId?: string | null;
   householdId?: string | null;
   assignmentId?: string | null;
   userId?: string | null;
@@ -57,6 +59,13 @@ function visitFromSnapshot(snapshot: QueryDocumentSnapshot): LocalVisit {
 
 export function filterVisit(record: LocalVisit, filters?: VisitFilters) {
   if (record.deletedAt) return false;
+  if (
+    filters?.congregationId &&
+    record.congregationId &&
+    record.congregationId !== filters.congregationId
+  ) {
+    return false;
+  }
   if (filters?.householdId && record.householdId !== filters.householdId) return false;
   if (filters?.assignmentId && record.assignmentId !== filters.assignmentId) return false;
   if (filters?.userId && !canViewAllCongregationRecords(filters.userRole)) {
@@ -106,6 +115,7 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
   return {
     id: existingId ?? visit.id,
     serverId: visit.id,
+    congregationId: (visit as any).congregationId ?? null,
     userId: visit.userId ?? null,
     householdId: visit.householdId,
     householdServerId: visit.householdId,
@@ -131,9 +141,11 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
 export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> {
   const now = nowIso();
   const household = await getHouseholdById(input.householdId);
+  const congregationId = nullableString(input.congregationId) ?? household?.congregationId ?? null;
   const record: LocalVisit = {
     id: createClientId(),
     serverId: null,
+    congregationId,
     userId: nullableString(input.userId),
     householdId: input.householdId,
     householdServerId: household?.serverId ?? input.householdId,
@@ -188,6 +200,9 @@ export async function applyRemoteVisits(visits: Visit[]): Promise<number> {
 export async function updateVisit(id: string, input: Partial<CreateVisitInput>): Promise<void> {
   const now = nowIso();
   const updates: Record<string, unknown> = { updatedAt: now };
+  if (input.congregationId !== undefined) {
+    updates.congregationId = nullableString(input.congregationId);
+  }
   if (input.outcome !== undefined) updates.outcome = input.outcome;
   if (input.householdStatusAfter !== undefined) {
     updates.householdStatusAfter = nullableString(input.householdStatusAfter);
@@ -212,7 +227,12 @@ export async function updateVisit(id: string, input: Partial<CreateVisitInput>):
 }
 
 export async function getAllVisits(filters?: VisitFilters): Promise<LocalVisit[]> {
-  const snapshot = await getDocs(visitCollection());
+  const constraints: QueryConstraint[] = [];
+  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
+  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
+  const q = constraints.length > 0 ? query(visitCollection(), ...constraints) : visitCollection();
+  const snapshot = await getDocs(q);
   return snapshot.docs
     .map(visitFromSnapshot)
     .filter((visit) => filterVisit(visit, filters))
@@ -229,6 +249,7 @@ export function watchVisits(
   onError?: (error: Error) => void
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
+  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
   if (filters?.assignmentId) constraints.push(where('assignmentId', '==', filters.assignmentId));
   const visitQuery =

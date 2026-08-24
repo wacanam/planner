@@ -206,7 +206,7 @@ function useReportSources(congregationId: string | null | undefined) {
     }
     setAssignmentsLoading(true);
     return onSnapshot(
-      sourceCollection('assignments'),
+      query(sourceCollection('assignments'), where('congregationId', '==', congregationId)),
       { includeMetadataChanges: true },
       (snapshot) => {
         setAssignments(
@@ -286,7 +286,7 @@ function useReportSources(congregationId: string | null | undefined) {
     }
     setVisitsLoading(true);
     return onSnapshot(
-      sourceCollection('visits'),
+      query(sourceCollection('visits'), where('congregationId', '==', congregationId)),
       { includeMetadataChanges: true },
       (snapshot) => {
         setVisits(

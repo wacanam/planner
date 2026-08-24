@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -62,6 +63,7 @@ function encounterFromData(id: string, data: Partial<Encounter>): Encounter {
 }
 
 export function useEncounters(filters?: {
+  congregationId?: string;
   householdId?: string;
   visitId?: string;
   userId?: string;
@@ -70,6 +72,7 @@ export function useEncounters(filters?: {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const congregationId = filters?.congregationId ?? null;
   const householdId = filters?.householdId ?? null;
   const visitId = filters?.visitId ?? null;
 
@@ -77,6 +80,9 @@ export function useEncounters(filters?: {
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
+    if (congregationId) {
+      constraints.push(where('congregationId', '==', congregationId));
+    }
     if (householdId) {
       constraints.push(where('householdId', '==', householdId));
     } else if (visitId) {
@@ -104,7 +110,7 @@ export function useEncounters(filters?: {
         setIsLoading(false);
       }
     );
-  }, [householdId, visitId]);
+  }, [congregationId, householdId, visitId]);
 
   return { encounters, data: encounters, isLoading, error };
 }
@@ -117,13 +123,22 @@ export function useCreateEncounter() {
     try {
       const now = nowIso();
       const id = createClientId();
+      const firestore = getPlannerFirestore();
+
+      let congregationId = data.congregationId || null;
+      if (!congregationId && data.householdId) {
+        const hDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId));
+        if (hDoc.exists()) {
+          congregationId = hDoc.data().congregationId || null;
+        }
+      }
 
       const docData: Encounter = {
         id,
         visitId: data.visitId || null,
         householdId: data.householdId || null,
         territoryId: data.territoryId || null,
-        congregationId: data.congregationId || null,
+        congregationId,
         locationType: data.locationType || 'household',
         locationDescription: data.locationDescription || null,
         userId: data.userId || '',

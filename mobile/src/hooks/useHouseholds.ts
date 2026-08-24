@@ -82,10 +82,11 @@ export function useHouseholds(filters?: HouseholdFilters) {
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
+    if (congregationId) {
+      constraints.push(where('congregationId', '==', congregationId));
+    }
     if (territoryId) {
       constraints.push(where('territoryId', '==', territoryId));
-    } else if (congregationId) {
-      constraints.push(where('congregationId', '==', congregationId));
     }
 
     const q =

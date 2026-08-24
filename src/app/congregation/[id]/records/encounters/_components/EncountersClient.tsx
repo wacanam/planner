@@ -62,11 +62,13 @@ export default function EncountersClient() {
   const groupMateUserIds = useOverseenGroupMates(congregationId, user?.id);
 
   const { encounters = [], isLoading } = useMyEncounters({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     groupMateUserIds,
   });
   const { households = [] } = useHouseholds({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     personalOnly: true,

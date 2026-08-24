@@ -21,6 +21,7 @@ import type { CreateContactInput, UpdateContactInput } from '@/types/api';
 export async function saveVisitRecord(data: Record<string, unknown>): Promise<string> {
   const visit = await createVisit({
     householdId: String(data.householdId ?? ''),
+    congregationId: (data.congregationId as string | null | undefined) ?? null,
     userId: (data.userId as string | null | undefined) ?? null,
     assignmentId: (data.assignmentId as string | null | undefined) ?? null,
     outcome: String(data.outcome ?? 'other'),
@@ -163,6 +164,7 @@ export async function saveEncounterRecord(data: Record<string, unknown>): Promis
 
   const encounter = await createEncounter({
     userId: (data.userId as string | null | undefined) ?? null,
+    congregationId: (data.congregationId as string | null | undefined) ?? null,
     publisherName: ((data.publisherName ?? data.creatorName) as string | null | undefined) ?? null,
     visitId: (data.visitId as string | null | undefined) ?? null,
     householdId,

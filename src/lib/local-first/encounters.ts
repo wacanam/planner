@@ -22,6 +22,7 @@ import { getAllVisits } from './visits';
 
 export interface CreateEncounterInput {
   userId?: string | null;
+  congregationId?: string | null;
   publisherName?: string | null;
   visitId?: string | null;
   householdId?: string | null;
@@ -50,6 +51,7 @@ export interface CreateEncounterInput {
 }
 
 export interface EncounterFilters {
+  congregationId?: string | null;
   visitId?: string | null;
   householdId?: string | null;
   userId?: string | null;
@@ -72,6 +74,13 @@ function encounterFromSnapshot(snapshot: QueryDocumentSnapshot): LocalEncounter 
 export function filterEncounter(record: LocalEncounter, filters?: EncounterFilters): boolean {
   if (record.deletedAt) return false;
   if (!filters) return true;
+  if (
+    filters.congregationId &&
+    record.congregationId &&
+    record.congregationId !== filters.congregationId
+  ) {
+    return false;
+  }
   if (filters.visitId && record.visitId !== filters.visitId) return false;
   if (filters.householdId && record.householdId !== filters.householdId) return false;
   if (
@@ -102,6 +111,7 @@ export function toEncounterView(
     id: record.id,
     visitId: record.visitId,
     householdId: record.householdId,
+    congregationId: record.congregationId ?? household?.congregationId ?? visit?.congregationId ?? null,
     userId: record.userId ?? '',
     publisherName: record.publisherName ?? household?.creatorName ?? null,
     name: record.name,
@@ -145,6 +155,7 @@ export function localEncounterFromApi(encounter: Encounter, existingId?: string)
   return {
     id: existingId ?? encounter.id,
     serverId: encounter.id,
+    congregationId: encounter.congregationId ?? null,
     userId: encounter.userId ?? null,
     publisherName: encounter.publisherName ?? null,
     visitId: encounter.visitId,
@@ -186,10 +197,16 @@ export async function createEncounter(input: CreateEncounterInput): Promise<Loca
   const visit = input.visitId ? visits.find((item) => item.id === input.visitId) : null;
   const householdId = nullableString(input.householdId) ?? visit?.householdId ?? null;
   const household = householdId ? await getHouseholdById(householdId) : null;
+  const congregationId =
+    nullableString(input.congregationId) ??
+    household?.congregationId ??
+    visit?.congregationId ??
+    null;
 
   const record: LocalEncounter = {
     id: createClientId(),
     serverId: null,
+    congregationId,
     userId: nullableString(input.userId),
     publisherName: nullableString(input.publisherName) ?? household?.creatorName ?? null,
     visitId: nullableString(input.visitId),
@@ -243,6 +260,9 @@ export async function updateEncounter(
   input: Partial<CreateEncounterInput>
 ): Promise<void> {
   const updates: Record<string, unknown> = { updatedAt: nowIso() };
+  if (input.congregationId !== undefined) {
+    updates.congregationId = nullableString(input.congregationId);
+  }
   if (input.visitId !== undefined) updates.visitId = nullableString(input.visitId);
   if (input.householdId !== undefined) updates.householdId = nullableString(input.householdId);
   if (input.encounterDate !== undefined)
@@ -285,7 +305,12 @@ export async function updateEncounter(
 }
 
 export async function getAllEncounters(filters?: EncounterFilters): Promise<LocalEncounter[]> {
-  const snapshot = await getDocs(encounterCollection());
+  const constraints: QueryConstraint[] = [];
+  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
+  if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
+  if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
+  const q = constraints.length > 0 ? query(encounterCollection(), ...constraints) : encounterCollection();
+  const snapshot = await getDocs(q);
   return snapshot.docs
     .map(encounterFromSnapshot)
     .filter((encounter) => filterEncounter(encounter, filters))
@@ -306,6 +331,7 @@ export function watchEncounters(
   onError?: (error: Error) => void
 ): Unsubscribe {
   const constraints: QueryConstraint[] = [];
+  if (filters?.congregationId) constraints.push(where('congregationId', '==', filters.congregationId));
   if (filters?.visitId) constraints.push(where('visitId', '==', filters.visitId));
   if (filters?.householdId) constraints.push(where('householdId', '==', filters.householdId));
   const encounterQuery =

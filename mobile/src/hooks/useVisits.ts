@@ -28,6 +28,7 @@ function visitFromData(id: string, data: Partial<Visit>): Visit {
   return {
     id,
     userId: data.userId ?? '',
+    congregationId: (data as any).congregationId ?? null,
     publisherName: data.publisherName ?? null,
     householdId: data.householdId ?? '',
     visitDate: data.visitDate ?? now,
@@ -55,6 +56,7 @@ function visitFromData(id: string, data: Partial<Visit>): Visit {
 }
 
 export function useVisits(filters?: {
+  congregationId?: string;
   householdId?: string;
   assignmentId?: string;
   userId?: string;
@@ -63,6 +65,7 @@ export function useVisits(filters?: {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const congregationId = filters?.congregationId ?? null;
   const householdId = filters?.householdId ?? null;
   const assignmentId = filters?.assignmentId ?? null;
 
@@ -70,6 +73,9 @@ export function useVisits(filters?: {
     setIsLoading(true);
     const constraints: QueryConstraint[] = [];
 
+    if (congregationId) {
+      constraints.push(where('congregationId', '==', congregationId));
+    }
     if (householdId) {
       constraints.push(where('householdId', '==', householdId));
     } else if (assignmentId) {
@@ -95,7 +101,7 @@ export function useVisits(filters?: {
         setIsLoading(false);
       }
     );
-  }, [householdId, assignmentId]);
+  }, [congregationId, householdId, assignmentId]);
 
   return { visits, data: visits, isLoading, error };
 }
@@ -110,9 +116,18 @@ export function useCreateVisit() {
       const id = createClientId();
       const firestore = getPlannerFirestore();
 
-      const docData: Visit = {
+      let congregationId = (data as any).congregationId || null;
+      if (!congregationId && data.householdId) {
+        const hDoc = await getDoc(doc(firestore, FIRESTORE_COLLECTIONS.households, data.householdId));
+        if (hDoc.exists()) {
+          congregationId = hDoc.data().congregationId || null;
+        }
+      }
+
+      const docData = {
         id,
         userId: data.userId || '',
+        congregationId,
         publisherName: data.publisherName || null,
         householdId: data.householdId || '',
         visitDate: data.visitDate || now,

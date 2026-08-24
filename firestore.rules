@@ -1,8 +1,361 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role in ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'])
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserCongregationId() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? getUserData().congregationId
+        : null;
+    }
+
+    function isMemberOf(congId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (congId != null && getUserCongregationId() == congId) ||
+        (exists(/databases/$(database)/documents/congregationMembers/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/congregationMembers/$(request.auth.uid)).data.congregationId == congId &&
+         get(/databases/$(database)/documents/congregationMembers/$(request.auth.uid)).data.status in ['active', 'approved'])
+      );
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.auth.uid == userId ||
+        (resource.data.congregationId != null && resource.data.congregationId == getUserCongregationId())
+      );
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // Congregations
+    match /congregations/{congregationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isMemberOf(congregationId)
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // Congregation Members
+    match /congregationMembers/{memberId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.auth.uid == memberId ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Territories
+    match /territories/{territoryId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Territory Requests
+    match /territoryRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.publisherId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.publisherId == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.publisherId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.publisherId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Assignments
+    match /assignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Households
+    match /households/{householdId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        (resource.data.collaboratorIds != null && request.auth.uid in resource.data.collaboratorIds) ||
+        (resource.data.readOnlyUserIds != null && request.auth.uid in resource.data.readOnlyUserIds) ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.createdById == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        (resource.data.collaboratorIds != null && request.auth.uid in resource.data.collaboratorIds) ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Contacts
+    match /contacts/{contactId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.createdById == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.createdById == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Visits
+    match /visits/{visitId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Encounters
+    match /encounters/{encounterId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.congregationId == getUserCongregationId()
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+    }
+
+    // Member Locations
+    match /memberLocations/{locationId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Shares
+    match /shares/{shareId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.fromUserId == request.auth.uid ||
+        request.resource.data.toUserId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid
+      );
+    }
+
+    // Account Requests
+    match /accountRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.congregationId == getUserCongregationId()
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    // Mail Queue
+    match /mail/{mailId} {
+      allow read, write: if isAuthenticated();
     }
   }
 }

@@ -80,11 +80,13 @@ export default function VisitsClient() {
     households = [],
     isLoading,
   } = useMyVisits({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     groupMateUserIds,
   });
   const { encounters = [] } = useMyEncounters({
+    congregationId,
     userId: user?.id,
     userRole: user?.role,
     groupMateUserIds,

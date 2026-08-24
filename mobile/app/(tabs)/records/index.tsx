@@ -60,8 +60,12 @@ export default function RecordsScreen() {
   const { households = [], isLoading: householdsLoading } = useHouseholds({
     congregationId: activeCongregationId,
   });
-  const { visits = [], isLoading: visitsLoading } = useVisits();
-  const { encounters = [], isLoading: encountersLoading } = useEncounters();
+  const { visits = [], isLoading: visitsLoading } = useVisits(
+    activeCongregationId ? { congregationId: activeCongregationId } : undefined
+  );
+  const { encounters = [], isLoading: encountersLoading } = useEncounters(
+    activeCongregationId ? { congregationId: activeCongregationId } : undefined
+  );
   const { create: createHousehold, isCreating } = useCreateHousehold();
 
   const filteredHouseholds = useMemo(() => {

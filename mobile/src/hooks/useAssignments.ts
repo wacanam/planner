@@ -102,7 +102,15 @@ export function useMyAssignments(congregationId?: string | null) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(assignmentCollection());
+    if (congregationId === undefined) {
+      setAssignments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const q = congregationId
+      ? query(assignmentCollection(), where('congregationId', '==', congregationId))
+      : query(assignmentCollection());
 
     return onSnapshot(
       q,
@@ -110,9 +118,6 @@ export function useMyAssignments(congregationId?: string | null) {
         const list = snapshot.docs
           .map((document) =>
             assignmentFromData(document.id, document.data() as Partial<Assignment>)
-          )
-          .filter(
-            (a) => !congregationId || !a.congregationId || a.congregationId === congregationId
           )
           .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''));
         setAssignments(list);

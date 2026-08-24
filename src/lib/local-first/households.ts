@@ -336,7 +336,13 @@ export async function applyRemoteHouseholds(households: Household[]): Promise<nu
 }
 
 export async function getAllHouseholds(filters?: HouseholdFilters): Promise<LocalHousehold[]> {
-  const snapshot = await getDocs(householdCollection());
+  const constraints = [];
+  if (filters?.congregationId)
+    constraints.push(where('congregationId', '==', filters.congregationId));
+  if (filters?.territoryId) constraints.push(where('territoryId', '==', filters.territoryId));
+  const householdQuery =
+    constraints.length > 0 ? query(householdCollection(), ...constraints) : householdCollection();
+  const snapshot = await getDocs(householdQuery);
   return snapshot.docs
     .map(householdFromSnapshot)
     .filter((household) => filterHousehold(household, filters))

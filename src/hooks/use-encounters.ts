@@ -15,12 +15,14 @@ function sortEncounters(encounters: Encounter[]) {
 }
 
 function useEncounterRecords(filters?: {
+  congregationId?: string;
   visitId?: string | null;
   householdId?: string | null;
   userId?: string | null;
   userRole?: string | null;
   groupMateUserIds?: string[] | Set<string> | null;
 }) {
+  const congregationId = filters?.congregationId ?? null;
   const visitId = filters?.visitId ?? null;
   const householdId = filters?.householdId ?? null;
   const userId = filters?.userId ?? null;
@@ -40,7 +42,7 @@ function useEncounterRecords(filters?: {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      { visitId, householdId, userId, userRole, groupMateUserIds },
+      { congregationId, visitId, householdId, userId, userRole, groupMateUserIds },
       (records) => {
         setEncounters(records);
         setError(null);
@@ -49,17 +51,21 @@ function useEncounterRecords(filters?: {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      { personalOnly: true, userId, userRole, groupMateUserIds },
+      { congregationId, personalOnly: true, userId, userRole, groupMateUserIds },
       setHouseholds,
       handleError
     );
-    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    const unsubscribeVisits = watchVisits(
+      congregationId ? { congregationId } : undefined,
+      setVisits,
+      handleError
+    );
     return () => {
       unsubscribeEncounters();
       unsubscribeHouseholds();
       unsubscribeVisits();
     };
-  }, [groupMateUserIds, householdId, userId, userRole, visitId]);
+  }, [congregationId, groupMateUserIds, householdId, userId, userRole, visitId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),
@@ -103,6 +109,7 @@ export function useVisitEncounters(visitId: string | null) {
 }
 
 export function useMyEncounters(filters?: {
+  congregationId?: string;
   visitId?: string | null;
   householdId?: string | null;
   userId?: string | null;
@@ -112,7 +119,10 @@ export function useMyEncounters(filters?: {
   return useEncounterRecords(filters);
 }
 
-export function useTerritoryEncounters(territoryId: string | null) {
+export function useTerritoryEncounters(
+  territoryId: string | null,
+  congregationId?: string | null
+) {
   const [encounters, setEncounters] = useState<LocalEncounter[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [visits, setVisits] = useState<LocalVisit[]>([]);
@@ -126,7 +136,7 @@ export function useTerritoryEncounters(territoryId: string | null) {
       setIsLoading(false);
     };
     const unsubscribeEncounters = watchEncounters(
-      undefined,
+      congregationId ? { congregationId } : undefined,
       (records) => {
         setEncounters(records);
         setError(null);
@@ -135,7 +145,7 @@ export function useTerritoryEncounters(territoryId: string | null) {
       handleError
     );
     const unsubscribeHouseholds = watchHouseholds(
-      territoryId ? { territoryId } : undefined,
+      { territoryId: territoryId ?? undefined, congregationId: congregationId ?? undefined },
       (records) => {
         setHouseholds(records);
         setError(null);
@@ -143,13 +153,17 @@ export function useTerritoryEncounters(territoryId: string | null) {
       },
       handleError
     );
-    const unsubscribeVisits = watchVisits(undefined, setVisits, handleError);
+    const unsubscribeVisits = watchVisits(
+      congregationId ? { congregationId } : undefined,
+      setVisits,
+      handleError
+    );
     return () => {
       unsubscribeEncounters();
       unsubscribeHouseholds();
       unsubscribeVisits();
     };
-  }, [territoryId]);
+  }, [congregationId, territoryId]);
 
   const householdMap = useMemo(
     () => new Map(households.map((household) => [household.id, household] as const)),

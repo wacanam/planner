@@ -673,3 +673,18 @@ export function canDeleteEncounter(
   if (household?.createdById && household.createdById === user.id) return true;
   return false;
 }
+
+/**
+ * Returns true if a user can access records for a given congregationId.
+ * Super Admins and System Admins have global access to all congregations.
+ * All other users are strictly restricted to their assigned active congregation.
+ */
+export function hasCongregationAccess(
+  user: { role?: string | null; congregationId?: string | null } | null | undefined,
+  targetCongregationId: string | null | undefined
+): boolean {
+  if (!user) return false;
+  if (isSystemAdmin(user.role)) return true;
+  if (!targetCongregationId || !user.congregationId) return false;
+  return user.congregationId === targetCongregationId;
+}
