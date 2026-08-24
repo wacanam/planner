@@ -9,6 +9,7 @@ import {
   canEditTerritory,
   canEditTerritoryInStudio,
   canManageGroups,
+  canModifyBoundary,
   canModifyMapAnnotation,
   canReturnAssignment,
   canViewReports,
@@ -621,6 +622,31 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
     it('allows Super Admin to modify any annotation', () => {
       const superAdmin = { id: 'admin-1', role: UserRole.SUPER_ADMIN };
       expect(canModifyMapAnnotation(superAdmin, annotationCreatedByMember1, groups)).toBe(true);
+    });
+
+    it('denies regular publisher from modifying annotation if createdById is missing or different', () => {
+      const regularUser = { id: 'pub-1', role: UserRole.USER };
+      expect(canModifyMapAnnotation(regularUser, { createdById: null }, groups)).toBe(false);
+      expect(canModifyMapAnnotation(regularUser, null, groups)).toBe(false);
+    });
+  });
+
+  describe('canModifyBoundary & Territory Demarcation Restrictions', () => {
+    it('denies regular publishers from creating or modifying territory boundaries', () => {
+      expect(canModifyBoundary({ id: 'p-1', role: UserRole.USER })).toBe(false);
+      expect(canModifyBoundary({ id: 'p-2', role: UserRole.PUBLISHER })).toBe(false);
+      expect(canModifyBoundary({ id: 'p-3', role: UserRole.VISITING_PUBLISHER })).toBe(false);
+    });
+
+    it('denies Congregation Secretary from creating or modifying territory boundaries (scoped to TS/SO)', () => {
+      expect(canModifyBoundary({ id: 'sec-1', role: UserRole.SECRETARY })).toBe(false);
+    });
+
+    it('allows Territory Servant, Service Overseer, and Admin to create or modify territory boundaries', () => {
+      expect(canModifyBoundary({ id: 'ts-1', role: UserRole.TERRITORY_SERVANT })).toBe(true);
+      expect(canModifyBoundary({ id: 'so-1', role: UserRole.SERVICE_OVERSEER })).toBe(true);
+      expect(canModifyBoundary({ id: 'adm-1', role: UserRole.ADMIN })).toBe(true);
+      expect(canModifyBoundary({ id: 'sadm-1', role: UserRole.SUPER_ADMIN })).toBe(true);
     });
   });
 

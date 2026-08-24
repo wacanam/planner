@@ -50,6 +50,7 @@ import {
   canDeleteHousehold,
   canEditHousehold,
   canLogVisitOrEncounter,
+  canModifyBoundary,
   canModifyMapAnnotation,
   canViewMemberLocations,
 } from '@/lib/permissions';
@@ -509,6 +510,10 @@ export function StudioLayout({
     if (!territory?.id) return;
 
     if (activeTool === 'boundary') {
+      if (!canModifyBoundary(user)) {
+        toast.error('Only Territory Servants, Service Overseers, and Admins can draw boundaries.');
+        return;
+      }
       if (drawnPoints.length < 3) {
         toast.error('Boundary requires at least 3 points.');
         return;
@@ -582,10 +587,14 @@ export function StudioLayout({
     points: Array<{ lat: number; lng: number }>
   ) => {
     if (!territory?.id || isReadOnly) return;
+    if (!canModifyBoundary(user)) {
+      toast.error('Only Territory Servants, Service Overseers, and Admins can modify boundaries.');
+      return;
+    }
     const existingBoundaries = getTerritoryBoundaries(territory);
     const target = existingBoundaries.find((b) => b.id === boundaryId);
-    if (!target || !canModifyMapAnnotation(user, target, groups)) {
-      toast.error('You do not have permission to modify this boundary.');
+    if (!target) {
+      toast.error('Boundary not found.');
       return;
     }
     try {
@@ -752,6 +761,11 @@ export function StudioLayout({
 
   const handleSelectTool = (tool: StudioTool) => {
     if (isReadOnly) {
+      setActiveTool('pointer');
+      return;
+    }
+    if (tool === 'boundary' && !canModifyBoundary(user)) {
+      toast.error('Only Territory Servants, Service Overseers, and Admins can draw territory boundaries.');
       setActiveTool('pointer');
       return;
     }
@@ -1434,7 +1448,7 @@ export function StudioLayout({
               </Button>
             </div>
 
-            {canModifyMapAnnotation(user, selectedBoundary, groups) && (
+            {canModifyBoundary(user) && (
               <div className="space-y-2 pt-1">
                 <div className="flex items-center gap-1.5">
                   <Button
@@ -2160,7 +2174,7 @@ export function StudioLayout({
         onOpenChange={setBoundaryDialogOpen}
         boundary={selectedBoundary}
         onSave={async (id, name) => {
-          if (!territory?.id) return;
+          if (!territory?.id || !canModifyBoundary(user)) return;
           const existingBoundaries = getTerritoryBoundaries(territory);
           const updated = existingBoundaries.map((b) =>
             b.id === id
@@ -2181,7 +2195,7 @@ export function StudioLayout({
           setSelectedBoundary((prev) => (prev ? { ...prev, name } : null));
         }}
         onDelete={async (id) => {
-          if (!territory?.id) return;
+          if (!territory?.id || !canModifyBoundary(user)) return;
           const existingBoundaries = getTerritoryBoundaries(territory);
           const updated = existingBoundaries.filter((b) => b.id !== id);
           await saveAnnotations({

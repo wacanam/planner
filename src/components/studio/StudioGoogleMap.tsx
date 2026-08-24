@@ -11,7 +11,7 @@ import {
   type RoadSnapResult,
 } from '@/lib/map-geometry';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
-import { canEditHousehold, canModifyMapAnnotation } from '@/lib/permissions';
+import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
 import type {
   Congregation,
   Household,
@@ -1282,66 +1282,6 @@ export function StudioGoogleMap({
               handleAddPointRef.current?.({ lat, lng });
             }
           } else if (currentTool === 'pointer') {
-            const projection = overlayRef.current?.getProjection();
-            const latLngToPixel = projection
-              ? (c: LatLng) =>
-                  projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
-              : undefined;
-
-            // Check if user tapped a vertex on the selected boundary
-            if (selectedBoundaryIdRef.current) {
-              const boundaries = getTerritoryBoundaries(territoryRef.current);
-              const targetBoundary = boundaries.find((b) => b.id === selectedBoundaryIdRef.current);
-              if (targetBoundary && targetBoundary.points && targetBoundary.points.length > 0) {
-                const match = findClosestVertexIndex({
-                  point: { lat, lng },
-                  vertices: targetBoundary.points,
-                  pixelTolerance: 30,
-                  meterTolerance: 25,
-                  latLngToPixel,
-                });
-                if (match) {
-                  if (targetBoundary.points.length > 3) {
-                    try {
-                      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                        navigator.vibrate(50);
-                      }
-                    } catch {}
-                    const updated = targetBoundary.points.filter((_, i) => i !== match.index);
-                    handleUpdateBoundaryPolygonRef.current?.(targetBoundary.id, updated);
-                  }
-                  return; // Do NOT deselect
-                }
-              }
-            }
-
-            // Check if user tapped a vertex on the selected road
-            if (selectedRoadIdRef.current) {
-              const roads = territoryRef.current?.annotations?.roads || [];
-              const targetRoad = roads.find((r) => r.id === selectedRoadIdRef.current);
-              if (targetRoad && targetRoad.points && targetRoad.points.length > 0) {
-                const match = findClosestVertexIndex({
-                  point: { lat, lng },
-                  vertices: targetRoad.points,
-                  pixelTolerance: 30,
-                  meterTolerance: 25,
-                  latLngToPixel,
-                });
-                if (match) {
-                  if (targetRoad.points.length > 2) {
-                    try {
-                      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                        navigator.vibrate(50);
-                      }
-                    } catch {}
-                    const updated = targetRoad.points.filter((_, i) => i !== match.index);
-                    handleUpdateRoadPointsRef.current?.(targetRoad.id, updated);
-                  }
-                  return; // Do NOT deselect
-                }
-              }
-            }
-
             handleDeselectAllRef.current?.();
           }
         });
@@ -1785,8 +1725,9 @@ export function StudioGoogleMap({
         if (!boundary.points || boundary.points.length < 3) return;
 
         const isSelected = selectedBoundaryId === boundary.id;
+        const canModify = canModifyBoundary(currentUser);
         const isEditable =
-          !isReadOnly && !isPrintViewportActive && isSelected && activeTool === 'pointer';
+          !isReadOnly && !isPrintViewportActive && isSelected && activeTool === 'pointer' && canModify;
 
         const polygon = new google.maps.Polygon({
           paths: boundary.points,
@@ -1802,9 +1743,9 @@ export function StudioGoogleMap({
           zIndex: isSelected ? 5 : 2,
         });
 
-        // Handle right-click to delete vertex
+        // Handle right-click to delete vertex (only when polygon is editable by authorized user)
         polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !polygon.getEditable()) return;
           if (e.vertex != null) {
             const path = polygon.getPath();
             if (path.getLength() > 3) {
@@ -1818,42 +1759,23 @@ export function StudioGoogleMap({
           }
         });
 
-        // Click to select boundary in pointer mode, OR delete tapped vertex if already selected, OR pass click to map active tool
+        // Click to select boundary in pointer mode, OR delete tapped vertex if already selected and editable
         polygon.addListener('click', (e: google.maps.PolyMouseEvent) => {
           if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             const isCurrentlySelected = selectedBoundaryIdRef.current === boundary.id;
-            const bPath = polygon.getPath();
+            const isEditable = polygon.getEditable();
 
-            if (isCurrentlySelected && bPath.getLength() > 3) {
-              const projection = overlayRef.current?.getProjection();
-              const latLngToPixel =
-                projection && e.latLng
-                  ? (c: LatLng) =>
-                      projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
-                  : undefined;
-
-              const vIndex =
-                e.vertex != null
-                  ? e.vertex
-                  : e.latLng
-                    ? findClosestVertexIndex({
-                        point: { lat: e.latLng.lat(), lng: e.latLng.lng() },
-                        vertices: bPath.getArray().map((p) => ({ lat: p.lat(), lng: p.lng() })),
-                        pixelTolerance: 26,
-                        meterTolerance: 20,
-                        latLngToPixel,
-                      })?.index
-                    : undefined;
-
-              if (vIndex != null) {
+            if (isCurrentlySelected && isEditable && e.vertex != null) {
+              const bPath = polygon.getPath();
+              if (bPath.getLength() > 3) {
                 e.stop();
                 try {
                   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                     navigator.vibrate(50);
                   }
                 } catch {}
-                bPath.removeAt(vIndex);
+                bPath.removeAt(e.vertex);
                 return;
               }
             }
@@ -1958,8 +1880,7 @@ export function StudioGoogleMap({
     const boundaries = getTerritoryBoundaries(territory);
     polygonsDataRef.current.forEach(({ id, polygon }) => {
       const isSelected = selectedBoundaryId === id;
-      const targetBoundary = boundaries.find((b) => b.id === id);
-      const canModify = canModifyMapAnnotation(currentUser, targetBoundary, groups);
+      const canModify = canModifyBoundary(currentUser);
       polygon.setEditable(isSelected && canModify && !isReadOnly && isPointerMode);
       polygon.setOptions({
         strokeWeight: isSelected ? 4 : 3,
@@ -2457,8 +2378,10 @@ export function StudioGoogleMap({
           map,
         });
 
-        // Inner clean road surface (pavement) - editable ONLY when selected in pointer mode!
-        const isEditable = !isReadOnly && !isPrintViewportActive && isSelected && isPointerMode;
+        // Inner clean road surface (pavement) - editable ONLY when selected in pointer mode by authorized user!
+        const canEditRoad = canModifyMapAnnotation(currentUser, road, groups);
+        const isEditable =
+          !isReadOnly && !isPrintViewportActive && isSelected && isPointerMode && canEditRoad;
         const pavement = new google.maps.Polyline({
           path: road.points,
           strokeColor: surfaceColor,
@@ -2492,9 +2415,9 @@ export function StudioGoogleMap({
           map,
         });
 
-        // Right-click vertex deletion on road
+        // Right-click vertex deletion on road (only when road is editable by authorized user)
         const handleRoadRightClick = (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable()) return;
           if (e.vertex != null) {
             const path = pavement.getPath();
             if (path.getLength() > 2) {
@@ -2513,7 +2436,7 @@ export function StudioGoogleMap({
         // Sync vertex modifications across all 3 layers and propagate to database
         const roadPath = pavement.getPath();
         const handleRoadPathChange = () => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable()) return;
           casing.setPath(roadPath);
           centerline.setPath(roadPath);
           highlightAura.setPath(roadPath);
@@ -2536,37 +2459,18 @@ export function StudioGoogleMap({
           if (isPrintViewportActiveRef.current) return;
           if (activeToolRef.current === 'pointer') {
             const isCurrentlySelected = selectedRoadIdRef.current === road.id;
-            const rPath = pavement.getPath();
+            const isRoadEditable = pavement.getEditable();
 
-            if (isCurrentlySelected && rPath.getLength() > 2) {
-              const projection = overlayRef.current?.getProjection();
-              const latLngToPixel =
-                projection && e.latLng
-                  ? (c: LatLng) =>
-                      projection.fromLatLngToContainerPixel(new google.maps.LatLng(c.lat, c.lng))
-                  : undefined;
-
-              const vIndex =
-                e.vertex != null
-                  ? e.vertex
-                  : e.latLng
-                    ? findClosestVertexIndex({
-                        point: { lat: e.latLng.lat(), lng: e.latLng.lng() },
-                        vertices: rPath.getArray().map((p) => ({ lat: p.lat(), lng: p.lng() })),
-                        pixelTolerance: 26,
-                        meterTolerance: 20,
-                        latLngToPixel,
-                      })?.index
-                    : undefined;
-
-              if (vIndex != null) {
+            if (isCurrentlySelected && isRoadEditable && e.vertex != null) {
+              const rPath = pavement.getPath();
+              if (rPath.getLength() > 2) {
                 e.stop();
                 try {
                   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
                     navigator.vibrate(50);
                   }
                 } catch {}
-                rPath.removeAt(vIndex);
+                rPath.removeAt(e.vertex);
                 return;
               }
             }

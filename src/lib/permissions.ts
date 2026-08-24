@@ -862,7 +862,10 @@ export function canDeleteHousehold(
  * 3. Group Overseer or Assistant Overseer of the creator
  */
 export function canModifyMapAnnotation(
-  user: { id?: string | null; role?: string | null } | null | undefined,
+  user:
+    | { id?: string | null; role?: string | null; congregationRole?: string | null }
+    | null
+    | undefined,
   annotation?: { createdById?: string | null } | null,
   groups?: Array<{
     overseerId?: string | null;
@@ -871,8 +874,8 @@ export function canModifyMapAnnotation(
   }>
 ): boolean {
   if (!user?.id) return false;
-  if (canEditTerritory(user.role)) return true;
-  if (!annotation) return false;
+  if (canEditTerritory(user.role, user.congregationRole)) return true;
+  if (!annotation || !annotation.createdById) return false;
   if (annotation.createdById === user.id) return true;
   if (
     groups &&
@@ -882,6 +885,22 @@ export function canModifyMapAnnotation(
     return true;
   }
   return false;
+}
+
+/**
+ * Checks if a user is allowed to CREATE, EDIT, or DELETE territory boundaries.
+ * Territory boundaries are administrative congregation territory boundaries.
+ * Allowed strictly for Territory Servants, Service Overseers, and Admins (canEditTerritory).
+ * Regular publishers and visiting publishers are NEVER allowed to handle boundaries.
+ */
+export function canModifyBoundary(
+  user:
+    | { id?: string | null; role?: string | null; congregationRole?: string | null }
+    | null
+    | undefined
+): boolean {
+  if (!user?.id) return false;
+  return canEditTerritory(user.role, user.congregationRole);
 }
 
 /**

@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCurrentUser } from '@/hooks';
-import { canEditTerritory } from '@/lib/permissions';
+import { canEditTerritory, canModifyBoundary } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, MapLandmark, MapRoad, SharedMemberLocation } from '@/types/api';
 
@@ -192,7 +192,7 @@ export function StudioTopBar({
     return visibleMemberLocations.filter((m) => m.isSharing && m.userId !== user?.id).length;
   }, [visibleMemberLocations, user?.id]);
 
-  const canDrawBoundary = canEditTerritory(user.role);
+  const canDrawBoundary = canModifyBoundary(user);
 
   const tools: Array<{
     id: StudioTool;
