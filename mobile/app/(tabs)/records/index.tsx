@@ -69,6 +69,7 @@ export default function RecordsScreen() {
 
   // Add Household Modal
   const [addHouseholdModal, setAddHouseholdModal] = useState(false);
+  const [houseNumber, setHouseNumber] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [notes, setNotes] = useState('');
@@ -274,10 +275,36 @@ export default function RecordsScreen() {
     );
   }, [scopedEncounters, searchQuery]);
 
+  const handleOpenAddHouseholdModal = () => {
+    setHouseNumber(getNextCongregationHouseNumber(households));
+    setAddress('');
+    setCity('');
+    setNotes('');
+    setAddHouseholdModal(true);
+  };
+
   const handleCreateHousehold = async () => {
-    if (!address.trim()) return;
+    if (!houseNumber.trim()) {
+      Alert.alert('Required Field', 'House / Door number is required.');
+      return;
+    }
+    if (!address.trim()) {
+      Alert.alert('Required Field', 'Address / Street name is required.');
+      return;
+    }
+
+    const duplicate = findDuplicateHouseholdByNumber(houseNumber.trim(), households);
+    if (duplicate) {
+      Alert.alert(
+        'Duplicate House Number',
+        `House #${houseNumber.trim()} already exists in this congregation.`
+      );
+      return;
+    }
+
     try {
       const res = await createHousehold({
+        houseNumber: houseNumber.trim(),
         address: address.trim(),
         city: city.trim() || '',
         streetName: address.trim(),
@@ -289,6 +316,7 @@ export default function RecordsScreen() {
       });
       await triggerHaptic('success');
       setAddHouseholdModal(false);
+      setHouseNumber('');
       setAddress('');
       setCity('');
       setNotes('');
@@ -338,7 +366,7 @@ export default function RecordsScreen() {
           <TouchableOpacity
             onPress={() => {
               triggerHaptic('light');
-              setAddHouseholdModal(true);
+              handleOpenAddHouseholdModal();
             }}
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
           >
@@ -675,7 +703,7 @@ export default function RecordsScreen() {
                 : 'No matching doors found for the selected scope and filters.'
             }
             actionTitle="Add Household"
-            onActionPress={() => setAddHouseholdModal(true)}
+            onActionPress={handleOpenAddHouseholdModal}
           />
         ) : (
           <FlatList
@@ -1084,6 +1112,40 @@ export default function RecordsScreen() {
               }}
             >
               Create a new household record in congregation
+            </Text>
+
+            <Input
+              label="House / Door Number *"
+              placeholder="e.g. 104"
+              value={houseNumber}
+              onChangeText={setHouseNumber}
+            />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.sm,
+              }}
+            >
+              Auto-assigned for congregation. Override with actual number if known.
+            </Text>
+
+            <Input
+              label="House / Door Number *"
+              placeholder="e.g. 104"
+              value={houseNumber}
+              onChangeText={setHouseNumber}
+            />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.sm,
+              }}
+            >
+              Auto-assigned for congregation. Override with actual number if known.
             </Text>
 
             <Input

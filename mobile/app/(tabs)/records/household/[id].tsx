@@ -1,6 +1,6 @@
 // mobile/app/(tabs)/records/household/[id].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, MapPin, Share2, Trash2, X } from 'lucide-react-native';
+import { Check, MapPin, Pencil, Share2, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,8 +21,14 @@ import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
-import { useDeleteHousehold, useHouseholdDetail, useUpdateHousehold } from '@/hooks/useHouseholds';
+import {
+  useDeleteHousehold,
+  useHouseholdDetail,
+  useHouseholds,
+  useUpdateHousehold,
+} from '@/hooks/useHouseholds';
 import { useCreateVisit, useVisits } from '@/hooks/useVisits';
+import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import {
   canDeleteHousehold,
   canEditHousehold,
@@ -58,7 +64,10 @@ export default function HouseholdDetailScreen() {
   const { household, isLoading: householdLoading } = useHouseholdDetail(householdId);
   const { visits = [], isLoading: visitsLoading } = useVisits({ householdId });
   const { members = [] } = useCongregationMembers(activeCongregationId);
-  const { update: updateHousehold } = useUpdateHousehold();
+  const { households: congregationHouseholds = [] } = useHouseholds({
+    congregationId: activeCongregationId || household?.congregationId,
+  });
+  const { update: updateHousehold, isUpdating } = useUpdateHousehold();
   const { remove: deleteHousehold, isDeleting } = useDeleteHousehold();
   const { create: createVisit, isCreating: isLoggingVisit } = useCreateVisit();
 
@@ -74,7 +83,15 @@ export default function HouseholdDetailScreen() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string | null>(null);
 
-  const _canEdit = canEditHousehold(user, household);
+  // Edit Modal State
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editHouseNumber, setEditHouseNumber] = useState('');
+  const [editStreetName, setEditStreetName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  const canEdit = canEditHousehold(user, household);
   const canDelete = canDeleteHousehold(user, household);
   const canLog = canLogVisitOrEncounter(user, household);
   const canShare = canShareHousehold(user, household);
