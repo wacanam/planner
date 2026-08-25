@@ -1066,9 +1066,10 @@ export function StudioGoogleMap({
         const map = new GoogleMap(mapContainerRef.current, {
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
-          minZoom: 3,
+          minZoom: 1,
           maxZoom: 22,
           mapId,
+
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
