@@ -878,6 +878,8 @@ export function StudioGoogleMap({
   currentZoomRef.current = currentZoom;
   const initialBoundsFittedRef = useRef<string | null>(null);
   const isProgrammaticCameraUpdateRef = useRef(false);
+  const lastFitBoundsTimestampRef = useRef<number | null>(null);
+
 
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
@@ -1064,6 +1066,8 @@ export function StudioGoogleMap({
         const map = new GoogleMap(mapContainerRef.current, {
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
+          minZoom: 3,
+          maxZoom: 22,
           mapId,
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
@@ -1080,6 +1084,7 @@ export function StudioGoogleMap({
           scaleControl: false,
           gestureHandling: 'greedy',
         });
+
 
         // Initialize Snap Target Marker for road intersections (Y, T, X)
         const snapContainer = document.createElement('div');
@@ -1406,9 +1411,21 @@ export function StudioGoogleMap({
   // Fit territory or households inside print viewport framing or on manual fit bounds shortcut
   useEffect(() => {
     const map = mapInstanceRef.current;
-    const padding = fitBoundsPadding || fitPrintViewportPadding;
     if (!map || !mapReady || typeof google === 'undefined') return;
-    if (!padding && !fitBoundsTimestamp) return;
+
+    // Only run when fitBoundsTimestamp changes, or when print viewport is active with padding
+    const isManualTrigger =
+      typeof fitBoundsTimestamp === 'number' &&
+      fitBoundsTimestamp !== lastFitBoundsTimestampRef.current;
+    const isPrintTrigger = isPrintViewportActive && Boolean(fitPrintViewportPadding);
+
+    if (!isManualTrigger && !isPrintTrigger) return;
+
+    if (isManualTrigger && fitBoundsTimestamp) {
+      lastFitBoundsTimestampRef.current = fitBoundsTimestamp;
+    }
+
+    const padding = isPrintTrigger ? fitPrintViewportPadding : fitBoundsPadding;
 
     const boundaries = getTerritoryBoundaries(territory);
     let hasValidPoints = false;
@@ -1451,9 +1468,11 @@ export function StudioGoogleMap({
     fitBoundsPadding,
     fitPrintViewportPadding,
     fitBoundsTimestamp,
+    isPrintViewportActive,
     territory,
     households,
   ]);
+
 
   // Zoom In / Zoom Out shortcut trigger
   useEffect(() => {
