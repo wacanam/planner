@@ -1247,10 +1247,27 @@ export function CongregationGoogleMap({
           labelEl.style.paintOrder = 'stroke fill';
           labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
           labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-          labelEl.textContent = landmark.label || 'Landmark';
+          const shouldShowLandmarkLabel = currentZoom >= 15 || isSelected;
+          if (shouldShowLandmarkLabel) {
+            const labelWrapper = document.createElement('div');
+            labelWrapper.style.position = 'absolute';
+            labelWrapper.style.left = '14px';
+            labelWrapper.style.bottom = '8px';
+            labelWrapper.style.whiteSpace = 'nowrap';
+            labelWrapper.style.pointerEvents = 'none';
 
-          labelWrapper.appendChild(labelEl);
-          wrapper.appendChild(labelWrapper);
+            const labelEl = document.createElement('span');
+            labelEl.style.fontSize = '9.5px';
+            labelEl.style.fontWeight = '700';
+            labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
+            labelEl.style.paintOrder = 'stroke fill';
+            labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+            labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
+            labelEl.textContent = landmark.label || 'Landmark';
+
+            labelWrapper.appendChild(labelEl);
+            wrapper.appendChild(labelWrapper);
+          }
 
           wrapper.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1353,7 +1370,8 @@ export function CongregationGoogleMap({
 
           roadPolylinesRef.current.push(casing, pavement);
 
-          if (road.name) {
+          const shouldShowRoadLabel = currentZoom >= 15 || isSelected;
+          if (road.name && shouldShowRoadLabel) {
             const midIdx = Math.floor(road.points.length / 2);
             const midPt = road.points[midIdx];
 
@@ -1469,10 +1487,12 @@ export function CongregationGoogleMap({
     layerSettings.showLandmarks,
     layerSettings.showRoads,
     layerSettings.showStartFlag,
+    currentZoom,
     selectedLandmarkId,
     selectedRoadId,
     selectedStartFlagTerritoryId,
   ]);
+
 
   // 9. Live GPS & Member Location Tracking
   useEffect(() => {

@@ -2957,7 +2957,7 @@ export function StudioGoogleMap({
 
   // 8b. Zero-Flicker Landmark & Road Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
-    // Sync Landmarks
+    // Sync Landmarks & LOD
     landmarkMarkersDataRef.current.forEach(({ id, marker, pinContainer, pinCircle, labelEl }) => {
       const isSelected = selectedLandmarkId === id;
       marker.zIndex = isSelected ? 50 : 30;
@@ -2969,11 +2969,13 @@ export function StudioGoogleMap({
         ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
         : 'none';
       if (labelEl) {
+        const shouldShowLabel = currentZoom >= 15 || isSelected;
+        labelEl.style.display = shouldShowLabel ? 'inline-block' : 'none';
         labelEl.style.color = isSelected ? '#1E293B' : '#334155';
       }
     });
 
-    // Sync Roads
+    // Sync Roads & LOD
     const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
     const roads = territory?.annotations?.roads || [];
     roadPolylinesDataRef.current.forEach((item) => {
@@ -2996,6 +2998,8 @@ export function StudioGoogleMap({
         zIndex: isSelected ? 16 : 12,
       });
       if (item.labelMarker) {
+        const shouldShowLabel = currentZoom >= 15 || isSelected;
+        item.labelMarker.map = shouldShowLabel ? mapInstanceRef.current : null;
         item.labelMarker.zIndex = isSelected ? 30 : 18;
       }
       if (item.labelText) {
@@ -3006,7 +3010,8 @@ export function StudioGoogleMap({
           : '0 1px 2px rgba(0,0,0,0.25)';
       }
     });
-  }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
+  }, [selectedLandmarkId, selectedRoadId, currentZoom, activeTool, isReadOnly, isPrintViewportActive]);
+
 
   // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {
