@@ -139,7 +139,9 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
           showsMyLocationButton={false}
           scrollEnabled={scrollEnabled}
           zoomEnabled={zoomEnabled}
+          minZoomLevel={5}
           onMapReady={onMapReady}
+
           onRegionChangeComplete={handleRegionChangeComplete}
         >
           {/* Fallback tile provider for Expo Go on Android where Google Maps native SDK has no API key */}

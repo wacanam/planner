@@ -535,9 +535,10 @@ export function CongregationGoogleMap({
         const map = new GoogleMap(mapContainerRef.current, {
           center: defaultCenter,
           zoom: 14,
-          minZoom: 1,
+          minZoom: 5,
           maxZoom: 22,
           mapId,
+
 
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
