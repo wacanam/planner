@@ -13,12 +13,19 @@ import type {
   Territory,
 } from '@/types/api';
 import {
+  type ClusterProperties,
+  createClusterBadgeElement,
+  getBoundingBoxFromGoogleBounds,
+} from '@/lib/map-clustering';
+import Supercluster from 'supercluster';
+import {
   type BasemapMode,
   type BoundaryDisplaySettings,
   resolveBoundaryDisplay,
   type StudioLayerSettings,
 } from './StudioBasemapPopup';
 import { getTerritoryBoundaries } from './StudioGoogleMap';
+
 
 export interface CongregationGoogleMapProps {
   territories: Territory[];
@@ -425,8 +432,12 @@ export function CongregationGoogleMap({
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(15);
+  const currentZoomRef = useRef(15);
+  currentZoomRef.current = currentZoom;
   const initialBoundsFittedRef = useRef(false);
   const isProgrammaticCameraUpdateRef = useRef(false);
+
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
@@ -524,7 +535,11 @@ export function CongregationGoogleMap({
         const map = new GoogleMap(mapContainerRef.current, {
           center: defaultCenter,
           zoom: 14,
+          minZoom: 5,
+          maxZoom: 22,
           mapId,
+
+
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
@@ -540,6 +555,7 @@ export function CongregationGoogleMap({
           scaleControl: false,
           gestureHandling: 'greedy',
         });
+
 
         map.addListener('click', () => {
           handleDeselectAllRef.current?.();
@@ -557,9 +573,24 @@ export function CongregationGoogleMap({
           }
         };
 
-        map.addListener('heading_changed', syncCameraState);
-        map.addListener('tilt_changed', syncCameraState);
-        map.addListener('camera_changed', syncCameraState);
+        let zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncZoomState = () => {
+          if (zoomDebounceTimer) clearTimeout(zoomDebounceTimer);
+          zoomDebounceTimer = setTimeout(() => {
+            const z = map.getZoom();
+            if (typeof z === 'number' && !Number.isNaN(z) && z > 0) {
+              const roundedZoom = Math.max(1, Math.min(20, Math.round(z)));
+              if (currentZoomRef.current !== roundedZoom) {
+                currentZoomRef.current = roundedZoom;
+                setCurrentZoom(roundedZoom);
+              }
+            }
+          }, 120);
+        };
+
+        map.addListener('idle', syncZoomState);
+
+
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -922,12 +953,14 @@ export function CongregationGoogleMap({
 
     const { AdvancedMarkerElement } = google.maps.marker;
 
-    filteredHouseholds.forEach((h) => {
+    const shouldCluster = layerSettings.clusterHouseholds !== false && currentZoom < 17;
+
+    const renderSingleHouseholdPin = (h: Household) => {
       const lat =
         typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
       const lng =
         typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-      if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
+      if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return;
 
       const isSelected = selectedHouseholdId === h.id;
       const pinColor = getHouseholdStatusColor(h.status);
@@ -989,7 +1022,10 @@ export function CongregationGoogleMap({
       pinContainer.appendChild(pinTip);
       wrapper.appendChild(pinContainer);
 
-      if (layerSettings.showHouseLabels !== false) {
+      const shouldShowLabel =
+        layerSettings.showHouseLabels !== false && (currentZoom >= 15 || isSelected);
+
+      if (shouldShowLabel) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '14px';
@@ -1024,14 +1060,92 @@ export function CongregationGoogleMap({
       });
 
       householdMarkersRef.current.push(marker);
-    });
+    };
+
+    if (shouldCluster) {
+      const sc = new Supercluster<{ id: string; household: Household }, ClusterProperties>({
+        radius: 45,
+        maxZoom: 16,
+        minPoints: 2,
+      });
+
+      const validFeatures = filteredHouseholds
+        .map((h) => {
+          const lat =
+            typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+          const lng =
+            typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+          if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return null;
+
+          return {
+            type: 'Feature' as const,
+            properties: { id: h.id, household: h, cluster: false as const },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [lng, lat],
+            },
+          };
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+
+      sc.load(validFeatures);
+
+      const bounds = map.getBounds();
+      const bbox = bounds
+        ? getBoundingBoxFromGoogleBounds(bounds, 0.15)
+        : ([-180, -85, 180, 85] as [number, number, number, number]);
+
+      const items = sc.getClusters(bbox, currentZoom);
+
+      items.forEach((item) => {
+        const [lng, lat] = item.geometry.coordinates;
+
+        if ('cluster' in item.properties && item.properties.cluster) {
+          const clusterProps = item.properties as unknown as ClusterProperties;
+          const clusterId = clusterProps.cluster_id;
+          const pointCount = clusterProps.point_count;
+
+          const badgeEl = createClusterBadgeElement(pointCount, {
+            color: '#2563EB',
+            onClick: () => {
+              const expZoom = sc.getClusterExpansionZoom(clusterId);
+              const targetZoom = Math.min(19, Math.max(currentZoom + 2, expZoom));
+              map.panTo({ lat, lng });
+              map.setZoom(targetZoom);
+            },
+
+          });
+
+          const clusterMarker = new AdvancedMarkerElement({
+            map,
+            position: { lat, lng },
+            title: `${pointCount} doors`,
+            content: badgeEl,
+            zIndex: 45,
+          });
+
+          householdMarkersRef.current.push(clusterMarker);
+        } else {
+          const pointProps = item.properties as unknown as { id: string; household: Household };
+          renderSingleHouseholdPin(pointProps.household);
+        }
+
+      });
+    } else {
+      filteredHouseholds.forEach((h) => {
+        renderSingleHouseholdPin(h);
+      });
+    }
   }, [
     mapReady,
     filteredHouseholds,
     layerSettings.showHouses,
     layerSettings.showHouseLabels,
+    layerSettings.clusterHouseholds,
+    currentZoom,
     selectedHouseholdId,
   ]);
+
 
   // 8. Render All Congregation Annotations (Landmarks, Roads, Start Meeting Flags)
   useEffect(() => {
@@ -1135,10 +1249,27 @@ export function CongregationGoogleMap({
           labelEl.style.paintOrder = 'stroke fill';
           labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
           labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-          labelEl.textContent = landmark.label || 'Landmark';
+          const shouldShowLandmarkLabel = currentZoom >= 15 || isSelected;
+          if (shouldShowLandmarkLabel) {
+            const labelWrapper = document.createElement('div');
+            labelWrapper.style.position = 'absolute';
+            labelWrapper.style.left = '14px';
+            labelWrapper.style.bottom = '8px';
+            labelWrapper.style.whiteSpace = 'nowrap';
+            labelWrapper.style.pointerEvents = 'none';
 
-          labelWrapper.appendChild(labelEl);
-          wrapper.appendChild(labelWrapper);
+            const labelEl = document.createElement('span');
+            labelEl.style.fontSize = '9.5px';
+            labelEl.style.fontWeight = '700';
+            labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
+            labelEl.style.paintOrder = 'stroke fill';
+            labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+            labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
+            labelEl.textContent = landmark.label || 'Landmark';
+
+            labelWrapper.appendChild(labelEl);
+            wrapper.appendChild(labelWrapper);
+          }
 
           wrapper.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1241,7 +1372,8 @@ export function CongregationGoogleMap({
 
           roadPolylinesRef.current.push(casing, pavement);
 
-          if (road.name) {
+          const shouldShowRoadLabel = currentZoom >= 15 || isSelected;
+          if (road.name && shouldShowRoadLabel) {
             const midIdx = Math.floor(road.points.length / 2);
             const midPt = road.points[midIdx];
 
@@ -1357,10 +1489,12 @@ export function CongregationGoogleMap({
     layerSettings.showLandmarks,
     layerSettings.showRoads,
     layerSettings.showStartFlag,
+    currentZoom,
     selectedLandmarkId,
     selectedRoadId,
     selectedStartFlagTerritoryId,
   ]);
+
 
   // 9. Live GPS & Member Location Tracking
   useEffect(() => {

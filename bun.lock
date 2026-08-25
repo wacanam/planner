@@ -37,6 +37,7 @@
         "react-hook-form": "^7.85.0",
         "react-image-crop": "^11.1.2",
         "sonner": "^2.0.8",
+        "supercluster": "^9.0.0",
         "tailwind-merge": "^3.6.0",
         "zod": "^4.4.3",
       },
@@ -47,6 +48,7 @@
         "@types/node": "^26.2.0",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.4",
+        "@types/supercluster": "^7.1.3",
         "@vitest/coverage-v8": "^4.1.10",
         "firebase-tools": "^15.27.0",
         "tailwindcss": "^4.3.3",
@@ -1945,7 +1947,7 @@
 
     "styled-jsx": ["styled-jsx@5.1.6", "", { "dependencies": { "client-only": "0.0.1" }, "peerDependencies": { "@babel/core": "*", "babel-plugin-macros": "*", "react": ">= 16.8.0 || 17.x.x || ^18.0.0-0 || ^19.0.0-0" }, "optionalPeers": ["@babel/core", "babel-plugin-macros"] }, "sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA=="],
 
-    "supercluster": ["supercluster@8.0.1", "", { "dependencies": { "kdbush": "^4.0.2" } }, "sha512-IiOea5kJ9iqzD2t7QJq/cREyLHTtSmUT6gQsweojg9WH2sYJqZK9SswTu6jrscO6D1G5v5vYZ9ru/eq85lXeZQ=="],
+    "supercluster": ["supercluster@9.0.0", "", { "dependencies": { "kdbush": "^4.1.0" } }, "sha512-SaU8dQaxagTXr8+a1f67Pxg5CiRcZsq+LPQsZoV2r+FD8EF3Wpg5v7Zl8STPhml3oWHF1CQ8YaJGf8Uo8zS5qg=="],
 
     "superstatic": ["superstatic@10.0.0", "", { "dependencies": { "basic-auth-connect": "^1.1.0", "commander": "^10.0.0", "compression": "^1.7.0", "connect": "^3.7.0", "destroy": "^1.0.4", "glob-slasher": "^1.0.1", "is-url": "^1.2.2", "join-path": "^1.1.1", "lodash": "^4.17.19", "mime-types": "^2.1.35", "minimatch": "^6.1.6", "morgan": "^1.8.2", "on-finished": "^2.2.0", "on-headers": "^1.0.0", "path-to-regexp": "^1.9.0", "router": "^2.0.0", "update-notifier-cjs": "^5.1.6" }, "optionalDependencies": { "re2": "^1.17.7" }, "bin": { "superstatic": "lib/bin/server.js" } }, "sha512-4xIenBdrIIYuqXrIVx/lejyCh4EJwEMPCwfk9VGFfRlhZcdvzTd3oVOUILrAGfC4pFUWixzPgaOVzAEZgeYI3w=="],
 
@@ -2144,6 +2146,8 @@
     "@google-cloud/cloud-sql-connector/google-auth-library": ["google-auth-library@10.9.1", "", { "dependencies": { "base64-js": "^1.3.0", "ecdsa-sig-formatter": "^1.0.11", "gaxios": "^7.1.4", "gcp-metadata": "8.1.2", "google-logging-utils": "1.1.3", "jws": "^4.0.0" } }, "sha512-i1ydyHrqcIxXkWh/uBmVkzCvIuq5yiK2ATndIe5XxKholrG/MTYP9xGYka4sQhrbIAgGjL2B6NOE7rFaiF3fXw=="],
 
     "@google-cloud/pubsub/google-auth-library": ["google-auth-library@10.9.1", "", { "dependencies": { "base64-js": "^1.3.0", "ecdsa-sig-formatter": "^1.0.11", "gaxios": "^7.1.4", "gcp-metadata": "8.1.2", "google-logging-utils": "1.1.3", "jws": "^4.0.0" } }, "sha512-i1ydyHrqcIxXkWh/uBmVkzCvIuq5yiK2ATndIe5XxKholrG/MTYP9xGYka4sQhrbIAgGjL2B6NOE7rFaiF3fXw=="],
+
+    "@googlemaps/markerclusterer/supercluster": ["supercluster@8.0.1", "", { "dependencies": { "kdbush": "^4.0.2" } }, "sha512-IiOea5kJ9iqzD2t7QJq/cREyLHTtSmUT6gQsweojg9WH2sYJqZK9SswTu6jrscO6D1G5v5vYZ9ru/eq85lXeZQ=="],
 
     "@grpc/grpc-js/@types/node": ["@types/node@20.19.43", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-6oYBAi5ikg4Pl+kGsoYtawUMBT2zZMCvPNF7pVLnHZfd1zf38DRiWn/gT01RYCdUqkv7Fhr+C9ot4/tb+2sVvA=="],
 

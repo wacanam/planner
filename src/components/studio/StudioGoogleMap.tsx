@@ -11,7 +11,14 @@ import {
   type RoadSnapResult,
 } from '@/lib/map-geometry';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import {
+  type ClusterProperties,
+  createClusterBadgeElement,
+  getBoundingBoxFromGoogleBounds,
+} from '@/lib/map-clustering';
 import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
+import Supercluster from 'supercluster';
+
 import type {
   Congregation,
   Household,
@@ -419,7 +426,8 @@ function attachLongPressDrag({
   getIsSelected,
   canDrag,
 }: AttachLongPressDragOptions) {
-  let pressTimer: NodeJS.Timeout | null = null;
+  let pressTimer: ReturnType<typeof setTimeout> | null = null;
+
   let isDragging = false;
   let startX = 0;
   let startY = 0;
@@ -602,7 +610,8 @@ function attachLongPressDrag({
 }
 
 function attachVertexTouchDelete(el: HTMLElement, onDelete: () => void, onClick?: () => void) {
-  let timer: NodeJS.Timeout | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
   let isLongPress = false;
   let startX = 0;
   let startY = 0;
@@ -864,8 +873,14 @@ export function StudioGoogleMap({
 
   const [mapReady, setMapReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(16);
+  const currentZoomRef = useRef(16);
+  currentZoomRef.current = currentZoom;
   const initialBoundsFittedRef = useRef<string | null>(null);
   const isProgrammaticCameraUpdateRef = useRef(false);
+  const lastFitBoundsTimestampRef = useRef<number | null>(null);
+
+
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
@@ -1051,7 +1066,11 @@ export function StudioGoogleMap({
         const map = new GoogleMap(mapContainerRef.current, {
           center: resolvedCenter,
           zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
+          minZoom: 5,
+          maxZoom: 22,
           mapId,
+
+
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
@@ -1067,6 +1086,7 @@ export function StudioGoogleMap({
           scaleControl: false,
           gestureHandling: 'greedy',
         });
+
 
         // Initialize Snap Target Marker for road intersections (Y, T, X)
         const snapContainer = document.createElement('div');
@@ -1299,9 +1319,24 @@ export function StudioGoogleMap({
           }
         };
 
-        map.addListener('heading_changed', syncCameraState);
-        map.addListener('tilt_changed', syncCameraState);
-        map.addListener('camera_changed', syncCameraState);
+        let zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncZoomState = () => {
+          if (zoomDebounceTimer) clearTimeout(zoomDebounceTimer);
+          zoomDebounceTimer = setTimeout(() => {
+            const z = map.getZoom();
+            if (typeof z === 'number' && !Number.isNaN(z) && z > 0) {
+              const roundedZoom = Math.max(1, Math.min(20, Math.round(z)));
+              if (currentZoomRef.current !== roundedZoom) {
+                currentZoomRef.current = roundedZoom;
+                setCurrentZoom(roundedZoom);
+              }
+            }
+          }, 120);
+        };
+
+        map.addListener('idle', syncZoomState);
+
+
 
         // Attach OverlayView for accurate Container Pixel <-> LatLng coordinate projection calculations
         const overlay = new google.maps.OverlayView();
@@ -1378,9 +1413,21 @@ export function StudioGoogleMap({
   // Fit territory or households inside print viewport framing or on manual fit bounds shortcut
   useEffect(() => {
     const map = mapInstanceRef.current;
-    const padding = fitBoundsPadding || fitPrintViewportPadding;
     if (!map || !mapReady || typeof google === 'undefined') return;
-    if (!padding && !fitBoundsTimestamp) return;
+
+    // Only run when fitBoundsTimestamp changes, or when print viewport is active with padding
+    const isManualTrigger =
+      typeof fitBoundsTimestamp === 'number' &&
+      fitBoundsTimestamp !== lastFitBoundsTimestampRef.current;
+    const isPrintTrigger = isPrintViewportActive && Boolean(fitPrintViewportPadding);
+
+    if (!isManualTrigger && !isPrintTrigger) return;
+
+    if (isManualTrigger && fitBoundsTimestamp) {
+      lastFitBoundsTimestampRef.current = fitBoundsTimestamp;
+    }
+
+    const padding = isPrintTrigger ? fitPrintViewportPadding : fitBoundsPadding;
 
     const boundaries = getTerritoryBoundaries(territory);
     let hasValidPoints = false;
@@ -1423,9 +1470,11 @@ export function StudioGoogleMap({
     fitBoundsPadding,
     fitPrintViewportPadding,
     fitBoundsTimestamp,
+    isPrintViewportActive,
     territory,
     households,
   ]);
+
 
   // Zoom In / Zoom Out shortcut trigger
   useEffect(() => {
@@ -1947,15 +1996,16 @@ export function StudioGoogleMap({
       return h.status === layerSettings.householdFilter;
     });
 
-    filteredHouseholds.forEach((h) => {
+    const shouldCluster = layerSettings.clusterHouseholds !== false && currentZoom < 17;
+
+    const renderSingleHouseholdPin = (h: Household) => {
       const lat =
         typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
       const lng =
         typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
-      if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
+      if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return;
 
       const pinColor = getStatusColor(h.status);
-
       const isSelected = selectedHouseholdId === h.id;
       const canMoveHousehold = canEditHousehold(currentUser, h, groups);
 
@@ -2027,9 +2077,12 @@ export function StudioGoogleMap({
       pinContainer.appendChild(pinTip);
       wrapper.appendChild(pinContainer);
 
-      // Label beside pin: pure text with white stroke / halo
+      // Level of Detail (LOD): Label beside pin is shown if zoomed in or explicitly enabled
       let labelEl: HTMLSpanElement | null = null;
-      if (layerSettings.showHouseLabels !== false) {
+      const shouldShowLabel =
+        layerSettings.showHouseLabels !== false && (currentZoom >= 15 || isSelected);
+
+      if (shouldShowLabel) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '15px';
@@ -2086,17 +2139,95 @@ export function StudioGoogleMap({
         pinCircle,
         labelEl,
       });
-    });
+    };
+
+    if (shouldCluster) {
+      const sc = new Supercluster<{ id: string; household: Household }, ClusterProperties>({
+        radius: 45,
+        maxZoom: 16,
+        minPoints: 2,
+      });
+
+      const validFeatures = filteredHouseholds
+        .map((h) => {
+          const lat =
+            typeof h.latitude === 'number' ? h.latitude : parseFloat(String(h.latitude || ''));
+          const lng =
+            typeof h.longitude === 'number' ? h.longitude : parseFloat(String(h.longitude || ''));
+          if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return null;
+
+          return {
+            type: 'Feature' as const,
+            properties: { id: h.id, household: h, cluster: false as const },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [lng, lat],
+            },
+          };
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+
+      sc.load(validFeatures);
+
+      const bounds = map.getBounds();
+      const bbox = bounds
+        ? getBoundingBoxFromGoogleBounds(bounds, 0.15)
+        : ([-180, -85, 180, 85] as [number, number, number, number]);
+
+      const items = sc.getClusters(bbox, currentZoom);
+
+      items.forEach((item) => {
+        const [lng, lat] = item.geometry.coordinates;
+
+        if ('cluster' in item.properties && item.properties.cluster) {
+          const clusterProps = item.properties as unknown as ClusterProperties;
+          const clusterId = clusterProps.cluster_id;
+          const pointCount = clusterProps.point_count;
+
+          const badgeEl = createClusterBadgeElement(pointCount, {
+            color: '#2563EB',
+            onClick: () => {
+              const expZoom = sc.getClusterExpansionZoom(clusterId);
+              const targetZoom = Math.min(19, Math.max(currentZoom + 2, expZoom));
+              map.panTo({ lat, lng });
+              map.setZoom(targetZoom);
+            },
+
+          });
+
+          const clusterMarker = new AdvancedMarkerElement({
+            map,
+            position: { lat, lng },
+            title: `${pointCount} doors`,
+            content: badgeEl,
+            zIndex: 45,
+          });
+
+          householdMarkersRef.current.push(clusterMarker);
+        } else {
+          const pointProps = item.properties as unknown as { id: string; household: Household };
+          renderSingleHouseholdPin(pointProps.household);
+        }
+
+      });
+    } else {
+      filteredHouseholds.forEach((h) => {
+        renderSingleHouseholdPin(h);
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     mapReady,
     householdsKey,
     layerSettings.showHouses,
     layerSettings.showHouseLabels,
+    layerSettings.clusterHouseholds,
     layerSettings.householdFilter,
+    currentZoom,
     activeTool,
     isPrintViewportActive,
   ]);
+
 
   // 6b. Zero-Flicker Household Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
@@ -2828,7 +2959,7 @@ export function StudioGoogleMap({
 
   // 8b. Zero-Flicker Landmark & Road Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
-    // Sync Landmarks
+    // Sync Landmarks & LOD
     landmarkMarkersDataRef.current.forEach(({ id, marker, pinContainer, pinCircle, labelEl }) => {
       const isSelected = selectedLandmarkId === id;
       marker.zIndex = isSelected ? 50 : 30;
@@ -2840,11 +2971,13 @@ export function StudioGoogleMap({
         ? '0 0 0 2px #3B82F6, 0 1px 3px rgba(0,0,0,0.2)'
         : 'none';
       if (labelEl) {
+        const shouldShowLabel = currentZoom >= 15 || isSelected;
+        labelEl.style.display = shouldShowLabel ? 'inline-block' : 'none';
         labelEl.style.color = isSelected ? '#1E293B' : '#334155';
       }
     });
 
-    // Sync Roads
+    // Sync Roads & LOD
     const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
     const roads = territory?.annotations?.roads || [];
     roadPolylinesDataRef.current.forEach((item) => {
@@ -2867,6 +3000,8 @@ export function StudioGoogleMap({
         zIndex: isSelected ? 16 : 12,
       });
       if (item.labelMarker) {
+        const shouldShowLabel = currentZoom >= 15 || isSelected;
+        item.labelMarker.map = shouldShowLabel ? mapInstanceRef.current : null;
         item.labelMarker.zIndex = isSelected ? 30 : 18;
       }
       if (item.labelText) {
@@ -2877,7 +3012,8 @@ export function StudioGoogleMap({
           : '0 1px 2px rgba(0,0,0,0.25)';
       }
     });
-  }, [selectedLandmarkId, selectedRoadId, activeTool, isReadOnly, isPrintViewportActive]);
+  }, [selectedLandmarkId, selectedRoadId, currentZoom, activeTool, isReadOnly, isPrintViewportActive]);
+
 
   // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {

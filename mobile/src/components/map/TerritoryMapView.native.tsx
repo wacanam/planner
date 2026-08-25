@@ -1,10 +1,15 @@
-// mobile/src/components/map/TerritoryMapView.native.tsx
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+
 import { Platform, StyleSheet, View } from 'react-native';
-import MapView, { Marker, Polygon, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
+import MapView, { Polygon, PROVIDER_DEFAULT, type Region, UrlTile } from 'react-native-maps';
 import { useTheme } from '@/context/ThemeContext';
-import { triggerHaptic } from '@/lib/sound';
+import { ClusterMarker } from './ClusterMarker.native';
+import {
+  getLongitudeDeltaFromZoom,
+  useSupercluster,
+} from './hooks/useSupercluster';
+import { MapMarker } from './MapMarker.native';
 import type {
   FitOptions,
   MapCoordinate,
@@ -37,15 +42,35 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
       polygonStrokeColor,
       polygonFillColor,
       onMapReady,
+      onRegionChangeComplete,
+      enableClustering = true,
+      clusterRadius = 45,
+      clusterMaxZoom = 16,
+      clusterMinPoints = 2,
+      clusterColor,
+      clusterTextColor,
+      onClusterPress,
       children,
     },
     ref
   ) => {
     const { colors } = useTheme();
     const mapRef = useRef<MapView>(null);
+    const [currentRegion, setCurrentRegion] = useState<MapRegion>(
+      () => initialRegion || defaultRegion
+    );
 
     const strokeColor = polygonStrokeColor || colors.primary;
     const fillColor = polygonFillColor || `${colors.primary}25`;
+
+    // High performance spatial clustering and viewport culling
+    const { clusters, getClusterExpansionZoom } = useSupercluster(markers, currentRegion, {
+      enabled: enableClustering,
+      radius: clusterRadius,
+      maxZoom: clusterMaxZoom,
+      minPoints: clusterMinPoints,
+      marginRatio: 0.15,
+    });
 
     useImperativeHandle(ref, () => ({
       fitToCoordinates: (coordinates: MapCoordinate[], options?: FitOptions) => {
@@ -58,10 +83,50 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
       },
       animateToRegion: (region: MapRegion, duration?: number) => {
         if (mapRef.current) {
+          setCurrentRegion(region);
           mapRef.current.animateToRegion(region, duration || 500);
         }
       },
     }));
+
+    const handleRegionChangeComplete = useCallback(
+      (region: Region) => {
+        const nextRegion: MapRegion = {
+          latitude: region.latitude,
+          longitude: region.longitude,
+          latitudeDelta: region.latitudeDelta,
+          longitudeDelta: region.longitudeDelta,
+        };
+        setCurrentRegion(nextRegion);
+        onRegionChangeComplete?.(nextRegion);
+      },
+      [onRegionChangeComplete]
+    );
+
+    const handleClusterPress = useCallback(
+      (clusterId: number, coordinate: MapCoordinate) => {
+        const expansionZoom = getClusterExpansionZoom(clusterId);
+
+        if (mapRef.current) {
+          const nextLngDelta = getLongitudeDeltaFromZoom(expansionZoom);
+          const ratio = currentRegion.latitudeDelta / (currentRegion.longitudeDelta || 0.02);
+          const nextLatDelta = nextLngDelta * (Number.isFinite(ratio) && ratio > 0 ? ratio : 1);
+
+          mapRef.current.animateToRegion(
+            {
+              latitude: coordinate.latitude,
+              longitude: coordinate.longitude,
+              latitudeDelta: Math.max(0.0005, nextLatDelta),
+              longitudeDelta: Math.max(0.0005, nextLngDelta),
+            },
+            400
+          );
+        }
+
+        onClusterPress?.(clusterId, coordinate, expansionZoom);
+      },
+      [getClusterExpansionZoom, currentRegion, onClusterPress]
+    );
 
     return (
       <View style={[styles.container, style]}>
@@ -74,7 +139,10 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
           showsMyLocationButton={false}
           scrollEnabled={scrollEnabled}
           zoomEnabled={zoomEnabled}
+          minZoomLevel={5}
           onMapReady={onMapReady}
+
+          onRegionChangeComplete={handleRegionChangeComplete}
         >
           {/* Fallback tile provider for Expo Go on Android where Google Maps native SDK has no API key */}
           {isExpoGoOnAndroid && (
@@ -96,25 +164,29 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
             />
           )}
 
-          {/* Markers */}
-          {markers.map((marker) => {
-            const lat = Number(marker.coordinate?.latitude);
-            const lng = Number(marker.coordinate?.longitude);
-            if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return null;
+          {/* Render Spatial Clusters and Memoized Markers */}
+          {clusters.map((item) => {
+            const [longitude, latitude] = item.geometry.coordinates;
 
-            return (
-              <Marker
-                key={marker.id}
-                coordinate={{ latitude: lat, longitude: lng }}
-                title={marker.title}
-                description={marker.description}
-                pinColor={marker.color || colors.primary}
-                onPress={() => {
-                  triggerHaptic('light');
-                  marker.onPress?.();
-                }}
-              />
-            );
+            if (item.properties.cluster) {
+              const clusterId = item.properties.cluster_id;
+              const pointCount = item.properties.point_count;
+
+              return (
+                <ClusterMarker
+                  key={`cluster-${clusterId}`}
+                  clusterId={clusterId}
+                  coordinate={{ latitude, longitude }}
+                  pointCount={pointCount}
+                  clusterColor={clusterColor}
+                  clusterTextColor={clusterTextColor}
+                  onPress={handleClusterPress}
+                />
+              );
+            }
+
+            const marker = item.properties.marker;
+            return <MapMarker key={`point-${marker.id}`} marker={marker} />;
           })}
 
           {children}

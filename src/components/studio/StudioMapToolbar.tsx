@@ -45,6 +45,7 @@ export type HouseholdStatusFilter =
 export interface StudioLayerSettings {
   showHouses: boolean;
   showHouseLabels: boolean;
+  clusterHouseholds: boolean;
   showLandmarks: boolean;
   showRoads: boolean;
   showStartFlag: boolean;
@@ -57,6 +58,7 @@ export interface StudioLayerSettings {
 export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showHouses: true,
   showHouseLabels: true,
+  clusterHouseholds: true,
   showLandmarks: true,
   showRoads: true,
   showStartFlag: true,
@@ -65,6 +67,7 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showMemberLocations: true,
   householdFilter: 'all',
 };
+
 
 export type { BoundaryDisplaySettings };
 
@@ -195,6 +198,7 @@ export function StudioMapToolbar({
     onChangeLayers({
       showHouses: true,
       showHouseLabels: true,
+      clusterHouseholds: true,
       showLandmarks: true,
       showRoads: true,
       showStartFlag: true,
@@ -209,6 +213,7 @@ export function StudioMapToolbar({
     onChangeLayers({
       showHouses: false,
       showHouseLabels: false,
+      clusterHouseholds: false,
       showLandmarks: false,
       showRoads: false,
       showStartFlag: false,
@@ -218,6 +223,7 @@ export function StudioMapToolbar({
       householdFilter: 'all',
     });
   };
+
 
   const handleUpdateBoundary = (partial: Partial<BoundaryDisplaySettings>) => {
     onChangeBoundaryDisplay?.({
@@ -625,6 +631,22 @@ export function StudioMapToolbar({
               </div>
               <div className="flex items-center justify-between">
                 <Label
+                  htmlFor="layer-cluster-houses"
+                  className="text-xs cursor-pointer flex items-center gap-2"
+                >
+                  <Layers size={14} className="text-purple-600" />
+                  <span>Cluster Nearby Pins</span>
+                </Label>
+                <input
+                  id="layer-cluster-houses"
+                  type="checkbox"
+                  checked={layers.clusterHouseholds}
+                  onChange={() => toggleLayer('clusterHouseholds')}
+                  className="h-4 w-4 rounded accent-primary cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label
                   htmlFor="layer-house-labels"
                   className="text-xs cursor-pointer flex items-center gap-2"
                 >
@@ -639,6 +661,7 @@ export function StudioMapToolbar({
                   className="h-4 w-4 rounded accent-primary cursor-pointer"
                 />
               </div>
+
               <div className="flex items-center justify-between">
                 <Label
                   htmlFor="layer-landmarks"

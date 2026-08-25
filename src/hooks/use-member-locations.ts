@@ -295,7 +295,8 @@ export function useLocationSharing({
   expiresAtRef.current = expiresAt;
   const durationMinutesRef = useRef<number>(durationMinutes);
   durationMinutesRef.current = durationMinutes;
-  const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const wakeLockRef = useRef<unknown>(null);
   const audioKeepaliveRef = useRef<ReturnType<typeof createSilentAudioKeepalive> | null>(null);
   const workerHeartbeatRef = useRef<ReturnType<typeof createWorkerHeartbeat> | null>(null);
