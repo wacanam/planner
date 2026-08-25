@@ -1312,23 +1312,23 @@ export function StudioGoogleMap({
           }
         };
 
-        map.addListener('heading_changed', syncCameraState);
-        map.addListener('tilt_changed', syncCameraState);
-        map.addListener('camera_changed', syncCameraState);
-
+        let zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
         const syncZoomState = () => {
-          const z = map.getZoom();
-          if (typeof z === 'number' && !Number.isNaN(z)) {
-            const roundedZoom = Math.round(z);
-            if (currentZoomRef.current !== roundedZoom) {
-              currentZoomRef.current = roundedZoom;
-              setCurrentZoom(roundedZoom);
+          if (zoomDebounceTimer) clearTimeout(zoomDebounceTimer);
+          zoomDebounceTimer = setTimeout(() => {
+            const z = map.getZoom();
+            if (typeof z === 'number' && !Number.isNaN(z) && z > 0) {
+              const roundedZoom = Math.max(1, Math.min(20, Math.round(z)));
+              if (currentZoomRef.current !== roundedZoom) {
+                currentZoomRef.current = roundedZoom;
+                setCurrentZoom(roundedZoom);
+              }
             }
-          }
+          }, 120);
         };
 
-        map.addListener('zoom_changed', syncZoomState);
         map.addListener('idle', syncZoomState);
+
 
 
         // Attach OverlayView for accurate Container Pixel <-> LatLng coordinate projection calculations
@@ -2167,9 +2167,11 @@ export function StudioGoogleMap({
             color: '#2563EB',
             onClick: () => {
               const expZoom = sc.getClusterExpansionZoom(clusterId);
-              map.setZoom(Math.max(currentZoom + 2, expZoom));
+              const targetZoom = Math.min(19, Math.max(currentZoom + 2, expZoom));
               map.panTo({ lat, lng });
+              map.setZoom(targetZoom);
             },
+
           });
 
           const clusterMarker = new AdvancedMarkerElement({
