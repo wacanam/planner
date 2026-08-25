@@ -45,15 +45,16 @@ export const ClusterMarker = memo(
     const textColor = clusterTextColor || '#ffffff';
 
     // Dynamic sizing based on number of points in cluster
-    let size = 36;
-    let fontSize = 13;
+    let size = 28;
+    let fontSize = 12;
     if (pointCount >= 100) {
-      size = 46;
-      fontSize = 15;
+      size = 36;
+      fontSize = 13.5;
     } else if (pointCount >= 10) {
-      size = 40;
-      fontSize = 14;
+      size = 32;
+      fontSize = 12.5;
     }
+
 
     const displayCount = pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;
 
