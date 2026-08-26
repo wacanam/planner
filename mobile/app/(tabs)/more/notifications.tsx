@@ -12,6 +12,7 @@ import { NotificationsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
+import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 import type { Notification } from '@/types/api';
 
@@ -117,7 +118,7 @@ export default function NotificationsScreen() {
                   <Text
                     style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 1 }}
                   >
-                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Just now'}
+                    {item.createdAt ? formatDate(item.createdAt) : 'Just now'}
                   </Text>
                 </View>
 

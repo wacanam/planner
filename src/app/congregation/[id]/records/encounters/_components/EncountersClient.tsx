@@ -40,6 +40,7 @@ import {
   useOverseenGroupMates,
 } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
+import { formatDate } from '@/lib/date-utils';
 import {
   canDeleteEncounter,
   canEditEncounter,
@@ -673,7 +674,7 @@ export default function EncountersClient() {
                           <div className="flex items-center gap-1">
                             <Calendar size={12} className="shrink-0" />
                             <span>
-                              Last met: {new Date(contact.lastVisitDate).toLocaleDateString()}
+                              Last met: {formatDate(contact.lastVisitDate)}
                             </span>
                           </div>
                           {contact.creatorName && (
@@ -684,7 +685,7 @@ export default function EncountersClient() {
                           {contact.firstMetDate &&
                             contact.firstMetDate !== contact.lastVisitDate && (
                               <span>
-                                (First: {new Date(contact.firstMetDate).toLocaleDateString()})
+                                (First: {formatDate(contact.firstMetDate)})
                               </span>
                             )}
                         </div>
@@ -704,7 +705,7 @@ export default function EncountersClient() {
                         {contact.nextVisitDate && (
                           <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                             <span>
-                              🗓️ Next Visit: {new Date(contact.nextVisitDate).toLocaleDateString()}
+                              🗓️ Next Visit: {formatDate(contact.nextVisitDate)}
                             </span>
                             {contact.nextVisitPlannedTopic && (
                               <span className="font-normal text-muted-foreground">
@@ -769,7 +770,7 @@ export default function EncountersClient() {
                             <div className="space-y-1 min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-foreground">
-                                  {new Date(enc.visitDate ?? enc.createdAt).toLocaleDateString()}
+                                  {formatDate(enc.visitDate ?? enc.createdAt)}
                                 </span>
                                 <Badge
                                   variant="outline"
@@ -944,7 +945,7 @@ export default function EncountersClient() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                       <div className="flex items-center gap-1">
                         <Calendar size={12} className="shrink-0" />
-                        <span>{new Date(e.visitDate ?? e.createdAt).toLocaleDateString()}</span>
+                        <span>{formatDate(e.visitDate ?? e.createdAt)}</span>
                       </div>
                       {e.userId !== user?.id && e.publisherName && (
                         <span className="text-foreground/80 font-medium">
@@ -979,7 +980,7 @@ export default function EncountersClient() {
                             <span>📅 Next Visit Planned</span>
                             {e.nextVisitDate && (
                               <span className="font-normal text-purple-600 dark:text-purple-400">
-                                ({new Date(e.nextVisitDate).toLocaleDateString()}
+                                ({formatDate(e.nextVisitDate)}
                                 {e.nextVisitTime ? ` at ${e.nextVisitTime}` : ''})
                               </span>
                             )}

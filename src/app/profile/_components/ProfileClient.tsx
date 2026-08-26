@@ -71,6 +71,7 @@ import {
   isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import type { ChangePasswordFormData, UpdateProfileFormData } from '@/schemas/profile';
 import { changePasswordSchema, updateProfileSchema } from '@/schemas/profile';
 import type { NotificationSoundStyle } from '@/types/api';
@@ -1349,7 +1350,7 @@ export default function ProfilePage() {
                         <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
                           <p className="font-semibold">
                             Request submitted on{' '}
-                            {new Date(pendingLeaveRequest.requestedAt).toLocaleDateString()}
+                            {formatDate(pendingLeaveRequest.requestedAt)}
                           </p>
                           {pendingLeaveRequest.reason && (
                             <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>
@@ -1407,7 +1408,7 @@ export default function ProfilePage() {
                         <div className="mt-2 p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-0.5">
                           <p className="font-semibold">
                             Deletion request submitted on{' '}
-                            {new Date(pendingDeleteRequest.requestedAt).toLocaleDateString()}
+                            {formatDate(pendingDeleteRequest.requestedAt)}
                           </p>
                           {pendingDeleteRequest.reason && (
                             <p className="italic">&ldquo;{pendingDeleteRequest.reason}&rdquo;</p>

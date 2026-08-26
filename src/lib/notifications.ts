@@ -9,6 +9,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { formatDate } from '@/lib/date-utils';
 import { NotificationType } from '@/lib/roles';
 import type { Notification, NotificationDataPayload } from '@/types/api';
 
@@ -56,11 +57,7 @@ export function formatNotificationTime(
   if (diffDays < 7) return `${diffDays}d ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
 
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-  });
+  return formatDate(date);
 }
 
 /**

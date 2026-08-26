@@ -1,3 +1,4 @@
+import { formatDate } from './date-utils';
 import type {
   CoverageTerritory,
   GroupReportStats,
@@ -61,9 +62,9 @@ export function exportS13ToCSV(
     escapeCsvCell(r.assigneeName),
     escapeCsvCell(r.isGroupAssignment ? 'Service Group' : 'Personal'),
     escapeCsvCell(r.groupName || '—'),
-    escapeCsvCell(r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—'),
-    escapeCsvCell(r.dueAt ? new Date(r.dueAt).toLocaleDateString() : '—'),
-    escapeCsvCell(r.returnedAt ? new Date(r.returnedAt).toLocaleDateString() : 'Active'),
+    escapeCsvCell(r.assignedAt ? formatDate(r.assignedAt) : '—'),
+    escapeCsvCell(r.dueAt ? formatDate(r.dueAt) : '—'),
+    escapeCsvCell(r.returnedAt ? formatDate(r.returnedAt) : 'Active'),
     escapeCsvCell(r.coverageAtAssignment),
     escapeCsvCell(r.coverageAtReturn),
     escapeCsvCell(r.durationDays !== null ? r.durationDays : '—'),
@@ -106,7 +107,7 @@ export function exportCoverageToCSV(
     escapeCsvCell(t.workedDoors),
     escapeCsvCell(t.unworkedDoors),
     escapeCsvCell(t.healthStatus.toUpperCase()),
-    escapeCsvCell(t.lastWorkedDate ? new Date(t.lastWorkedDate).toLocaleDateString() : 'Never'),
+    escapeCsvCell(t.lastWorkedDate ? formatDate(t.lastWorkedDate) : 'Never'),
     escapeCsvCell(t.daysSinceWorked !== null ? t.daysSinceWorked : '—'),
     escapeCsvCell(t.publisherName || '—'),
     escapeCsvCell(t.groupName || '—'),
@@ -144,7 +145,7 @@ export function exportPublishersToCSV(
     escapeCsvCell(p.activeAssignments),
     escapeCsvCell(p.totalCompleted),
     escapeCsvCell(p.totalVisits),
-    escapeCsvCell(p.lastActiveDate ? new Date(p.lastActiveDate).toLocaleDateString() : '—'),
+    escapeCsvCell(p.lastActiveDate ? formatDate(p.lastActiveDate) : '—'),
     escapeCsvCell(p.territories.join('; ') || 'None'),
   ]);
 

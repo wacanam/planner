@@ -1,6 +1,7 @@
 // mobile/src/lib/pdf-export.ts
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { formatDate } from './date-utils';
 import type { S13AssignmentRecord, Territory } from '@/types/api';
 
 /**
@@ -10,7 +11,7 @@ export function generateS13Html(
   records: S13AssignmentRecord[],
   congregationName = 'Congregation'
 ): string {
-  const dateStr = new Date().toLocaleDateString();
+  const dateStr = formatDate(new Date());
   const activeCount = records.filter((r) => !r.returnedAt).length;
   const completedCount = records.filter(
     (r) => Boolean(r.returnedAt) || r.status === 'completed'
@@ -20,9 +21,9 @@ export function generateS13Html(
     .map((r, index) => {
       const isEven = index % 2 === 0;
       const bg = isEven ? '#ffffff' : '#f8fafc';
-      const assignedStr = r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—';
+      const assignedStr = r.assignedAt ? formatDate(r.assignedAt) : '—';
       const returnedStr = r.returnedAt
-        ? new Date(r.returnedAt).toLocaleDateString()
+        ? formatDate(r.returnedAt)
         : '<span style="color:#2563eb;font-weight:bold;">Active</span>';
       const isComp = r.status === 'completed' || Boolean(r.returnedAt);
       const statusBadge = isComp

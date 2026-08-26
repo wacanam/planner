@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAdminUsers, useCongregations, useCurrentUser } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import { isSystemAdmin } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { User } from '@/types/api';
@@ -345,7 +346,7 @@ export default function AdminUsersClient() {
                           ) : (
                             <span className="italic text-muted-foreground">No congregation</span>
                           )}
-                          <span>Joined: {new Date(u.createdAt).toLocaleDateString()}</span>
+                          <span>Joined: {formatDate(u.createdAt)}</span>
                         </div>
                       </div>
                     </div>

@@ -67,6 +67,7 @@ import {
   useUpdateAssignment,
 } from '@/hooks';
 import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
+import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates, canDeleteAssignment } from '@/lib/permissions';
 import {
   exportCoverageToCSV,
@@ -897,12 +898,12 @@ export default function ReportsClient() {
                               </div>
                             </td>
                             <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
-                              {rec.assignedAt ? new Date(rec.assignedAt).toLocaleDateString() : '—'}
+                              {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
                             </td>
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               {isReturned ? (
                                 <span className="text-foreground font-medium">
-                                  {new Date(rec.returnedAt!).toLocaleDateString()}
+                                  {formatDate(rec.returnedAt)}
                                 </span>
                               ) : (
                                 <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
@@ -1297,7 +1298,7 @@ export default function ReportsClient() {
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap text-muted-foreground">
                             {pub.lastActiveDate
-                              ? new Date(pub.lastActiveDate).toLocaleDateString()
+                              ? formatDate(pub.lastActiveDate)
                               : '—'}
                           </td>
                         </tr>

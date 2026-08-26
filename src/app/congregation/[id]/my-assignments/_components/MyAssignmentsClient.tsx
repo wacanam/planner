@@ -43,6 +43,7 @@ import {
   isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment, Household } from '@/types/api';
 
@@ -300,14 +301,14 @@ export default function MyAssignmentsClient() {
                             <span>
                               Assigned{' '}
                               {assignment.assignedAt
-                                ? new Date(assignment.assignedAt).toLocaleDateString()
+                                ? formatDate(assignment.assignedAt)
                                 : 'Recently'}
                             </span>
                           </div>
                           {assignment.dueAt && (
                             <div className="flex items-center gap-1.5">
                               <Clock size={12} className="text-muted-foreground/70" />
-                              <span>Due {new Date(assignment.dueAt).toLocaleDateString()}</span>
+                              <span>Due {formatDate(assignment.dueAt)}</span>
                             </div>
                           )}
                         </div>
@@ -397,7 +398,7 @@ export default function MyAssignmentsClient() {
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         Returned{' '}
                         {assignment.returnedAt
-                          ? new Date(assignment.returnedAt).toLocaleDateString()
+                          ? formatDate(assignment.returnedAt)
                           : '—'}
                       </p>
                     </div>

@@ -38,6 +38,7 @@ import {
   canLogVisitOrEncounter,
   canViewAllCongregationRecords,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
@@ -558,7 +559,7 @@ export default function VisitsClient() {
                     {/* Return Visit Planned */}
                     {v.returnVisitPlanned && v.nextVisitDate && (
                       <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">
-                        📅 Return Visit Scheduled: {new Date(v.nextVisitDate).toLocaleDateString()}
+                        📅 Return Visit Scheduled: {formatDate(v.nextVisitDate)}
                         {v.nextVisitTime ? ` at ${v.nextVisitTime}` : ''}
                       </p>
                     )}

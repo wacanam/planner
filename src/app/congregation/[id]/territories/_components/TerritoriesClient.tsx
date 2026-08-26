@@ -62,6 +62,7 @@ import {
   canDeleteTerritory,
   canEditTerritory,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
 import {
@@ -1349,13 +1350,13 @@ function TerritoryHistoryDialog({
                         <div className="grid grid-cols-2 gap-2 text-muted-foreground">
                           <div>
                             <span className="font-semibold text-foreground">Assigned:</span>{' '}
-                            {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
+                            {a.assignedAt ? formatDate(a.assignedAt) : '—'}
                           </div>
                           <div>
                             <span className="font-semibold text-foreground">Returned / Revoked:</span>{' '}
                             {a.returnedAt ? (
                               <span className="text-foreground font-medium">
-                                {new Date(a.returnedAt).toLocaleDateString()}
+                                {formatDate(a.returnedAt)}
                               </span>
                             ) : (
                               <span className="text-amber-600 dark:text-amber-400 font-medium">
@@ -1366,7 +1367,7 @@ function TerritoryHistoryDialog({
                           {a.dueAt && (
                             <div>
                               <span className="font-semibold text-foreground">Due:</span>{' '}
-                              {new Date(a.dueAt).toLocaleDateString()}
+                              {formatDate(a.dueAt)}
                             </div>
                           )}
                         </div>

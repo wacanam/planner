@@ -40,6 +40,7 @@ import {
   useTerritoryDetail,
 } from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
+import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates, canDeleteAssignment, canEditTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
@@ -782,17 +783,17 @@ export default function TerritoryDetailScreen() {
                         marginTop: 4,
                       }}
                     >
-                      Assigned: {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
+                      Assigned: {a.assignedAt ? formatDate(a.assignedAt) : '—'}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                       Returned:{' '}
                       {a.returnedAt
-                        ? new Date(a.returnedAt).toLocaleDateString()
+                        ? formatDate(a.returnedAt)
                         : 'Active in Field'}
                     </Text>
                     {a.dueAt && (
                       <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                        Due: {new Date(a.dueAt).toLocaleDateString()}
+                        Due: {formatDate(a.dueAt)}
                       </Text>
                     )}
                     {a.notes ? (

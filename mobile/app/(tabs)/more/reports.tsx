@@ -23,6 +23,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useCongregation } from '@/hooks/useCongregations';
 import { useCoverageReport, useS13Report } from '@/hooks/useReports';
 import { exportS13Pdf } from '@/lib/pdf-export';
+import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function ReportsScreen() {
@@ -307,7 +308,7 @@ export default function ReportsScreen() {
                   <Text
                     style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
                   >
-                    {item.assignedAt ? new Date(item.assignedAt).toLocaleDateString() : '—'}
+                    {item.assignedAt ? formatDate(item.assignedAt) : '—'}
                   </Text>
                 </View>
 
@@ -318,7 +319,7 @@ export default function ReportsScreen() {
                   <Text
                     style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
                   >
-                    {item.returnedAt ? new Date(item.returnedAt).toLocaleDateString() : 'In Field'}
+                    {item.returnedAt ? formatDate(item.returnedAt) : 'In Field'}
                   </Text>
                 </View>
 

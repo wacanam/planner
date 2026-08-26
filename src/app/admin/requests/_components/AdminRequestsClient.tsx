@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminAccountRequests } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import { UserRole } from '@/lib/roles';
 import type { AccountRequest, AccountRequestStatus, AccountRequestType } from '@/types/api';
 
@@ -354,7 +355,7 @@ export default function AdminRequestsClient() {
                             </span>
                           )}
                           <span>
-                            Submitted: {new Date(req.requestedAt).toLocaleDateString()} at{' '}
+                            Submitted: {formatDate(req.requestedAt)} at{' '}
                             {new Date(req.requestedAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -379,7 +380,7 @@ export default function AdminRequestsClient() {
                               <strong className="text-foreground">
                                 {req.reviewedByName || 'System Admin'}
                               </strong>{' '}
-                              on {new Date(req.reviewedAt).toLocaleDateString()} at{' '}
+                              on {formatDate(req.reviewedAt)} at{' '}
                               {new Date(req.reviewedAt).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
