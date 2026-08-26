@@ -434,24 +434,26 @@ export default function TerritoriesClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Territory Directory</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+              Territory Directory
+            </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               Congregation territory cards, boundaries, and publisher assignments
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3 bg-background shadow-xs hover:border-primary/50 hover:bg-primary/5"
+              className="rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2.5 sm:px-3 bg-background shadow-xs hover:border-primary/50 hover:bg-primary/5 shrink-0"
             >
               <Link href={`/congregation/${congregationId}/territories/overview`}>
-                <MapIcon size={14} className="text-primary" />
+                <MapIcon size={13} className="text-primary" />
                 <span>Congregation Map</span>
               </Link>
             </Button>
@@ -473,7 +475,7 @@ export default function TerritoriesClient() {
                     );
                     setMapCenterOpen(true);
                   }}
-                  className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3"
+                  className="rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2.5 sm:px-3 shrink-0"
                   title="Configure congregation default map center"
                 >
                   <MapPin size={13} />
@@ -482,7 +484,7 @@ export default function TerritoriesClient() {
                 <Button
                   size="sm"
                   onClick={handleOpenCreate}
-                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-sm h-9 px-3.5"
+                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-sm h-8.5 px-3 sm:px-3.5 shrink-0"
                 >
                   <Plus size={14} />
                   <span>Create Territory</span>
@@ -492,71 +494,96 @@ export default function TerritoriesClient() {
           </div>
         </div>
 
-        {/* Interactive Stats Overview Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-              statusFilter === 'all'
-                ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
-                : 'bg-card border-border hover:border-border/80 hover:bg-muted/30'
-            }`}
-          >
-            <p className="text-[11px] font-semibold text-muted-foreground">Total Territories</p>
-            <p className="text-lg font-bold text-foreground mt-0.5">{stats.total}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {stats.totalDoors} registered doors
-            </p>
-          </button>
+        {/* Compact Interactive Stats Summary Banner */}
+        <div className="p-3 sm:p-4 rounded-2xl border bg-card border-border shadow-2xs space-y-2.5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {/* Total */}
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                statusFilter === 'all'
+                  ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
+                  : 'bg-muted/30 border-border/60 hover:bg-muted/50'
+              }`}
+            >
+              <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground">Total</p>
+              <p className="text-base sm:text-lg font-bold text-foreground leading-tight mt-0.5">
+                {stats.total}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
+                {stats.totalDoors} doors
+              </p>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'available' ? 'all' : 'available')}
-            className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-              statusFilter === 'available'
-                ? 'bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/30'
-                : 'bg-card border-border hover:border-border/80 hover:bg-muted/30'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <p className="text-[11px] font-semibold text-muted-foreground">Available</p>
+            {/* Available */}
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'available' ? 'all' : 'available')}
+              className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                statusFilter === 'available'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 ring-1 ring-emerald-500/30'
+                  : 'bg-muted/30 border-border/60 hover:bg-muted/50'
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground truncate">
+                  Available
+                </p>
+              </div>
+              <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight mt-0.5">
+                {stats.available}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">Ready</p>
+            </button>
+
+            {/* Assigned */}
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'assigned' ? 'all' : 'assigned')}
+              className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                statusFilter === 'assigned'
+                  ? 'bg-blue-500/10 border-blue-500/40 ring-1 ring-blue-500/30'
+                  : 'bg-muted/30 border-border/60 hover:bg-muted/50'
+              }`}
+            >
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground truncate">
+                  Assigned
+                </p>
+              </div>
+              <p className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 leading-tight mt-0.5">
+                {stats.assigned}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">In field</p>
+            </button>
+
+            {/* Desktop Coverage Column */}
+            <div className="hidden sm:flex flex-col justify-between p-2.5 rounded-xl border border-border/60 bg-muted/30">
+              <p className="text-[11px] font-semibold text-muted-foreground">Coverage</p>
+              <div className="flex items-baseline justify-between">
+                <p className="text-lg font-bold text-foreground">{stats.overallCoverage}%</p>
+                <span className="text-[10px] text-muted-foreground">
+                  {stats.workedDoors}/{stats.totalDoors}
+                </span>
+              </div>
             </div>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-              {stats.available}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Ready for checkout</p>
-          </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setStatusFilter(statusFilter === 'assigned' ? 'all' : 'assigned')}
-            className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-              statusFilter === 'assigned'
-                ? 'bg-blue-500/10 border-blue-500/40 ring-1 ring-blue-500/30'
-                : 'bg-card border-border hover:border-border/80 hover:bg-muted/30'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-500" />
-              <p className="text-[11px] font-semibold text-muted-foreground">Assigned</p>
-            </div>
-            <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-0.5">
-              {stats.assigned}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Active in field</p>
-          </button>
-
-          <div className="p-3 rounded-2xl border bg-card border-border">
-            <p className="text-[11px] font-semibold text-muted-foreground">Congregation Coverage</p>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <p className="text-lg font-bold text-foreground">{stats.overallCoverage}%</p>
-              <span className="text-[10px] text-muted-foreground">
-                ({stats.workedDoors}/{stats.totalDoors})
+          {/* Congregation Coverage Progress Bar (Unified) */}
+          <div className="space-y-1 pt-1 border-t border-border/50">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground font-medium flex items-center gap-1">
+                <span>Congregation Door Coverage:</span>
+                <strong className="text-foreground font-semibold">
+                  {stats.workedDoors}/{stats.totalDoors} worked
+                </strong>
               </span>
+              <span className="font-bold text-foreground">{stats.overallCoverage}%</span>
             </div>
-            <div className="h-1.5 w-full bg-muted/80 dark:bg-muted/50 rounded-full overflow-hidden mt-2">
+            <div className="h-1.5 w-full bg-muted/80 dark:bg-muted/50 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500"
                 style={{ width: `${Math.min(stats.overallCoverage, 100)}%` }}
@@ -566,7 +593,7 @@ export default function TerritoriesClient() {
         </div>
 
         {/* Search, Filter Pills & View Switcher */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search
@@ -574,10 +601,10 @@ export default function TerritoriesClient() {
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="Search territory #, name, locality, publisher, group…"
+                placeholder="Search by #, name, publisher…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 pr-8 h-9.5 rounded-xl text-xs bg-card"
+                className="pl-8 pr-8 h-9 rounded-xl text-xs bg-card"
               />
               {search ? (
                 <button
@@ -602,7 +629,7 @@ export default function TerritoriesClient() {
                 }`}
                 title="Grid Card View"
               >
-                <LayoutGrid size={15} />
+                <LayoutGrid size={14} />
               </button>
               <button
                 type="button"
@@ -614,13 +641,13 @@ export default function TerritoriesClient() {
                 }`}
                 title="Compact List View"
               >
-                <LayoutList size={15} />
+                <LayoutList size={14} />
               </button>
             </div>
           </div>
 
           {/* Swipeable Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
               { id: 'all', label: 'All', count: stats.total },
               {
