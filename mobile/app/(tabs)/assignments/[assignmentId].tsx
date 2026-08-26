@@ -36,6 +36,7 @@ import { useLocation } from '@/hooks/useLocation';
 import { useTerritoryDetail } from '@/hooks/useTerritories';
 import { useCreateVisit } from '@/hooks/useVisits';
 import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
+import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Household } from '@/types/api';
@@ -458,7 +459,7 @@ export default function AssignmentDetailScreen() {
                   >
                     Status: {selectedHousehold.status.toUpperCase()} &bull; Last:{' '}
                     {selectedHousehold.lastVisitDate
-                      ? new Date(selectedHousehold.lastVisitDate).toLocaleDateString()
+                      ? formatDate(selectedHousehold.lastVisitDate)
                       : 'Never'}
                   </Text>
                 </View>
@@ -536,7 +537,7 @@ export default function AssignmentDetailScreen() {
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                     Last Visit:{' '}
                     {item.lastVisitDate
-                      ? new Date(item.lastVisitDate).toLocaleDateString()
+                      ? formatDate(item.lastVisitDate)
                       : 'Never'}{' '}
                     ({item.lastVisitOutcome || 'None'})
                   </Text>

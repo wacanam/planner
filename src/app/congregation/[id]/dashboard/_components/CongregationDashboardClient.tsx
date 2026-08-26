@@ -38,6 +38,7 @@ import {
   getUserGroupIds,
   resolveUserAssignments,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household } from '@/types/api';
 
@@ -301,7 +302,7 @@ export default function CongregationDashboardClient() {
                           <p className="text-xs text-muted-foreground mt-0.5 truncate">
                             Assigned on{' '}
                             {assignment.assignedAt
-                              ? new Date(assignment.assignedAt).toLocaleDateString()
+                              ? formatDate(assignment.assignedAt)
                               : 'Recently'}
                           </p>
                         </div>

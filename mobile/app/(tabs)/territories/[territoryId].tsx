@@ -1,11 +1,14 @@
 // mobile/app/(tabs)/territories/[territoryId].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  Calendar,
   CheckCircle2,
   Clock,
   Download,
   Home,
   MapPin,
+  RotateCcw,
+  Trash2,
   UserCheck,
   Users,
   X,
@@ -24,6 +27,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
   useCreateAssignment,
+  useDeleteAssignment,
   useReturnAssignment,
   useRevokeTerritory,
   useTerritoryAssignments,
@@ -38,7 +42,8 @@ import {
   useTerritoryDetail,
 } from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
-import { canAdjustAssignmentDates, canEditTerritory } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
+import { canAdjustAssignmentDates, canDeleteAssignment, canEditTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
 
@@ -63,6 +68,7 @@ export default function TerritoryDetailScreen() {
   const { returnTerritory, isReturning } = useReturnAssignment();
   const { revoke: revokeTerritory, isRevoking } = useRevokeTerritory();
   const { update: updateAssignment, isUpdating: isUpdatingAssignment } = useUpdateAssignment();
+  const { remove: deleteAssignment, isDeleting: isDeletingAssignment } = useDeleteAssignment();
   const { remove: deleteTerritory, isDeleting } = useDeleteTerritory();
 
   const [requestModalVisible, setRequestModalVisible] = useState(false);
@@ -79,13 +85,15 @@ export default function TerritoryDetailScreen() {
 
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editStatus, setEditStatus] = useState<string>('active');
   const [editAssignedAt, setEditAssignedAt] = useState('');
   const [editReturnedAt, setEditReturnedAt] = useState('');
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  const canEdit = canEditTerritory(user?.role);
-  const canAdjust = canAdjustAssignmentDates(user?.role);
+  const canEdit = canEditTerritory(user?.role, user?.congregationRole);
+  const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
+  const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
   const activeAssignment = assignments.find(
     (a) => a.status === 'assigned' || a.status === 'active'
   );
@@ -123,12 +131,7 @@ export default function TerritoryDetailScreen() {
         longitudeDelta: Math.max(0.008, (maxLng - minLng) * 1.5),
       };
     }
-    return {
-      latitude: 14.5995,
-      longitude: 120.9842,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    };
+    return undefined;
   }, [boundaryCoords]);
 
   const totalDoors = households.length || territory?.householdsCount || 0;
@@ -165,6 +168,8 @@ export default function TerritoryDetailScreen() {
         endorsedByUserId: user?.id || null,
         endorsedByUserName: user?.name || null,
         assignedAt: assignDate || new Date().toISOString(),
+        creatorRole: user?.role,
+        creatorCongregationRole: user?.congregationRole,
         territoryName: territory.name,
         territoryNumber: territory.number,
       });
@@ -188,7 +193,14 @@ export default function TerritoryDetailScreen() {
           text: 'Return',
           style: 'destructive',
           onPress: async () => {
-            await returnTerritory(activeAssignment.id);
+            await returnTerritory(
+              activeAssignment.id,
+              null,
+              user?.role,
+              user?.congregationRole,
+              user?.id,
+              user?.name
+            );
             await triggerHaptic('success');
           },
         },
@@ -197,9 +209,16 @@ export default function TerritoryDetailScreen() {
   };
 
   const handleConfirmReturnRevoke = async () => {
-    if (!activeAssignment) return;
+    if (!territory) return;
     try {
-      await returnTerritory(activeAssignment.id, returnRevokeDate);
+      await revokeTerritory(
+        territory.id,
+        returnRevokeDate,
+        user?.role,
+        user?.congregationRole,
+        user?.id,
+        user?.name
+      );
       await triggerHaptic('success');
       setReturnRevokeModalVisible(false);
     } catch {
@@ -209,6 +228,7 @@ export default function TerritoryDetailScreen() {
 
   const handleOpenEditAssignment = (a: Assignment) => {
     setEditingAssignment(a);
+    setEditStatus(a.status || 'active');
     setEditAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
     setEditReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
     setEditDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
@@ -220,6 +240,7 @@ export default function TerritoryDetailScreen() {
     try {
       await updateAssignment({
         id: editingAssignment.id,
+        status: editStatus,
         assignedAt: editAssignedAt
           ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
           : editingAssignment.assignedAt,
@@ -236,6 +257,33 @@ export default function TerritoryDetailScreen() {
       triggerHaptic('error');
       Alert.alert('Error', err?.message || 'Failed to update assignment dates');
     }
+  };
+
+  const handleDeleteAssignment = (assignmentId: string) => {
+    Alert.alert(
+      'Delete Assignment Record',
+      'Are you sure you want to permanently delete this assignment history entry? This will remove the accidental entry from history and S-13 reports. If this was an active assignment, the territory will become available.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAssignment(assignmentId);
+              await triggerHaptic('success');
+              if (editingAssignment?.id === assignmentId) {
+                setEditingAssignment(null);
+              }
+              Alert.alert('Deleted', 'Assignment record permanently deleted.');
+            } catch (err: any) {
+              triggerHaptic('error');
+              Alert.alert('Error', err?.message || 'Failed to delete assignment record');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleExportCard = async () => {
@@ -730,47 +778,69 @@ export default function TerritoryDetailScreen() {
                         size="sm"
                       />
                     </View>
-                    <Text
-                      style={{
-                        color: colors.mutedForeground,
-                        fontSize: typography.xs,
-                        marginTop: 4,
-                      }}
-                    >
-                      Assigned: {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                      Returned:{' '}
-                      {a.returnedAt
-                        ? new Date(a.returnedAt).toLocaleDateString()
-                        : 'Active in Field'}
-                    </Text>
-                    {a.dueAt && (
-                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                        Due: {new Date(a.dueAt).toLocaleDateString()}
-                      </Text>
-                    )}
-                    {a.notes ? (
-                      <Text
-                        style={{
-                          color: colors.mutedForeground,
-                          fontSize: typography.xs,
-                          fontStyle: 'italic',
-                          marginTop: 2,
-                        }}
-                      >
-                        Note: {a.notes}
-                      </Text>
-                    ) : null}
+                    <View style={{ gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={13} color={colors.primary} />
+                        <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                          <Text style={{ fontWeight: '700', color: colors.foreground }}>Assigned:</Text>{' '}
+                          {a.assignedAt ? formatDate(a.assignedAt) : '—'}
+                        </Text>
+                      </View>
 
-                    {canAdjust && (
-                      <Button
-                        title="Adjust Dates"
-                        variant="outline"
-                        size="sm"
-                        onPress={() => handleOpenEditAssignment(a)}
-                        style={{ marginTop: 8 }}
-                      />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {a.returnedAt ? (
+                          <RotateCcw size={13} color="#16a34a" />
+                        ) : (
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f59e0b', marginHorizontal: 2.5 }} />
+                        )}
+                        <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                          <Text style={{ fontWeight: '700', color: colors.foreground }}>
+                            {a.returnedAt ? 'Returned:' : 'Status:'}
+                          </Text>{' '}
+                          {a.returnedAt ? formatDate(a.returnedAt) : 'Active in Field'}
+                        </Text>
+                      </View>
+
+                      {a.dueAt && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Clock size={13} color={colors.mutedForeground} />
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                            <Text style={{ fontWeight: '700', color: colors.foreground }}>Due:</Text>{' '}
+                            {formatDate(a.dueAt)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {a.notes ? (
+                        <View style={{ padding: 8, borderRadius: radius.md, backgroundColor: colors.muted, marginTop: 2 }}>
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic' }}>
+                            "{a.notes}"
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {(canAdjust || canDelete) && (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        {canDelete && (
+                          <Button
+                            title="Delete"
+                            variant="ghost"
+                            size="sm"
+                            onPress={() => handleDeleteAssignment(a.id)}
+                            style={{ flex: 1 }}
+                          />
+                        )}
+                        {canAdjust && (
+                          <Button
+                            title="Adjust Dates"
+                            variant="outline"
+                            size="sm"
+                            onPress={() => handleOpenEditAssignment(a)}
+                            style={{ flex: 1 }}
+                          />
+                        )}
+                      </View>
                     )}
                   </View>
                 ))
@@ -796,6 +866,57 @@ export default function TerritoryDetailScreen() {
             </View>
 
             <View style={{ gap: 10, marginVertical: 10 }}>
+              <Text style={{ fontSize: typography.xs, fontWeight: 'bold', color: colors.foreground }}>
+                Assignment Status
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 2 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {(
+                    [
+                      { key: 'active', label: 'Active in Field' },
+                      { key: 'completed', label: 'Completed' },
+                      { key: 'returned', label: 'Returned' },
+                      { key: 'pending_approval', label: 'Pending Approval' },
+                      { key: 'rejected', label: 'Rejected' },
+                    ] as const
+                  ).map((st) => {
+                    const isSelected = editStatus === st.key;
+                    return (
+                      <TouchableOpacity
+                        key={st.key}
+                        onPress={() => {
+                          setEditStatus(st.key);
+                          const today = new Date().toISOString().slice(0, 10);
+                          if ((st.key === 'completed' || st.key === 'returned') && !editReturnedAt) {
+                            setEditReturnedAt(today);
+                          } else if (st.key === 'active' || st.key === 'pending_approval') {
+                            setEditReturnedAt('');
+                          }
+                        }}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? colors.primary : colors.muted,
+                          borderWidth: 1,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: typography.xs,
+                            fontWeight: '600',
+                            color: isSelected ? colors.primaryForeground : colors.mutedForeground,
+                          }}
+                        >
+                          {st.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
               <Input
                 label="Date Assigned (YYYY-MM-DD)"
                 value={editAssignedAt}
@@ -837,6 +958,17 @@ export default function TerritoryDetailScreen() {
                 style={{ flex: 1 }}
               />
             </View>
+
+            {canDelete && (
+              <Button
+                title="Delete Assignment Record"
+                variant="ghost"
+                onPress={() => {
+                  if (editingAssignment) handleDeleteAssignment(editingAssignment.id);
+                }}
+                style={{ marginTop: 8 }}
+              />
+            )}
           </Card>
         </View>
       </Modal>

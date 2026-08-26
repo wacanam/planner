@@ -38,6 +38,7 @@ import {
   useUpdateCongregation,
 } from '@/hooks';
 import { findDuplicateCongregation, normalizeCongregationName } from '@/lib/congregations';
+import { formatDate } from '@/lib/date-utils';
 import { UserRole } from '@/lib/roles';
 import type { Congregation } from '@/types/api';
 
@@ -311,7 +312,7 @@ export default function AdminCongregationsPage() {
                             {cong.slug}
                           </strong>
                         </span>
-                        <span>Created: {new Date(cong.createdAt).toLocaleDateString()}</span>
+                        <span>Created: {formatDate(cong.createdAt)}</span>
                       </div>
                     </div>
 

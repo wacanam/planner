@@ -50,6 +50,7 @@ import {
   canLogVisitOrEncounter,
   canReturnAssignment,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
@@ -425,7 +426,7 @@ export default function AssignmentVisitsClient() {
                     <span className="inline-flex items-center gap-1">
                       <Calendar size={12} />
                       <span>
-                        Assigned {new Date(activeAssignment.assignedAt).toLocaleDateString()}
+                        Assigned {formatDate(activeAssignment.assignedAt)}
                       </span>
                     </span>
                   </>
@@ -843,7 +844,7 @@ export default function AssignmentVisitsClient() {
 
                     {v.returnVisitPlanned && v.nextVisitDate && (
                       <p className="text-[11px] font-semibold text-purple-700 dark:text-purple-300">
-                        📅 Next Visit Scheduled: {new Date(v.nextVisitDate).toLocaleDateString()}
+                        📅 Next Visit Scheduled: {formatDate(v.nextVisitDate)}
                         {v.nextVisitTime ? ` at ${v.nextVisitTime}` : ''}
                       </p>
                     )}

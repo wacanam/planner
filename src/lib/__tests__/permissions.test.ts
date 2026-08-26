@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/lib/roles';
 import {
+  canAdjustAssignmentDates,
   canApproveMembers,
   canCreateTerritory,
+  canDeleteAssignment,
   canDeleteHousehold,
   canDeleteTerritory,
   canEditHousehold,
@@ -204,7 +206,7 @@ describe('Group Roles and Territory Return Permissions', () => {
     expect(isGroupOverseerAssistant('user-publisher', group)).toBe(false);
   });
 
-  it('only allows Group Overseer, Territory Servant, and Service Overseer to return assigned territory', () => {
+  it('allows assigned Publisher, Group Overseer, Territory Servant, and Service Overseer to return assigned territory', () => {
     const personalAssignment = {
       userId: 'user-publisher',
       serviceGroupId: null,
@@ -214,25 +216,30 @@ describe('Group Roles and Territory Return Permissions', () => {
       serviceGroupId: 'g-1',
     };
 
-    // Regular publisher CANNOT return personal or group assignments
+    // Assigned publisher CAN return their own personal assignment
     expect(canReturnAssignment({ id: 'user-publisher', role: 'USER' }, personalAssignment)).toBe(
+      true
+    );
+
+    // Another publisher CANNOT return someone else's personal assignment or group assignments
+    expect(canReturnAssignment({ id: 'user-other', role: 'USER' }, personalAssignment)).toBe(
       false
     );
     expect(
       canReturnAssignment({ id: 'user-publisher', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
 
-    // Group Overseer CAN return
+    // Group Overseer CAN return group assignment
     expect(canReturnAssignment({ id: 'user-overseer', role: 'USER' }, groupAssignment, group)).toBe(
       true
     );
 
-    // Assistant Overseer CANNOT return
+    // Assistant Overseer CANNOT return group assignment
     expect(
       canReturnAssignment({ id: 'user-assistant', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
 
-    // Service Overseer / Territory Servant CAN return
+    // Service Overseer / Territory Servant CAN return any assignment
     expect(
       canReturnAssignment({ id: 'user-so', role: 'SERVICE_OVERSEER' }, personalAssignment)
     ).toBe(true);
@@ -683,6 +690,36 @@ describe('Territory Studio Permissions & Read-Only Access', () => {
       const asst = { id: 'asst-1', role: UserRole.USER };
       expect(canEditHousehold(asst, household, groups)).toBe(true);
       expect(canDeleteHousehold(asst, household, groups)).toBe(true);
+    });
+  });
+
+  describe('canDeleteAssignment & canAdjustAssignmentDates', () => {
+    it('allows only Admin and Super Admin to delete assignment history', () => {
+      expect(canDeleteAssignment(UserRole.SUPER_ADMIN)).toBe(true);
+      expect(canDeleteAssignment(UserRole.ADMIN)).toBe(true);
+      expect(canDeleteAssignment(null, 'ADMIN')).toBe(true);
+      expect(canDeleteAssignment(null, 'SUPER_ADMIN')).toBe(true);
+
+      // Denied for other roles
+      expect(canDeleteAssignment(UserRole.SERVICE_OVERSEER)).toBe(false);
+      expect(canDeleteAssignment(UserRole.TERRITORY_SERVANT)).toBe(false);
+      expect(canDeleteAssignment(UserRole.SECRETARY)).toBe(false);
+      expect(canDeleteAssignment(UserRole.CIRCUIT_OVERSEER)).toBe(false);
+      expect(canDeleteAssignment(UserRole.PUBLISHER)).toBe(false);
+      expect(canDeleteAssignment(UserRole.USER)).toBe(false);
+      expect(canDeleteAssignment(null, null)).toBe(false);
+    });
+
+    it('allows Service Overseer, Territory Servant, and Admins to adjust assignment dates', () => {
+      expect(canAdjustAssignmentDates(UserRole.SUPER_ADMIN)).toBe(true);
+      expect(canAdjustAssignmentDates(UserRole.ADMIN)).toBe(true);
+      expect(canAdjustAssignmentDates(UserRole.SERVICE_OVERSEER)).toBe(true);
+      expect(canAdjustAssignmentDates(UserRole.TERRITORY_SERVANT)).toBe(true);
+
+      expect(canAdjustAssignmentDates(UserRole.SECRETARY)).toBe(false);
+      expect(canAdjustAssignmentDates(UserRole.CIRCUIT_OVERSEER)).toBe(false);
+      expect(canAdjustAssignmentDates(UserRole.PUBLISHER)).toBe(false);
+      expect(canAdjustAssignmentDates(UserRole.USER)).toBe(false);
     });
   });
 });

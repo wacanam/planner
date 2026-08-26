@@ -172,8 +172,6 @@ export function canEndorseAssignment(
   return (
     isSystemAdmin(role) ||
     isSystemAdmin(congregationRole) ||
-    isServiceOverseer(role) ||
-    isServiceOverseer(congregationRole) ||
     isTerritoryServant(role) ||
     isTerritoryServant(congregationRole)
   );
@@ -191,6 +189,13 @@ export function canAdjustAssignmentDates(
     isTerritoryServant(role) ||
     isTerritoryServant(congregationRole)
   );
+}
+
+export function canDeleteAssignment(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return isSystemAdmin(role) || isSystemAdmin(congregationRole);
 }
 
 export function canViewReports(role?: string | null, congregationRole?: string | null): boolean {
@@ -471,7 +476,15 @@ export function getUserGroupIds(
 }
 
 export function canReturnAssignment(
-  user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
+  user:
+    | {
+        id?: string | null;
+        role?: string | null;
+        congregationRole?: string | null;
+        email?: string | null;
+      }
+    | null
+    | undefined,
   assignment:
     | { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null }
     | null
@@ -480,17 +493,20 @@ export function canReturnAssignment(
 ): boolean {
   if (!user?.id || !assignment) return false;
 
-  if (canEndorseAssignment(user.role)) return true;
+  // Service Overseers & Territory Servants (and Admins) can always return/revoke assignments
+  if (canEditTerritory(user.role, user.congregationRole)) return true;
 
   if (!assignment.serviceGroupId) {
     const matchesId = Boolean(assignment.userId && user.id && assignment.userId === user.id);
     const matchesEmail = Boolean(
-      assignment.assigneeEmail && user.email && assignment.assigneeEmail === user.email
+      assignment.assigneeEmail &&
+        user.email &&
+        assignment.assigneeEmail.toLowerCase() === user.email.toLowerCase()
     );
     return matchesId || matchesEmail;
   }
 
-  return isGroupOverseer(user.id, group);
+  return isGroupOverseer(user.id, group, user.role, user.congregationRole);
 }
 
 export function isUserAssignedToTerritory(

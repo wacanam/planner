@@ -257,6 +257,7 @@ export interface Assignment {
   serviceGroupId: string | null;
   status: string;
   endorsementStatus?: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  endorsementType?: 'assign' | 'return' | 'revoke';
   endorsedBy?: string | null;
   endorsedByName?: string | null;
   endorsedAt?: string | null;

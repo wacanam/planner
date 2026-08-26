@@ -183,8 +183,6 @@ export function canEndorseAssignment(
   return (
     isSystemAdmin(role) ||
     isSystemAdmin(congregationRole) ||
-    isServiceOverseer(role) ||
-    isServiceOverseer(congregationRole) ||
     isTerritoryServant(role) ||
     isTerritoryServant(congregationRole)
   );
@@ -202,6 +200,17 @@ export function canAdjustAssignmentDates(
     isTerritoryServant(role) ||
     isTerritoryServant(congregationRole)
   );
+}
+
+/**
+ * Returns true if the user can permanently delete accidental/wrong assignment history.
+ * Only System Admins and Super Admins are allowed to delete historical records.
+ */
+export function canDeleteAssignment(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return isSystemAdmin(role) || isSystemAdmin(congregationRole);
 }
 
 export function canViewReports(role?: string | null, congregationRole?: string | null): boolean {
@@ -529,10 +538,20 @@ export function getUserGroupIds(
 
 /**
  * Checks if a user is authorized to return an assigned territory:
- * Only Group Overseers, Territory Servants, and Service Overseers (and Admins) can return assignments.
+ * - Personal assignees can return their own personal assignments.
+ * - Group Overseers can return assignments for their service group.
+ * - Territory Servants, Service Overseers, and Admins can return/revoke any assignment.
  */
 export function canReturnAssignment(
-  user: { id?: string | null; role?: string | null; email?: string | null } | null | undefined,
+  user:
+    | {
+        id?: string | null;
+        role?: string | null;
+        congregationRole?: string | null;
+        email?: string | null;
+      }
+    | null
+    | undefined,
   assignment:
     | { userId?: string | null; assigneeEmail?: string | null; serviceGroupId?: string | null }
     | null
@@ -545,10 +564,21 @@ export function canReturnAssignment(
   if (!user?.id || !assignment) return false;
 
   // Service Overseers & Territory Servants (and Admins) can always return/revoke assignments
-  if (canEndorseAssignment(user.role)) return true;
+  if (canEditTerritory(user.role, user.congregationRole)) return true;
+
+  // Personal assignment: the assigned publisher can return their personal assignment
+  if (!assignment.serviceGroupId) {
+    const matchesId = Boolean(assignment.userId && user.id && assignment.userId === user.id);
+    const matchesEmail = Boolean(
+      assignment.assigneeEmail &&
+        user.email &&
+        assignment.assigneeEmail.toLowerCase() === user.email.toLowerCase()
+    );
+    return matchesId || matchesEmail;
+  }
 
   // Group Overseer can return assignments for their service group
-  if (group && isGroupOverseer(user.id, group)) return true;
+  if (group && isGroupOverseer(user.id, group, user.role, user.congregationRole)) return true;
 
   return false;
 }

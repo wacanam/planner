@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { formatDate } from './date-utils';
 import type { S13AssignmentRecord } from '@/types/api';
 
 /**
@@ -71,7 +72,7 @@ export function exportS13ToPDF(
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(
-        `Congregation: ${congregationName}   •   Generated: ${new Date().toLocaleDateString()}`,
+        `Congregation: ${congregationName}   •   Generated: ${formatDate(new Date())}`,
         marginLeft + 6,
         currentY + 13.5
       );
@@ -206,7 +207,7 @@ export function exportS13ToPDF(
     x += columns[3].width;
 
     // Col 5: Date Assigned
-    const assignedStr = r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—';
+    const assignedStr = r.assignedAt ? formatDate(r.assignedAt) : '—';
     doc.text(assignedStr, x + columns[4].width / 2, currentY + 5, { align: 'center' });
     x += columns[4].width;
 
@@ -214,7 +215,7 @@ export function exportS13ToPDF(
     if (r.returnedAt) {
       doc.setTextColor(30, 41, 59);
       doc.text(
-        new Date(r.returnedAt).toLocaleDateString(),
+        formatDate(r.returnedAt),
         x + columns[5].width / 2,
         currentY + 5,
         { align: 'center' }

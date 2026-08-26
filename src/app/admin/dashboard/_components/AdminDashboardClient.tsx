@@ -29,6 +29,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAdminAccountRequests, useAdminUsers, useCongregations } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import { isSystemAdmin } from '@/lib/permissions';
 import { UserRole } from '@/lib/roles';
 import type { AccountRequest } from '@/types/api';
@@ -271,7 +272,7 @@ export default function AdminDashboardPage() {
                                 <span>{req.congregationName}</span>
                               </span>
                             )}
-                            <span>Submitted: {new Date(req.requestedAt).toLocaleDateString()}</span>
+                            <span>Submitted: {formatDate(req.requestedAt)}</span>
                           </div>
 
                           {req.reason && (

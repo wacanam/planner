@@ -26,6 +26,7 @@ import {
   Shield,
   Sparkles,
   TrendingUp,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -47,10 +48,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   useActivityReport,
   useCongregation,
   useCoverageReport,
   useCurrentUser,
+  useDeleteAssignment,
   useDoorAnalyticsReport,
   useGroupsReport,
   usePublishersReport,
@@ -58,7 +67,8 @@ import {
   useUpdateAssignment,
 } from '@/hooks';
 import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
-import { canAdjustAssignmentDates } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
+import { canAdjustAssignmentDates, canDeleteAssignment } from '@/lib/permissions';
 import {
   exportCoverageToCSV,
   exportGroupsToCSV,
@@ -87,12 +97,16 @@ export default function ReportsClient() {
 
   // S-13 Date Adjustment state
   const [editingS13Record, setEditingS13Record] = useState<S13AssignmentRecord | null>(null);
+  const [deletingS13Record, setDeletingS13Record] = useState<S13AssignmentRecord | null>(null);
+  const [editStatus, setEditStatus] = useState<string>('active');
   const [editAssignedAt, setEditAssignedAt] = useState('');
   const [editReturnedAt, setEditReturnedAt] = useState('');
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const { update: updateAssignment, isPending: isUpdatingAssignment } = useUpdateAssignment();
-  const canAdjust = canAdjustAssignmentDates(user?.role);
+  const { remove: deleteAssignment, isPending: isDeletingAssignment } = useDeleteAssignment();
+  const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
+  const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
 
   // Hooks for reports
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
@@ -107,10 +121,25 @@ export default function ReportsClient() {
 
   const handleOpenEditS13 = (rec: S13AssignmentRecord) => {
     setEditingS13Record(rec);
+    setEditStatus(rec.status || (rec.returnedAt ? 'completed' : 'active'));
     setEditAssignedAt(rec.assignedAt ? rec.assignedAt.slice(0, 10) : '');
     setEditReturnedAt(rec.returnedAt ? rec.returnedAt.slice(0, 10) : '');
     setEditDueAt(rec.dueAt ? rec.dueAt.slice(0, 10) : '');
     setEditNotes('');
+  };
+
+  const handleDeleteS13Record = async () => {
+    if (!deletingS13Record) return;
+    try {
+      await deleteAssignment(deletingS13Record.id);
+      toast.success('Assignment record deleted from S-13 history');
+      if (editingS13Record?.id === deletingS13Record.id) {
+        setEditingS13Record(null);
+      }
+      setDeletingS13Record(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete assignment record');
+    }
   };
 
   const handleSaveS13Dates = async () => {
@@ -118,6 +147,7 @@ export default function ReportsClient() {
     try {
       await updateAssignment({
         id: editingS13Record.id,
+        status: editStatus,
         assignedAt: editAssignedAt
           ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
           : editingS13Record.assignedAt,
@@ -127,10 +157,10 @@ export default function ReportsClient() {
         dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
         notes: editNotes.trim() || undefined,
       });
-      toast.success('Assignment dates updated successfully');
+      toast.success('Assignment details updated successfully');
       setEditingS13Record(null);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update assignment dates');
+      toast.error(err?.message || 'Failed to update assignment details');
     }
   };
 
@@ -868,12 +898,12 @@ export default function ReportsClient() {
                               </div>
                             </td>
                             <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
-                              {rec.assignedAt ? new Date(rec.assignedAt).toLocaleDateString() : '—'}
+                              {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
                             </td>
                             <td className="py-2.5 px-3 whitespace-nowrap">
                               {isReturned ? (
                                 <span className="text-foreground font-medium">
-                                  {new Date(rec.returnedAt!).toLocaleDateString()}
+                                  {formatDate(rec.returnedAt)}
                                 </span>
                               ) : (
                                 <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
@@ -899,18 +929,34 @@ export default function ReportsClient() {
                                 {rec.status}
                               </Badge>
                             </td>
-                            {canAdjust && (
+                            {(canAdjust || canDelete) && (
                               <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  onClick={() => handleOpenEditS13(rec)}
-                                  title="Adjust assignment / return dates"
-                                >
-                                  <Pencil size={12} />
-                                  <span className="sr-only">Edit Dates</span>
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  {canDelete && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeletingS13Record(rec)}
+                                      title="Delete accidental/wrong assignment record"
+                                    >
+                                      <Trash2 size={12} />
+                                      <span className="sr-only">Delete Record</span>
+                                    </Button>
+                                  )}
+                                  {canAdjust && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                      onClick={() => handleOpenEditS13(rec)}
+                                      title="Adjust assignment / return dates"
+                                    >
+                                      <Pencil size={12} />
+                                      <span className="sr-only">Edit Dates</span>
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -948,6 +994,33 @@ export default function ReportsClient() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Assignment Status *</Label>
+                  <Select
+                    value={editStatus}
+                    onValueChange={(val) => {
+                      setEditStatus(val);
+                      const today = new Date().toISOString().slice(0, 10);
+                      if ((val === 'completed' || val === 'returned') && !editReturnedAt) {
+                        setEditReturnedAt(today);
+                      } else if (val === 'active' || val === 'pending_approval') {
+                        setEditReturnedAt('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active in Field</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="returned">Returned</SelectItem>
+                      <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
                   <Label className="text-xs font-semibold">Date Assigned *</Label>
                   <Input
                     type="date"
@@ -978,7 +1051,7 @@ export default function ReportsClient() {
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <Label className="text-xs font-semibold">Notes (Optional)</Label>
                   <Input
                     value={editNotes}
@@ -989,27 +1062,82 @@ export default function ReportsClient() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl text-xs"
-                  onClick={() => setEditingS13Record(null)}
-                  disabled={isUpdatingAssignment}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="rounded-xl text-xs font-semibold"
-                  onClick={handleSaveS13Dates}
-                  disabled={isUpdatingAssignment || !editAssignedAt}
-                >
-                  {isUpdatingAssignment ? 'Saving…' : 'Save Changes'}
-                </Button>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                {canDelete ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                    onClick={() => {
+                      setDeletingS13Record(editingS13Record);
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete Record</span>
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl text-xs"
+                    onClick={() => setEditingS13Record(null)}
+                    disabled={isUpdatingAssignment}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-xl text-xs font-semibold"
+                    onClick={handleSaveS13Dates}
+                    disabled={isUpdatingAssignment || !editAssignedAt}
+                  >
+                    {isUpdatingAssignment ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
+        </ResponsiveDialog>
+
+        {/* Delete S-13 Record Confirmation Dialog */}
+        <ResponsiveDialog
+          open={Boolean(deletingS13Record)}
+          onOpenChange={(op) => !op && setDeletingS13Record(null)}
+          title="Delete Assignment Record"
+          description="Permanently delete this accidental or wrong assignment record"
+        >
+          <div className="space-y-3 pt-1 text-xs">
+            <p className="text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete this assignment history record? This will remove the entry from the territory history and S-13 reports.
+            </p>
+            <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+              ⚠️ If this is the currently active assignment, the parent territory will automatically be marked available for checkout.
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="rounded-xl text-xs"
+                onClick={() => setDeletingS13Record(null)}
+                disabled={isDeletingAssignment}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleDeleteS13Record}
+                disabled={isDeletingAssignment}
+              >
+                {isDeletingAssignment ? 'Deleting…' : 'Delete Record'}
+              </Button>
+            </div>
+          </div>
         </ResponsiveDialog>
 
         {/* ───────────────────────────────────────────────────────────────────────── */}
@@ -1170,7 +1298,7 @@ export default function ReportsClient() {
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap text-muted-foreground">
                             {pub.lastActiveDate
-                              ? new Date(pub.lastActiveDate).toLocaleDateString()
+                              ? formatDate(pub.lastActiveDate)
                               : '—'}
                           </td>
                         </tr>

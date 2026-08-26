@@ -27,6 +27,7 @@ import {
   canLogVisitOrEncounter,
   canShareHousehold,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 
 const OUTCOME_OPTIONS = [
@@ -384,7 +385,7 @@ export default function HouseholdDetailScreen() {
                   <Text
                     style={{ color: colors.foreground, fontWeight: '700', fontSize: typography.sm }}
                   >
-                    {new Date(v.visitDate).toLocaleDateString()} &bull;{' '}
+                    {formatDate(v.visitDate)} &bull;{' '}
                     {v.publisherName || 'Publisher'}
                   </Text>
                 </View>

@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -11,6 +12,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/batch-utils';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
 import { checkTerritoryDuplicateInFirestore, normalizeTerritoryNumber } from '@/lib/territories';
 import type { Territory, TerritoryRequest } from '@/types/api';
@@ -289,10 +291,71 @@ export function useDeleteTerritory() {
   const remove = useCallback(async (id: string) => {
     setIsDeleting(true);
     try {
+      const now = nowIso();
       const firestore = getPlannerFirestore();
-      const batch = writeBatch(firestore);
-      batch.delete(territoryDocument(id));
-      await batch.commit();
+      const [assignments, requests, households, visits, encounters] = await Promise.all([
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+            where('territoryId', '==', id)
+          )
+        ),
+        getDocs(query(requestCollection(), where('territoryId', '==', id))),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.households),
+            where('territoryId', '==', id)
+          )
+        ),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.visits),
+            where('territoryId', '==', id)
+          )
+        ),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.encounters),
+            where('territoryId', '==', id)
+          )
+        ),
+      ]);
+
+      const ops: BatchOperation[] = [];
+
+      // Delete territory document
+      ops.push((b) => b.delete(territoryDocument(id)));
+
+      // Delete related assignments
+      for (const assignment of assignments.docs) {
+        ops.push((b) => b.delete(assignment.ref));
+      }
+
+      // Delete territory requests
+      for (const request of requests.docs) {
+        ops.push((b) => b.delete(request.ref));
+      }
+
+      // Delete visits and encounters
+      for (const visit of visits.docs) {
+        ops.push((b) => b.delete(visit.ref));
+      }
+      for (const encounter of encounters.docs) {
+        ops.push((b) => b.delete(encounter.ref));
+      }
+
+      // Dissociate households
+      for (const household of households.docs) {
+        ops.push((b) =>
+          b.update(household.ref, {
+            territoryId: null,
+            territoryNumber: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      await commitChunkedBatch(firestore, ops);
     } finally {
       setIsDeleting(false);
     }

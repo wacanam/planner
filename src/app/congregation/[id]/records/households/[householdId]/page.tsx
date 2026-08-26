@@ -40,6 +40,7 @@ import type {
   LocalVisit,
 } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household, Visit } from '@/types/api';
 
@@ -539,13 +540,7 @@ export default function HouseholdDetailPage() {
                             ).map((encounter, idx, arr) => {
                               const isLast = idx === arr.length - 1;
                               const visitNumber = contact.allEncounters.length - idx;
-                              const dateFormatted = encounter.visitDate
-                                ? new Date(encounter.visitDate).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })
-                                : 'Recent';
+                              const dateFormatted = formatDate(encounter.visitDate, 'Recent');
 
                               return (
                                 <div

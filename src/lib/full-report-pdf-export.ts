@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { formatDate } from './date-utils';
 import type {
   ActivityReport,
   CoverageReport,
@@ -94,7 +95,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
   drawSectionHeader(
     'CONGREGATION EXECUTIVE OVERVIEW & TERRITORY HEALTH',
-    `Congregation: ${congregationName}   •   Generated: ${new Date().toLocaleDateString()}`,
+    `Congregation: ${congregationName}   •   Generated: ${formatDate(new Date())}`,
     'EXECUTIVE SUMMARY'
   );
 
@@ -391,14 +392,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     );
     x += s13Columns[3].width;
 
-    const assignedStr = r.assignedAt ? new Date(r.assignedAt).toLocaleDateString() : '—';
+    const assignedStr = r.assignedAt ? formatDate(r.assignedAt) : '—';
     doc.text(assignedStr, x + s13Columns[4].width / 2, currentY + 4.2, { align: 'center' });
     x += s13Columns[4].width;
 
     if (r.returnedAt) {
       doc.setTextColor(30, 41, 59);
       doc.text(
-        new Date(r.returnedAt).toLocaleDateString(),
+        formatDate(r.returnedAt),
         x + s13Columns[5].width / 2,
         currentY + 4.2,
         {
@@ -568,7 +569,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     doc.text(`${p.totalVisits}`, marginLeft + 200, currentY + 4, { align: 'center' });
 
     doc.setTextColor(100, 116, 139);
-    const lastActive = p.lastActiveDate ? new Date(p.lastActiveDate).toLocaleDateString() : '—';
+    const lastActive = p.lastActiveDate ? formatDate(p.lastActiveDate) : '—';
     doc.text(lastActive, marginLeft + contentWidth - 4, currentY + 4, { align: 'right' });
 
     currentY += 5.8;
@@ -698,7 +699,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
       doc.setTextColor(100, 116, 139);
       doc.text(`Assigned to ${act.publisherName}`, rightX + 3, rightY + 7.8);
 
-      const dateStr = act.assignedAt ? new Date(act.assignedAt).toLocaleDateString() : 'Recent';
+      const dateStr = act.assignedAt ? formatDate(act.assignedAt) : 'Recent';
       doc.text(dateStr, rightX + rightColWidth - 3, rightY + 4.2, { align: 'right' });
 
       rightY += 11;

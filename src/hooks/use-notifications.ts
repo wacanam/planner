@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthSession as useSession } from '@/lib/firebase/auth';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
 import { playNotificationSound } from '@/lib/sound';
 import type { Notification, NotificationDataPayload } from '@/types/api';
 
@@ -127,11 +128,10 @@ export function useMarkNotificationsRead() {
         if (targetIds.length === 1) {
           await updateDoc(notificationDocument(targetIds[0]), { isRead: true, readAt: now });
         } else {
-          const batch = writeBatch(firestore);
-          for (const id of targetIds) {
-            batch.update(notificationDocument(id), { isRead: true, readAt: now });
-          }
-          await batch.commit();
+          const ops: BatchOperation[] = targetIds.map((id) => (b) => {
+            b.update(notificationDocument(id), { isRead: true, readAt: now });
+          });
+          await commitChunkedBatch(firestore, ops);
         }
       } finally {
         setIsMarking(false);
@@ -226,11 +226,8 @@ export function useClearAllNotifications() {
       const snap = await getDocs(query(notificationCollection(), where('userId', '==', userId)));
       if (snap.empty) return;
       const firestore = getPlannerFirestore();
-      const batch = writeBatch(firestore);
-      for (const d of snap.docs) {
-        batch.delete(d.ref);
-      }
-      await batch.commit();
+      const ops: BatchOperation[] = snap.docs.map((d) => (b) => b.delete(d.ref));
+      await commitChunkedBatch(firestore, ops);
     } finally {
       setIsClearing(false);
     }

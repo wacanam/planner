@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
+  Calendar,
   Clock,
   History,
   Map as MapIcon,
@@ -45,6 +46,7 @@ import {
   useCreateAssignment,
   useCreateTerritory,
   useCurrentUser,
+  useDeleteAssignment,
   useDeleteTerritory,
   useHouseholds,
   useRevokeTerritory,
@@ -55,10 +57,13 @@ import {
 } from '@/hooks';
 import {
   canAdjustAssignmentDates,
+  canApproveAssignments,
   canCreateTerritory,
+  canDeleteAssignment,
   canDeleteTerritory,
   canEditTerritory,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
 import {
@@ -244,6 +249,8 @@ export default function TerritoriesClient() {
     if (!assignTerritory) return;
     const endorserName = user.name || user.email || 'Territory Servant';
     const effectiveAssignedAt = assignDate || new Date().toISOString();
+    const isDirect = canApproveAssignments(user.role, user.congregationRole);
+
     if (assignType === 'publisher') {
       if (!assignUserId) {
         toast.error('Please select a publisher');
@@ -262,9 +269,13 @@ export default function TerritoriesClient() {
         assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
+        creatorRole: user.role,
+        creatorCongregationRole: user.congregationRole,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${targetName} and submitted for endorsement`
+        isDirect
+          ? `Territory #${assignTerritory.number} assigned to ${targetName}`
+          : `Territory #${assignTerritory.number} assigned to ${targetName} and submitted for endorsement`
       );
     } else {
       if (!assignGroupId) {
@@ -283,9 +294,13 @@ export default function TerritoriesClient() {
         assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
+        creatorRole: user.role,
+        creatorCongregationRole: user.congregationRole,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${groupName} and submitted for endorsement`
+        isDirect
+          ? `Territory #${assignTerritory.number} assigned to ${groupName}`
+          : `Territory #${assignTerritory.number} assigned to ${groupName} and submitted for endorsement`
       );
     }
 
@@ -1030,9 +1045,19 @@ export default function TerritoriesClient() {
                   disabled={revokingTerritory || !revokeDate}
                   onClick={async () => {
                     if (revokeConfirmTerritory) {
-                      await revokeTerritory(revokeConfirmTerritory.id, revokeDate);
+                      const isDirect = canApproveAssignments(user.role, user.congregationRole);
+                      await revokeTerritory(
+                        revokeConfirmTerritory.id,
+                        revokeDate,
+                        user.role,
+                        user.congregationRole,
+                        user.id,
+                        user.name || user.email
+                      );
                       toast.success(
-                        `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                        isDirect
+                          ? `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                          : `Territory #${revokeConfirmTerritory.number} revocation submitted for Service Overseer approval`
                       );
                       setRevokeConfirmTerritory(null);
                       setRevokeDate(new Date().toISOString().slice(0, 10));
@@ -1050,7 +1075,8 @@ export default function TerritoriesClient() {
         <TerritoryHistoryDialog
           territory={historyTerritory}
           onClose={() => setHistoryTerritory(null)}
-          canAdjustDates={canAdjustAssignmentDates(user.role)}
+          canAdjustDates={canAdjustAssignmentDates(user.role, user.congregationRole)}
+          canDelete={canDeleteAssignment(user.role, user.congregationRole)}
         />
 
         {/* Delete Territory Strong Warning Dialog */}
@@ -1182,14 +1208,19 @@ function TerritoryHistoryDialog({
   territory,
   onClose,
   canAdjustDates,
+  canDelete = false,
 }: {
   territory: Territory | null;
   onClose: () => void;
   canAdjustDates: boolean;
+  canDelete?: boolean;
 }) {
   const { assignments = [], isLoading } = useTerritoryAssignments(territory?.id);
   const { update: updateAssignment, isPending: isUpdating } = useUpdateAssignment();
+  const { remove: deleteAssignment, isPending: isDeleting } = useDeleteAssignment();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
+  const [status, setStatus] = useState('active');
   const [assignedAt, setAssignedAt] = useState('');
   const [returnedAt, setReturnedAt] = useState('');
   const [dueAt, setDueAt] = useState('');
@@ -1197,6 +1228,7 @@ function TerritoryHistoryDialog({
 
   const startEdit = (a: Assignment) => {
     setEditingId(a.id);
+    setStatus(a.status || 'active');
     setAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
     setReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
     setDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
@@ -1205,219 +1237,384 @@ function TerritoryHistoryDialog({
 
   const cancelEdit = () => {
     setEditingId(null);
+    setStatus('active');
     setAssignedAt('');
     setReturnedAt('');
     setDueAt('');
     setNotes('');
   };
 
+  const handleStatusChange = (newStatus: string) => {
+    setStatus(newStatus);
+    const today = new Date().toISOString().slice(0, 10);
+    if ((newStatus === 'completed' || newStatus === 'returned') && !returnedAt) {
+      setReturnedAt(today);
+    } else if (newStatus === 'active' || newStatus === 'pending_approval') {
+      setReturnedAt('');
+    }
+  };
+
   const handleSave = async (a: Assignment) => {
     try {
       await updateAssignment({
         id: a.id,
+        status,
         assignedAt: assignedAt || null,
         returnedAt: returnedAt || null,
         dueAt: dueAt || null,
         notes: notes.trim() || null,
       });
-      toast.success('Assignment dates and details updated');
+      toast.success('Assignment status, dates, and details updated');
       cancelEdit();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update assignment dates');
+      toast.error(err?.message || 'Failed to update assignment');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingAssignmentId) return;
+    try {
+      await deleteAssignment(deletingAssignmentId);
+      toast.success('Assignment history record deleted');
+      if (editingId === deletingAssignmentId) cancelEdit();
+      setDeletingAssignmentId(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete assignment record');
     }
   };
 
   return (
-    <ResponsiveDialog
-      open={Boolean(territory)}
-      onOpenChange={(op) => !op && onClose()}
-      title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
-      description={territory ? `${territory.name} — Adjust assignment and return dates` : ''}
-    >
-      <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-        {isLoading ? (
-          <div className="py-12 text-center text-xs text-muted-foreground">
-            Loading assignment history…
-          </div>
-        ) : assignments.length === 0 ? (
-          <div className="py-12 text-center space-y-2">
-            <Clock size={32} className="text-muted-foreground/40 mx-auto" />
-            <p className="text-sm font-semibold text-foreground">No assignment history</p>
-            <p className="text-xs text-muted-foreground">
-              This territory has not been assigned yet.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {assignments.map((a) => {
-              const isEditing = editingId === a.id;
-              const isReturned = Boolean(a.returnedAt);
-              const isActive = a.status === 'assigned' || a.status === 'active';
+    <>
+      <ResponsiveDialog
+        open={Boolean(territory)}
+        onOpenChange={(op) => !op && onClose()}
+        title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
+        description={
+          territory
+            ? `${territory.name} — ${assignments.length} assignment record${assignments.length === 1 ? '' : 's'}`
+            : ''
+        }
+      >
+        <div className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1.5">
+          {isLoading ? (
+            <div className="py-12 text-center text-xs text-muted-foreground">
+              Loading assignment history…
+            </div>
+          ) : assignments.length === 0 ? (
+            <div className="py-12 text-center space-y-2">
+              <Clock size={32} className="text-muted-foreground/40 mx-auto" />
+              <p className="text-sm font-semibold text-foreground">No assignment history</p>
+              <p className="text-xs text-muted-foreground">
+                This territory has not been assigned yet.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assignments.map((a) => {
+                const isEditing = editingId === a.id;
+                const isReturned =
+                  Boolean(a.returnedAt) || a.status === 'completed' || a.status === 'returned';
+                const isActive = a.status === 'assigned' || a.status === 'active';
 
-              return (
-                <div
-                  key={a.id}
-                  className={`p-3.5 rounded-2xl border transition-all text-xs space-y-2.5 ${
-                    isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5 font-bold text-foreground">
-                        {a.serviceGroupId ? (
-                          <Users size={13} className="text-blue-500 shrink-0" />
-                        ) : (
-                          <User size={13} className="text-primary shrink-0" />
-                        )}
-                        <span>{a.groupName || a.assigneeName || 'Publisher / Group'}</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {a.serviceGroupId ? 'Service Group Assignment' : 'Personal Assignment'}
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] uppercase font-bold ${
-                        isActive
-                          ? 'bg-primary/10 text-primary border-primary/30'
-                          : isReturned
-                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                            : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {a.status}
-                    </Badge>
-                  </div>
+                // Calculate duration in days if start date exists
+                let durationDays: number | null = null;
+                if (a.assignedAt) {
+                  const start = new Date(a.assignedAt).getTime();
+                  const end = a.returnedAt ? new Date(a.returnedAt).getTime() : Date.now();
+                  if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+                    durationDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                  }
+                }
 
-                  {!isEditing ? (
-                    <div className="space-y-2 pt-1 border-t border-border/50">
-                      <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                        <div>
-                          <span className="font-semibold text-foreground">Assigned:</span>{' '}
-                          {a.assignedAt ? new Date(a.assignedAt).toLocaleDateString() : '—'}
+                return (
+                  <div
+                    key={a.id}
+                    className={`p-3.5 sm:p-4 rounded-2xl border transition-all space-y-3 ${
+                      isActive
+                        ? 'border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.06] ring-1 ring-primary/20 shadow-xs'
+                        : 'border-border/80 bg-card hover:border-border'
+                    }`}
+                  >
+                    {/* Card Header: Assignee + Status */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`p-2 rounded-xl shrink-0 ${
+                            a.serviceGroupId
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'bg-primary/10 text-primary'
+                          }`}
+                        >
+                          {a.serviceGroupId ? <Users size={16} /> : <User size={16} />}
                         </div>
-                        <div>
-                          <span className="font-semibold text-foreground">Returned / Revoked:</span>{' '}
-                          {a.returnedAt ? (
-                            <span className="text-foreground font-medium">
-                              {new Date(a.returnedAt).toLocaleDateString()}
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-foreground truncate">
+                            {a.groupName || a.assigneeName || 'Publisher / Group'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {a.serviceGroupId
+                              ? 'Service Group Assignment'
+                              : 'Personal Assignment'}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[9px] uppercase font-bold tracking-wide shrink-0 px-2.5 py-0.5 rounded-lg ${
+                          isActive
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : isReturned
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-muted text-muted-foreground border-border'
+                        }`}
+                      >
+                        {a.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+
+                    {!isEditing ? (
+                      <div className="space-y-3 pt-2.5 border-t border-border/60">
+                        {/* Responsive Date & Duration Flow */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 text-xs">
+                          {/* Assigned Date Chip */}
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 text-muted-foreground">
+                            <Calendar size={13} className="text-primary shrink-0" />
+                            <span>
+                              <strong className="text-foreground font-semibold">Assigned:</strong>{' '}
+                              {a.assignedAt ? formatDate(a.assignedAt) : '—'}
                             </span>
-                          ) : (
-                            <span className="text-amber-600 dark:text-amber-400 font-medium">
-                              Active in Field
+                          </div>
+
+                          {/* Returned or Active Status Chip */}
+                          <div
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${
+                              a.returnedAt
+                                ? 'bg-muted/50 text-muted-foreground'
+                                : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20'
+                            }`}
+                          >
+                            {a.returnedAt ? (
+                              <RotateCcw size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            ) : (
+                              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            )}
+                            <span>
+                              <strong className="text-foreground font-semibold">
+                                {a.returnedAt ? 'Returned:' : 'Status:'}
+                              </strong>{' '}
+                              {a.returnedAt ? formatDate(a.returnedAt) : 'Active in Field'}
                             </span>
+                          </div>
+
+                          {/* Due Date Chip (if set) */}
+                          {a.dueAt && (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 text-muted-foreground">
+                              <Clock size={13} className="text-muted-foreground shrink-0" />
+                              <span>
+                                <strong className="text-foreground font-semibold">Due:</strong>{' '}
+                                {formatDate(a.dueAt)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Duration Chip */}
+                          {durationDays !== null && (
+                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/30 text-muted-foreground font-medium">
+                              <span>⏳</span>
+                              <span>
+                                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                                {!a.returnedAt ? ' in field' : ''}
+                              </span>
+                            </div>
                           )}
                         </div>
-                        {a.dueAt && (
-                          <div>
-                            <span className="font-semibold text-foreground">Due:</span>{' '}
-                            {new Date(a.dueAt).toLocaleDateString()}
+
+                        {/* Notes */}
+                        {a.notes && (
+                          <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs text-muted-foreground italic">
+                            &ldquo;{a.notes}&rdquo;
+                          </div>
+                        )}
+
+                        {/* Action Buttons Row */}
+                        {(canAdjustDates || canDelete) && (
+                          <div className="flex items-center justify-between sm:justify-end gap-2 pt-1 border-t border-border/40">
+                            {canDelete && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3"
+                                onClick={() => setDeletingAssignmentId(a.id)}
+                                title="Delete accidental/wrong assignment history entry"
+                              >
+                                <Trash2 size={12} />
+                                <span>Delete</span>
+                              </Button>
+                            )}
+                            {canAdjustDates && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 rounded-xl text-xs gap-1.5 font-semibold hover:border-primary/50 hover:bg-primary/5 cursor-pointer px-3.5 shadow-xs"
+                                onClick={() => startEdit(a)}
+                              >
+                                <Pencil size={12} />
+                                <span>Adjust Details</span>
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
-
-                      {a.notes && (
-                        <p className="text-muted-foreground italic text-[11px]">
-                          Note: &ldquo;{a.notes}&rdquo;
-                        </p>
-                      )}
-
-                      {canAdjustDates && (
-                        <div className="flex justify-end pt-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 rounded-xl text-xs gap-1 font-semibold hover:border-primary/50 hover:bg-primary/5"
-                            onClick={() => startEdit(a)}
-                          >
-                            <Pencil size={11} />
-                            <span>Adjust Dates</span>
-                          </Button>
+                    ) : (
+                      <div className="space-y-3 pt-2.5 border-t border-border/80 bg-muted/20 p-3 rounded-xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] font-semibold">Assignment Status *</Label>
+                            <Select value={status} onValueChange={handleStatusChange}>
+                              <SelectTrigger className="h-9 rounded-xl text-xs">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Active in Field</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="returned">Returned</SelectItem>
+                                <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] font-semibold">Date Assigned *</Label>
+                            <Input
+                              type="date"
+                              value={assignedAt}
+                              onChange={(e) => setAssignedAt(e.target.value)}
+                              className="h-9 rounded-xl text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] font-semibold">
+                              Date Returned / Revoked
+                            </Label>
+                            <Input
+                              type="date"
+                              value={returnedAt}
+                              onChange={(e) => setReturnedAt(e.target.value)}
+                              className="h-9 rounded-xl text-xs"
+                              placeholder="Leave empty if active"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] font-semibold">Due Date (Optional)</Label>
+                            <Input
+                              type="date"
+                              value={dueAt}
+                              onChange={(e) => setDueAt(e.target.value)}
+                              className="h-9 rounded-xl text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <Label className="text-[11px] font-semibold">Notes (Optional)</Label>
+                            <Input
+                              value={notes}
+                              onChange={(e) => setNotes(e.target.value)}
+                              placeholder="Reason for adjustment / notes"
+                              className="h-9 rounded-xl text-xs"
+                            />
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 pt-2 border-t border-border/80 bg-muted/20 p-2.5 rounded-xl">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold">Date Assigned *</Label>
-                          <Input
-                            type="date"
-                            value={assignedAt}
-                            onChange={(e) => setAssignedAt(e.target.value)}
-                            className="h-8 rounded-xl text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold">
-                            Date Returned / Revoked
-                          </Label>
-                          <Input
-                            type="date"
-                            value={returnedAt}
-                            onChange={(e) => setReturnedAt(e.target.value)}
-                            className="h-8 rounded-xl text-xs"
-                            placeholder="Leave empty if active"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold">Due Date (Optional)</Label>
-                          <Input
-                            type="date"
-                            value={dueAt}
-                            onChange={(e) => setDueAt(e.target.value)}
-                            className="h-8 rounded-xl text-xs"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px] font-semibold">Notes (Optional)</Label>
-                          <Input
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Reason for adjustment / notes"
-                            className="h-8 rounded-xl text-xs"
-                          />
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
+                          {canDelete ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3"
+                              onClick={() => setDeletingAssignmentId(a.id)}
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete Record</span>
+                            </Button>
+                          ) : (
+                            <div />
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 rounded-xl text-xs px-3 cursor-pointer"
+                              onClick={cancelEdit}
+                              disabled={isUpdating}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 rounded-xl text-xs font-semibold px-4 cursor-pointer"
+                              onClick={() => handleSave(a)}
+                              disabled={isUpdating || !assignedAt}
+                            >
+                              {isUpdating ? 'Saving…' : 'Save Changes'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex justify-end gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 rounded-xl text-xs"
-                          onClick={cancelEdit}
-                          disabled={isUpdating}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="h-7 rounded-xl text-xs font-semibold"
-                          onClick={() => handleSave(a)}
-                          disabled={isUpdating || !assignedAt}
-                        >
-                          {isUpdating ? 'Saving…' : 'Save Dates'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs h-8 px-4 cursor-pointer"
+              onClick={onClose}
+            >
+              Close
+            </Button>
           </div>
-        )}
-
-        <div className="flex justify-end pt-2 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-xl text-xs"
-            onClick={onClose}
-          >
-            Close
-          </Button>
         </div>
-      </div>
-    </ResponsiveDialog>
+      </ResponsiveDialog>
+
+      {/* Delete Assignment Confirmation Dialog */}
+      <ResponsiveDialog
+        open={Boolean(deletingAssignmentId)}
+        onOpenChange={(op) => !op && setDeletingAssignmentId(null)}
+        title="Delete Assignment Record"
+        description="Permanently delete this accidental or wrong assignment record"
+      >
+        <div className="space-y-3 pt-1 text-xs">
+          <p className="text-muted-foreground leading-relaxed">
+            Are you sure you want to permanently delete this assignment history entry? This action is intended for removing accidental or duplicate assignment records.
+          </p>
+          <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+            ⚠️ If this is the currently active assignment, the territory will automatically be marked available for checkout.
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-xl text-xs"
+              onClick={() => setDeletingAssignmentId(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="rounded-xl text-xs font-semibold"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting…' : 'Delete Record'}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
+    </>
   );
 }

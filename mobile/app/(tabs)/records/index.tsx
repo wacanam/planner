@@ -52,6 +52,7 @@ import {
   isGroupOverseerAssistant,
   isUserInGroup,
 } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 
 type Tab = 'households' | 'visits' | 'encounters';
@@ -857,7 +858,7 @@ export default function RecordsScreen() {
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                       Last Visit:{' '}
                       {item.lastVisitDate
-                        ? new Date(item.lastVisitDate).toLocaleDateString()
+                        ? formatDate(item.lastVisitDate)
                         : 'Never'}{' '}
                       ({item.lastVisitOutcome || 'None'})
                     </Text>
@@ -877,7 +878,7 @@ export default function RecordsScreen() {
           <EmptyState
             icon={<Calendar size={44} color={colors.mutedForeground} />}
             title="No Visits Logged"
-            description="Visits recorded in the field will appear in this activity feed."
+            description="Ministry visits logged for this territory will appear here."
           />
         ) : (
           <FlatList
@@ -945,7 +946,7 @@ export default function RecordsScreen() {
                           marginTop: 2,
                         }}
                       >
-                        {new Date(item.visitDate).toLocaleDateString()} &bull;{' '}
+                        {formatDate(item.visitDate)} &bull;{' '}
                         {item.publisherName || 'Publisher'}
                       </Text>
                     </View>
@@ -1038,7 +1039,7 @@ export default function RecordsScreen() {
                       >
                         {item.gender ? `${item.gender} • ` : ''}
                         {item.ageGroup ? `${item.ageGroup} • ` : ''}
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {formatDate(item.createdAt)}
                       </Text>
                     </View>
                     <Badge

@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
@@ -10,7 +11,9 @@ import {
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/batch-utils';
 import { createClientId, FIRESTORE_COLLECTIONS, getPlannerFirestore, nowIso } from '@/lib/firebase';
+import { AssignmentStatus } from '@/lib/roles';
 import type { Group } from '@/types/api';
 
 function groupCollection() {
@@ -146,7 +149,74 @@ export function useDeleteGroup() {
   const remove = useCallback(async (id: string) => {
     setIsDeleting(true);
     try {
-      await deleteDoc(groupDocument(id));
+      const now = nowIso();
+      const firestore = getPlannerFirestore();
+
+      // 1. Find all assignments for this group
+      const assignmentsSnap = await getDocs(
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+          where('serviceGroupId', '==', id)
+        )
+      );
+
+      // 2. Find all territories assigned to this group
+      const territoriesSnap = await getDocs(
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.territories),
+          where('groupId', '==', id)
+        )
+      );
+
+      // 3. Find congregation members assigned to this group
+      const membersSnap = await getDocs(
+        query(
+          collection(firestore, FIRESTORE_COLLECTIONS.congregationMembers),
+          where('groupId', '==', id)
+        )
+      );
+
+      const ops: BatchOperation[] = [];
+
+      // Reset assigned territories to available
+      for (const t of territoriesSnap.docs) {
+        ops.push((b) =>
+          b.update(t.ref, {
+            status: 'available',
+            groupId: null,
+            groupName: null,
+            publisherId: null,
+            publisherName: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      // Close or complete assignments
+      for (const a of assignmentsSnap.docs) {
+        ops.push((b) =>
+          b.update(a.ref, {
+            status: AssignmentStatus.COMPLETED,
+            returnedAt: now,
+            updatedAt: now,
+          })
+        );
+      }
+
+      // Clear group membership
+      for (const m of membersSnap.docs) {
+        ops.push((b) =>
+          b.update(m.ref, {
+            groupId: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      // Delete the group document
+      ops.push((b) => b.delete(groupDocument(id)));
+
+      await commitChunkedBatch(firestore, ops);
     } finally {
       setIsDeleting(false);
     }

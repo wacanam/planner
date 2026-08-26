@@ -17,6 +17,7 @@ import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useHouseholds } from '@/hooks/useHouseholds';
 import { useCongregationTerritories } from '@/hooks/useTerritories';
 import { getUserGroupIds, isUserInGroup, resolveUserAssignments } from '@/lib/permissions';
+import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
 
@@ -253,7 +254,7 @@ export default function MyAssignmentsScreen() {
                           { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 },
                         ]}
                       >
-                        Assigned {new Date(item.assignedAt).toLocaleDateString()}
+                        Assigned {formatDate(item.assignedAt)}
                       </Text>
                     </View>
                   )}
