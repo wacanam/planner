@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Compass,
   History,
@@ -1349,12 +1350,24 @@ export default function TerritoriesClient() {
             {/* Assignment Date Selector */}
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Assignment Date *</Label>
-              <Input
-                type="date"
-                value={assignDate}
-                onChange={(e) => setAssignDate(e.target.value)}
-                className="h-9 rounded-xl text-xs"
-              />
+              <div className="relative">
+                <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
+                  <span className="flex items-center gap-2">
+                    <Calendar size={13} className="text-primary" />
+                    <span>{formatDate(assignDate)}</span>
+                  </span>
+                  <ChevronDown size={13} className="text-muted-foreground" />
+                </div>
+                <input
+                  type="date"
+                  value={assignDate}
+                  onChange={(e) => {
+                    if (e.target.value) setAssignDate(e.target.value);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-transparent"
+                  aria-label="Assignment Date"
+                />
+              </div>
             </div>
 
             {assignType === 'publisher' ? (
@@ -1605,21 +1618,28 @@ export default function TerritoriesClient() {
 
               {/* Formatted Effective Date Input & Quick Select */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold">
-                    Effective Return / Revocation Date *
-                  </Label>
-                  <span className="text-[11px] font-semibold text-primary">
-                    📅 {formatDate(revokeDate)}
-                  </span>
-                </div>
+                <Label className="text-xs font-semibold">
+                  Effective Return / Revocation Date *
+                </Label>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={revokeDate}
-                    onChange={(e) => setRevokeDate(e.target.value)}
-                    className="h-9 rounded-xl text-xs flex-1 bg-card"
-                  />
+                  <div className="relative flex-1">
+                    <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
+                      <span className="flex items-center gap-2">
+                        <Calendar size={13} className="text-primary" />
+                        <span>{formatDate(revokeDate)}</span>
+                      </span>
+                      <ChevronDown size={13} className="text-muted-foreground" />
+                    </div>
+                    <input
+                      type="date"
+                      value={revokeDate}
+                      onChange={(e) => {
+                        if (e.target.value) setRevokeDate(e.target.value);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-transparent"
+                      aria-label="Effective Return / Revocation Date"
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
