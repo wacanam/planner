@@ -10,32 +10,25 @@ import {
   FolderOpen,
   HelpCircle,
   Home,
-  Info,
   MapPin,
   Plus,
-  RotateCcw,
   Sparkles,
   TrendingUp,
-  User,
   UserCheck,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
-import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   useCongregation,
   useCongregationGroups,
@@ -45,13 +38,10 @@ import {
   useDashboardTour,
   useHouseholds,
   useMyAssignments,
-  useReturnAssignment,
 } from '@/hooks';
 import { formatDate, formatDaysAgo } from '@/lib/date-utils';
 import {
-  canAdjustAssignmentDates,
   canCreateTerritory,
-  canReturnAssignment,
   canViewAllCongregationRecords,
   filterActiveAssignments,
   getUserGroupIds,
@@ -59,42 +49,7 @@ import {
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { timeAgo } from '@/lib/time-ago';
-import type { Assignment, Household } from '@/types/api';
-
-function getAssignmentPacing(assignedAt?: string | null) {
-  if (!assignedAt) return { label: 'Assigned recently', isOverdue: false, isWarning: false };
-  const assignedTime = new Date(assignedAt).getTime();
-  if (Number.isNaN(assignedTime))
-    return { label: 'Assigned recently', isOverdue: false, isWarning: false };
-  const elapsedDays = Math.max(
-    0,
-    Math.floor((Date.now() - assignedTime) / (1000 * 60 * 60 * 24))
-  );
-  const termDays = 120; // 4-month cycle
-  const remainingDays = termDays - elapsedDays;
-  if (elapsedDays > termDays) {
-    return {
-      label: `⚠️ Overdue (${elapsedDays}d active)`,
-      isOverdue: true,
-      isWarning: false,
-      elapsedDays,
-    };
-  }
-  if (remainingDays <= 30) {
-    return {
-      label: `⏳ ${remainingDays}d remaining`,
-      isOverdue: false,
-      isWarning: true,
-      elapsedDays,
-    };
-  }
-  return {
-    label: `⚡ On Track (~${remainingDays}d remaining)`,
-    isOverdue: false,
-    isWarning: false,
-    elapsedDays,
-  };
-}
+import type { Household } from '@/types/api';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
@@ -110,12 +65,8 @@ export default function CongregationDashboardClient() {
   const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
 
-  // Quick Visit Sheet & Return Confirmation state
+  // Quick Visit Sheet state
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
-  const [returnConfirmAssignment, setReturnConfirmAssignment] = useState<Assignment | null>(null);
-  const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const { returnTerritory, isPending: returning } = useReturnAssignment();
-  const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
 
   const tour = useDashboardTour({
     userId: user.id,
@@ -126,18 +77,11 @@ export default function CongregationDashboardClient() {
     return new Map(territories.map((t) => [t.id, t]));
   }, [territories]);
 
-  // Real-time door counts, coverage, return visits, and unpinned doors per territory
-  const territoryStatsById = useMemo(() => {
+  // Real-time door counts and coverage calculation per territory
+  const coverageByTerritoryId = useMemo(() => {
     const map = new Map<
       string,
-      {
-        totalDoors: number;
-        workedDoors: number;
-        unworkedDoors: number;
-        coveragePercent: number;
-        returnVisitsCount: number;
-        unpinnedCount: number;
-      }
+      { totalDoors: number; workedDoors: number; coveragePercent: number }
     >();
     const byTerritory = new Map<string, Household[]>();
     for (const h of households) {
@@ -147,17 +91,7 @@ export default function CongregationDashboardClient() {
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
-      const cov = calculateTerritoryCoverage(hList);
-      const returnVisits = hList.filter((h) => h.status === 'return_visit').length;
-      const unpinned = hList.filter((h) => !h.latitude || !h.longitude).length;
-      map.set(tId, {
-        totalDoors: cov.totalDoors,
-        workedDoors: cov.workedDoors,
-        unworkedDoors: cov.unworkedDoors,
-        coveragePercent: cov.coveragePercent,
-        returnVisitsCount: returnVisits,
-        unpinnedCount: unpinned,
-      });
+      map.set(tId, calculateTerritoryCoverage(hList));
     }
     return map;
   }, [households]);
@@ -632,31 +566,25 @@ export default function CongregationDashboardClient() {
                       const terr = territoryMap.get(assignment.territoryId);
                       const number = terr?.number || assignment.territoryNumber || '—';
                       const name = terr?.name || assignment.territoryName || 'Territory';
-                      const stats = territoryStatsById.get(assignment.territoryId) || {
+                      const cov = coverageByTerritoryId.get(assignment.territoryId) || {
                         totalDoors: 0,
                         workedDoors: 0,
-                        unworkedDoors: 0,
                         coveragePercent: 0,
-                        returnVisitsCount: 0,
-                        unpinnedCount: 0,
                       };
                       const isGroupAssignment = Boolean(assignment.serviceGroupId);
                       const assignedGroup = groups.find((g) => g.id === assignment.serviceGroupId);
-                      const canReturn = canReturnAssignment(user, assignment, assignedGroup);
-                      const pacing = getAssignmentPacing(assignment.assignedAt);
 
                       return (
                         <div
                           key={assignment.id}
-                          className="p-4 sm:p-5 rounded-2xl border border-border bg-background space-y-3.5 hover:border-primary/40 transition-all min-w-0 shadow-2xs"
+                          className="p-4 rounded-2xl border border-border bg-background space-y-3 hover:border-primary/40 transition-all min-w-0 shadow-2xs"
                         >
-                          {/* Header Row */}
                           <div className="flex items-start justify-between gap-3 min-w-0">
-                            <div className="min-w-0 flex-1 space-y-1">
+                            <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                 <Link
                                   href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                                  className="font-bold text-sm sm:text-base text-foreground hover:text-primary transition-colors truncate"
+                                  className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate"
                                   title={`#${number} — ${name}`}
                                 >
                                   #{number} — {name}
@@ -667,176 +595,68 @@ export default function CongregationDashboardClient() {
                                 >
                                   Working
                                 </Badge>
-                                {isGroupAssignment ? (
+                                {isGroupAssignment && (
                                   <Badge
                                     variant="outline"
                                     className="text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/40 border-purple-200 gap-1 shrink-0"
                                   >
                                     <FolderOpen size={10} />
-                                    <span>{assignedGroup?.name || 'Group'} Assignment</span>
-                                  </Badge>
-                                ) : (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] font-semibold bg-primary/5 text-primary border-primary/20 gap-1 shrink-0"
-                                  >
-                                    <User size={10} />
-                                    <span>Personal</span>
+                                    <span>{assignedGroup?.name || 'Group'}</span>
                                   </Badge>
                                 )}
                               </div>
-
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
+                                <Clock size={12} className="shrink-0 text-muted-foreground/70" />
+                                <span>
+                                  Assigned {assignment.assignedAt ? formatDaysAgo(assignment.assignedAt) : 'recently'}
+                                </span>
                                 {terr?.city && (
-                                  <>
-                                    <span className="flex items-center gap-1 text-muted-foreground/90 font-medium truncate">
-                                      <MapPin size={11} className="shrink-0 text-primary" />
-                                      <span>{terr.city}</span>
-                                    </span>
-                                    <span>•</span>
-                                  </>
-                                )}
-                                <span className="flex items-center gap-1 truncate">
-                                  <Clock size={11} className="shrink-0 text-muted-foreground/70" />
-                                  <span>
-                                    Assigned{' '}
-                                    {assignment.assignedAt
-                                      ? formatDaysAgo(assignment.assignedAt)
-                                      : 'recently'}
+                                  <span className="text-muted-foreground/60 hidden sm:inline">
+                                    • {terr.city}
                                   </span>
-                                </span>
-                                <span>•</span>
-                                <span
-                                  className={`font-semibold text-[11px] ${
-                                    pacing.isOverdue
-                                      ? 'text-rose-600 dark:text-rose-400'
-                                      : pacing.isWarning
-                                        ? 'text-amber-600 dark:text-amber-400'
-                                        : 'text-emerald-600 dark:text-emerald-400'
-                                  }`}
-                                >
-                                  {pacing.label}
-                                </span>
-                              </div>
+                                )}
+                              </p>
                             </div>
+
+                            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs">
+                              <Link
+                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                              >
+                                <MapPin size={13} />
+                                <span>Open Map</span>
+                              </Link>
+                            </Button>
                           </div>
 
                           {/* Door Coverage Progress Bar */}
-                          {stats.totalDoors > 0 ? (
-                            <div className="space-y-1.5 pt-2 border-t border-border/60">
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          {cov.totalDoors > 0 ? (
+                            <div className="space-y-1 pt-1 border-t border-border/60">
+                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                                 <span>
-                                  <strong className="text-foreground">{stats.workedDoors}</strong>{' '}
-                                  of{' '}
-                                  <strong className="text-foreground">{stats.totalDoors}</strong>{' '}
-                                  doors completed
+                                  {cov.workedDoors} of {cov.totalDoors} doors completed
                                 </span>
-                                <span className="font-bold text-foreground">
-                                  {stats.coveragePercent}%
+                                <span className="font-semibold text-foreground">
+                                  {cov.coveragePercent}%
                                 </span>
                               </div>
-                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                                  style={{ width: `${stats.coveragePercent}%` }}
+                                  style={{ width: `${cov.coveragePercent}%` }}
                                 />
                               </div>
                             </div>
                           ) : (
-                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-                              <span>No door records registered in this zone yet</span>
+                            <div className="pt-1 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                              <span>No door records registered yet</span>
                               <Link
                                 href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                                className="text-primary hover:underline text-xs font-semibold"
+                                className="text-primary hover:underline text-[11px] font-semibold"
                               >
                                 Add first door →
                               </Link>
                             </div>
                           )}
-
-                          {/* At-a-glance Door Status Chips */}
-                          {stats.totalDoors > 0 && (
-                            <div className="flex items-center gap-2 flex-wrap pt-1">
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-                                <CheckCircle2
-                                  size={12}
-                                  className="text-emerald-600 dark:text-emerald-400"
-                                />
-                                <span>{stats.workedDoors} Worked</span>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-muted/50 border border-border text-[11px] font-medium text-muted-foreground">
-                                <Home size={12} />
-                                <span>{stats.unworkedDoors} Remaining</span>
-                              </div>
-
-                              {stats.returnVisitsCount > 0 && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-800/40 text-[11px] font-medium text-purple-700 dark:text-purple-300">
-                                  <UserCheck
-                                    size={12}
-                                    className="text-purple-600 dark:text-purple-400"
-                                  />
-                                  <span>
-                                    {stats.returnVisitsCount} Return Visit
-                                    {stats.returnVisitsCount > 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                              )}
-
-                              {stats.unpinnedCount > 0 && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                                  <MapPin
-                                    size={12}
-                                    className="text-amber-600 dark:text-amber-400"
-                                  />
-                                  <span>{stats.unpinnedCount} Needs Pinning</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* In-Card Action Footer */}
-                          <div className="flex items-center gap-2 pt-2 border-t border-border/60 flex-wrap sm:flex-nowrap">
-                            <Button
-                              asChild
-                              size="sm"
-                              className="rounded-xl text-xs gap-1.5 font-semibold shadow-xs flex-1"
-                            >
-                              <Link
-                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                              >
-                                <MapPin size={13} />
-                                <span>Open Map Studio</span>
-                              </Link>
-                            </Button>
-
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="rounded-xl text-xs gap-1.5 font-semibold flex-1"
-                            >
-                              <Link
-                                href={`/congregation/${congregationId}/my-assignments/${assignment.territoryId}`}
-                              >
-                                <Info size={13} />
-                                <span>View Details</span>
-                              </Link>
-                            </Button>
-
-                            {canReturn && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setReturnConfirmAssignment(assignment)}
-                                className="rounded-xl text-xs gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/80 shrink-0"
-                              >
-                                <RotateCcw size={13} />
-                                <span className="hidden sm:inline">Check In</span>
-                              </Button>
-                            )}
-                          </div>
                         </div>
                       );
                     })}
@@ -1062,87 +882,6 @@ export default function CongregationDashboardClient() {
         />
       )}
 
-      {/* Return Territory Confirmation Modal */}
-      <ResponsiveDialog
-        open={Boolean(returnConfirmAssignment)}
-        onOpenChange={(op) => {
-          if (!op) {
-            setReturnConfirmAssignment(null);
-            setReturnDate(new Date().toISOString().slice(0, 10));
-          }
-        }}
-        title="Return Territory Assignment"
-        description={
-          returnConfirmAssignment
-            ? `Return Territory #${
-                territoryMap.get(returnConfirmAssignment.territoryId)?.number ||
-                returnConfirmAssignment.territoryNumber ||
-                ''
-              } to the congregation`
-            : 'Return Territory'
-        }
-      >
-        {returnConfirmAssignment && (
-          <div className="space-y-4">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              This will mark your assignment for Territory #
-              {territoryMap.get(returnConfirmAssignment.territoryId)?.number ||
-                returnConfirmAssignment.territoryNumber ||
-                ''}{' '}
-              as completed and return it to available congregation territories.
-            </p>
-
-            {canAdjust && (
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold">Effective Return Date *</Label>
-                <Input
-                  type="date"
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  className="h-9 rounded-xl text-xs"
-                />
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl text-xs"
-                onClick={() => {
-                  setReturnConfirmAssignment(null);
-                  setReturnDate(new Date().toISOString().slice(0, 10));
-                }}
-                disabled={returning}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                className="rounded-xl text-xs font-semibold"
-                disabled={returning || (canAdjust && !returnDate)}
-                onClick={async () => {
-                  if (returnConfirmAssignment) {
-                    await returnTerritory(
-                      returnConfirmAssignment.id,
-                      canAdjust ? returnDate : undefined,
-                      user.role,
-                      user.congregationRole,
-                      user.id,
-                      user.name
-                    );
-                    toast.success('Territory returned to congregation');
-                    setReturnConfirmAssignment(null);
-                    setReturnDate(new Date().toISOString().slice(0, 10));
-                  }
-                }}
-              >
-                {returning ? 'Returning…' : 'Confirm Return'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </ResponsiveDialog>
 
       <BottomTabBar />
       <DashboardTourGuide
