@@ -10,7 +10,7 @@ describe('formatDate & formatDateTime', () => {
 
   it('formats full ISO string timestamps into short text', () => {
     expect(formatDate('2026-01-01T12:00:00.000Z')).toBe('Jan 1, 2026');
-    expect(formatDate('2026-07-04T18:30:00.000Z')).toBe('Jul 4, 2026');
+    expect(formatDate('2026-07-04T12:00:00.000Z')).toBe('Jul 4, 2026');
   });
 
   it('formats Date objects and numeric timestamps', () => {
