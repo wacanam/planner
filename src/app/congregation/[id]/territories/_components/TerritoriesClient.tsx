@@ -447,16 +447,18 @@ export default function TerritoriesClient() {
               Congregation territory cards, boundaries, and publisher assignments
             </p>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2.5 sm:px-3 bg-background shadow-xs hover:border-primary/50 hover:bg-primary/5 shrink-0"
+              className="flex-1 sm:flex-none rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2 sm:px-3 bg-background shadow-xs hover:border-primary/50 hover:bg-primary/5 min-w-0"
             >
               <Link href={`/congregation/${congregationId}/territories/overview`}>
-                <MapIcon size={13} className="text-primary" />
-                <span>Congregation Map</span>
+                <MapIcon size={13} className="text-primary shrink-0" />
+                <span className="truncate">
+                  <span className="hidden sm:inline">Congregation </span>Map
+                </span>
               </Link>
             </Button>
             {canCreate && (
@@ -477,19 +479,24 @@ export default function TerritoriesClient() {
                     );
                     setMapCenterOpen(true);
                   }}
-                  className="rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2.5 sm:px-3 shrink-0"
+                  className="flex-1 sm:flex-none rounded-xl text-xs font-semibold gap-1.5 h-8.5 px-2 sm:px-3 min-w-0"
                   title="Configure congregation default map center"
                 >
-                  <MapPin size={13} />
-                  <span>Map Center</span>
+                  <MapPin size={13} className="shrink-0" />
+                  <span className="truncate">
+                    <span className="hidden sm:inline">Map </span>Center
+                  </span>
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleOpenCreate}
-                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-sm h-8.5 px-3 sm:px-3.5 shrink-0"
+                  className="flex-1 sm:flex-none rounded-xl text-xs font-semibold gap-1.5 shadow-sm h-8.5 px-2 sm:px-3.5 min-w-0"
                 >
-                  <Plus size={14} />
-                  <span>Create Territory</span>
+                  <Plus size={14} className="shrink-0" />
+                  <span className="truncate">
+                    <span>Create</span>
+                    <span className="hidden sm:inline"> Territory</span>
+                  </span>
                 </Button>
               </>
             )}
