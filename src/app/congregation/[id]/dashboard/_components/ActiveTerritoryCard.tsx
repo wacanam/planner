@@ -3,7 +3,8 @@
 import {
   Clock,
   Compass,
-  FolderOpen,
+  User,
+  Users,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -73,35 +74,58 @@ export function ActiveTerritoryCard({
     );
   }
 
+  const assignedGroup = primaryAssignment.serviceGroupId
+    ? groups.find((g) => g.id === primaryAssignment.serviceGroupId)
+    : null;
+
   return (
     <Card className="bg-card border-border shadow-xs rounded-3xl overflow-hidden">
       <CardContent className="p-5 sm:p-6 space-y-4">
         {/* Top Header Row: Zone Tag & Launch Map Button */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1.5 min-w-0">
+          <div className="space-y-2 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">
                 <Zap size={12} />
                 <span>{isGroupLeaderTier ? `${ledGroup?.name || 'Group'} Active Zone` : 'Active Territory in Work'}</span>
               </span>
 
-              {primaryAssignment.serviceGroupId && (
-                <Badge variant="outline" className="text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/40 border-purple-200 gap-1">
-                  <FolderOpen size={10} />
-                  <span>{groups.find((g) => g.id === primaryAssignment.serviceGroupId)?.name || 'Group'}</span>
+              {assignedGroup ? (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 gap-1.5 font-bold py-0.5 px-2"
+                >
+                  <Users size={11} className="text-purple-600 dark:text-purple-400" />
+                  <span>{assignedGroup.name}</span>
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 gap-1.5 font-bold py-0.5 px-2"
+                >
+                  <User size={11} className="text-blue-600 dark:text-blue-400" />
+                  <span>Personal</span>
                 </Badge>
               )}
             </div>
 
-            <div className="flex items-baseline gap-2 min-w-0 flex-wrap pt-0.5">
+            {/* Stylized Territory Number & Name Display */}
+            <div className="flex items-center gap-2.5 flex-wrap pt-0.5">
               <Link
                 href={`/congregation/${congregationId}/territories/${primaryAssignment.territoryId}`}
-                className="text-lg sm:text-xl font-extrabold text-foreground hover:text-primary transition-colors truncate"
+                className="group inline-flex items-center gap-2.5 min-w-0"
               >
-                #{primaryTerritory?.number || primaryAssignment.territoryNumber || '1'} — {primaryTerritory?.name || primaryAssignment.territoryName || 'Territory'}
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-xl bg-primary/10 text-primary font-black text-sm sm:text-base border border-primary/25 shadow-2xs group-hover:bg-primary group-hover:text-primary-foreground transition-all shrink-0">
+                  #{primaryTerritory?.number || primaryAssignment.territoryNumber || '1'}
+                </span>
+                <span className="text-lg sm:text-xl font-extrabold text-foreground group-hover:text-primary transition-colors truncate tracking-tight">
+                  {primaryTerritory?.name || primaryAssignment.territoryName || 'Territory'}
+                </span>
               </Link>
               {primaryTerritory?.city && (
-                <span className="text-xs text-muted-foreground">({primaryTerritory.city})</span>
+                <span className="text-xs font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md">
+                  {primaryTerritory.city}
+                </span>
               )}
             </div>
 

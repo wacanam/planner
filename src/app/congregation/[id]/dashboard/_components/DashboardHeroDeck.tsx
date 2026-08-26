@@ -2,8 +2,8 @@
 
 import {
   Building2,
-  FolderOpen,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,9 +44,9 @@ export function DashboardHeroDeck({
             {userGroup && !isGroupLeaderTier && (
               <Badge
                 variant="outline"
-                className="text-xs font-semibold bg-muted/80 text-muted-foreground border-border gap-1 py-0.5"
+                className="text-xs font-semibold bg-muted/80 text-muted-foreground border-border gap-1.5 py-0.5"
               >
-                <FolderOpen size={11} className="text-primary" />
+                <Users size={12} className="text-primary" />
                 <span>{userGroup.name}</span>
               </Badge>
             )}

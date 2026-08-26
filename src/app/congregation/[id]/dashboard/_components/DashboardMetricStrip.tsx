@@ -3,7 +3,6 @@
 import {
   AlertCircle,
   Compass,
-  FolderOpen,
   Home,
   MapPin,
   TrendingUp,
@@ -285,7 +284,7 @@ export function DashboardMetricStrip({
           <p className="text-[10px] text-muted-foreground truncate">{userGroup?.members?.length || 0} publishers</p>
         </div>
         <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
-          <FolderOpen size={18} />
+          <Users size={18} />
         </div>
       </Link>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderOpen, TrendingUp } from 'lucide-react';
+import { TrendingUp, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -64,29 +64,31 @@ export function DashboardProgressGauge({
             </div>
           </div>
 
-          {/* Quick Status Filters */}
-          <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+          {/* Micro Status Indicators */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
             <Link
               href={`/congregation/${congregationId}/territories?status=available`}
-              className="p-2.5 rounded-2xl bg-background border border-border hover:border-emerald-500/40 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all block group"
+              className="p-2.5 rounded-2xl border border-border/70 bg-background/50 hover:bg-muted/50 transition-colors text-center group"
             >
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+              <p className="text-xs font-bold text-foreground group-hover:scale-105 transition-transform">
                 {availableTerritories.length}
               </p>
-              <p className="text-[10px] text-muted-foreground">Available to Assign</p>
+              <p className="text-[10px] text-muted-foreground">Available</p>
             </Link>
+
             <Link
               href={`/congregation/${congregationId}/territories?status=assigned`}
-              className="p-2.5 rounded-2xl bg-background border border-border hover:border-blue-500/40 hover:bg-blue-50/20 dark:hover:bg-blue-950/20 transition-all block group"
+              className="p-2.5 rounded-2xl border border-border/70 bg-background/50 hover:bg-muted/50 transition-colors text-center group"
             >
-              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                 {inWorkTerritoriesCount}
               </p>
-              <p className="text-[10px] text-muted-foreground">Active in Work</p>
+              <p className="text-[10px] text-muted-foreground">In Work</p>
             </Link>
+
             <Link
               href={`/congregation/${congregationId}/territories?status=overdue`}
-              className="p-2.5 rounded-2xl bg-background border border-border hover:border-rose-500/40 hover:bg-rose-50/20 dark:hover:bg-rose-950/20 transition-all block group"
+              className="p-2.5 rounded-2xl border border-border/70 bg-background/50 hover:bg-muted/50 transition-colors text-center group"
             >
               <p className="text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
                 {overdueTerritoriesCount}
@@ -109,7 +111,7 @@ export function DashboardProgressGauge({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
-                <FolderOpen size={18} />
+                <Users size={18} />
               </div>
               <div>
                 <h2 className="text-sm font-bold text-foreground tracking-tight">

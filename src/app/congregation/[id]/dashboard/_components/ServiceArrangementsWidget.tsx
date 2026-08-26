@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, ChevronRight, FolderOpen, Phone, UserCheck, Users } from 'lucide-react';
+import { Calendar, ChevronRight, Phone, UserCheck, Users } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ export function ServiceArrangementsWidget({
     <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-base font-bold flex items-center gap-2">
-          <FolderOpen size={16} className="text-purple-600 dark:text-purple-400" />
+          <Users size={16} className="text-purple-600 dark:text-purple-400" />
           <span>Service Group Arrangements</span>
         </CardTitle>
         <Button asChild variant="ghost" size="sm" className="text-xs h-8">
