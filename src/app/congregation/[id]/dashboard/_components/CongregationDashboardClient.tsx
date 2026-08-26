@@ -522,7 +522,7 @@ export default function CongregationDashboardClient() {
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Compass size={16} className="text-primary" />
-                  <span>My Active Assignments</span>
+                  <span>Territory In Work</span>
                 </CardTitle>
                 <Button asChild variant="ghost" size="sm" className="text-xs h-8">
                   <Link href={`/congregation/${congregationId}/my-assignments`}>
@@ -561,8 +561,8 @@ export default function CongregationDashboardClient() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {activeAssignments.map((assignment) => {
+                  <div className="space-y-5">
+                    {activeAssignments.map((assignment, idx) => {
                       const terr = territoryMap.get(assignment.territoryId);
                       const number = terr?.number || assignment.territoryNumber || '—';
                       const name = terr?.name || assignment.territoryName || 'Territory';
@@ -577,15 +577,17 @@ export default function CongregationDashboardClient() {
                       return (
                         <div
                           key={assignment.id}
-                          className="p-4 sm:p-5 rounded-2xl border border-border bg-background space-y-3.5 hover:border-primary/40 transition-all min-w-0 shadow-2xs group"
+                          className={`space-y-3.5 ${
+                            idx > 0 ? 'pt-4 border-t border-border/60' : ''
+                          }`}
                         >
-                          {/* Top Row: Title + Locality on Left, Highlighted Metric Badge on Right */}
+                          {/* Main Row: Title & Subtitle + Action Button */}
                           <div className="flex items-start justify-between gap-3 min-w-0">
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                 <Link
                                   href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                                  className="font-bold text-sm sm:text-base text-foreground hover:text-primary transition-colors truncate"
+                                  className="font-bold text-base sm:text-lg text-foreground hover:text-primary transition-colors truncate"
                                   title={`#${number} — ${name}`}
                                 >
                                   #{number} — {name}
@@ -608,25 +610,39 @@ export default function CongregationDashboardClient() {
                                   </>
                                 )}
                                 <span>
-                                  Assigned {assignment.assignedAt ? formatDaysAgo(assignment.assignedAt) : 'recently'}
+                                  Assigned{' '}
+                                  {assignment.assignedAt
+                                    ? formatDaysAgo(assignment.assignedAt)
+                                    : 'recently'}
                                 </span>
                               </p>
                             </div>
 
-                            {/* Prominent Visual Progress Pill */}
-                            <div className="text-right shrink-0">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 shadow-2xs">
-                                {cov.coveragePercent}% Done
-                              </span>
-                              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
-                                {cov.workedDoors}/{cov.totalDoors} doors
-                              </p>
-                            </div>
+                            <Button
+                              asChild
+                              size="sm"
+                              className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs h-9 px-3.5"
+                            >
+                              <Link
+                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                              >
+                                <MapPin size={14} />
+                                <span>Open Map</span>
+                              </Link>
+                            </Button>
                           </div>
 
-                          {/* Bottom Row: Integrated Progress Bar + Direct Action Button */}
-                          <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/50">
-                            <div className="flex-1 space-y-1 min-w-0">
+                          {/* Full-width Door Progress Bar */}
+                          {cov.totalDoors > 0 ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+                                <span className="font-semibold text-foreground">
+                                  {cov.coveragePercent}% Completed
+                                </span>
+                                <span>
+                                  {cov.workedDoors} of {cov.totalDoors} doors worked
+                                </span>
+                              </div>
                               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-emerald-500 rounded-full transition-all duration-500"
@@ -634,16 +650,17 @@ export default function CongregationDashboardClient() {
                                 />
                               </div>
                             </div>
-
-                            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs h-8 px-3">
+                          ) : (
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                              <span>No door records registered yet</span>
                               <Link
                                 href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                                className="text-primary hover:underline text-xs font-semibold"
                               >
-                                <MapPin size={13} />
-                                <span>Open Map</span>
+                                Add first door →
                               </Link>
-                            </Button>
-                          </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
