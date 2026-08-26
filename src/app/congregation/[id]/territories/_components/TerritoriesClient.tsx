@@ -1352,18 +1352,18 @@ export default function TerritoriesClient() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl text-xs"
+                className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                 onClick={() => setCreateDialogOpen(false)}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="rounded-xl text-xs font-semibold"
+                className="h-9 rounded-xl text-xs font-semibold w-full sm:w-auto justify-center shadow-xs"
                 disabled={creatingTerritory}
               >
                 {creatingTerritory ? 'Creating…' : 'Create Territory'}
@@ -1431,13 +1431,13 @@ export default function TerritoriesClient() {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/70 mt-2">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-border mt-2">
               {canDelete && editTerritory ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="rounded-xl text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 px-2.5"
+                  className="h-9 rounded-xl text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 w-full sm:w-auto justify-center"
                   onClick={() => {
                     const target = editTerritory;
                     setEditTerritory(null);
@@ -1448,21 +1448,19 @@ export default function TerritoriesClient() {
                   <Trash2 size={13} />
                   <span>Delete Territory</span>
                 </Button>
-              ) : (
-                <div />
-              )}
-              <div className="flex items-center gap-2">
+              ) : null}
+              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-xl text-xs"
+                  className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                   onClick={() => setEditTerritory(null)}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="rounded-xl text-xs font-semibold"
+                  className="h-9 rounded-xl text-xs font-semibold w-full sm:w-auto justify-center shadow-xs"
                   disabled={updatingTerritory}
                 >
                   {updatingTerritory ? 'Saving…' : 'Save Changes'}
@@ -1582,11 +1580,11 @@ export default function TerritoriesClient() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl text-xs"
+                className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                 onClick={() => {
                   setAssignTerritory(null);
                   setAssignUserId('');
@@ -1598,7 +1596,7 @@ export default function TerritoriesClient() {
               </Button>
               <Button
                 type="button"
-                className="rounded-xl text-xs font-semibold"
+                className="h-9 rounded-xl text-xs font-semibold w-full sm:w-auto justify-center shadow-xs"
                 onClick={handleAssignSubmit}
                 disabled={
                   (assignType === 'publisher' && !assignUserId) ||
@@ -1607,7 +1605,7 @@ export default function TerritoriesClient() {
                   !assignDate
                 }
               >
-                {assigningTerritory ? 'Assigning…' : 'Confirm Assignment'}
+                {assigningTerritory ? 'Assigning…' : 'Confirm Assign'}
               </Button>
             </div>
           </div>
@@ -1665,22 +1663,22 @@ export default function TerritoriesClient() {
               <span>Detect My Current GPS Location</span>
             </Button>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl text-xs"
+                className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                 onClick={() => setMapCenterOpen(false)}
               >
                 Cancel
               </Button>
               <Button
                 type="button"
-                className="rounded-xl text-xs font-semibold"
+                className="h-9 rounded-xl text-xs font-semibold w-full sm:w-auto justify-center shadow-xs"
                 onClick={handleSaveMapCenter}
                 disabled={updatingCenter || !centerLat || !centerLng}
               >
-                {updatingCenter ? 'Saving…' : 'Save Default Coordinates'}
+                {updatingCenter ? 'Saving…' : 'Save Coordinates'}
               </Button>
             </div>
           </div>
@@ -1843,11 +1841,11 @@ export default function TerritoriesClient() {
                 <strong className="text-foreground">{revokeTerritoryStatus}</strong>.
               </p>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
-                  className="rounded-xl text-xs"
+                  className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                   onClick={() => {
                     setRevokeConfirmTerritory(null);
                     setRevokeDate(new Date().toISOString().slice(0, 10));
@@ -1861,7 +1859,7 @@ export default function TerritoriesClient() {
                 <Button
                   type="button"
                   variant="destructive"
-                  className="rounded-xl text-xs font-semibold shadow-xs"
+                  className="h-9 rounded-xl text-xs font-semibold shadow-xs w-full sm:w-auto justify-center"
                   disabled={revokingTerritory || !revokeDate}
                   onClick={async () => {
                     if (revokeConfirmTerritory) {
@@ -1888,7 +1886,7 @@ export default function TerritoriesClient() {
                     }
                   }}
                 >
-                  {revokingTerritory ? 'Revoking…' : 'Confirm Revocation / Return'}
+                  {revokingTerritory ? 'Revoking…' : 'Confirm Revocation'}
                 </Button>
               </div>
             </div>
@@ -1972,12 +1970,11 @@ export default function TerritoriesClient() {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <div className="grid grid-cols-2 sm:flex sm:justify-end gap-2 pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  className="rounded-xl text-xs"
+                  className="h-9 rounded-xl text-xs w-full sm:w-auto justify-center"
                   onClick={() => {
                     setDeleteConfirmTerritory(null);
                     setDeleteConfirmInput('');
@@ -1989,8 +1986,7 @@ export default function TerritoriesClient() {
                 <Button
                   type="button"
                   variant="destructive"
-                  size="sm"
-                  className="rounded-xl text-xs font-semibold gap-1.5 shadow-sm"
+                  className="h-9 rounded-xl text-xs font-semibold gap-1.5 shadow-xs w-full sm:w-auto justify-center"
                   disabled={
                     deleteConfirmInput.trim().toLowerCase() !==
                       deleteConfirmTerritory.number.trim().toLowerCase() || deletingTerritory
@@ -2014,8 +2010,8 @@ export default function TerritoriesClient() {
                   }}
                 >
                   <Trash2 size={13} />
-                  <span>
-                    {deletingTerritory ? 'Deleting Territory…' : 'Permanently Delete Territory'}
+                  <span className="truncate">
+                    {deletingTerritory ? 'Deleting…' : 'Delete Territory'}
                   </span>
                 </Button>
               </div>
@@ -2309,33 +2305,64 @@ function TerritoryHistoryDialog({
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[11px] font-semibold">Date Assigned *</Label>
-                            <Input
-                              type="date"
-                              value={assignedAt}
-                              onChange={(e) => setAssignedAt(e.target.value)}
-                              className="h-9 rounded-xl text-xs"
-                            />
+                            <div className="relative">
+                              <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
+                                <span className="flex items-center gap-2">
+                                  <Calendar size={13} className="text-primary shrink-0" />
+                                  <span>{assignedAt ? formatDate(assignedAt) : 'Select date'}</span>
+                                </span>
+                                <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+                              </div>
+                              <input
+                                type="date"
+                                value={assignedAt}
+                                onChange={(e) => {
+                                  if (e.target.value) setAssignedAt(e.target.value);
+                                }}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-transparent"
+                                aria-label="Date Assigned"
+                              />
+                            </div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[11px] font-semibold">
                               Date Returned / Revoked
                             </Label>
-                            <Input
-                              type="date"
-                              value={returnedAt}
-                              onChange={(e) => setReturnedAt(e.target.value)}
-                              className="h-9 rounded-xl text-xs"
-                              placeholder="Leave empty if active"
-                            />
+                            <div className="relative">
+                              <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
+                                <span className="flex items-center gap-2">
+                                  <Calendar size={13} className="text-primary shrink-0" />
+                                  <span>{returnedAt ? formatDate(returnedAt) : 'None (Active in field)'}</span>
+                                </span>
+                                <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+                              </div>
+                              <input
+                                type="date"
+                                value={returnedAt}
+                                onChange={(e) => setReturnedAt(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-transparent"
+                                aria-label="Date Returned"
+                              />
+                            </div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[11px] font-semibold">Due Date (Optional)</Label>
-                            <Input
-                              type="date"
-                              value={dueAt}
-                              onChange={(e) => setDueAt(e.target.value)}
-                              className="h-9 rounded-xl text-xs"
-                            />
+                            <div className="relative">
+                              <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
+                                <span className="flex items-center gap-2">
+                                  <Calendar size={13} className="text-muted-foreground shrink-0" />
+                                  <span>{dueAt ? formatDate(dueAt) : 'No due date'}</span>
+                                </span>
+                                <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+                              </div>
+                              <input
+                                type="date"
+                                value={dueAt}
+                                onChange={(e) => setDueAt(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-transparent"
+                                aria-label="Due Date"
+                              />
+                            </div>
                           </div>
                           <div className="space-y-1 sm:col-span-2">
                             <Label className="text-[11px] font-semibold">Notes (Optional)</Label>
@@ -2343,37 +2370,39 @@ function TerritoryHistoryDialog({
                               value={notes}
                               onChange={(e) => setNotes(e.target.value)}
                               placeholder="Reason for adjustment / notes"
-                              className="h-9 rounded-xl text-xs"
+                              className="h-9 rounded-xl text-xs bg-card"
                             />
                           </div>
                         </div>
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
+
+                        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2.5 border-t border-border/50">
                           {canDelete ? (
                             <Button
+                              type="button"
                               size="sm"
                               variant="ghost"
-                              className="h-8 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3"
+                              className="h-8.5 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer w-full sm:w-auto justify-center"
                               onClick={() => setDeletingAssignmentId(a.id)}
                             >
                               <Trash2 size={12} />
                               <span>Delete Record</span>
                             </Button>
-                          ) : (
-                            <div />
-                          )}
-                          <div className="flex items-center gap-2">
+                          ) : null}
+                          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                             <Button
+                              type="button"
                               size="sm"
-                              variant="ghost"
-                              className="h-8 rounded-xl text-xs px-3 cursor-pointer"
+                              variant="outline"
+                              className="h-8.5 rounded-xl text-xs px-3 cursor-pointer w-full sm:w-auto justify-center"
                               onClick={cancelEdit}
                               disabled={isUpdating}
                             >
                               Cancel
                             </Button>
                             <Button
+                              type="button"
                               size="sm"
-                              className="h-8 rounded-xl text-xs font-semibold px-4 cursor-pointer"
+                              className="h-8.5 rounded-xl text-xs font-semibold px-4 cursor-pointer w-full sm:w-auto justify-center shadow-xs"
                               onClick={() => handleSave(a)}
                               disabled={isUpdating || !assignedAt}
                             >
