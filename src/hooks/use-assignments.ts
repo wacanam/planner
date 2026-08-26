@@ -100,6 +100,39 @@ export function useTerritoryAssignments(territoryId: string | null | undefined) 
   return { assignments, data: assignments, isLoading, error };
 }
 
+export function useCongregationAssignments(congregationId?: string | null) {
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!congregationId) {
+      setAssignments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const q = query(assignmentCollection(), where('congregationId', '==', congregationId));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs
+          .map((document) =>
+            assignmentFromData(document.id, document.data() as Partial<Assignment>)
+          )
+          .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''));
+        setAssignments(list);
+        setIsLoading(false);
+      },
+      () => {
+        setIsLoading(false);
+      }
+    );
+  }, [congregationId]);
+
+  return { assignments, data: assignments, isLoading };
+}
+
 export function useMyAssignments(congregationId?: string | null) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);

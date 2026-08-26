@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/select';
 import {
   useCongregation,
+  useCongregationAssignments,
   useCongregationGroups,
   useCongregationMembers,
   useCongregationTerritories,
@@ -139,6 +140,7 @@ export default function TerritoriesClient() {
     useUpdateCongregation(congregationId);
 
   const { data: territories = [], isLoading } = useCongregationTerritories(congregationId);
+  const { assignments = [] } = useCongregationAssignments(congregationId);
   const { data: members = [] } = useCongregationMembers(congregationId);
   const { groups = [] } = useCongregationGroups(congregationId);
   const { households = [] } = useHouseholds({ congregationId });
@@ -162,6 +164,32 @@ export default function TerritoriesClient() {
     }
     for (const [tId, hList] of byTerritory.entries()) {
       map.set(tId, calculateTerritoryCoverage(hList));
+    }
+    return map;
+  }, [households]);
+
+  // Map territoryId -> Array<Assignment>
+  const assignmentsByTerritoryId = useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    for (const a of assignments) {
+      if (a.territoryId) {
+        if (!map.has(a.territoryId)) map.set(a.territoryId, []);
+        map.get(a.territoryId)?.push(a);
+      }
+    }
+    return map;
+  }, [assignments]);
+
+  // Map territoryId -> latest visit date string across its households
+  const lastActivityByTerritoryId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of households) {
+      if (h.territoryId && h.lastVisitDate) {
+        const current = map.get(h.territoryId) || '';
+        if (h.lastVisitDate > current) {
+          map.set(h.territoryId, h.lastVisitDate);
+        }
+      }
     }
     return map;
   }, [households]);
@@ -760,6 +788,33 @@ export default function TerritoriesClient() {
                 badge: 'text-muted-foreground border-border bg-muted/30',
               };
 
+              // Compute Days Assigned / Days Available
+              const nowMs = Date.now();
+              const territoryAssignments = assignmentsByTerritoryId.get(t.id) || [];
+              const activeAssignment = territoryAssignments.find(
+                (a) =>
+                  a.status === 'active' ||
+                  a.status === 'assigned' ||
+                  a.status === 'pending_approval' ||
+                  (!a.returnedAt && a.assignedAt)
+              );
+
+              const assignedDate = activeAssignment?.assignedAt;
+              const daysAssigned = assignedDate
+                ? Math.max(0, Math.floor((nowMs - new Date(assignedDate).getTime()) / 86400000))
+                : null;
+
+              const lastCompletedAssignment = territoryAssignments.find(
+                (a) => a.returnedAt || a.status === 'completed'
+              );
+              const availableSinceDate =
+                lastCompletedAssignment?.returnedAt || t.updatedAt || t.createdAt;
+              const daysAvailable = availableSinceDate
+                ? Math.max(0, Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000))
+                : null;
+
+              const lastActivityDate = lastActivityByTerritoryId.get(t.id);
+
               return (
                 <Card
                   key={t.id}
@@ -826,8 +881,77 @@ export default function TerritoriesClient() {
                         </div>
                       </div>
 
+                      {/* Timing & Last Activity Insight Strip */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-0.5 text-[11px]">
+                        {/* Days Assigned or Days Available */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted/35 text-muted-foreground border border-border/40 min-w-0">
+                          <Clock
+                            size={12}
+                            className={
+                              t.status === 'available'
+                                ? 'text-emerald-500 shrink-0'
+                                : daysAssigned !== null && daysAssigned >= 120
+                                  ? 'text-amber-500 shrink-0'
+                                  : 'text-blue-500 shrink-0'
+                            }
+                          />
+                          <span className="truncate">
+                            {t.status === 'available' ? (
+                              <span>
+                                Avail:{' '}
+                                <strong className="text-foreground font-semibold">
+                                  {daysAvailable !== null ? `${daysAvailable}d` : '—'}
+                                </strong>
+                              </span>
+                            ) : (
+                              <span>
+                                Assigned:{' '}
+                                <strong
+                                  className={
+                                    daysAssigned !== null && daysAssigned >= 120
+                                      ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                                      : 'text-foreground font-semibold'
+                                  }
+                                >
+                                  {daysAssigned !== null ? `${daysAssigned}d` : '—'}
+                                </strong>
+                                {daysAssigned !== null && daysAssigned >= 120 && (
+                                  <span className="text-[9px] text-amber-500 font-bold ml-0.5" title="Overdue (> 4 months)">
+                                    ⚠️
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Last Activity in Territory */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted/35 text-muted-foreground border border-border/40 min-w-0">
+                          <Compass size={12} className="text-primary shrink-0" />
+                          <span
+                            className="truncate"
+                            title={
+                              lastActivityDate
+                                ? `Last Activity: ${formatDate(lastActivityDate)}`
+                                : 'No door activity recorded yet'
+                            }
+                          >
+                            {lastActivityDate ? (
+                              <span>
+                                Activity:{' '}
+                                <strong className="text-foreground font-semibold">
+                                  {formatDate(lastActivityDate)}
+                                </strong>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/70">No activity yet</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
                       {/* Assignment Info Chip */}
-                      <div className="pt-1">
+                      <div>
                         {t.groupName ? (
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 bg-muted/40 px-2.5 py-1.5 rounded-xl border border-border/40">
                             <Users size={13} className="text-primary shrink-0" />
@@ -980,6 +1104,33 @@ export default function TerritoriesClient() {
                 badge: 'text-muted-foreground border-border bg-muted/30',
               };
 
+              // Compute Days Assigned / Days Available
+              const nowMs = Date.now();
+              const territoryAssignments = assignmentsByTerritoryId.get(t.id) || [];
+              const activeAssignment = territoryAssignments.find(
+                (a) =>
+                  a.status === 'active' ||
+                  a.status === 'assigned' ||
+                  a.status === 'pending_approval' ||
+                  (!a.returnedAt && a.assignedAt)
+              );
+
+              const assignedDate = activeAssignment?.assignedAt;
+              const daysAssigned = assignedDate
+                ? Math.max(0, Math.floor((nowMs - new Date(assignedDate).getTime()) / 86400000))
+                : null;
+
+              const lastCompletedAssignment = territoryAssignments.find(
+                (a) => a.returnedAt || a.status === 'completed'
+              );
+              const availableSinceDate =
+                lastCompletedAssignment?.returnedAt || t.updatedAt || t.createdAt;
+              const daysAvailable = availableSinceDate
+                ? Math.max(0, Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000))
+                : null;
+
+              const lastActivityDate = lastActivityByTerritoryId.get(t.id);
+
               return (
                 <div
                   key={t.id}
@@ -1005,7 +1156,7 @@ export default function TerritoriesClient() {
                           <span>{statusInfo.label}</span>
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-2">
+                      <div className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-2 flex-wrap">
                         <span>{t.city || 'Congregation Area'}</span>
                         <span>•</span>
                         {t.groupName ? (
@@ -1017,7 +1168,26 @@ export default function TerritoriesClient() {
                             Ready
                           </span>
                         )}
-                      </p>
+                        <span>•</span>
+                        {t.status === 'available' ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {daysAvailable !== null ? `Avail ${daysAvailable}d` : 'Available'}
+                          </span>
+                        ) : (
+                          <span className={daysAssigned !== null && daysAssigned >= 120 ? 'text-amber-600 font-semibold' : ''}>
+                            {daysAssigned !== null ? `Assigned ${daysAssigned}d` : 'Assigned'}
+                            {daysAssigned !== null && daysAssigned >= 120 ? ' ⚠️' : ''}
+                          </span>
+                        )}
+                        {lastActivityDate && (
+                          <>
+                            <span>•</span>
+                            <span className="text-muted-foreground">
+                              Activity {formatDate(lastActivityDate)}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
