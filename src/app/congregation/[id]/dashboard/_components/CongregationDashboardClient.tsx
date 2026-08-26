@@ -4,19 +4,26 @@ import {
   ArrowRight,
   Building2,
   CheckCircle2,
+  Clock,
   Compass,
   FileText,
+  FolderOpen,
+  HelpCircle,
   Home,
   MapPin,
+  Plus,
   Sparkles,
+  TrendingUp,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
 import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
@@ -32,14 +39,15 @@ import {
   useHouseholds,
   useMyAssignments,
 } from '@/hooks';
+import { formatDate, formatDaysAgo } from '@/lib/date-utils';
 import {
   canCreateTerritory,
   filterActiveAssignments,
   getUserGroupIds,
   resolveUserAssignments,
 } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
 
 export default function CongregationDashboardClient() {
@@ -56,6 +64,9 @@ export default function CongregationDashboardClient() {
   const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
 
+  // Quick Visit Sheet state
+  const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
+
   const tour = useDashboardTour({
     userId: user.id,
     autoStart: true,
@@ -66,7 +77,7 @@ export default function CongregationDashboardClient() {
   }, [territories]);
 
   // Real-time door counts and coverage calculation per territory
-  const _coverageByTerritoryId = useMemo(() => {
+  const coverageByTerritoryId = useMemo(() => {
     const map = new Map<
       string,
       { totalDoors: number; workedDoors: number; coveragePercent: number }
@@ -89,6 +100,10 @@ export default function CongregationDashboardClient() {
     return getUserGroupIds(user, groups);
   }, [groups, user]);
 
+  const userGroup = useMemo(() => {
+    return groups.find((g) => userGroupIds.has(g.id));
+  }, [groups, userGroupIds]);
+
   const displayRole = (() => {
     const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
     if (r === 'SUPER_ADMIN') return 'Super Admin';
@@ -104,6 +119,11 @@ export default function CongregationDashboardClient() {
   const canManageTerritories = canCreateTerritory(user.role);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
+  const inWorkTerritoriesCount = territories.filter(
+    (t) => t.status === 'assigned' || t.status === 'pending'
+  ).length;
+  const overdueTerritoriesCount = territories.filter((t) => t.status === 'overdue').length;
+
   const activeAssignments = useMemo(() => {
     const userAssignments = resolveUserAssignments(
       user,
@@ -117,18 +137,49 @@ export default function CongregationDashboardClient() {
 
   const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
 
+  // Congregation-wide territory door coverage
+  const { totalDoorsCount, workedDoorsCount, congregationCoveragePercent } = useMemo(() => {
+    const total = households.length;
+    if (total === 0) return { totalDoorsCount: 0, workedDoorsCount: 0, congregationCoveragePercent: 0 };
+    const worked = households.filter((h) => {
+      if (!h) return false;
+      if (h.lastVisitDate) return true;
+      if (typeof h.totalVisitsCount === 'number' && h.totalVisitsCount > 0) return true;
+      if (h.status && h.status.trim().toLowerCase() !== 'new') return true;
+      return false;
+    }).length;
+    const percent = Math.min(100, Math.max(0, Math.round((worked / total) * 100)));
+    return { totalDoorsCount: total, workedDoorsCount: worked, congregationCoveragePercent: percent };
+  }, [households]);
+
+  // Personal Return Visits / Follow-ups
+  const myReturnVisits = useMemo(() => {
+    if (!user?.id) return [];
+    return households
+      .filter((h) => {
+        const isMine = h.createdById === user.id || h.collaboratorIds?.includes(user.id);
+        const isFollowup =
+          h.status === 'return_visit' ||
+          h.status === 'busy' ||
+          Boolean(h.notes && h.notes.trim().length > 0 && h.lastVisitDate);
+        return isMine && isFollowup;
+      })
+      .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
+      .slice(0, 3);
+  }, [households, user?.id]);
+
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
-        {/* Welcome & Quick Studio Trigger */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-24 lg:pb-8 w-full min-w-0">
+        {/* Welcome & Context Banner */}
         <div
           data-tour="welcome-banner"
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 rounded-3xl border border-primary/20"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-5 sm:p-6 rounded-3xl border border-primary/20"
         >
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
                 Welcome back, {user.name || 'Publisher'}! 👋
               </h1>
               <Badge
@@ -137,35 +188,33 @@ export default function CongregationDashboardClient() {
               >
                 {displayRole}
               </Badge>
+              {userGroup && (
+                <Badge
+                  variant="outline"
+                  className="text-xs font-semibold bg-muted/60 text-muted-foreground border-border gap-1"
+                >
+                  <FolderOpen size={11} className="text-primary" />
+                  <span>{userGroup.name}</span>
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1.5 font-bold text-foreground">
-                <Building2 size={15} className="text-primary" />
+                <Building2 size={15} className="text-primary shrink-0" />
                 {congregation?.name || 'Congregation Workspace'}
               </span>
               {congregation?.city && <span>• {congregation.city}</span>}
-              <span className="hidden sm:inline text-muted-foreground/80">
+              <span className="hidden md:inline text-muted-foreground/80">
                 — Field ministry territory & visit tracking
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => tour.startTour()}
-              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5 bg-card/80 hover:bg-muted border-primary/20 hover:border-primary/40 transition-all cursor-pointer shrink-0"
-              title="Start guided tour of Kanataran"
-            >
-              <Sparkles size={14} className="text-amber-500" />
-              <span>Tour Guide</span>
-            </Button>
 
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
             {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
               <Button
                 asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 shrink-0"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
               >
                 <Link
                   href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
@@ -177,8 +226,7 @@ export default function CongregationDashboardClient() {
             ) : canManageTerritories ? (
               <Button
                 asChild
-                variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
               >
                 <Link href={`/congregation/${congregationId}/territories`}>
                   <MapPin size={15} />
@@ -188,20 +236,145 @@ export default function CongregationDashboardClient() {
             ) : (
               <Button
                 asChild
-                variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
+                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
               >
-                <Link href={`/congregation/${congregationId}/territories`}>
+                <Link href={`/congregation/${congregationId}/territories?status=available`}>
                   <Compass size={15} />
-                  <span>Browse Territories</span>
+                  <span>Browse Available ({availableTerritories.length})</span>
                 </Link>
               </Button>
             )}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => tour.startTour()}
+              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3 bg-card/80 hover:bg-muted border-border hover:border-primary/40 transition-all cursor-pointer shrink-0"
+              title="Start guided tour of Kanataran"
+            >
+              <Sparkles size={14} className="text-amber-500" />
+              <span className="hidden sm:inline">Tour</span>
+            </Button>
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div data-tour="stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Quick Ministry Action Shortcuts */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
+            <Link
+              href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+            >
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                <MapPin size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                  Territory Map
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  #{activeAssignments[0].territoryNumber || 'Active'} Studio
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href={`/congregation/${congregationId}/territories?status=available`}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-primary/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+            >
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                <Compass size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                  Available Zones
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {availableTerritories.length} for checkout
+                </p>
+              </div>
+            </Link>
+          )}
+
+          <Link
+            href={`/congregation/${congregationId}/records/visits`}
+            className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-emerald-500/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+          >
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+              <CheckCircle2 size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-foreground truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                Visit History
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate">Door-to-door logs</p>
+            </div>
+          </Link>
+
+          <Link
+            href={
+              needsPinningCount > 0
+                ? `/congregation/${congregationId}/records/households?filter=unpinned`
+                : `/congregation/${congregationId}/records/households`
+            }
+            className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-amber-500/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+          >
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+              <MapPin size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-foreground truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                  Pin Doors
+                </p>
+                {needsPinningCount > 0 && (
+                  <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500 text-white font-bold">
+                    {needsPinningCount}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">
+                {needsPinningCount > 0 ? `${needsPinningCount} needs pinning` : 'All pinned'}
+              </p>
+            </div>
+          </Link>
+
+          {userGroup ? (
+            <Link
+              href={`/congregation/${congregationId}/groups`}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-purple-500/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+            >
+              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+                <FolderOpen size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                  Service Group
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">{userGroup.name}</p>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href={`/congregation/${congregationId}/records/households`}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-purple-500/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
+            >
+              <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+                <Home size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                  Households
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">{households.length} door records</p>
+              </div>
+            </Link>
+          )}
+        </div>
+
+        {/* Interactive Stats Grid */}
+        <div data-tour="stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Total Territories"
             value={territoriesLoading ? '—' : territories.length}
@@ -209,6 +382,7 @@ export default function CongregationDashboardClient() {
             icon={MapPin}
             color="blue"
             loading={territoriesLoading}
+            href={`/congregation/${congregationId}/territories?status=available`}
           />
           <StatCard
             title="My Assignments"
@@ -217,6 +391,7 @@ export default function CongregationDashboardClient() {
             icon={Compass}
             color="green"
             loading={assignmentsLoading}
+            href={`/congregation/${congregationId}/my-assignments`}
           />
           <StatCard
             title="Door Records"
@@ -227,6 +402,11 @@ export default function CongregationDashboardClient() {
             icon={Home}
             color={needsPinningCount > 0 ? 'orange' : 'purple'}
             loading={householdsLoading}
+            href={
+              needsPinningCount > 0
+                ? `/congregation/${congregationId}/records/households?filter=unpinned`
+                : `/congregation/${congregationId}/records/households`
+            }
           />
           <StatCard
             title="Publishers"
@@ -234,157 +414,441 @@ export default function CongregationDashboardClient() {
             description="Congregation members"
             icon={Users}
             color="gray"
+            href={`/congregation/${congregationId}/members`}
           />
         </div>
 
-        {/* Action Sections */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* My Active Working Territories */}
-          <Card
-            data-tour="active-assignments"
-            className="lg:col-span-2 bg-card border-border shadow-xs"
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Compass size={16} className="text-primary" />
-                <span>My Active Assignments</span>
-              </CardTitle>
-              <Button asChild variant="ghost" size="sm" className="text-xs h-8">
-                <Link href={`/congregation/${congregationId}/my-assignments`}>
-                  View All ({activeAssignments.length})
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {assignmentsLoading ? (
-                <div className="space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
-                  ))}
+        {/* Congregation Territory Coverage Progress Gauge */}
+        <Card data-tour="congregation-coverage" className="bg-card border-border shadow-xs overflow-hidden">
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <TrendingUp size={18} />
                 </div>
-              ) : activeAssignments.length === 0 ? (
-                <div className="text-center py-10">
-                  <Compass size={36} className="text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">No territory assigned right now.</p>
-                  <Button asChild variant="outline" size="sm" className="mt-3 text-xs rounded-xl">
-                    <Link href={`/congregation/${congregationId}/territories`}>
-                      Browse Available Territories
+                <div>
+                  <h2 className="text-sm font-bold text-foreground tracking-tight">
+                    Congregation Territory Progress
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {workedDoorsCount} of {totalDoorsCount} door records worked in field service
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-bold px-2.5 py-0.5 border-primary/30 text-primary bg-primary/5"
+                >
+                  {congregationCoveragePercent}% Worked
+                </Badge>
+              </div>
+            </div>
+
+            {/* Visual Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                <div
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  style={{ width: `${congregationCoveragePercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Status Filters */}
+            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+              <Link
+                href={`/congregation/${congregationId}/territories?status=available`}
+                className="p-2.5 rounded-xl bg-background border border-border hover:border-emerald-500/40 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all block group"
+              >
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                  {availableTerritories.length}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Available to Assign</p>
+              </Link>
+              <Link
+                href={`/congregation/${congregationId}/territories?status=assigned`}
+                className="p-2.5 rounded-xl bg-background border border-border hover:border-blue-500/40 hover:bg-blue-50/20 dark:hover:bg-blue-950/20 transition-all block group"
+              >
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+                  {inWorkTerritoriesCount}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Active in Work</p>
+              </Link>
+              <Link
+                href={`/congregation/${congregationId}/territories?status=overdue`}
+                className="p-2.5 rounded-xl bg-background border border-border hover:border-rose-500/40 hover:bg-rose-50/20 dark:hover:bg-rose-950/20 transition-all block group"
+              >
+                <p className="text-xs font-bold text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+                  {overdueTerritoriesCount}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Overdue (&gt;4 mos)</p>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main 2-Column Action & Record Hub */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Column 1 & 2: Active Assignments + Return Visits */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* My Active Working Territories */}
+            <Card
+              data-tour="active-assignments"
+              className="bg-card border-border shadow-xs overflow-hidden"
+            >
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Compass size={16} className="text-primary" />
+                  <span>My Active Assignments</span>
+                </CardTitle>
+                <Button asChild variant="ghost" size="sm" className="text-xs h-8">
+                  <Link href={`/congregation/${congregationId}/my-assignments`}>
+                    View All ({activeAssignments.length})
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {assignmentsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />
+                    ))}
+                  </div>
+                ) : activeAssignments.length === 0 ? (
+                  <div className="text-center py-8 px-4 rounded-2xl bg-muted/20 border border-dashed border-border">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                      <Compass size={24} />
+                    </div>
+                    <p className="text-sm font-bold text-foreground">Ready for field ministry?</p>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1">
+                      You don&apos;t have any active territories checked out right now. Browse available zones or check your return visits.
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+                      <Button asChild size="sm" className="rounded-xl text-xs font-semibold gap-1.5 shadow-xs">
+                        <Link href={`/congregation/${congregationId}/territories?status=available`}>
+                          <Compass size={14} />
+                          <span>Browse Available Territories</span>
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="rounded-xl text-xs font-semibold">
+                        <Link href={`/congregation/${congregationId}/records/households`}>
+                          <span>View Door Records</span>
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeAssignments.map((assignment) => {
+                      const terr = territoryMap.get(assignment.territoryId);
+                      const number = terr?.number || assignment.territoryNumber || '—';
+                      const name = terr?.name || assignment.territoryName || 'Territory';
+                      const cov = coverageByTerritoryId.get(assignment.territoryId) || {
+                        totalDoors: 0,
+                        workedDoors: 0,
+                        coveragePercent: 0,
+                      };
+
+                      return (
+                        <div
+                          key={assignment.id}
+                          className="p-4 rounded-2xl border border-border bg-background space-y-3 hover:border-primary/40 transition-all min-w-0 shadow-2xs"
+                        >
+                          <div className="flex items-start justify-between gap-3 min-w-0">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                <Link
+                                  href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                                  className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate"
+                                  title={`#${number} — ${name}`}
+                                >
+                                  #{number} — {name}
+                                </Link>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0"
+                                >
+                                  Working
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
+                                <Clock size={12} className="shrink-0 text-muted-foreground/70" />
+                                <span>
+                                  Assigned {assignment.assignedAt ? formatDaysAgo(assignment.assignedAt) : 'recently'}
+                                </span>
+                                {assignment.assignedAt && (
+                                  <span className="text-muted-foreground/60 hidden sm:inline">
+                                    • {formatDate(assignment.assignedAt)}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+
+                            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs">
+                              <Link
+                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                              >
+                                <MapPin size={13} />
+                                <span>Open Map</span>
+                              </Link>
+                            </Button>
+                          </div>
+
+                          {/* Door Coverage Progress Bar */}
+                          {cov.totalDoors > 0 ? (
+                            <div className="space-y-1 pt-1 border-t border-border/60">
+                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>
+                                  {cov.workedDoors} of {cov.totalDoors} doors completed
+                                </span>
+                                <span className="font-semibold text-foreground">
+                                  {cov.coveragePercent}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                  style={{ width: `${cov.coveragePercent}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="pt-1 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                              <span>No door records registered yet</span>
+                              <Link
+                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
+                                className="text-primary hover:underline text-[11px] font-semibold"
+                              >
+                                Add first door →
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* My Return Visits & Follow-Up Reminders */}
+            {myReturnVisits.length > 0 && (
+              <Card className="bg-card border-border shadow-xs overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <UserCheck size={16} className="text-purple-600 dark:text-purple-400" />
+                    <span>My Return Visits & Follow-ups</span>
+                  </CardTitle>
+                  <Button asChild variant="ghost" size="sm" className="text-xs h-8">
+                    <Link href={`/congregation/${congregationId}/records/households?filter=return_visit`}>
+                      View All
                     </Link>
                   </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {activeAssignments.map((assignment) => {
-                    const terr = territoryMap.get(assignment.territoryId);
-                    const number = terr?.number || assignment.territoryNumber || '—';
-                    const name = terr?.name || assignment.territoryName || 'Territory';
-
+                </CardHeader>
+                <CardContent className="space-y-2.5">
+                  {myReturnVisits.map((h) => {
+                    const terr = h.territoryId ? territoryMap.get(h.territoryId) : null;
                     return (
                       <div
-                        key={assignment.id}
-                        className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all min-w-0"
+                        key={h.id}
+                        className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 hover:border-purple-400/40 transition-all"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start gap-2 min-w-0">
-                            <p
-                              className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words"
-                              title={`#${number} — ${name}`}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/congregation/${congregationId}/records/households/${h.id}`}
+                              className="font-bold text-xs text-foreground hover:text-primary transition-colors truncate"
                             >
-                              #{number} — {name}
-                            </p>
+                              {h.houseNumber ? `#${h.houseNumber} ` : ''}
+                              {h.streetName || h.address || 'Household'}
+                            </Link>
                             <Badge
                               variant="outline"
-                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0 mt-0.5"
+                              className="text-[9px] uppercase font-bold text-purple-700 bg-purple-50 dark:bg-purple-950/40 border-purple-200"
                             >
-                              Working
+                              {h.status === 'return_visit' ? 'Return Visit' : h.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            Assigned on{' '}
-                            {assignment.assignedAt
-                              ? formatDate(assignment.assignedAt)
-                              : 'Recently'}
+                          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                            {terr ? `#${terr.number} — ${terr.name} • ` : ''}
+                            {h.lastVisitDate ? `Visited ${timeAgo(h.lastVisitDate)}` : 'No recent visit'}
                           </p>
+                          {h.notes && (
+                            <p className="text-[10px] text-muted-foreground/80 italic line-clamp-1 mt-0.5">
+                              &ldquo;{h.notes}&rdquo;
+                            </p>
+                          )}
                         </div>
 
-                        <Button asChild size="sm" className="rounded-xl text-xs gap-1 shrink-0">
-                          <Link
-                            href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                          >
-                            <MapPin size={13} />
-                            <span>Open Map</span>
-                          </Link>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setLogVisitHousehold(h)}
+                          className="rounded-xl text-xs gap-1 h-8 px-2.5 shrink-0 hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-950/40"
+                        >
+                          <Plus size={12} />
+                          <span>Log Visit</span>
                         </Button>
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-          {/* Quick Hub Navigator */}
-          <Card data-tour="records-hub" className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <FileText size={16} className="text-primary" />
-                <span>Records & Workspace</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link
-                href={`/congregation/${congregationId}/records/households`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Home size={15} />
+          {/* Column 3: Records Hub Navigator & Quick Links */}
+          <div className="space-y-6">
+            {/* Records Hub */}
+            <Card data-tour="records-hub" className="bg-card border-border shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <FileText size={16} className="text-primary" />
+                  <span>Records & Directory</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link
+                  href={`/congregation/${congregationId}/records/households`}
+                  className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                      <Home size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+                        Household Directory
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {households.length} door records
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Household Directory</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {households.length} door records
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
+                  <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </Link>
 
-              <Link
-                href={`/congregation/${congregationId}/records/visits`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-green-500/10 text-green-600">
-                    <CheckCircle2 size={15} />
+                <Link
+                  href={`/congregation/${congregationId}/records/visits`}
+                  className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                      <CheckCircle2 size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        Visit History
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Door-to-door logs</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Visit History</p>
-                    <p className="text-[10px] text-muted-foreground">Door-to-door logs</p>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
+                  <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </Link>
 
-              <Link
-                href={`/congregation/${congregationId}/records/shared`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
-                    <Users size={15} />
+                <Link
+                  href={`/congregation/${congregationId}/records/shared`}
+                  className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+                      <Users size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                        Shared Records
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Collaborate with publishers</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Shared Records</p>
-                    <p className="text-[10px] text-muted-foreground">Collaborate with publishers</p>
+                  <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Ministry Resources & Help */}
+            <Card className="bg-card border-border shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Sparkles size={16} className="text-amber-500" />
+                  <span>Ministry Resources</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link
+                  href={`/congregation/${congregationId}/territories/overview`}
+                  className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+                      <Compass size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+                        Congregation Map
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">All boundary zones</p>
+                    </div>
                   </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
-            </CardContent>
-          </Card>
+                  <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </Link>
+
+                <Link
+                  href={`/congregation/${congregationId}/groups`}
+                  className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-105 transition-transform">
+                      <FolderOpen size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+                        Service Groups
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">{groups.length} groups arranged</p>
+                    </div>
+                  </div>
+                  <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => tour.startTour()}
+                  className="w-full flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all group cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+                      <HelpCircle size={15} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+                        Tour Guide
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">Interactive walkthrough</p>
+                    </div>
+                  </div>
+                  <Sparkles size={14} className="text-amber-500" />
+                </button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
+
+      {/* Household Quick Log Visit Sheet */}
+      {logVisitHousehold && (
+        <HouseholdLogVisitSheet
+          open={Boolean(logVisitHousehold)}
+          onOpenChange={(open) => {
+            if (!open) setLogVisitHousehold(null);
+          }}
+          household={logVisitHousehold}
+          assignmentId={logVisitHousehold.territoryId || null}
+          onSaved={() => setLogVisitHousehold(null)}
+        />
+      )}
+
       <BottomTabBar />
       <DashboardTourGuide
         isOpen={tour.isOpen}

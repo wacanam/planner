@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,6 +10,9 @@ interface StatCardProps {
   icon?: LucideIcon;
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'red' | 'gray';
   loading?: boolean;
+  href?: string;
+  onClick?: () => void;
+  className?: string;
 }
 
 const colorStyles: Record<string, { bg: string; text: string }> = {
@@ -45,18 +49,37 @@ export function StatCard({
   icon: Icon,
   color = 'blue',
   loading = false,
+  href,
+  onClick,
+  className = '',
 }: StatCardProps) {
   const currentStyle = colorStyles[color] ?? colorStyles.blue;
+  const isInteractive = Boolean(href || onClick);
 
-  return (
-    <Card className="bg-card border-border shadow-xs hover:border-border/80 transition-colors">
-      <CardContent className="p-5">
+  const content = (
+    <Card
+      className={`bg-card border-border shadow-xs transition-all duration-150 ${
+        isInteractive
+          ? 'hover:border-primary/40 hover:shadow-sm cursor-pointer group hover:-translate-y-0.5'
+          : 'hover:border-border/80'
+      } ${className}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <p
+            className={`text-xs font-medium text-muted-foreground uppercase tracking-wider ${
+              isInteractive ? 'group-hover:text-foreground transition-colors' : ''
+            }`}
+          >
             {title}
           </p>
           {Icon && (
-            <div className={`p-2 rounded-xl ${currentStyle.bg}`}>
+            <div
+              className={`p-2 rounded-xl transition-transform ${currentStyle.bg} ${
+                isInteractive ? 'group-hover:scale-105' : ''
+              }`}
+            >
               <Icon size={16} />
             </div>
           )}
@@ -67,9 +90,27 @@ export function StatCard({
           ) : (
             <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{value}</p>
           )}
-          {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
+          {description && (
+            <p
+              className={`text-xs text-muted-foreground mt-1 truncate ${
+                isInteractive ? 'group-hover:text-foreground/90 transition-colors' : ''
+              }`}
+            >
+              {description}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

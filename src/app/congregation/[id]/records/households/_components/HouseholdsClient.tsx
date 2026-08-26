@@ -86,7 +86,15 @@ const statusColors: Record<string, string> = {
 export default function HouseholdsClient() {
   const router = useRouter();
   const params = useParams();
-  const _searchParams = useSearchParams();
+  const searchParams = useSearchParams();
+  const rawFilter = searchParams?.get('filter') || searchParams?.get('status');
+  const initialFilter =
+    rawFilter === 'unpinned' || rawFilter === 'needs_pinning'
+      ? 'needs_pinning'
+      : rawFilter && Object.keys(statusLabels).includes(rawFilter)
+        ? rawFilter
+        : 'all';
+
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const { groups = [] } = useCongregationGroups(congregationId);
@@ -98,10 +106,12 @@ export default function HouseholdsClient() {
   );
 
   type RecordScope = 'mine' | 'group' | 'congregation';
-  const [recordScope, setRecordScope] = useState<RecordScope>('mine');
+  const [recordScope, setRecordScope] = useState<RecordScope>(
+    (searchParams?.get('scope') as RecordScope) || 'mine'
+  );
   const [publisherFilter, setPublisherFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilter);
   const [_selectedHousehold, _setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
   const [encounterHousehold, setEncounterHousehold] = useState<Household | null>(null);

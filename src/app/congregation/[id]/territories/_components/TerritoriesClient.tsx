@@ -26,7 +26,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -194,8 +194,14 @@ export default function TerritoriesClient() {
     return map;
   }, [households]);
 
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams?.get('status');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(
+    initialStatus && ['available', 'assigned', 'pending', 'completed', 'overdue'].includes(initialStatus)
+      ? initialStatus
+      : 'all'
+  );
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editTerritory, setEditTerritory] = useState<Territory | null>(null);
