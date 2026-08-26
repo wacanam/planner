@@ -17,6 +17,7 @@ import {
   canViewReports,
   filterActiveAssignments,
   getUserGroupIds,
+  getUserGroupMateIds,
   hasPermission,
   hasRole,
   isCircuitOverseer,
@@ -285,6 +286,67 @@ describe('Group Roles and Territory Return Permissions', () => {
     // getUserGroupIds returns empty set for outsider
     const outsiderGroups = getUserGroupIds({ id: 'user-outsider' }, groupsList);
     expect(outsiderGroups.has('g-2')).toBe(false);
+  });
+
+  describe('getUserGroupMateIds', () => {
+    const mockGroups = [
+      {
+        id: 'group-1',
+        overseerId: 'user-overseer-1',
+        assistantOverseerId: 'user-assistant-1',
+        members: [
+          { userId: 'user-pub-a', role: 'member' },
+          { userId: 'user-pub-b', role: 'member' },
+        ],
+      },
+      {
+        id: 'group-2',
+        overseerId: 'user-overseer-2',
+        assistantOverseerId: null,
+        members: [{ userId: 'user-pub-c', role: 'member' }],
+      },
+    ];
+
+    it('returns all group members for a regular publisher belonging to the group', () => {
+      const mates = getUserGroupMateIds({ id: 'user-pub-a' }, mockGroups);
+      expect(mates.has('user-pub-a')).toBe(true);
+      expect(mates.has('user-pub-b')).toBe(true);
+      expect(mates.has('user-overseer-1')).toBe(true);
+      expect(mates.has('user-assistant-1')).toBe(true);
+      // Group 2 member should not be included
+      expect(mates.has('user-pub-c')).toBe(false);
+    });
+
+    it('returns all group members for a Group Overseer', () => {
+      const mates = getUserGroupMateIds({ id: 'user-overseer-1' }, mockGroups);
+      expect(mates.has('user-overseer-1')).toBe(true);
+      expect(mates.has('user-assistant-1')).toBe(true);
+      expect(mates.has('user-pub-a')).toBe(true);
+      expect(mates.has('user-pub-b')).toBe(true);
+      expect(mates.has('user-pub-c')).toBe(false);
+    });
+
+    it('returns group members when user is linked via explicit groupId or congregationMembers', () => {
+      const congregationMembers = [
+        { id: 'cm-1', userId: 'user-pub-d', groupId: 'group-1' },
+      ];
+      // user-pub-d linked via congregationMembers
+      const mates = getUserGroupMateIds(
+        { id: 'user-pub-d' },
+        mockGroups,
+        congregationMembers
+      );
+      expect(mates.has('user-pub-d')).toBe(true);
+      expect(mates.has('user-pub-a')).toBe(true);
+      expect(mates.has('user-overseer-1')).toBe(true);
+    });
+
+    it('returns only the user ID or empty for a user with no group assignment', () => {
+      const mates = getUserGroupMateIds({ id: 'user-lonely' }, mockGroups);
+      expect(mates.has('user-lonely')).toBe(true);
+      expect(mates.has('user-pub-a')).toBe(false);
+      expect(mates.has('user-overseer-1')).toBe(false);
+    });
   });
 });
 

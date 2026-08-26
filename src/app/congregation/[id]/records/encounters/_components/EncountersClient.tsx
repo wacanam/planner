@@ -34,10 +34,10 @@ import {
   useCongregationGroups,
   useCongregationMembers,
   useCurrentUser,
+  useGroupMateUserIds,
   useHouseholds,
   useKeyboardShortcuts,
   useMyEncounters,
-  useOverseenGroupMates,
 } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { formatDate } from '@/lib/date-utils';
@@ -72,24 +72,25 @@ export default function EncountersClient() {
   const params = useParams();
   const { user } = useCurrentUser();
   const congregationId = (params?.id as string) || user?.congregationId || '';
-  const groupMateUserIds = useOverseenGroupMates(
+  const { groups = [] } = useCongregationGroups(congregationId);
+  const { data: members = [] } = useCongregationMembers(congregationId);
+  const groupMateUserIds = useGroupMateUserIds(
     congregationId,
-    user?.id,
+    user,
     user?.role,
-    user?.congregationRole
+    user?.congregationRole,
+    members
   );
 
   type RecordScope = 'mine' | 'group' | 'congregation';
   const [recordScope, setRecordScope] = useState<RecordScope>('mine');
   const [publisherFilter, setPublisherFilter] = useState<string>('all');
 
-  const { data: members = [] } = useCongregationMembers(congregationId);
-
   const canViewCongregation = useMemo(() => {
     return canViewAllCongregationRecords(user?.role, user?.congregationRole);
   }, [user?.role, user?.congregationRole]);
 
-  const isGroupLeader = useMemo(() => {
+  const hasGroup = useMemo(() => {
     return Boolean(groupMateUserIds && groupMateUserIds.size > 0);
   }, [groupMateUserIds]);
 
@@ -97,14 +98,14 @@ export default function EncountersClient() {
     const list: { id: RecordScope; label: string; icon: string }[] = [
       { id: 'mine', label: 'My Encounters', icon: '★' },
     ];
-    if (isGroupLeader || canViewCongregation) {
+    if (hasGroup || canViewCongregation) {
       list.push({ id: 'group', label: 'My Group', icon: '👥' });
     }
     if (canViewCongregation) {
       list.push({ id: 'congregation', label: 'All Congregation', icon: '🏛️' });
     }
     return list;
-  }, [isGroupLeader, canViewCongregation]);
+  }, [hasGroup, canViewCongregation]);
 
   const { encounters = [], isLoading } = useMyEncounters({
     congregationId,
@@ -125,6 +126,55 @@ export default function EncountersClient() {
     groupMateUserIds,
   });
 
+  const availablePublishers = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // 1. From members
+    for (const m of members) {
+      const uid = m.userId || m.id;
+      if (!uid) continue;
+      if (recordScope === 'group' && !groupMateUserIds.has(uid)) continue;
+      const name = m.user?.name || m.user?.email || 'Publisher';
+      map.set(uid, name);
+    }
+
+    // 2. From groups if group scope
+    if (recordScope === 'group') {
+      for (const g of groups) {
+        if (g.overseerId && groupMateUserIds.has(g.overseerId) && !map.has(g.overseerId)) {
+          map.set(g.overseerId, g.overseerName || 'Group Overseer');
+        }
+        if (
+          g.assistantOverseerId &&
+          groupMateUserIds.has(g.assistantOverseerId) &&
+          !map.has(g.assistantOverseerId)
+        ) {
+          map.set(g.assistantOverseerId, g.assistantOverseerName || 'Assistant Overseer');
+        }
+        for (const gm of g.members || []) {
+          const uid = gm.userId || gm.id;
+          if (uid && groupMateUserIds.has(uid) && !map.has(uid)) {
+            map.set(uid, gm.user?.name || gm.user?.email || 'Publisher');
+          }
+        }
+      }
+    }
+
+    // Ensure current user is in map if in group scope or congregation scope
+    if (user?.id && !map.has(user.id)) {
+      if (recordScope !== 'group' || groupMateUserIds.has(user.id)) {
+        map.set(user.id, user.name || 'You');
+      }
+    }
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({
+        id,
+        name: id === user?.id ? `${name} (You)` : name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, groups, recordScope, groupMateUserIds, user]);
+
   const [viewMode, setViewMode] = useState<'timeline' | 'contacts'>('timeline');
   const [expandedContactKeys, setExpandedContactKeys] = useState<Set<string>>(new Set());
   const [presetContact, setPresetContact] = useState<HouseholdContactSummary | null>(null);
@@ -134,7 +184,6 @@ export default function EncountersClient() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editEncounter, setEditEncounter] = useState<Encounter | null>(null);
   const [editingEncounter, setEditingEncounter] = useState(false);
-  const { groups = [] } = useCongregationGroups(congregationId);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -478,20 +527,11 @@ export default function EncountersClient() {
               className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
             >
               <option value="all">All Publishers</option>
-              {members
-                .filter((m) => {
-                  const uid = m.userId || m.id;
-                  if (recordScope === 'group') return groupMateUserIds.has(uid);
-                  return true;
-                })
-                .map((m) => {
-                  const uid = m.userId || m.id;
-                  return (
-                    <option key={m.id} value={uid}>
-                      {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
-                    </option>
-                  );
-                })}
+              {availablePublishers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
           )}
 

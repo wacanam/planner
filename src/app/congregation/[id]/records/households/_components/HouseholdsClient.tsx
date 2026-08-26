@@ -31,10 +31,10 @@ import {
   useCongregationMembers,
   useCongregationTerritories,
   useCurrentUser,
+  useGroupMateUserIds,
   useHouseholds,
   useKeyboardShortcuts,
   useMyVisits,
-  useOverseenGroupMates,
 } from '@/hooks';
 import { findDuplicateHouseholdByNumber } from '@/lib/households';
 import {
@@ -83,6 +83,22 @@ const statusColors: Record<string, string> = {
   inactive: 'text-muted-foreground border-border bg-muted/30',
 };
 
+const statusTabs: { id: string; label: string; icon?: string; dot?: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'needs_pinning', label: 'Needs Pinning', icon: '📍' },
+  { id: 'active', label: 'Active', dot: 'bg-green-500' },
+  { id: 'not_home', label: 'Not Home', dot: 'bg-amber-500' },
+  { id: 'busy', label: 'Busy / Call Back', dot: 'bg-orange-500' },
+  { id: 'return_visit', label: 'Return Visit', dot: 'bg-purple-500' },
+  { id: 'new', label: 'New Record', dot: 'bg-slate-400' },
+  { id: 'foreign_language', label: 'Foreign Language', dot: 'bg-cyan-500' },
+  { id: 'vacant', label: 'Vacant', dot: 'bg-slate-500' },
+  { id: 'inaccessible', label: 'Inaccessible', dot: 'bg-stone-500' },
+  { id: 'do_not_visit', label: 'Do Not Visit', dot: 'bg-red-500' },
+  { id: 'moved', label: 'Moved Away', dot: 'bg-stone-400' },
+  { id: 'inactive', label: 'Inactive / Archived', dot: 'bg-stone-400' },
+];
+
 export default function HouseholdsClient() {
   const router = useRouter();
   const params = useParams();
@@ -91,18 +107,20 @@ export default function HouseholdsClient() {
   const initialFilter =
     rawFilter === 'unpinned' || rawFilter === 'needs_pinning'
       ? 'needs_pinning'
-      : rawFilter && Object.keys(statusLabels).includes(rawFilter)
+      : rawFilter && (Object.keys(statusLabels).includes(rawFilter) || rawFilter === 'all')
         ? rawFilter
         : 'all';
 
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const { groups = [] } = useCongregationGroups(congregationId);
-  const groupMateUserIds = useOverseenGroupMates(
+  const { data: members = [] } = useCongregationMembers(congregationId);
+  const groupMateUserIds = useGroupMateUserIds(
     congregationId,
-    user?.id,
+    user,
     user?.role,
-    user?.congregationRole
+    user?.congregationRole,
+    members
   );
 
   type RecordScope = 'mine' | 'group' | 'congregation';
@@ -123,13 +141,11 @@ export default function HouseholdsClient() {
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: members = [] } = useCongregationMembers(congregationId);
-
   const canViewCongregation = useMemo(() => {
     return canViewAllCongregationRecords(user?.role, user?.congregationRole);
   }, [user?.role, user?.congregationRole]);
 
-  const isGroupLeader = useMemo(() => {
+  const hasGroup = useMemo(() => {
     return Boolean(groupMateUserIds && groupMateUserIds.size > 0);
   }, [groupMateUserIds]);
 
@@ -137,14 +153,14 @@ export default function HouseholdsClient() {
     const list: { id: RecordScope; label: string; icon: string }[] = [
       { id: 'mine', label: 'My Records', icon: '★' },
     ];
-    if (isGroupLeader || canViewCongregation) {
+    if (hasGroup || canViewCongregation) {
       list.push({ id: 'group', label: 'My Group', icon: '👥' });
     }
     if (canViewCongregation) {
       list.push({ id: 'congregation', label: 'All Congregation', icon: '🏛️' });
     }
     return list;
-  }, [isGroupLeader, canViewCongregation]);
+  }, [hasGroup, canViewCongregation]);
 
   const { households = [], isLoading } = useHouseholds({
     congregationId,
@@ -155,6 +171,63 @@ export default function HouseholdsClient() {
     publisherId: publisherFilter !== 'all' ? publisherFilter : null,
     groupMateUserIds,
   });
+
+  const availablePublishers = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // 1. From members
+    for (const m of members) {
+      const uid = m.userId || m.id;
+      if (!uid) continue;
+      if (recordScope === 'group' && !groupMateUserIds.has(uid)) continue;
+      const name = m.user?.name || m.user?.email || 'Publisher';
+      map.set(uid, name);
+    }
+
+    // 2. From groups if group scope
+    if (recordScope === 'group') {
+      for (const g of groups) {
+        if (g.overseerId && groupMateUserIds.has(g.overseerId) && !map.has(g.overseerId)) {
+          map.set(g.overseerId, g.overseerName || 'Group Overseer');
+        }
+        if (
+          g.assistantOverseerId &&
+          groupMateUserIds.has(g.assistantOverseerId) &&
+          !map.has(g.assistantOverseerId)
+        ) {
+          map.set(g.assistantOverseerId, g.assistantOverseerName || 'Assistant Overseer');
+        }
+        for (const gm of g.members || []) {
+          const uid = gm.userId || gm.id;
+          if (uid && groupMateUserIds.has(uid) && !map.has(uid)) {
+            map.set(uid, gm.user?.name || gm.user?.email || 'Publisher');
+          }
+        }
+      }
+    }
+
+    // 3. From households creator names if present
+    for (const h of households as Household[]) {
+      if (h.createdById && !map.has(h.createdById)) {
+        if (recordScope === 'group' && !groupMateUserIds.has(h.createdById)) continue;
+        map.set(h.createdById, h.creatorName || 'Publisher');
+      }
+    }
+
+    // Ensure current user is in map if in group scope or congregation scope
+    if (user?.id && !map.has(user.id)) {
+      if (recordScope !== 'group' || groupMateUserIds.has(user.id)) {
+        map.set(user.id, user.name || 'You');
+      }
+    }
+
+    return Array.from(map.entries())
+      .map(([id, name]) => ({
+        id,
+        name: id === user?.id ? `${name} (You)` : name,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, groups, households, recordScope, groupMateUserIds, user]);
   const { data: territories = [] } = useCongregationTerritories(congregationId);
   const { visits: allVisits = [] } = useMyVisits({
     congregationId,
@@ -229,6 +302,30 @@ export default function HouseholdsClient() {
       return (a.streetName || a.address).localeCompare(b.streetName || b.address);
     });
   }, [households, search, statusFilter, user?.id]);
+
+  const statusCounts = useMemo(() => {
+    let baseList = households as Household[];
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      baseList = baseList.filter(
+        (h) =>
+          h.address.toLowerCase().includes(s) ||
+          h.streetName.toLowerCase().includes(s) ||
+          h.city.toLowerCase().includes(s) ||
+          h.creatorName?.toLowerCase().includes(s)
+      );
+    }
+    const counts: Record<string, number> = {
+      all: baseList.length,
+      needs_pinning: baseList.filter((h) => !h.latitude || !h.longitude).length,
+    };
+    for (const h of baseList) {
+      if (h.status) {
+        counts[h.status] = (counts[h.status] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [households, search]);
 
   const handleCreateHousehold = async (values: HouseholdFormValues) => {
     const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, households);
@@ -478,58 +575,74 @@ export default function HouseholdsClient() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            ref={searchInputRef}
-            placeholder="Search address, street, or publisher… (/)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 rounded-xl text-xs"
-          />
+      <div className="space-y-2.5">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search address, street, or publisher… (/)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 rounded-xl text-xs"
+            />
+          </div>
+
+          {recordScope !== 'mine' && (
+            <select
+              value={publisherFilter}
+              onChange={(e) => setPublisherFilter(e.target.value)}
+              className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+            >
+              <option value="all">All Publishers</option>
+              {availablePublishers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {recordScope !== 'mine' && (
-          <select
-            value={publisherFilter}
-            onChange={(e) => setPublisherFilter(e.target.value)}
-            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
-          >
-            <option value="all">All Publishers</option>
-            {members
-              .filter((m) => {
-                const uid = m.userId || m.id;
-                if (recordScope === 'group') return groupMateUserIds.has(uid);
-                return true;
-              })
-              .map((m) => {
-                const uid = m.userId || m.id;
-                return (
-                  <option key={m.id} value={uid}>
-                    {m.user?.name || 'Publisher'} {uid === user?.id ? '(You)' : ''}
-                  </option>
-                );
-              })}
-          </select>
-        )}
-
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
-        >
-          <option value="all">All statuses</option>
-          <option value="needs_pinning">📍 Needs Pinning</option>
-          {Object.entries(statusLabels).map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
+        {/* Scrollable Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden w-full">
+          {statusTabs.map((tab) => {
+            const isSelected = statusFilter === tab.id;
+            const count = statusCounts[tab.id] || 0;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium shrink-0 transition-all border cursor-pointer ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
+                    : 'bg-card text-muted-foreground hover:text-foreground border-border hover:border-border/80'
+                }`}
+              >
+                {tab.icon && <span>{tab.icon}</span>}
+                {tab.dot && (
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground' : tab.dot}`}
+                  />
+                )}
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                    isSelected
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Household List */}

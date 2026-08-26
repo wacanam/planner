@@ -13,9 +13,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
-import { getOverseenGroupMateIds, getUserGroupIds } from '@/lib/permissions';
+import { getOverseenGroupMateIds, getUserGroupIds, getUserGroupMateIds } from '@/lib/permissions';
 import { AssignmentStatus } from '@/lib/roles';
-import type { Group, GroupMember } from '@/types/api';
+import type { Group, GroupMember, Member } from '@/types/api';
 
 function groupCollection() {
   return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.groups);
@@ -107,6 +107,33 @@ export function useOverseenGroupMates(
   return useMemo(
     () => getOverseenGroupMateIds(userId, groups, userRole, congregationRole),
     [userId, groups, userRole, congregationRole]
+  );
+}
+
+/**
+ * Returns a Set of all member user IDs across all groups the user belongs to (as member, overseer, assistant) or oversees.
+ */
+export function useGroupMateUserIds(
+  congregationId: string | null | undefined,
+  user:
+    | {
+        id?: string | null;
+        email?: string | null;
+        groupId?: string | null;
+        role?: string | null;
+        congregationRole?: string | null;
+      }
+    | string
+    | null
+    | undefined,
+  userRole?: string | null,
+  congregationRole?: string | null,
+  congregationMembers?: Member[]
+): Set<string> {
+  const { groups = [] } = useCongregationGroups(congregationId);
+  return useMemo(
+    () => getUserGroupMateIds(user, groups, congregationMembers, userRole, congregationRole),
+    [user, groups, congregationMembers, userRole, congregationRole]
   );
 }
 

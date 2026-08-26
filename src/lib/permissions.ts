@@ -537,6 +537,114 @@ export function getUserGroupIds(
 }
 
 /**
+ * Returns a Set of all member user IDs across all groups that the user belongs to (as overseer, assistant, or member)
+ * or oversees. Also incorporates any congregationMembers records linked to those groups.
+ */
+export function getUserGroupMateIds(
+  user:
+    | {
+        id?: string | null;
+        email?: string | null;
+        groupId?: string | null;
+        role?: string | null;
+        congregationRole?: string | null;
+      }
+    | string
+    | null
+    | undefined,
+  groups: Array<{
+    id?: string;
+    overseerId?: string | null;
+    assistantOverseerId?: string | null;
+    members?: Array<{
+      userId?: string | null;
+      id?: string | null;
+      role?: string | null;
+      user?: { email?: string | null } | null;
+    }>;
+  }> = [],
+  congregationMembers: Array<{
+    id?: string;
+    userId?: string | null;
+    groupId?: string | null;
+    user?: { email?: string | null } | null;
+  }> = [],
+  userRole?: string | null,
+  congregationRole?: string | null
+): Set<string> {
+  const mateIds = new Set<string>();
+  const userObj = typeof user === 'string' ? { id: user } : user;
+  const uid = userObj?.id?.trim();
+  if (!uid && !userObj?.email && !userObj?.groupId) return mateIds;
+
+  const effectiveUserRole = userRole || userObj?.role;
+  const effectiveCongRole = congregationRole || userObj?.congregationRole;
+
+  // 1. Identify which groups the user belongs to or oversees
+  const userGroupIds = new Set<string>();
+  if (userObj?.groupId) {
+    userGroupIds.add(userObj.groupId);
+  }
+
+  // Also check congregationMembers if user is mapped to a groupId
+  if (uid || userObj?.email) {
+    for (const cm of congregationMembers) {
+      const cmUid = (cm.userId || cm.id)?.trim();
+      const cmEmail = cm.user?.email?.trim().toLowerCase();
+      const isMatch =
+        (uid && cmUid === uid) ||
+        Boolean(userObj?.email && cmEmail && cmEmail === userObj.email.trim().toLowerCase());
+      if (isMatch && cm.groupId) {
+        userGroupIds.add(cm.groupId);
+      }
+    }
+  }
+
+  for (const group of groups) {
+    if (!group) continue;
+    const isMemberOfGroup = isUserInGroup(userObj, group);
+    const isLeaderOfGroup = uid
+      ? isGroupLeader(uid, group, effectiveUserRole, effectiveCongRole)
+      : false;
+    const isExplicitGroup = Boolean(group.id && userGroupIds.has(group.id));
+
+    if (isMemberOfGroup || isLeaderOfGroup || isExplicitGroup) {
+      if (group.id) {
+        userGroupIds.add(group.id);
+      }
+      if (group.members) {
+        for (const member of group.members) {
+          const mUid = (member.userId || member.id)?.trim();
+          if (mUid) mateIds.add(mUid);
+        }
+      }
+      if (group.overseerId?.trim()) {
+        mateIds.add(group.overseerId.trim());
+      }
+      if (group.assistantOverseerId?.trim()) {
+        mateIds.add(group.assistantOverseerId.trim());
+      }
+    }
+  }
+
+  // Also collect members from congregationMembers that belong to user's groups
+  if (userGroupIds.size > 0 && congregationMembers.length > 0) {
+    for (const cm of congregationMembers) {
+      if (cm.groupId && userGroupIds.has(cm.groupId)) {
+        const cmUid = (cm.userId || cm.id)?.trim();
+        if (cmUid) mateIds.add(cmUid);
+      }
+    }
+  }
+
+  if (uid) {
+    mateIds.add(uid);
+  }
+
+  return mateIds;
+}
+
+/**
  * Checks if a user is authorized to return an assigned territory:
  * - Personal assignees can return their own personal assignments.
  * - Group Overseers can return assignments for their service group.
