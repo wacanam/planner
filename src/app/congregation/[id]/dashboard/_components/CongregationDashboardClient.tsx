@@ -234,36 +234,15 @@ export default function CongregationDashboardClient() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-            {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
+            {canManageTerritories && (
               <Button
                 asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
-              >
-                <Link
-                  href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
-                >
-                  <MapPin size={15} />
-                  <span>Launch Territory Studio</span>
-                </Link>
-              </Button>
-            ) : canManageTerritories ? (
-              <Button
-                asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
+                variant="outline"
+                className="rounded-2xl text-xs font-semibold gap-1.5 shadow-2xs h-9 px-3.5 bg-card/80 hover:bg-muted border-border shrink-0"
               >
                 <Link href={`/congregation/${congregationId}/territories`}>
-                  <MapPin size={15} />
+                  <Compass size={14} className="text-primary" />
                   <span>Manage Territories</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-xs h-10 px-4 shrink-0"
-              >
-                <Link href={`/congregation/${congregationId}/territories?status=available`}>
-                  <Compass size={15} />
-                  <span>Browse Available ({availableTerritories.length})</span>
                 </Link>
               </Button>
             )}
@@ -273,11 +252,11 @@ export default function CongregationDashboardClient() {
               variant="outline"
               size="sm"
               onClick={() => tour.startTour()}
-              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3 bg-card/80 hover:bg-muted border-border hover:border-primary/40 transition-all cursor-pointer shrink-0"
+              className="rounded-2xl text-xs font-semibold gap-1.5 h-9 px-3 bg-card/80 hover:bg-muted border-border hover:border-primary/40 transition-all cursor-pointer shrink-0"
               title="Start guided tour of Kanataran"
             >
               <Sparkles size={14} className="text-amber-500" />
-              <span className="hidden sm:inline">Tour</span>
+              <span>Tour Guide</span>
             </Button>
           </div>
         </div>
