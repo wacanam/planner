@@ -34,14 +34,11 @@ import {
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household } from '@/types/api';
-import { ActiveTerritoryHUD } from './ActiveTerritoryHUD';
+import { DashboardHeroDeck } from './DashboardHeroDeck';
+import { DashboardMetricStrip } from './DashboardMetricStrip';
 import { DashboardProgressGauge } from './DashboardProgressGauge';
-import { DashboardQuickActions } from './DashboardQuickActions';
-import { DashboardStatsGrid } from './DashboardStatsGrid';
-import { DashboardWelcomeBanner } from './DashboardWelcomeBanner';
-import { MinistryResourcesCard } from './MinistryResourcesCard';
 import { RecentActivityFeed } from './RecentActivityFeed';
-import { RecordsHubCard } from './RecordsHubCard';
+import { RecordsAndResourcesDock } from './RecordsAndResourcesDock';
 import { ReturnVisitsCard } from './ReturnVisitsCard';
 import { ServiceArrangementsWidget } from './ServiceArrangementsWidget';
 import type { DashboardContextProps, DashboardRole } from './types';
@@ -375,43 +372,34 @@ export default function CongregationDashboardClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-24 lg:pb-8 w-full min-w-0">
-        {/* 1. Bento Welcome Banner with Role Badge & Interactive Previewer */}
-        <DashboardWelcomeBanner {...contextProps} />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+        {/* 1. Unified Mission Control Hero (Greeting + Role Switcher + Active Field Spotlight) */}
+        <DashboardHeroDeck {...contextProps} />
 
-        {/* 2. 4-item Bento Quick Actions Bar */}
-        <DashboardQuickActions {...contextProps} />
+        {/* 2. Compact Bento Metric Strip (4 high-density interactive cards) */}
+        <DashboardMetricStrip {...contextProps} />
 
-        {/* 3. 4-card Interactive Stats Grid */}
-        <DashboardStatsGrid {...contextProps} />
-
-        {/* 4. Campaign Progress Gauge (Congregation or Group) */}
+        {/* 3. Campaign / Group Progress Gauge */}
         <DashboardProgressGauge {...contextProps} />
 
-        {/* 5. Main 2-Column Bento Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Left Column (2 cols) */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Active Working Territory HUD */}
-            <ActiveTerritoryHUD {...contextProps} />
-
-            {/* Live Recent Activity Feed */}
-            <RecentActivityFeed {...contextProps} />
-
-            {/* Follow-ups & Return Visits */}
+        {/* 4. 2-Column Responsive Bento Grid */}
+        <div className="grid lg:grid-cols-3 gap-5">
+          {/* Main Left Column (2 cols wide) */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* Follow-ups & Return Visits Radar */}
             <ReturnVisitsCard {...contextProps} />
+
+            {/* Live Real-time Ministry Feed */}
+            <RecentActivityFeed {...contextProps} />
           </div>
 
-          {/* Main Right Column (1 col) */}
-          <div className="space-y-6">
+          {/* Main Right Column (1 col wide) */}
+          <div className="space-y-5">
             {/* Service Group & Meeting Arrangements */}
             <ServiceArrangementsWidget {...contextProps} />
 
-            {/* Role-tailored Records Directory Hub */}
-            <RecordsHubCard {...contextProps} />
-
-            {/* Ministry Resources & Walkthrough */}
-            <MinistryResourcesCard {...contextProps} />
+            {/* Combined Records & Ministry Resources Dock */}
+            <RecordsAndResourcesDock {...contextProps} />
           </div>
         </div>
       </main>
