@@ -202,6 +202,17 @@ export function canAdjustAssignmentDates(
   );
 }
 
+/**
+ * Returns true if the user can permanently delete accidental/wrong assignment history.
+ * Only System Admins and Super Admins are allowed to delete historical records.
+ */
+export function canDeleteAssignment(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return isSystemAdmin(role) || isSystemAdmin(congregationRole);
+}
+
 export function canViewReports(role?: string | null, congregationRole?: string | null): boolean {
   return (
     isSystemAdmin(role) ||

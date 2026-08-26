@@ -26,6 +26,7 @@ import {
   Shield,
   Sparkles,
   TrendingUp,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -58,6 +59,7 @@ import {
   useCongregation,
   useCoverageReport,
   useCurrentUser,
+  useDeleteAssignment,
   useDoorAnalyticsReport,
   useGroupsReport,
   usePublishersReport,
@@ -65,7 +67,7 @@ import {
   useUpdateAssignment,
 } from '@/hooks';
 import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
-import { canAdjustAssignmentDates } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canDeleteAssignment } from '@/lib/permissions';
 import {
   exportCoverageToCSV,
   exportGroupsToCSV,
@@ -94,13 +96,16 @@ export default function ReportsClient() {
 
   // S-13 Date Adjustment state
   const [editingS13Record, setEditingS13Record] = useState<S13AssignmentRecord | null>(null);
+  const [deletingS13Record, setDeletingS13Record] = useState<S13AssignmentRecord | null>(null);
   const [editStatus, setEditStatus] = useState<string>('active');
   const [editAssignedAt, setEditAssignedAt] = useState('');
   const [editReturnedAt, setEditReturnedAt] = useState('');
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const { update: updateAssignment, isPending: isUpdatingAssignment } = useUpdateAssignment();
+  const { remove: deleteAssignment, isPending: isDeletingAssignment } = useDeleteAssignment();
   const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
+  const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
 
   // Hooks for reports
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
@@ -120,6 +125,20 @@ export default function ReportsClient() {
     setEditReturnedAt(rec.returnedAt ? rec.returnedAt.slice(0, 10) : '');
     setEditDueAt(rec.dueAt ? rec.dueAt.slice(0, 10) : '');
     setEditNotes('');
+  };
+
+  const handleDeleteS13Record = async () => {
+    if (!deletingS13Record) return;
+    try {
+      await deleteAssignment(deletingS13Record.id);
+      toast.success('Assignment record deleted from S-13 history');
+      if (editingS13Record?.id === deletingS13Record.id) {
+        setEditingS13Record(null);
+      }
+      setDeletingS13Record(null);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete assignment record');
+    }
   };
 
   const handleSaveS13Dates = async () => {
@@ -909,18 +928,34 @@ export default function ReportsClient() {
                                 {rec.status}
                               </Badge>
                             </td>
-                            {canAdjust && (
+                            {(canAdjust || canDelete) && (
                               <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-                                  onClick={() => handleOpenEditS13(rec)}
-                                  title="Adjust assignment / return dates"
-                                >
-                                  <Pencil size={12} />
-                                  <span className="sr-only">Edit Dates</span>
-                                </Button>
+                                <div className="flex items-center justify-end gap-1">
+                                  {canDelete && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      onClick={() => setDeletingS13Record(rec)}
+                                      title="Delete accidental/wrong assignment record"
+                                    >
+                                      <Trash2 size={12} />
+                                      <span className="sr-only">Delete Record</span>
+                                    </Button>
+                                  )}
+                                  {canAdjust && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                      onClick={() => handleOpenEditS13(rec)}
+                                      title="Adjust assignment / return dates"
+                                    >
+                                      <Pencil size={12} />
+                                      <span className="sr-only">Edit Dates</span>
+                                    </Button>
+                                  )}
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -1026,27 +1061,82 @@ export default function ReportsClient() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl text-xs"
-                  onClick={() => setEditingS13Record(null)}
-                  disabled={isUpdatingAssignment}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="rounded-xl text-xs font-semibold"
-                  onClick={handleSaveS13Dates}
-                  disabled={isUpdatingAssignment || !editAssignedAt}
-                >
-                  {isUpdatingAssignment ? 'Saving…' : 'Save Changes'}
-                </Button>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+                {canDelete ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                    onClick={() => {
+                      setDeletingS13Record(editingS13Record);
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete Record</span>
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl text-xs"
+                    onClick={() => setEditingS13Record(null)}
+                    disabled={isUpdatingAssignment}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-xl text-xs font-semibold"
+                    onClick={handleSaveS13Dates}
+                    disabled={isUpdatingAssignment || !editAssignedAt}
+                  >
+                    {isUpdatingAssignment ? 'Saving…' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
+        </ResponsiveDialog>
+
+        {/* Delete S-13 Record Confirmation Dialog */}
+        <ResponsiveDialog
+          open={Boolean(deletingS13Record)}
+          onOpenChange={(op) => !op && setDeletingS13Record(null)}
+          title="Delete Assignment Record"
+          description="Permanently delete this accidental or wrong assignment record"
+        >
+          <div className="space-y-3 pt-1 text-xs">
+            <p className="text-muted-foreground leading-relaxed">
+              Are you sure you want to permanently delete this assignment history record? This will remove the entry from the territory history and S-13 reports.
+            </p>
+            <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+              ⚠️ If this is the currently active assignment, the parent territory will automatically be marked available for checkout.
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="rounded-xl text-xs"
+                onClick={() => setDeletingS13Record(null)}
+                disabled={isDeletingAssignment}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="rounded-xl text-xs font-semibold"
+                onClick={handleDeleteS13Record}
+                disabled={isDeletingAssignment}
+              >
+                {isDeletingAssignment ? 'Deleting…' : 'Delete Record'}
+              </Button>
+            </div>
+          </div>
         </ResponsiveDialog>
 
         {/* ───────────────────────────────────────────────────────────────────────── */}

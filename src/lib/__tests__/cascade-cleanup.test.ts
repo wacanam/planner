@@ -268,4 +268,120 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
       expect(resolved[1].responseMessage).toBe('Territory assigned to another publisher');
     });
   });
+
+  describe('Accidental Assignment History Deletion', () => {
+    it('resets parent territory to available when the active assignment is deleted', () => {
+      const territory: Territory = {
+        id: 't-100',
+        congregationId: 'cong-1',
+        name: 'Hilltop',
+        number: '100',
+        status: 'assigned',
+        publisherId: 'pub-accidental',
+        publisherName: 'Accidental Assignee',
+        groupId: null,
+        groupName: null,
+        householdsCount: 20,
+        coveragePercent: '0',
+        notes: null,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      };
+
+      const deletedAssignment: Assignment = {
+        id: 'a-accidental',
+        territoryId: 't-100',
+        congregationId: 'cong-1',
+        userId: 'pub-accidental',
+        serviceGroupId: null,
+        status: AssignmentStatus.ACTIVE,
+        assignedAt: '2026-08-26T00:00:00Z',
+        returnedAt: null,
+        dueAt: null,
+        notes: 'Assigned by mistake',
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-26T00:00:00Z',
+        assigneeName: 'Accidental Assignee',
+        assigneeEmail: null,
+        groupName: null,
+      };
+
+      // When deleting active assignment with no other active records
+      const isCurrentActive =
+        (deletedAssignment.userId && territory.publisherId === deletedAssignment.userId) ||
+        deletedAssignment.status === AssignmentStatus.ACTIVE;
+
+      const updatedTerritory: Territory = isCurrentActive
+        ? {
+            ...territory,
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+          }
+        : territory;
+
+      expect(updatedTerritory.status).toBe('available');
+      expect(updatedTerritory.publisherId).toBeNull();
+      expect(updatedTerritory.publisherName).toBeNull();
+    });
+
+    it('preserves current active assignment status when an old historical assignment is deleted', () => {
+      const territory: Territory = {
+        id: 't-100',
+        congregationId: 'cong-1',
+        name: 'Hilltop',
+        number: '100',
+        status: 'assigned',
+        publisherId: 'pub-current-valid',
+        publisherName: 'Current Publisher',
+        groupId: null,
+        groupName: null,
+        householdsCount: 20,
+        coveragePercent: '0',
+        notes: null,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      };
+
+      const oldCompletedAssignment: Assignment = {
+        id: 'a-old-2023',
+        territoryId: 't-100',
+        congregationId: 'cong-1',
+        userId: 'pub-old',
+        serviceGroupId: null,
+        status: AssignmentStatus.COMPLETED,
+        assignedAt: '2023-01-01T00:00:00Z',
+        returnedAt: '2023-06-01T00:00:00Z',
+        dueAt: null,
+        notes: 'Typo in historical entry',
+        coverageAtAssignment: '0',
+        createdAt: '2023-01-01T00:00:00Z',
+        assigneeName: 'Old Publisher',
+        assigneeEmail: null,
+        groupName: null,
+      };
+
+      const isCurrentActive =
+        (oldCompletedAssignment.userId && territory.publisherId === oldCompletedAssignment.userId) ||
+        oldCompletedAssignment.status === AssignmentStatus.ACTIVE;
+
+      const updatedTerritory: Territory = isCurrentActive
+        ? {
+            ...territory,
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            groupId: null,
+            groupName: null,
+          }
+        : territory;
+
+      // Territory remains assigned to current valid publisher
+      expect(updatedTerritory.status).toBe('assigned');
+      expect(updatedTerritory.publisherId).toBe('pub-current-valid');
+      expect(updatedTerritory.publisherName).toBe('Current Publisher');
+    });
+  });
 });

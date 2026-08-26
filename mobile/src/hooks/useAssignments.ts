@@ -1,6 +1,6 @@
-// mobile/src/hooks/useAssignments.ts
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -544,4 +544,59 @@ export function useCreateAssignment() {
   );
 
   return { create, endorse: create, isCreating, isPending: isCreating };
+}
+
+export function useDeleteAssignment() {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const remove = useCallback(async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const firestore = getPlannerFirestore();
+      const snapshot = await getDoc(assignmentDocument(id));
+      const assignment = snapshot.exists() ? (snapshot.data() as Partial<Assignment>) : null;
+
+      await deleteDoc(assignmentDocument(id));
+
+      if (assignment?.territoryId) {
+        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, assignment.territoryId);
+        const territorySnap = await getDoc(territoryRef);
+
+        if (territorySnap.exists()) {
+          const tData = territorySnap.data();
+          const isCurrentActiveHolder =
+            (assignment.userId && tData.publisherId === assignment.userId) ||
+            (assignment.serviceGroupId && tData.groupId === assignment.serviceGroupId) ||
+            assignment.status === AssignmentStatus.ACTIVE ||
+            assignment.status === 'assigned';
+
+          if (isCurrentActiveHolder) {
+            const otherActiveSnap = await getDocs(
+              query(
+                collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+                where('territoryId', '==', assignment.territoryId),
+                where('status', '==', AssignmentStatus.ACTIVE)
+              )
+            );
+            const remainingActive = otherActiveSnap.docs.filter((d) => d.id !== id);
+
+            if (remainingActive.length === 0) {
+              await updateDoc(territoryRef, {
+                status: 'available',
+                publisherId: null,
+                publisherName: null,
+                groupId: null,
+                groupName: null,
+                updatedAt: nowIso(),
+              });
+            }
+          }
+        }
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  }, []);
+
+  return { remove, deleteAssignment: remove, isDeleting, isPending: isDeleting };
 }

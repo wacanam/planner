@@ -6,6 +6,7 @@ import {
   Download,
   Home,
   MapPin,
+  Trash2,
   UserCheck,
   Users,
   X,
@@ -24,6 +25,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import {
   useCreateAssignment,
+  useDeleteAssignment,
   useReturnAssignment,
   useRevokeTerritory,
   useTerritoryAssignments,
@@ -38,7 +40,7 @@ import {
   useTerritoryDetail,
 } from '@/hooks/useTerritories';
 import { exportTerritoryCardPdf } from '@/lib/pdf-export';
-import { canAdjustAssignmentDates, canEditTerritory } from '@/lib/permissions';
+import { canAdjustAssignmentDates, canDeleteAssignment, canEditTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
 import type { Assignment } from '@/types/api';
 
@@ -63,6 +65,7 @@ export default function TerritoryDetailScreen() {
   const { returnTerritory, isReturning } = useReturnAssignment();
   const { revoke: revokeTerritory, isRevoking } = useRevokeTerritory();
   const { update: updateAssignment, isUpdating: isUpdatingAssignment } = useUpdateAssignment();
+  const { remove: deleteAssignment, isDeleting: isDeletingAssignment } = useDeleteAssignment();
   const { remove: deleteTerritory, isDeleting } = useDeleteTerritory();
 
   const [requestModalVisible, setRequestModalVisible] = useState(false);
@@ -87,6 +90,7 @@ export default function TerritoryDetailScreen() {
 
   const canEdit = canEditTerritory(user?.role, user?.congregationRole);
   const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
+  const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
   const activeAssignment = assignments.find(
     (a) => a.status === 'assigned' || a.status === 'active'
   );
@@ -250,6 +254,33 @@ export default function TerritoryDetailScreen() {
       triggerHaptic('error');
       Alert.alert('Error', err?.message || 'Failed to update assignment dates');
     }
+  };
+
+  const handleDeleteAssignment = (assignmentId: string) => {
+    Alert.alert(
+      'Delete Assignment Record',
+      'Are you sure you want to permanently delete this assignment history entry? This will remove the accidental entry from history and S-13 reports. If this was an active assignment, the territory will become available.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAssignment(assignmentId);
+              await triggerHaptic('success');
+              if (editingAssignment?.id === assignmentId) {
+                setEditingAssignment(null);
+              }
+              Alert.alert('Deleted', 'Assignment record permanently deleted.');
+            } catch (err: any) {
+              triggerHaptic('error');
+              Alert.alert('Error', err?.message || 'Failed to delete assignment record');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleExportCard = async () => {
@@ -777,14 +808,27 @@ export default function TerritoryDetailScreen() {
                       </Text>
                     ) : null}
 
-                    {canAdjust && (
-                      <Button
-                        title="Adjust Dates"
-                        variant="outline"
-                        size="sm"
-                        onPress={() => handleOpenEditAssignment(a)}
-                        style={{ marginTop: 8 }}
-                      />
+                    {(canAdjust || canDelete) && (
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                        {canDelete && (
+                          <Button
+                            title="Delete"
+                            variant="ghost"
+                            size="sm"
+                            onPress={() => handleDeleteAssignment(a.id)}
+                            style={{ flex: 1 }}
+                          />
+                        )}
+                        {canAdjust && (
+                          <Button
+                            title="Adjust Dates"
+                            variant="outline"
+                            size="sm"
+                            onPress={() => handleOpenEditAssignment(a)}
+                            style={{ flex: 1 }}
+                          />
+                        )}
+                      </View>
                     )}
                   </View>
                 ))
@@ -902,6 +946,17 @@ export default function TerritoryDetailScreen() {
                 style={{ flex: 1 }}
               />
             </View>
+
+            {canDelete && (
+              <Button
+                title="Delete Assignment Record"
+                variant="ghost"
+                onPress={() => {
+                  if (editingAssignment) handleDeleteAssignment(editingAssignment.id);
+                }}
+                style={{ marginTop: 8 }}
+              />
+            )}
           </Card>
         </View>
       </Modal>

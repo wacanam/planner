@@ -191,6 +191,13 @@ export function canAdjustAssignmentDates(
   );
 }
 
+export function canDeleteAssignment(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return isSystemAdmin(role) || isSystemAdmin(congregationRole);
+}
+
 export function canViewReports(role?: string | null, congregationRole?: string | null): boolean {
   return (
     isSystemAdmin(role) ||
