@@ -525,7 +525,7 @@ export function useCreateAssignment() {
               const isTargetUser = arg.userId && reqData.publisherId === arg.userId;
               await updateDoc(reqDoc.ref, {
                 status: isTargetUser ? 'approved' : 'rejected',
-                reviewNotes: isTargetUser ? null : 'Territory assigned to another publisher',
+                responseMessage: isTargetUser ? null : 'Territory assigned to another publisher',
                 reviewedAt: now,
                 updatedAt: now,
               });

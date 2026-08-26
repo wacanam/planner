@@ -278,7 +278,7 @@ export function useRemoveMember() {
           ops.push((b) =>
             b.update(r.ref, {
               status: 'cancelled',
-              reviewNotes: 'Publisher removed from congregation',
+              responseMessage: 'Publisher removed from congregation',
               updatedAt: now,
             })
           );

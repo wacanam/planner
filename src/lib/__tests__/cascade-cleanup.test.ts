@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AssignmentStatus, EndorsementStatus } from '@/lib/roles';
-import type { Assignment, Group, Member, Territory, TerritoryRequest } from '@/types/api';
+import { AssignmentStatus } from '@/lib/roles';
+import type { Assignment, Group, Territory, TerritoryRequest } from '@/types/api';
 
 describe('Cascade Cleanup & Architectural Edge Cases', () => {
   describe('Service Group Deletion Cascade', () => {
@@ -19,6 +19,7 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           groupName: 'Group 10',
           householdsCount: 50,
           coveragePercent: '0',
+          notes: null,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
         },
@@ -34,6 +35,7 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           groupName: 'Group 20',
           householdsCount: 30,
           coveragePercent: '0',
+          notes: null,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
         },
@@ -74,6 +76,8 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           status: AssignmentStatus.ACTIVE,
           assignedAt: '2026-01-01T00:00:00Z',
           returnedAt: null,
+          dueAt: null,
+          notes: null,
           coverageAtAssignment: '0',
           createdAt: '2026-01-01T00:00:00Z',
           assigneeName: null,
@@ -114,6 +118,7 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
         groupName: null,
         householdsCount: 40,
         coveragePercent: '0',
+        notes: null,
         createdAt: '2026-01-01T00:00:00Z',
         updatedAt: '2026-01-01T00:00:00Z',
       };
@@ -141,9 +146,13 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           territoryId: 't-5',
           publisherId: removedUserId,
           publisherName: 'Removed Publisher',
+          publisher: null,
           status: 'pending',
-          createdAt: '2026-08-20T00:00:00Z',
-          updatedAt: '2026-08-20T00:00:00Z',
+          message: null,
+          approvedBy: null,
+          approvedAt: null,
+          responseMessage: null,
+          requestedAt: '2026-08-20T00:00:00Z',
         },
         {
           id: 'req-2',
@@ -151,21 +160,29 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           territoryId: 't-6',
           publisherId: 'user-active',
           publisherName: 'Active Publisher',
+          publisher: null,
           status: 'pending',
-          createdAt: '2026-08-20T00:00:00Z',
-          updatedAt: '2026-08-20T00:00:00Z',
+          message: null,
+          approvedBy: null,
+          approvedAt: null,
+          responseMessage: null,
+          requestedAt: '2026-08-20T00:00:00Z',
         },
       ];
 
       const updatedRequests = requests.map((r) => {
         if (r.publisherId === removedUserId && r.status === 'pending') {
-          return { ...r, status: 'cancelled' as const, reviewNotes: 'Publisher removed from congregation' };
+          return {
+            ...r,
+            status: 'cancelled',
+            responseMessage: 'Publisher removed from congregation',
+          };
         }
         return r;
       });
 
       expect(updatedRequests[0].status).toBe('cancelled');
-      expect(updatedRequests[0].reviewNotes).toBe('Publisher removed from congregation');
+      expect(updatedRequests[0].responseMessage).toBe('Publisher removed from congregation');
       expect(updatedRequests[1].status).toBe('pending');
     });
 
@@ -208,9 +225,13 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           territoryId,
           publisherId: 'pub-winner',
           publisherName: 'Winner Publisher',
+          publisher: null,
           status: 'pending',
-          createdAt: '2026-08-25T10:00:00Z',
-          updatedAt: '2026-08-25T10:00:00Z',
+          message: null,
+          approvedBy: null,
+          approvedAt: null,
+          responseMessage: null,
+          requestedAt: '2026-08-25T10:00:00Z',
         },
         {
           id: 'req-competitor',
@@ -218,9 +239,13 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           territoryId,
           publisherId: 'pub-other',
           publisherName: 'Other Publisher',
+          publisher: null,
           status: 'pending',
-          createdAt: '2026-08-25T11:00:00Z',
-          updatedAt: '2026-08-25T11:00:00Z',
+          message: null,
+          approvedBy: null,
+          approvedAt: null,
+          responseMessage: null,
+          requestedAt: '2026-08-25T11:00:00Z',
         },
       ];
 
@@ -229,18 +254,18 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
           const isWinner = req.publisherId === assignedUserId;
           return {
             ...req,
-            status: isWinner ? ('approved' as const) : ('rejected' as const),
-            reviewNotes: isWinner ? null : 'Territory assigned to another publisher',
+            status: isWinner ? 'approved' : 'rejected',
+            responseMessage: isWinner ? null : 'Territory assigned to another publisher',
           };
         }
         return req;
       });
 
       expect(resolved[0].status).toBe('approved');
-      expect(resolved[0].reviewNotes).toBeNull();
+      expect(resolved[0].responseMessage).toBeNull();
 
       expect(resolved[1].status).toBe('rejected');
-      expect(resolved[1].reviewNotes).toBe('Territory assigned to another publisher');
+      expect(resolved[1].responseMessage).toBe('Territory assigned to another publisher');
     });
   });
 });
