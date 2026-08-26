@@ -34,6 +34,7 @@ import {
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household } from '@/types/api';
+import { ActiveTerritoryCard } from './ActiveTerritoryCard';
 import { DashboardHeroDeck } from './DashboardHeroDeck';
 import { DashboardMetricStrip } from './DashboardMetricStrip';
 import { DashboardProgressGauge } from './DashboardProgressGauge';
@@ -346,13 +347,16 @@ export default function CongregationDashboardClient() {
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
-        {/* 1. Unified Mission Control Hero (Greeting + Role Switcher + Active Field Spotlight) */}
+        {/* 1. Welcome Greeting Header */}
         <DashboardHeroDeck {...contextProps} />
 
-        {/* 2. Compact Bento Metric Strip (4 high-density interactive cards) */}
+        {/* 2. Active Territory in Work Spotlight Card */}
+        <ActiveTerritoryCard {...contextProps} />
+
+        {/* 3. Compact Bento Metric Strip (4 high-density interactive cards) */}
         <DashboardMetricStrip {...contextProps} />
 
-        {/* 3. Campaign / Group Progress Gauge */}
+        {/* 4. Campaign / Group Progress Gauge */}
         <DashboardProgressGauge {...contextProps} />
 
         {/* 4. 2-Column Responsive Bento Grid */}
