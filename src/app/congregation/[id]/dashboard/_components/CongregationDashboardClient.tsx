@@ -41,7 +41,7 @@ import { RecentActivityFeed } from './RecentActivityFeed';
 import { RecordsAndResourcesDock } from './RecordsAndResourcesDock';
 import { ReturnVisitsCard } from './ReturnVisitsCard';
 import { ServiceArrangementsWidget } from './ServiceArrangementsWidget';
-import type { DashboardContextProps, DashboardRole } from './types';
+import type { DashboardContextProps } from './types';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
@@ -59,9 +59,6 @@ export default function CongregationDashboardClient() {
 
   // Quick Visit Sheet state
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
-
-  // Interactive Role Previewer state (defaults to 'auto' = real role)
-  const [previewRole, setPreviewRole] = useState<DashboardRole>('auto');
 
   const tour = useDashboardTour({
     userId: user.id,
@@ -127,25 +124,11 @@ export default function CongregationDashboardClient() {
 
   const userIsGroupLeader = userIsGroupOverseer || userIsGroupAssistant;
 
-  // Effective Role Presentation Tier (Respecting Role Previewer)
-  const isExecutiveTier = useMemo(() => {
-    if (previewRole === 'admin' || previewRole === 'service_overseer') return true;
-    if (previewRole !== 'auto') return false;
-    return userIsAdmin || userIsServiceOverseer || userIsSecretary || userIsCircuitOverseer;
-  }, [previewRole, userIsAdmin, userIsServiceOverseer, userIsSecretary, userIsCircuitOverseer]);
-
-  const isTerritoryServantTier = useMemo(() => {
-    if (previewRole === 'territory_servant') return true;
-    if (previewRole !== 'auto') return false;
-    return !isExecutiveTier && userIsTerritoryServant;
-  }, [previewRole, isExecutiveTier, userIsTerritoryServant]);
-
-  const isGroupLeaderTier = useMemo(() => {
-    if (previewRole === 'group_overseer' || previewRole === 'group_assistant') return true;
-    if (previewRole !== 'auto') return false;
-    return !isExecutiveTier && !isTerritoryServantTier && userIsGroupLeader;
-  }, [previewRole, isExecutiveTier, isTerritoryServantTier, userIsGroupLeader]);
-
+  // Role Presentation Tier
+  const isExecutiveTier =
+    userIsAdmin || userIsServiceOverseer || userIsSecretary || userIsCircuitOverseer;
+  const isTerritoryServantTier = !isExecutiveTier && userIsTerritoryServant;
+  const isGroupLeaderTier = !isExecutiveTier && !isTerritoryServantTier && userIsGroupLeader;
   const isPublisherTier = !isExecutiveTier && !isTerritoryServantTier && !isGroupLeaderTier;
 
   // For group leaders: which group do they lead?
@@ -215,13 +198,6 @@ export default function CongregationDashboardClient() {
   }, [groupHouseholds]);
 
   const effectiveRole = useMemo(() => {
-    if (previewRole === 'admin') return 'Admin';
-    if (previewRole === 'service_overseer') return 'Service Overseer';
-    if (previewRole === 'territory_servant') return 'Territory Servant';
-    if (previewRole === 'group_overseer') return `${ledGroup?.name || 'Group'} Overseer`;
-    if (previewRole === 'group_assistant') return `${ledGroup?.name || 'Group'} Assistant`;
-    if (previewRole === 'publisher') return 'Publisher';
-
     if (userIsAdmin) return user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin';
     if (userIsCircuitOverseer) return 'Circuit Overseer';
     if (userIsServiceOverseer) return 'Service Overseer';
@@ -236,7 +212,6 @@ export default function CongregationDashboardClient() {
       return 'Visiting Publisher';
     return 'Publisher';
   }, [
-    previewRole,
     userIsAdmin,
     user.role,
     userIsCircuitOverseer,
@@ -344,8 +319,6 @@ export default function CongregationDashboardClient() {
     isTerritoryServantTier,
     isGroupLeaderTier,
     isPublisherTier,
-    previewRole,
-    setPreviewRole,
     ledGroup,
     userGroup,
     groupActiveAssignments,

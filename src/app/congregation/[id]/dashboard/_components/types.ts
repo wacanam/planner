@@ -1,15 +1,6 @@
 import type { SessionUser } from '@/hooks';
 import type { Assignment, Group, Household, Member, Territory } from '@/types/api';
 
-export type DashboardRole =
-  | 'auto'
-  | 'publisher'
-  | 'group_overseer'
-  | 'group_assistant'
-  | 'territory_servant'
-  | 'service_overseer'
-  | 'admin';
-
 export interface DashboardContextProps {
   congregationId: string;
   user: SessionUser;
@@ -28,8 +19,6 @@ export interface DashboardContextProps {
   isTerritoryServantTier: boolean;
   isGroupLeaderTier: boolean;
   isPublisherTier: boolean;
-  previewRole: DashboardRole;
-  setPreviewRole: (role: DashboardRole) => void;
   ledGroup: Group | undefined;
   userGroup: Group | undefined;
   groupActiveAssignments: Assignment[];

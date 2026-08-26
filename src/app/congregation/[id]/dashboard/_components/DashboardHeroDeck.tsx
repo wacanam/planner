@@ -6,11 +6,9 @@ import {
   CheckCircle2,
   Clock,
   Compass,
-  Eye,
   FolderOpen,
   MapPin,
   Plus,
-  RotateCcw,
   Sparkles,
   Zap,
 } from 'lucide-react';
@@ -18,7 +16,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDaysAgo } from '@/lib/date-utils';
-import type { DashboardContextProps, DashboardRole } from './types';
+import type { DashboardContextProps } from './types';
 
 export function DashboardHeroDeck({
   congregationId,
@@ -28,8 +26,6 @@ export function DashboardHeroDeck({
   isExecutiveTier,
   isTerritoryServantTier,
   isGroupLeaderTier,
-  previewRole,
-  setPreviewRole,
   ledGroup,
   userGroup,
   groupActiveAssignments,
@@ -43,7 +39,6 @@ export function DashboardHeroDeck({
   onLogVisit,
   households,
 }: DashboardContextProps) {
-  const isPreviewActive = previewRole !== 'auto';
   const displayAssignments = isGroupLeaderTier ? groupActiveAssignments : activeAssignments;
   const primaryAssignment = displayAssignments[0];
   const primaryTerritory = primaryAssignment ? territoryMap.get(primaryAssignment.territoryId) : null;
@@ -65,7 +60,7 @@ export function DashboardHeroDeck({
       <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 space-y-5">
-        {/* Top Control Bar: User Greeting + Role Switcher + Tour */}
+        {/* Top Control Bar: User Greeting + Tour */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/50">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -99,42 +94,8 @@ export function DashboardHeroDeck({
             </p>
           </div>
 
-          {/* Right Top Controls: Role Switcher & Tour Guide */}
+          {/* Right Top Controls: Tour Guide */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            {/* View As Selector */}
-            <div className="inline-flex items-center gap-1.5 rounded-2xl border border-border/80 bg-background/95 px-3 py-1.5 text-xs shadow-2xs">
-              <Eye size={13} className={isPreviewActive ? 'text-amber-500 animate-pulse' : 'text-muted-foreground'} />
-              <label htmlFor="hero-role-preview-select" className="text-[11px] font-medium text-muted-foreground">
-                View As:
-              </label>
-              <select
-                id="hero-role-preview-select"
-                aria-label="Dashboard role view selector"
-                value={previewRole}
-                onChange={(e) => setPreviewRole(e.target.value as DashboardRole)}
-                className="bg-transparent font-bold text-foreground text-xs focus:outline-hidden cursor-pointer"
-              >
-                <option value="auto">Auto (Default)</option>
-                <option value="publisher">Publisher</option>
-                <option value="group_overseer">Group Overseer</option>
-                <option value="group_assistant">Group Assistant</option>
-                <option value="territory_servant">Territory Servant</option>
-                <option value="service_overseer">Service Overseer</option>
-                <option value="admin">Administrator</option>
-              </select>
-              {isPreviewActive && (
-                <button
-                  type="button"
-                  onClick={() => setPreviewRole('auto')}
-                  className="text-amber-600 dark:text-amber-400 hover:opacity-80 transition-opacity ml-1 flex items-center gap-0.5 text-[10px] font-bold"
-                  title="Reset to your real role"
-                >
-                  <RotateCcw size={10} />
-                  <span>Reset</span>
-                </button>
-              )}
-            </div>
-
             <Button
               type="button"
               variant="outline"
@@ -144,7 +105,7 @@ export function DashboardHeroDeck({
               title="Start tour"
             >
               <Sparkles size={13} className="text-amber-500" />
-              <span>Tour</span>
+              <span>Tour Guide</span>
             </Button>
           </div>
         </div>
