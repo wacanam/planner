@@ -204,7 +204,7 @@ describe('Group Roles and Territory Return Permissions', () => {
     expect(isGroupOverseerAssistant('user-publisher', group)).toBe(false);
   });
 
-  it('only allows Group Overseer, Territory Servant, and Service Overseer to return assigned territory', () => {
+  it('allows assigned Publisher, Group Overseer, Territory Servant, and Service Overseer to return assigned territory', () => {
     const personalAssignment = {
       userId: 'user-publisher',
       serviceGroupId: null,
@@ -214,25 +214,30 @@ describe('Group Roles and Territory Return Permissions', () => {
       serviceGroupId: 'g-1',
     };
 
-    // Regular publisher CANNOT return personal or group assignments
+    // Assigned publisher CAN return their own personal assignment
     expect(canReturnAssignment({ id: 'user-publisher', role: 'USER' }, personalAssignment)).toBe(
+      true
+    );
+
+    // Another publisher CANNOT return someone else's personal assignment or group assignments
+    expect(canReturnAssignment({ id: 'user-other', role: 'USER' }, personalAssignment)).toBe(
       false
     );
     expect(
       canReturnAssignment({ id: 'user-publisher', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
 
-    // Group Overseer CAN return
+    // Group Overseer CAN return group assignment
     expect(canReturnAssignment({ id: 'user-overseer', role: 'USER' }, groupAssignment, group)).toBe(
       true
     );
 
-    // Assistant Overseer CANNOT return
+    // Assistant Overseer CANNOT return group assignment
     expect(
       canReturnAssignment({ id: 'user-assistant', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
 
-    // Service Overseer / Territory Servant CAN return
+    // Service Overseer / Territory Servant CAN return any assignment
     expect(
       canReturnAssignment({ id: 'user-so', role: 'SERVICE_OVERSEER' }, personalAssignment)
     ).toBe(true);

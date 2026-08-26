@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   type QueryConstraint,
   query,
@@ -12,9 +13,10 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
 import { queueWelcomeEmail } from '@/lib/mail';
 import { createInAppNotification } from '@/lib/notifications';
-import { CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
+import { AssignmentStatus, CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
 import type { JoinRequest, Member } from '@/types/api';
 
 function memberCollection() {
@@ -410,11 +412,126 @@ export function useRemoveMember(_congregationId: string) {
   const removeMember = useCallback(async (arg: { userId: string }) => {
     setIsRemoving(true);
     try {
-      await updateDoc(memberDocument(arg.userId), { status: 'removed', updatedAt: nowIso() });
-      await updateDoc(doc(getPlannerFirestore(), FIRESTORE_COLLECTIONS.users, arg.userId), {
-        congregationId: null,
-        updatedAt: nowIso(),
-      });
+      const now = nowIso();
+      const firestore = getPlannerFirestore();
+
+      const [activeAssignments, territories, pendingRequests, overseenGroups, assistedGroups] =
+        await Promise.all([
+          getDocs(
+            query(
+              collection(firestore, FIRESTORE_COLLECTIONS.assignments),
+              where('userId', '==', arg.userId)
+            )
+          ),
+          getDocs(
+            query(
+              collection(firestore, FIRESTORE_COLLECTIONS.territories),
+              where('publisherId', '==', arg.userId)
+            )
+          ),
+          getDocs(
+            query(
+              collection(firestore, FIRESTORE_COLLECTIONS.territoryRequests),
+              where('publisherId', '==', arg.userId)
+            )
+          ),
+          getDocs(
+            query(
+              collection(firestore, FIRESTORE_COLLECTIONS.groups),
+              where('overseerId', '==', arg.userId)
+            )
+          ),
+          getDocs(
+            query(
+              collection(firestore, FIRESTORE_COLLECTIONS.groups),
+              where('assistantOverseerId', '==', arg.userId)
+            )
+          ),
+        ]);
+
+      const ops: BatchOperation[] = [];
+
+      // 1. Mark member status removed
+      ops.push((b) =>
+        b.update(memberDocument(arg.userId), { status: 'removed', updatedAt: now })
+      );
+
+      // 2. Clear congregationId on user document
+      ops.push((b) =>
+        b.update(doc(firestore, FIRESTORE_COLLECTIONS.users, arg.userId), {
+          congregationId: null,
+          updatedAt: now,
+        })
+      );
+
+      // 3. Complete active assignments
+      for (const a of activeAssignments.docs) {
+        const data = a.data();
+        const s = data.status?.toLowerCase().trim();
+        if (
+          s === 'active' ||
+          s === 'assigned' ||
+          s === 'pending_approval' ||
+          s === 'pending' ||
+          !data.returnedAt
+        ) {
+          ops.push((b) =>
+            b.update(a.ref, {
+              status: AssignmentStatus.COMPLETED,
+              returnedAt: now,
+              updatedAt: now,
+            })
+          );
+        }
+      }
+
+      // 4. Release checked-out territories
+      for (const t of territories.docs) {
+        ops.push((b) =>
+          b.update(t.ref, {
+            status: 'available',
+            publisherId: null,
+            publisherName: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      // 5. Cancel pending territory requests
+      for (const r of pendingRequests.docs) {
+        const data = r.data();
+        if (data.status === 'pending') {
+          ops.push((b) =>
+            b.update(r.ref, {
+              status: 'cancelled',
+              reviewNotes: 'Publisher removed from congregation',
+              updatedAt: now,
+            })
+          );
+        }
+      }
+
+      // 6. Clear group overseer references
+      for (const g of overseenGroups.docs) {
+        ops.push((b) =>
+          b.update(g.ref, {
+            overseerId: null,
+            overseerName: null,
+            updatedAt: now,
+          })
+        );
+      }
+      for (const g of assistedGroups.docs) {
+        ops.push((b) =>
+          b.update(g.ref, {
+            assistantOverseerId: null,
+            assistantOverseerName: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      await commitChunkedBatch(firestore, ops);
     } finally {
       setIsRemoving(false);
     }

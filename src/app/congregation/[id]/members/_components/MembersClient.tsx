@@ -963,7 +963,7 @@ export default function MembersClient() {
                 </p>
               </div>
             ) : (
-              endorsements.map((item) => {
+              endorsements.map((item, index) => {
                 const isGroup = Boolean(item.serviceGroupId || item.groupName);
                 const territoryTitle = `Territory #${item.territoryNumber || item.territoryId}${
                   item.territoryName ? ` — ${item.territoryName}` : ''
@@ -971,15 +971,55 @@ export default function MembersClient() {
                 const endorserDisplay = item.endorsedByName || 'Territory Servant';
                 const timeString = item.endorsedAt ? timeAgo(item.endorsedAt) : 'Recently';
 
+                const isReturn = item.endorsementType === 'return';
+                const isRevoke = item.endorsementType === 'revoke';
+
+                // Check for earlier pending action on the same territory
+                const hasEarlierPendingOnSameTerritory = endorsements
+                  .slice(0, index)
+                  .some((prev) => prev.territoryId === item.territoryId);
+
+                const approveLabel = isReturn
+                  ? 'Approve Return'
+                  : isRevoke
+                    ? 'Approve Revocation'
+                    : 'Approve Assignment';
+
+                const declineLabel = isReturn
+                  ? 'Decline Return'
+                  : isRevoke
+                    ? 'Decline Revocation'
+                    : 'Decline Endorsement';
+
+                const typeBadgeText = isReturn
+                  ? 'Territory Return'
+                  : isRevoke
+                    ? 'Territory Revocation'
+                    : 'New Assignment';
+
                 return (
                   <Card key={item.id} className="bg-card border-border shadow-xs overflow-hidden">
                     <CardContent className="p-4 sm:p-5 space-y-3.5">
                       {/* Header: Territory and Endorsement status badge */}
                       <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
                         <div className="min-w-0 space-y-1">
-                          <h4 className="font-bold text-base text-foreground leading-snug break-words">
-                            {territoryTitle}
-                          </h4>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-base text-foreground leading-snug break-words">
+                              {territoryTitle}
+                            </h4>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] uppercase font-bold ${
+                                isReturn
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                  : isRevoke
+                                    ? 'bg-destructive/10 text-destructive border-destructive/20'
+                                    : 'bg-primary/10 text-primary border-primary/20'
+                              }`}
+                            >
+                              {typeBadgeText}
+                            </Badge>
+                          </div>
                           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                             <Calendar size={12} className="shrink-0" />
                             <span>{timeString}</span>
@@ -992,6 +1032,17 @@ export default function MembersClient() {
                           Pending Approval
                         </Badge>
                       </div>
+
+                      {/* Out-of-order sequence warning */}
+                      {hasEarlierPendingOnSameTerritory && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                          <AlertTriangle size={14} className="shrink-0" />
+                          <span>
+                            An earlier action for this territory is pending above. Please resolve it
+                            first.
+                          </span>
+                        </div>
+                      )}
 
                       {/* Details: Who is being endorsed & Who endorsed */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-muted/20 p-3 rounded-xl border border-border/40 text-xs">
@@ -1028,7 +1079,7 @@ export default function MembersClient() {
                         {/* Who endorsed */}
                         <div className="space-y-1">
                           <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                            Endorsed By
+                            {isReturn ? 'Returned By' : isRevoke ? 'Revocation By' : 'Endorsed By'}
                           </span>
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -1039,7 +1090,11 @@ export default function MembersClient() {
                                 {endorserDisplay}
                               </p>
                               <p className="text-[11px] text-muted-foreground">
-                                Territory Servant Endorsement
+                                {isReturn
+                                  ? 'Publisher Return Request'
+                                  : isRevoke
+                                    ? 'Territory Revocation Request'
+                                    : 'Territory Servant Endorsement'}
                               </p>
                             </div>
                           </div>
@@ -1063,20 +1118,20 @@ export default function MembersClient() {
                             setDeclineEndorsement(item);
                             setDeclineReason('');
                           }}
-                          disabled={isApproving}
+                          disabled={isApproving || hasEarlierPendingOnSameTerritory}
                         >
                           <X size={14} />
-                          <span>Decline Endorsement</span>
+                          <span>{declineLabel}</span>
                         </Button>
 
                         <Button
                           size="sm"
                           className="rounded-xl text-xs font-semibold gap-1.5 cursor-pointer"
                           onClick={() => handleApproveEndorsement(item)}
-                          disabled={isApproving}
+                          disabled={isApproving || hasEarlierPendingOnSameTerritory}
                         >
                           <Check size={14} />
-                          <span>Approve Endorsement</span>
+                          <span>{approveLabel}</span>
                         </Button>
                       </div>
                     </CardContent>

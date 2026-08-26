@@ -47,6 +47,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   useActivityReport,
   useCongregation,
   useCoverageReport,
@@ -87,12 +94,13 @@ export default function ReportsClient() {
 
   // S-13 Date Adjustment state
   const [editingS13Record, setEditingS13Record] = useState<S13AssignmentRecord | null>(null);
+  const [editStatus, setEditStatus] = useState<string>('active');
   const [editAssignedAt, setEditAssignedAt] = useState('');
   const [editReturnedAt, setEditReturnedAt] = useState('');
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const { update: updateAssignment, isPending: isUpdatingAssignment } = useUpdateAssignment();
-  const canAdjust = canAdjustAssignmentDates(user?.role);
+  const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
 
   // Hooks for reports
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
@@ -107,6 +115,7 @@ export default function ReportsClient() {
 
   const handleOpenEditS13 = (rec: S13AssignmentRecord) => {
     setEditingS13Record(rec);
+    setEditStatus(rec.status || (rec.returnedAt ? 'completed' : 'active'));
     setEditAssignedAt(rec.assignedAt ? rec.assignedAt.slice(0, 10) : '');
     setEditReturnedAt(rec.returnedAt ? rec.returnedAt.slice(0, 10) : '');
     setEditDueAt(rec.dueAt ? rec.dueAt.slice(0, 10) : '');
@@ -118,6 +127,7 @@ export default function ReportsClient() {
     try {
       await updateAssignment({
         id: editingS13Record.id,
+        status: editStatus,
         assignedAt: editAssignedAt
           ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
           : editingS13Record.assignedAt,
@@ -127,10 +137,10 @@ export default function ReportsClient() {
         dueAt: editDueAt ? new Date(`${editDueAt}T12:00:00.000Z`).toISOString() : null,
         notes: editNotes.trim() || undefined,
       });
-      toast.success('Assignment dates updated successfully');
+      toast.success('Assignment details updated successfully');
       setEditingS13Record(null);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update assignment dates');
+      toast.error(err?.message || 'Failed to update assignment details');
     }
   };
 
@@ -948,6 +958,33 @@ export default function ReportsClient() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <Label className="text-xs font-semibold">Assignment Status *</Label>
+                  <Select
+                    value={editStatus}
+                    onValueChange={(val) => {
+                      setEditStatus(val);
+                      const today = new Date().toISOString().slice(0, 10);
+                      if ((val === 'completed' || val === 'returned') && !editReturnedAt) {
+                        setEditReturnedAt(today);
+                      } else if (val === 'active' || val === 'pending_approval') {
+                        setEditReturnedAt('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active in Field</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="returned">Returned</SelectItem>
+                      <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
                   <Label className="text-xs font-semibold">Date Assigned *</Label>
                   <Input
                     type="date"
@@ -978,7 +1015,7 @@ export default function ReportsClient() {
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2">
                   <Label className="text-xs font-semibold">Notes (Optional)</Label>
                   <Input
                     value={editNotes}

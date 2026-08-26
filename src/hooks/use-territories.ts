@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
 import { checkTerritoryDuplicateInFirestore, normalizeTerritoryNumber } from '@/lib/territories';
 import type { Territory, TerritoryAnnotations, TerritoryRequest } from '@/types/api';
 
@@ -470,7 +471,7 @@ export function useDeleteTerritory() {
     try {
       const now = nowIso();
       const firestore = getPlannerFirestore();
-      const [assignments, requests, households] = await Promise.all([
+      const [assignments, requests, households, visits, encounters] = await Promise.all([
         getDocs(
           query(
             collection(firestore, FIRESTORE_COLLECTIONS.assignments),
@@ -484,19 +485,55 @@ export function useDeleteTerritory() {
             where('territoryId', '==', id)
           )
         ),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.visits),
+            where('territoryId', '==', id)
+          )
+        ),
+        getDocs(
+          query(
+            collection(firestore, FIRESTORE_COLLECTIONS.encounters),
+            where('territoryId', '==', id)
+          )
+        ),
       ]);
-      const batch = writeBatch(firestore);
-      batch.delete(territoryDocument(id));
-      for (const assignment of assignments.docs) batch.delete(assignment.ref);
-      for (const request of requests.docs) batch.delete(request.ref);
-      for (const household of households.docs) {
-        batch.update(household.ref, {
-          territoryId: null,
-          territoryNumber: null,
-          updatedAt: now,
-        });
+
+      const ops: BatchOperation[] = [];
+
+      // Delete territory doc
+      ops.push((b) => b.delete(territoryDocument(id)));
+
+      // Delete related assignments
+      for (const assignment of assignments.docs) {
+        ops.push((b) => b.delete(assignment.ref));
       }
-      await batch.commit();
+
+      // Delete territory requests
+      for (const request of requests.docs) {
+        ops.push((b) => b.delete(request.ref));
+      }
+
+      // Delete visits and encounters for this territory
+      for (const visit of visits.docs) {
+        ops.push((b) => b.delete(visit.ref));
+      }
+      for (const encounter of encounters.docs) {
+        ops.push((b) => b.delete(encounter.ref));
+      }
+
+      // Dissociate households
+      for (const household of households.docs) {
+        ops.push((b) =>
+          b.update(household.ref, {
+            territoryId: null,
+            territoryNumber: null,
+            updatedAt: now,
+          })
+        );
+      }
+
+      await commitChunkedBatch(firestore, ops);
     } finally {
       setIsDeleting(false);
     }

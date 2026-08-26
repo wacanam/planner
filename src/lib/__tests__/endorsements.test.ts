@@ -27,14 +27,16 @@ describe('Territory Endorsements Flow & Congregation Scoping', () => {
   });
 
   describe('Permission Rules for Endorsements and Approvals', () => {
-    it('allows Territory Servant, Service Overseer, and Admin to endorse assignments', () => {
+    it('allows only Territory Servant and Admins to undertake endorsement of assignments', () => {
       expect(canEndorseAssignment(UserRole.TERRITORY_SERVANT)).toBe(true);
-      expect(canEndorseAssignment(UserRole.SERVICE_OVERSEER)).toBe(true);
       expect(canEndorseAssignment(UserRole.ADMIN)).toBe(true);
       expect(canEndorseAssignment(UserRole.SUPER_ADMIN)).toBe(true);
+      expect(canEndorseAssignment('territory_servant')).toBe(true);
     });
 
-    it('denies regular publishers from creating endorsements directly', () => {
+    it('denies Service Overseer and regular publishers from endorsing assignments (Service Overseer approves instead)', () => {
+      expect(canEndorseAssignment(UserRole.SERVICE_OVERSEER)).toBe(false);
+      expect(canEndorseAssignment('service_overseer')).toBe(false);
       expect(canEndorseAssignment(UserRole.USER)).toBe(false);
       expect(canEndorseAssignment('PUBLISHER')).toBe(false);
       expect(canEndorseAssignment(null)).toBe(false);
@@ -187,6 +189,53 @@ describe('Territory Endorsements Flow & Congregation Scoping', () => {
       );
       expect(congBAssignments).toHaveLength(1);
       expect(congBAssignments[0].assigneeName).toBe('Pub B');
+    });
+
+    it('differentiates between new assignment, territory return, and revocation endorsements', () => {
+      const returnEndorsement: Assignment = {
+        id: 'assign-return-1',
+        territoryId: 't-101',
+        congregationId: 'cong-alpha',
+        userId: 'pub-1',
+        serviceGroupId: null,
+        status: AssignmentStatus.PENDING_APPROVAL,
+        endorsementStatus: EndorsementStatus.PENDING_APPROVAL,
+        endorsementType: 'return',
+        returnedAt: '2026-08-20T10:00:00Z',
+        assignedAt: '2026-08-01T10:00:00Z',
+        dueAt: null,
+        notes: null,
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-20T10:00:00Z',
+        assigneeName: 'John Publisher',
+        assigneeEmail: 'john@example.com',
+        groupName: null,
+      };
+
+      const revokeEndorsement: Assignment = {
+        id: 'assign-revoke-1',
+        territoryId: 't-102',
+        congregationId: 'cong-alpha',
+        userId: 'pub-2',
+        serviceGroupId: null,
+        status: AssignmentStatus.PENDING_APPROVAL,
+        endorsementStatus: EndorsementStatus.PENDING_APPROVAL,
+        endorsementType: 'revoke',
+        returnedAt: '2026-08-20T11:00:00Z',
+        assignedAt: '2026-08-01T10:00:00Z',
+        dueAt: null,
+        notes: null,
+        coverageAtAssignment: '0',
+        createdAt: '2026-08-20T11:00:00Z',
+        assigneeName: 'Jane Publisher',
+        assigneeEmail: 'jane@example.com',
+        groupName: null,
+      };
+
+      expect(returnEndorsement.endorsementType).toBe('return');
+      expect(revokeEndorsement.endorsementType).toBe('revoke');
+      expect(returnEndorsement.returnedAt).toBe('2026-08-20T10:00:00Z');
+      expect(revokeEndorsement.returnedAt).toBe('2026-08-20T11:00:00Z');
     });
   });
 });

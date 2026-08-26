@@ -55,6 +55,7 @@ import {
 } from '@/hooks';
 import {
   canAdjustAssignmentDates,
+  canApproveAssignments,
   canCreateTerritory,
   canDeleteTerritory,
   canEditTerritory,
@@ -244,6 +245,8 @@ export default function TerritoriesClient() {
     if (!assignTerritory) return;
     const endorserName = user.name || user.email || 'Territory Servant';
     const effectiveAssignedAt = assignDate || new Date().toISOString();
+    const isDirect = canApproveAssignments(user.role, user.congregationRole);
+
     if (assignType === 'publisher') {
       if (!assignUserId) {
         toast.error('Please select a publisher');
@@ -262,9 +265,13 @@ export default function TerritoriesClient() {
         assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
+        creatorRole: user.role,
+        creatorCongregationRole: user.congregationRole,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${targetName} and submitted for endorsement`
+        isDirect
+          ? `Territory #${assignTerritory.number} assigned to ${targetName}`
+          : `Territory #${assignTerritory.number} assigned to ${targetName} and submitted for endorsement`
       );
     } else {
       if (!assignGroupId) {
@@ -283,9 +290,13 @@ export default function TerritoriesClient() {
         assignedAt: effectiveAssignedAt,
         endorsedByUserId: user.id || null,
         endorsedByUserName: endorserName,
+        creatorRole: user.role,
+        creatorCongregationRole: user.congregationRole,
       });
       toast.success(
-        `Territory #${assignTerritory.number} assigned to ${groupName} and submitted for endorsement`
+        isDirect
+          ? `Territory #${assignTerritory.number} assigned to ${groupName}`
+          : `Territory #${assignTerritory.number} assigned to ${groupName} and submitted for endorsement`
       );
     }
 
@@ -1030,9 +1041,19 @@ export default function TerritoriesClient() {
                   disabled={revokingTerritory || !revokeDate}
                   onClick={async () => {
                     if (revokeConfirmTerritory) {
-                      await revokeTerritory(revokeConfirmTerritory.id, revokeDate);
+                      const isDirect = canApproveAssignments(user.role, user.congregationRole);
+                      await revokeTerritory(
+                        revokeConfirmTerritory.id,
+                        revokeDate,
+                        user.role,
+                        user.congregationRole,
+                        user.id,
+                        user.name || user.email
+                      );
                       toast.success(
-                        `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                        isDirect
+                          ? `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                          : `Territory #${revokeConfirmTerritory.number} revocation submitted for Service Overseer approval`
                       );
                       setRevokeConfirmTerritory(null);
                       setRevokeDate(new Date().toISOString().slice(0, 10));
@@ -1050,7 +1071,7 @@ export default function TerritoriesClient() {
         <TerritoryHistoryDialog
           territory={historyTerritory}
           onClose={() => setHistoryTerritory(null)}
-          canAdjustDates={canAdjustAssignmentDates(user.role)}
+          canAdjustDates={canAdjustAssignmentDates(user.role, user.congregationRole)}
         />
 
         {/* Delete Territory Strong Warning Dialog */}
@@ -1190,6 +1211,7 @@ function TerritoryHistoryDialog({
   const { assignments = [], isLoading } = useTerritoryAssignments(territory?.id);
   const { update: updateAssignment, isPending: isUpdating } = useUpdateAssignment();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [status, setStatus] = useState('active');
   const [assignedAt, setAssignedAt] = useState('');
   const [returnedAt, setReturnedAt] = useState('');
   const [dueAt, setDueAt] = useState('');
@@ -1197,6 +1219,7 @@ function TerritoryHistoryDialog({
 
   const startEdit = (a: Assignment) => {
     setEditingId(a.id);
+    setStatus(a.status || 'active');
     setAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
     setReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
     setDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
@@ -1205,25 +1228,37 @@ function TerritoryHistoryDialog({
 
   const cancelEdit = () => {
     setEditingId(null);
+    setStatus('active');
     setAssignedAt('');
     setReturnedAt('');
     setDueAt('');
     setNotes('');
   };
 
+  const handleStatusChange = (newStatus: string) => {
+    setStatus(newStatus);
+    const today = new Date().toISOString().slice(0, 10);
+    if ((newStatus === 'completed' || newStatus === 'returned') && !returnedAt) {
+      setReturnedAt(today);
+    } else if (newStatus === 'active' || newStatus === 'pending_approval') {
+      setReturnedAt('');
+    }
+  };
+
   const handleSave = async (a: Assignment) => {
     try {
       await updateAssignment({
         id: a.id,
+        status,
         assignedAt: assignedAt || null,
         returnedAt: returnedAt || null,
         dueAt: dueAt || null,
         notes: notes.trim() || null,
       });
-      toast.success('Assignment dates and details updated');
+      toast.success('Assignment status, dates, and details updated');
       cancelEdit();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update assignment dates');
+      toast.error(err?.message || 'Failed to update assignment');
     }
   };
 
@@ -1232,7 +1267,7 @@ function TerritoryHistoryDialog({
       open={Boolean(territory)}
       onOpenChange={(op) => !op && onClose()}
       title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
-      description={territory ? `${territory.name} — Adjust assignment and return dates` : ''}
+      description={territory ? `${territory.name} — Adjust status, assignment, and return dates` : ''}
     >
       <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
         {isLoading ? (
@@ -1251,7 +1286,7 @@ function TerritoryHistoryDialog({
           <div className="space-y-3">
             {assignments.map((a) => {
               const isEditing = editingId === a.id;
-              const isReturned = Boolean(a.returnedAt);
+              const isReturned = Boolean(a.returnedAt) || a.status === 'completed' || a.status === 'returned';
               const isActive = a.status === 'assigned' || a.status === 'active';
 
               return (
@@ -1331,7 +1366,7 @@ function TerritoryHistoryDialog({
                             onClick={() => startEdit(a)}
                           >
                             <Pencil size={11} />
-                            <span>Adjust Dates</span>
+                            <span>Adjust Details</span>
                           </Button>
                         </div>
                       )}
@@ -1339,6 +1374,21 @@ function TerritoryHistoryDialog({
                   ) : (
                     <div className="space-y-3 pt-2 border-t border-border/80 bg-muted/20 p-2.5 rounded-xl">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-semibold">Assignment Status *</Label>
+                          <Select value={status} onValueChange={handleStatusChange}>
+                            <SelectTrigger className="h-8 rounded-xl text-xs">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Active in Field</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="returned">Returned</SelectItem>
+                              <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-1">
                           <Label className="text-[11px] font-semibold">Date Assigned *</Label>
                           <Input
@@ -1369,7 +1419,7 @@ function TerritoryHistoryDialog({
                             className="h-8 rounded-xl text-xs"
                           />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1 sm:col-span-2">
                           <Label className="text-[11px] font-semibold">Notes (Optional)</Label>
                           <Input
                             value={notes}
@@ -1395,7 +1445,7 @@ function TerritoryHistoryDialog({
                           onClick={() => handleSave(a)}
                           disabled={isUpdating || !assignedAt}
                         >
-                          {isUpdating ? 'Saving…' : 'Save Dates'}
+                          {isUpdating ? 'Saving…' : 'Save Changes'}
                         </Button>
                       </div>
                     </div>

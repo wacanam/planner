@@ -20,6 +20,7 @@ import {
 } from '@/lib/congregations';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
 import type { Congregation } from '@/types/api';
 
 function congregationCollection() {
@@ -37,18 +38,27 @@ async function deleteCongregationScopedDocuments(congregationId: string) {
     FIRESTORE_COLLECTIONS.groups,
     FIRESTORE_COLLECTIONS.territories,
     FIRESTORE_COLLECTIONS.territoryRequests,
+    FIRESTORE_COLLECTIONS.assignments,
     FIRESTORE_COLLECTIONS.households,
+    FIRESTORE_COLLECTIONS.contacts,
+    FIRESTORE_COLLECTIONS.visits,
+    FIRESTORE_COLLECTIONS.encounters,
+    FIRESTORE_COLLECTIONS.shares,
+    FIRESTORE_COLLECTIONS.memberLocations,
   ];
-  const batch = writeBatch(firestore);
+
+  const ops: BatchOperation[] = [];
 
   for (const name of scopedCollections) {
     const snapshot = await getDocs(
       query(collection(firestore, name), where('congregationId', '==', congregationId))
     );
-    for (const document of snapshot.docs) batch.delete(document.ref);
+    for (const document of snapshot.docs) {
+      ops.push((b) => b.delete(document.ref));
+    }
   }
 
-  await batch.commit();
+  await commitChunkedBatch(firestore, ops);
 }
 
 function congregationFromData(id: string, data: Partial<Congregation>): Congregation {

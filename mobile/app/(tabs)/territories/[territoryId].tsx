@@ -79,13 +79,14 @@ export default function TerritoryDetailScreen() {
 
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editStatus, setEditStatus] = useState<string>('active');
   const [editAssignedAt, setEditAssignedAt] = useState('');
   const [editReturnedAt, setEditReturnedAt] = useState('');
   const [editDueAt, setEditDueAt] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  const canEdit = canEditTerritory(user?.role);
-  const canAdjust = canAdjustAssignmentDates(user?.role);
+  const canEdit = canEditTerritory(user?.role, user?.congregationRole);
+  const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
   const activeAssignment = assignments.find(
     (a) => a.status === 'assigned' || a.status === 'active'
   );
@@ -123,12 +124,7 @@ export default function TerritoryDetailScreen() {
         longitudeDelta: Math.max(0.008, (maxLng - minLng) * 1.5),
       };
     }
-    return {
-      latitude: 14.5995,
-      longitude: 120.9842,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    };
+    return undefined;
   }, [boundaryCoords]);
 
   const totalDoors = households.length || territory?.householdsCount || 0;
@@ -165,6 +161,8 @@ export default function TerritoryDetailScreen() {
         endorsedByUserId: user?.id || null,
         endorsedByUserName: user?.name || null,
         assignedAt: assignDate || new Date().toISOString(),
+        creatorRole: user?.role,
+        creatorCongregationRole: user?.congregationRole,
         territoryName: territory.name,
         territoryNumber: territory.number,
       });
@@ -188,7 +186,14 @@ export default function TerritoryDetailScreen() {
           text: 'Return',
           style: 'destructive',
           onPress: async () => {
-            await returnTerritory(activeAssignment.id);
+            await returnTerritory(
+              activeAssignment.id,
+              null,
+              user?.role,
+              user?.congregationRole,
+              user?.id,
+              user?.name
+            );
             await triggerHaptic('success');
           },
         },
@@ -197,9 +202,16 @@ export default function TerritoryDetailScreen() {
   };
 
   const handleConfirmReturnRevoke = async () => {
-    if (!activeAssignment) return;
+    if (!territory) return;
     try {
-      await returnTerritory(activeAssignment.id, returnRevokeDate);
+      await revokeTerritory(
+        territory.id,
+        returnRevokeDate,
+        user?.role,
+        user?.congregationRole,
+        user?.id,
+        user?.name
+      );
       await triggerHaptic('success');
       setReturnRevokeModalVisible(false);
     } catch {
@@ -209,6 +221,7 @@ export default function TerritoryDetailScreen() {
 
   const handleOpenEditAssignment = (a: Assignment) => {
     setEditingAssignment(a);
+    setEditStatus(a.status || 'active');
     setEditAssignedAt(a.assignedAt ? a.assignedAt.slice(0, 10) : '');
     setEditReturnedAt(a.returnedAt ? a.returnedAt.slice(0, 10) : '');
     setEditDueAt(a.dueAt ? a.dueAt.slice(0, 10) : '');
@@ -220,6 +233,7 @@ export default function TerritoryDetailScreen() {
     try {
       await updateAssignment({
         id: editingAssignment.id,
+        status: editStatus,
         assignedAt: editAssignedAt
           ? new Date(`${editAssignedAt}T12:00:00.000Z`).toISOString()
           : editingAssignment.assignedAt,
@@ -796,6 +810,57 @@ export default function TerritoryDetailScreen() {
             </View>
 
             <View style={{ gap: 10, marginVertical: 10 }}>
+              <Text style={{ fontSize: typography.xs, fontWeight: 'bold', color: colors.foreground }}>
+                Assignment Status
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 2 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {(
+                    [
+                      { key: 'active', label: 'Active in Field' },
+                      { key: 'completed', label: 'Completed' },
+                      { key: 'returned', label: 'Returned' },
+                      { key: 'pending_approval', label: 'Pending Approval' },
+                      { key: 'rejected', label: 'Rejected' },
+                    ] as const
+                  ).map((st) => {
+                    const isSelected = editStatus === st.key;
+                    return (
+                      <TouchableOpacity
+                        key={st.key}
+                        onPress={() => {
+                          setEditStatus(st.key);
+                          const today = new Date().toISOString().slice(0, 10);
+                          if ((st.key === 'completed' || st.key === 'returned') && !editReturnedAt) {
+                            setEditReturnedAt(today);
+                          } else if (st.key === 'active' || st.key === 'pending_approval') {
+                            setEditReturnedAt('');
+                          }
+                        }}
+                        style={{
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? colors.primary : colors.muted,
+                          borderWidth: 1,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: typography.xs,
+                            fontWeight: '600',
+                            color: isSelected ? colors.primaryForeground : colors.mutedForeground,
+                          }}
+                        >
+                          {st.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
               <Input
                 label="Date Assigned (YYYY-MM-DD)"
                 value={editAssignedAt}
