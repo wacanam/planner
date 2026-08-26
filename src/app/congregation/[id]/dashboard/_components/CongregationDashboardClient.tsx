@@ -1,27 +1,12 @@
 'use client';
 
-import {
-  ArrowRight,
-  Building2,
-  CheckCircle2,
-  Compass,
-  FileText,
-  Home,
-  MapPin,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
-import { StatCard } from '@/components/stat-card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useCongregation,
   useCongregationGroups,
@@ -34,13 +19,30 @@ import {
 } from '@/hooks';
 import {
   canCreateTerritory,
+  canViewAllCongregationRecords,
   filterActiveAssignments,
   getUserGroupIds,
+  isCircuitOverseer,
+  isCongregationSecretary,
+  isGroupLeader,
+  isGroupOverseer,
+  isGroupOverseerAssistant,
+  isServiceOverseer,
+  isSystemAdmin,
+  isTerritoryServant,
   resolveUserAssignments,
 } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Household } from '@/types/api';
+import { ActiveTerritoryCard } from './ActiveTerritoryCard';
+import { DashboardHeroDeck } from './DashboardHeroDeck';
+import { DashboardMetricStrip } from './DashboardMetricStrip';
+import { DashboardProgressGauge } from './DashboardProgressGauge';
+import { RecentActivityFeed } from './RecentActivityFeed';
+import { RecordsAndResourcesDock } from './RecordsAndResourcesDock';
+import { ReturnVisitsCard } from './ReturnVisitsCard';
+import { ServiceArrangementsWidget } from './ServiceArrangementsWidget';
+import type { DashboardContextProps } from './types';
 
 export default function CongregationDashboardClient() {
   const params = useParams();
@@ -56,6 +58,9 @@ export default function CongregationDashboardClient() {
   const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
 
+  // Quick Visit Sheet state
+  const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
+
   const tour = useDashboardTour({
     userId: user.id,
     autoStart: true,
@@ -66,7 +71,7 @@ export default function CongregationDashboardClient() {
   }, [territories]);
 
   // Real-time door counts and coverage calculation per territory
-  const _coverageByTerritoryId = useMemo(() => {
+  const coverageByTerritoryId = useMemo(() => {
     const map = new Map<
       string,
       { totalDoors: number; workedDoors: number; coveragePercent: number }
@@ -89,21 +94,147 @@ export default function CongregationDashboardClient() {
     return getUserGroupIds(user, groups);
   }, [groups, user]);
 
-  const displayRole = (() => {
-    const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
-    if (r === 'SUPER_ADMIN') return 'Super Admin';
-    if (r === 'ADMIN') return 'Admin';
-    if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
-    if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
-    if (r === 'SECRETARY' || r === 'CONGREGATION_SECRETARY') return 'Secretary';
-    if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
-    if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
-    return 'Publisher';
-  })();
+  const userGroup = useMemo(() => {
+    return groups.find((g) => userGroupIds.has(g.id));
+  }, [groups, userGroupIds]);
 
-  const canManageTerritories = canCreateTerritory(user.role);
+  // Natural Role Tier Checks
+  const userIsAdmin = isSystemAdmin(user?.role) || isSystemAdmin(user?.congregationRole);
+  const userIsServiceOverseer =
+    isServiceOverseer(user?.congregationRole) || isServiceOverseer(user?.role);
+  const userIsSecretary =
+    isCongregationSecretary(user?.congregationRole) || isCongregationSecretary(user?.role);
+  const userIsCircuitOverseer =
+    isCircuitOverseer(user?.congregationRole) || isCircuitOverseer(user?.role);
+  const userIsTerritoryServant =
+    isTerritoryServant(user?.congregationRole) || isTerritoryServant(user?.role);
+
+  // Group Leadership checks
+  const userIsGroupOverseer = useMemo(() => {
+    return groups.some((g) => isGroupOverseer(user?.id, g, user?.role, user?.congregationRole));
+  }, [groups, user]);
+
+  const userIsGroupAssistant = useMemo(() => {
+    return (
+      !userIsGroupOverseer &&
+      groups.some((g) =>
+        isGroupOverseerAssistant(user?.id, g, user?.role, user?.congregationRole)
+      )
+    );
+  }, [groups, user, userIsGroupOverseer]);
+
+  const userIsGroupLeader = userIsGroupOverseer || userIsGroupAssistant;
+
+  // Role Presentation Tier
+  const isExecutiveTier =
+    userIsAdmin || userIsServiceOverseer || userIsSecretary || userIsCircuitOverseer;
+  const isTerritoryServantTier = !isExecutiveTier && userIsTerritoryServant;
+  const isGroupLeaderTier = !isExecutiveTier && !isTerritoryServantTier && userIsGroupLeader;
+  const isPublisherTier = !isExecutiveTier && !isTerritoryServantTier && !isGroupLeaderTier;
+
+  // For group leaders: which group do they lead?
+  const ledGroup = useMemo(() => {
+    return (
+      groups.find((g) => isGroupLeader(user?.id, g, user?.role, user?.congregationRole)) ||
+      userGroup ||
+      groups[0]
+    );
+  }, [groups, user, userGroup]);
+
+  // Group assignments, territories, households & metrics for Group Leader
+  const ledGroupMemberIds = useMemo(() => {
+    if (!ledGroup) return new Set<string>();
+    const ids = new Set<string>(
+      (ledGroup.members || [])
+        .map((m) => m.userId || m.id)
+        .filter((x): x is string => Boolean(x))
+    );
+    if (ledGroup.overseerId) ids.add(ledGroup.overseerId);
+    if (ledGroup.assistantOverseerId) ids.add(ledGroup.assistantOverseerId);
+    return ids;
+  }, [ledGroup]);
+
+  const groupAssignments = useMemo(() => {
+    if (!ledGroup) return [];
+    return assignments.filter((a) => {
+      if (a.serviceGroupId && a.serviceGroupId === ledGroup.id) return true;
+      return a.userId && ledGroupMemberIds.has(a.userId);
+    });
+  }, [assignments, ledGroup, ledGroupMemberIds]);
+
+  const groupActiveAssignments = useMemo(() => {
+    return filterActiveAssignments(groupAssignments);
+  }, [groupAssignments]);
+
+  const groupActiveTerritoryIds = useMemo(() => {
+    return new Set(groupActiveAssignments.map((a) => a.territoryId).filter(Boolean));
+  }, [groupActiveAssignments]);
+
+  const groupHouseholds = useMemo(() => {
+    if (!ledGroup) return [];
+    return households.filter((h) => {
+      if (h.territoryId && groupActiveTerritoryIds.has(h.territoryId)) return true;
+      return h.createdById && ledGroupMemberIds.has(h.createdById);
+    });
+  }, [households, groupActiveTerritoryIds, ledGroup, ledGroupMemberIds]);
+
+  const groupCoverage = useMemo(() => {
+    return calculateTerritoryCoverage(groupHouseholds);
+  }, [groupHouseholds]);
+
+  const groupUnpinnedCount = useMemo(() => {
+    return groupHouseholds.filter((h) => !h.latitude || !h.longitude).length;
+  }, [groupHouseholds]);
+
+  const groupReturnVisits = useMemo(() => {
+    return groupHouseholds
+      .filter(
+        (h) =>
+          h.status === 'return_visit' ||
+          h.status === 'busy' ||
+          Boolean(h.notes && h.lastVisitDate)
+      )
+      .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
+      .slice(0, 3);
+  }, [groupHouseholds]);
+
+  const effectiveRole = useMemo(() => {
+    if (userIsAdmin) return user.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Admin';
+    if (userIsCircuitOverseer) return 'Circuit Overseer';
+    if (userIsServiceOverseer) return 'Service Overseer';
+    if (userIsSecretary) return 'Secretary';
+    if (userIsTerritoryServant) return 'Territory Servant';
+    if (userIsGroupOverseer) return `${ledGroup?.name || 'Group'} Overseer`;
+    if (userIsGroupAssistant) return `${ledGroup?.name || 'Group'} Assistant`;
+    if (
+      user.congregationRole === 'VISITING_PUBLISHER' ||
+      user.role === 'VISITING_PUBLISHER'
+    )
+      return 'Visiting Publisher';
+    return 'Publisher';
+  }, [
+    userIsAdmin,
+    user.role,
+    userIsCircuitOverseer,
+    userIsServiceOverseer,
+    userIsSecretary,
+    userIsTerritoryServant,
+    userIsGroupOverseer,
+    userIsGroupAssistant,
+    user.congregationRole,
+    ledGroup?.name,
+  ]);
+
+  const isManager =
+    canCreateTerritory(user.role, user.congregationRole) ||
+    canViewAllCongregationRecords(user.role, user.congregationRole);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
+  const inWorkTerritoriesCount = territories.filter(
+    (t) => t.status === 'assigned' || t.status === 'pending'
+  ).length;
+  const overdueTerritoriesCount = territories.filter((t) => t.status === 'overdue').length;
+
   const activeAssignments = useMemo(() => {
     const userAssignments = resolveUserAssignments(
       user,
@@ -115,276 +246,154 @@ export default function CongregationDashboardClient() {
     return filterActiveAssignments(userAssignments);
   }, [assignments, territories, user, userGroupIds, congregationId]);
 
-  const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
+  const myActiveTerritoryIds = useMemo(() => {
+    return new Set(activeAssignments.map((a) => a.territoryId).filter(Boolean));
+  }, [activeAssignments]);
+
+  const myUnpinnedDoorsCount = useMemo(() => {
+    return households.filter((h) => {
+      const isUnpinned = !h.latitude || !h.longitude;
+      if (!isUnpinned) return false;
+      const isInMyTerritory = Boolean(h.territoryId && myActiveTerritoryIds.has(h.territoryId));
+      const isCreatedByMe = h.createdById === user?.id;
+      return isInMyTerritory || isCreatedByMe;
+    }).length;
+  }, [households, myActiveTerritoryIds, user?.id]);
+
+  const totalCongregationUnpinnedCount = useMemo(() => {
+    return households.filter((h) => !h.latitude || !h.longitude).length;
+  }, [households]);
+
+  const displayUnpinnedCount = isManager ? totalCongregationUnpinnedCount : myUnpinnedDoorsCount;
+
+  // Congregation-wide territory door coverage
+  const { totalDoorsCount, workedDoorsCount, congregationCoveragePercent } = useMemo(() => {
+    const total = households.length;
+    if (total === 0)
+      return { totalDoorsCount: 0, workedDoorsCount: 0, congregationCoveragePercent: 0 };
+    const worked = households.filter((h) => {
+      if (!h) return false;
+      if (h.lastVisitDate) return true;
+      if (typeof h.totalVisitsCount === 'number' && h.totalVisitsCount > 0) return true;
+      if (h.status && h.status.trim().toLowerCase() !== 'new') return true;
+      return false;
+    }).length;
+    const percent = Math.min(100, Math.max(0, Math.round((worked / total) * 100)));
+    return {
+      totalDoorsCount: total,
+      workedDoorsCount: worked,
+      congregationCoveragePercent: percent,
+    };
+  }, [households]);
+
+  // Personal Return Visits / Follow-ups
+  const myReturnVisits = useMemo(() => {
+    if (!user?.id) return [];
+    return households
+      .filter((h) => {
+        const isMine = h.createdById === user.id || h.collaboratorIds?.includes(user.id);
+        const isFollowup =
+          h.status === 'return_visit' ||
+          h.status === 'busy' ||
+          Boolean(h.notes && h.notes.trim().length > 0 && h.lastVisitDate);
+        return isMine && isFollowup;
+      })
+      .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
+      .slice(0, 3);
+  }, [households, user?.id]);
+
+  const contextProps: DashboardContextProps = {
+    congregationId,
+    user,
+    congregation,
+    territories,
+    territoriesLoading,
+    assignments,
+    assignmentsLoading,
+    groups,
+    households,
+    householdsLoading,
+    members,
+    activeAssignments,
+    effectiveRole,
+    isExecutiveTier,
+    isTerritoryServantTier,
+    isGroupLeaderTier,
+    isPublisherTier,
+    ledGroup,
+    userGroup,
+    groupActiveAssignments,
+    groupHouseholds,
+    groupCoverage,
+    groupUnpinnedCount,
+    groupReturnVisits,
+    myReturnVisits,
+    myUnpinnedDoorsCount,
+    totalCongregationUnpinnedCount,
+    displayUnpinnedCount,
+    congregationCoveragePercent,
+    totalDoorsCount,
+    workedDoorsCount,
+    availableTerritories,
+    inWorkTerritoriesCount,
+    overdueTerritoriesCount,
+    territoryMap,
+    coverageByTerritoryId,
+    onLogVisit: setLogVisitHousehold,
+    onStartTour: tour.startTour,
+  };
 
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-24 lg:pb-8 w-full min-w-0">
-        {/* Welcome & Quick Studio Trigger */}
-        <div
-          data-tour="welcome-banner"
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-6 rounded-3xl border border-primary/20"
-        >
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                Welcome back, {user.name || 'Publisher'}! 👋
-              </h1>
-              <Badge
-                variant="outline"
-                className="text-xs uppercase font-bold bg-primary/10 text-primary border-primary/30"
-              >
-                {displayRole}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-1.5 font-bold text-foreground">
-                <Building2 size={15} className="text-primary" />
-                {congregation?.name || 'Congregation Workspace'}
-              </span>
-              {congregation?.city && <span>• {congregation.city}</span>}
-              <span className="hidden sm:inline text-muted-foreground/80">
-                — Field ministry territory & visit tracking
-              </span>
-            </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+        {/* 1. Welcome Greeting Header */}
+        <DashboardHeroDeck {...contextProps} />
+
+        {/* 2. Active Territory in Work Spotlight Card */}
+        <ActiveTerritoryCard {...contextProps} />
+
+        {/* 3. Compact Bento Metric Strip (4 high-density interactive cards) */}
+        <DashboardMetricStrip {...contextProps} />
+
+        {/* 4. Campaign / Group Progress Gauge */}
+        <DashboardProgressGauge {...contextProps} />
+
+        {/* 4. 2-Column Responsive Bento Grid */}
+        <div className="grid lg:grid-cols-3 gap-5">
+          {/* Main Left Column (2 cols wide) */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* Follow-ups & Return Visits Radar */}
+            <ReturnVisitsCard {...contextProps} />
+
+            {/* Live Real-time Ministry Feed */}
+            <RecentActivityFeed {...contextProps} />
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => tour.startTour()}
-              className="rounded-2xl text-xs font-semibold gap-1.5 h-10 px-3.5 bg-card/80 hover:bg-muted border-primary/20 hover:border-primary/40 transition-all cursor-pointer shrink-0"
-              title="Start guided tour of Kanataran"
-            >
-              <Sparkles size={14} className="text-amber-500" />
-              <span>Tour Guide</span>
-            </Button>
 
-            {activeAssignments.length > 0 && activeAssignments[0]?.territoryId ? (
-              <Button
-                asChild
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 shrink-0"
-              >
-                <Link
-                  href={`/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`}
-                >
-                  <MapPin size={15} />
-                  <span>Launch Territory Studio</span>
-                </Link>
-              </Button>
-            ) : canManageTerritories ? (
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
-              >
-                <Link href={`/congregation/${congregationId}/territories`}>
-                  <MapPin size={15} />
-                  <span>Manage Territories</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-2xl text-xs font-semibold gap-2 shadow-sm h-10 px-4 bg-card hover:bg-muted shrink-0"
-              >
-                <Link href={`/congregation/${congregationId}/territories`}>
-                  <Compass size={15} />
-                  <span>Browse Territories</span>
-                </Link>
-              </Button>
-            )}
+          {/* Main Right Column (1 col wide) */}
+          <div className="space-y-5">
+            {/* Service Group & Meeting Arrangements */}
+            <ServiceArrangementsWidget {...contextProps} />
+
+            {/* Combined Records & Ministry Resources Dock */}
+            <RecordsAndResourcesDock {...contextProps} />
           </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div data-tour="stats-grid" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Territories"
-            value={territoriesLoading ? '—' : territories.length}
-            description={`${availableTerritories.length} available to assign`}
-            icon={MapPin}
-            color="blue"
-            loading={territoriesLoading}
-          />
-          <StatCard
-            title="My Assignments"
-            value={assignmentsLoading ? '—' : activeAssignments.length}
-            description="Active territories in work"
-            icon={Compass}
-            color="green"
-            loading={assignmentsLoading}
-          />
-          <StatCard
-            title="Door Records"
-            value={householdsLoading ? '—' : households.length}
-            description={
-              needsPinningCount > 0 ? `📍 ${needsPinningCount} needs pinning` : 'All pinned on map'
-            }
-            icon={Home}
-            color={needsPinningCount > 0 ? 'orange' : 'purple'}
-            loading={householdsLoading}
-          />
-          <StatCard
-            title="Publishers"
-            value={members.length}
-            description="Congregation members"
-            icon={Users}
-            color="gray"
-          />
-        </div>
-
-        {/* Action Sections */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* My Active Working Territories */}
-          <Card
-            data-tour="active-assignments"
-            className="lg:col-span-2 bg-card border-border shadow-xs"
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Compass size={16} className="text-primary" />
-                <span>My Active Assignments</span>
-              </CardTitle>
-              <Button asChild variant="ghost" size="sm" className="text-xs h-8">
-                <Link href={`/congregation/${congregationId}/my-assignments`}>
-                  View All ({activeAssignments.length})
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {assignmentsLoading ? (
-                <div className="space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
-                  ))}
-                </div>
-              ) : activeAssignments.length === 0 ? (
-                <div className="text-center py-10">
-                  <Compass size={36} className="text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">No territory assigned right now.</p>
-                  <Button asChild variant="outline" size="sm" className="mt-3 text-xs rounded-xl">
-                    <Link href={`/congregation/${congregationId}/territories`}>
-                      Browse Available Territories
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {activeAssignments.map((assignment) => {
-                    const terr = territoryMap.get(assignment.territoryId);
-                    const number = terr?.number || assignment.territoryNumber || '—';
-                    const name = terr?.name || assignment.territoryName || 'Territory';
-
-                    return (
-                      <div
-                        key={assignment.id}
-                        className="p-4 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 hover:border-primary/40 transition-all min-w-0"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start gap-2 min-w-0">
-                            <p
-                              className="font-bold text-sm text-foreground line-clamp-2 min-w-0 leading-snug break-words"
-                              title={`#${number} — ${name}`}
-                            >
-                              #{number} — {name}
-                            </p>
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0 mt-0.5"
-                            >
-                              Working
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                            Assigned on{' '}
-                            {assignment.assignedAt
-                              ? formatDate(assignment.assignedAt)
-                              : 'Recently'}
-                          </p>
-                        </div>
-
-                        <Button asChild size="sm" className="rounded-xl text-xs gap-1 shrink-0">
-                          <Link
-                            href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                          >
-                            <MapPin size={13} />
-                            <span>Open Map</span>
-                          </Link>
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Hub Navigator */}
-          <Card data-tour="records-hub" className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <FileText size={16} className="text-primary" />
-                <span>Records & Workspace</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link
-                href={`/congregation/${congregationId}/records/households`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Home size={15} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Household Directory</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {households.length} door records
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
-
-              <Link
-                href={`/congregation/${congregationId}/records/visits`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-green-500/10 text-green-600">
-                    <CheckCircle2 size={15} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Visit History</p>
-                    <p className="text-[10px] text-muted-foreground">Door-to-door logs</p>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
-
-              <Link
-                href={`/congregation/${congregationId}/records/shared`}
-                className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background hover:bg-muted/50 hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600">
-                    <Users size={15} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-xs text-foreground">Shared Records</p>
-                    <p className="text-[10px] text-muted-foreground">Collaborate with publishers</p>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground" />
-              </Link>
-            </CardContent>
-          </Card>
         </div>
       </main>
+
+      {/* Household Quick Log Visit Sheet */}
+      {logVisitHousehold && (
+        <HouseholdLogVisitSheet
+          open={Boolean(logVisitHousehold)}
+          onOpenChange={(open) => {
+            if (!open) setLogVisitHousehold(null);
+          }}
+          household={logVisitHousehold}
+          assignmentId={logVisitHousehold.territoryId || null}
+          onSaved={() => setLogVisitHousehold(null)}
+        />
+      )}
+
       <BottomTabBar />
       <DashboardTourGuide
         isOpen={tour.isOpen}

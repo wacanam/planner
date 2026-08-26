@@ -100,6 +100,39 @@ export function useTerritoryAssignments(territoryId: string | null | undefined) 
   return { assignments, data: assignments, isLoading, error };
 }
 
+export function useCongregationAssignments(congregationId?: string | null) {
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!congregationId) {
+      setAssignments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const q = query(assignmentCollection(), where('congregationId', '==', congregationId));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list = snapshot.docs
+          .map((document) =>
+            assignmentFromData(document.id, document.data() as Partial<Assignment>)
+          )
+          .sort((left, right) => (right.assignedAt ?? '').localeCompare(left.assignedAt ?? ''));
+        setAssignments(list);
+        setIsLoading(false);
+      },
+      () => {
+        setIsLoading(false);
+      }
+    );
+  }, [congregationId]);
+
+  return { assignments, data: assignments, isLoading };
+}
+
 export function useMyAssignments(congregationId?: string | null) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -970,7 +1003,9 @@ export function useRevokeTerritory() {
       userRole?: string | null,
       congregationRole?: string | null,
       actorUserId?: string | null,
-      actorUserName?: string | null
+      actorUserName?: string | null,
+      targetTerritoryStatus: string = 'available',
+      targetAssignmentStatus: string = AssignmentStatus.COMPLETED
     ) => {
       setIsRevoking(true);
       try {
@@ -995,7 +1030,7 @@ export function useRevokeTerritory() {
         const batch = writeBatch(firestore);
 
         if (isDirectApprove) {
-          // Direct approved: Mark all active/pending/unreturned assignments as COMPLETED
+          // Direct approved: Mark all active/pending/unreturned assignments as the chosen assignment status
           for (const d of assignmentsSnap.docs) {
             const data = d.data() as Assignment;
             const s = data.status?.toLowerCase().trim();
@@ -1010,7 +1045,7 @@ export function useRevokeTerritory() {
 
             if (isNotClosed) {
               batch.update(d.ref, {
-                status: AssignmentStatus.COMPLETED,
+                status: targetAssignmentStatus || AssignmentStatus.COMPLETED,
                 endorsementStatus: EndorsementStatus.APPROVED,
                 endorsementType: 'revoke',
                 returnedAt: effectiveReturnedAt,
@@ -1023,7 +1058,7 @@ export function useRevokeTerritory() {
           }
 
           batch.update(territoryRef, {
-            status: 'available',
+            status: targetTerritoryStatus || 'available',
             publisherId: null,
             publisherName: null,
             groupId: null,
