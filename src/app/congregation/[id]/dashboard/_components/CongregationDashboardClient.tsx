@@ -577,24 +577,19 @@ export default function CongregationDashboardClient() {
                       return (
                         <div
                           key={assignment.id}
-                          className="p-4 rounded-2xl border border-border bg-background space-y-3 hover:border-primary/40 transition-all min-w-0 shadow-2xs"
+                          className="p-4 sm:p-5 rounded-2xl border border-border bg-background space-y-3.5 hover:border-primary/40 transition-all min-w-0 shadow-2xs group"
                         >
+                          {/* Top Row: Title + Locality on Left, Highlighted Metric Badge on Right */}
                           <div className="flex items-start justify-between gap-3 min-w-0">
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 space-y-1">
                               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                 <Link
                                   href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                                  className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate"
+                                  className="font-bold text-sm sm:text-base text-foreground hover:text-primary transition-colors truncate"
                                   title={`#${number} — ${name}`}
                                 >
                                   #{number} — {name}
                                 </Link>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] uppercase font-semibold text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/40 shrink-0"
-                                >
-                                  Working
-                                </Badge>
                                 {isGroupAssignment && (
                                   <Badge
                                     variant="outline"
@@ -605,20 +600,42 @@ export default function CongregationDashboardClient() {
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
-                                <Clock size={12} className="shrink-0 text-muted-foreground/70" />
+                              <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+                                {terr?.city && (
+                                  <>
+                                    <span className="truncate">{terr.city}</span>
+                                    <span>•</span>
+                                  </>
+                                )}
                                 <span>
                                   Assigned {assignment.assignedAt ? formatDaysAgo(assignment.assignedAt) : 'recently'}
                                 </span>
-                                {terr?.city && (
-                                  <span className="text-muted-foreground/60 hidden sm:inline">
-                                    • {terr.city}
-                                  </span>
-                                )}
                               </p>
                             </div>
 
-                            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs">
+                            {/* Prominent Visual Progress Pill */}
+                            <div className="text-right shrink-0">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20 shadow-2xs">
+                                {cov.coveragePercent}% Done
+                              </span>
+                              <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                                {cov.workedDoors}/{cov.totalDoors} doors
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Bottom Row: Integrated Progress Bar + Direct Action Button */}
+                          <div className="flex items-center justify-between gap-3 pt-2 border-t border-border/50">
+                            <div className="flex-1 space-y-1 min-w-0">
+                              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                  style={{ width: `${cov.coveragePercent}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            <Button asChild size="sm" className="rounded-xl text-xs gap-1.5 shrink-0 shadow-xs h-8 px-3">
                               <Link
                                 href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
                               >
@@ -627,36 +644,6 @@ export default function CongregationDashboardClient() {
                               </Link>
                             </Button>
                           </div>
-
-                          {/* Door Coverage Progress Bar */}
-                          {cov.totalDoors > 0 ? (
-                            <div className="space-y-1 pt-1 border-t border-border/60">
-                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                <span>
-                                  {cov.workedDoors} of {cov.totalDoors} doors completed
-                                </span>
-                                <span className="font-semibold text-foreground">
-                                  {cov.coveragePercent}%
-                                </span>
-                              </div>
-                              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                                  style={{ width: `${cov.coveragePercent}%` }}
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="pt-1 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>No door records registered yet</span>
-                              <Link
-                                href={`/congregation/${congregationId}/territories/${assignment.territoryId}`}
-                                className="text-primary hover:underline text-[11px] font-semibold"
-                              >
-                                Add first door →
-                              </Link>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
