@@ -174,6 +174,8 @@ export default function TerritoriesClient() {
   const [assignDate, setAssignDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [revokeConfirmTerritory, setRevokeConfirmTerritory] = useState<Territory | null>(null);
   const [revokeDate, setRevokeDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [revokeTerritoryStatus, setRevokeTerritoryStatus] = useState<string>('available');
+  const [revokeAssignmentStatus, setRevokeAssignmentStatus] = useState<string>('completed');
   const [historyTerritory, setHistoryTerritory] = useState<Territory | null>(null);
   const [deleteConfirmTerritory, setDeleteConfirmTerritory] = useState<Territory | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
@@ -1494,43 +1496,155 @@ export default function TerritoriesClient() {
           </div>
         </ResponsiveDialog>
 
-        {/* Revoke / Return Territory Confirmation Dialog with Date Adjustment */}
+        {/* Revoke / Return Territory Confirmation Dialog with Status & Formatted Date */}
         <ResponsiveDialog
           open={!!revokeConfirmTerritory}
           onOpenChange={(op) => {
             if (!op) {
               setRevokeConfirmTerritory(null);
               setRevokeDate(new Date().toISOString().slice(0, 10));
+              setRevokeTerritoryStatus('available');
+              setRevokeAssignmentStatus('completed');
             }
           }}
           title="Revoke / Return Territory"
           description={
             revokeConfirmTerritory
-              ? `Revoke assignment for Territory #${revokeConfirmTerritory.number} — ${revokeConfirmTerritory.name}`
+              ? `End assignment for Territory #${revokeConfirmTerritory.number} — ${revokeConfirmTerritory.name}`
               : 'Revoke Territory'
           }
         >
           {revokeConfirmTerritory && (
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                This will mark the current assignment as completed and return{' '}
-                <strong className="text-foreground">
-                  Territory #{revokeConfirmTerritory.number}
-                </strong>{' '}
-                to Available status.
-              </p>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">
-                  Effective Revocation / Return Date *
-                </Label>
-                <Input
-                  type="date"
-                  value={revokeDate}
-                  onChange={(e) => setRevokeDate(e.target.value)}
-                  className="h-9 rounded-xl text-xs"
-                />
+            <div className="space-y-4 pt-1 text-xs">
+              {/* Current Assignment Summary Banner */}
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/70 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-foreground">
+                    #{revokeConfirmTerritory.number} {revokeConfirmTerritory.name}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] font-bold">
+                    {revokeConfirmTerritory.status.toUpperCase()}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  {revokeConfirmTerritory.groupName ? (
+                    <span>
+                      Assigned to Group:{' '}
+                      <strong className="text-foreground">
+                        {revokeConfirmTerritory.groupName}
+                      </strong>
+                    </span>
+                  ) : revokeConfirmTerritory.publisherName ? (
+                    <span>
+                      Assigned to Publisher:{' '}
+                      <strong className="text-foreground">
+                        {revokeConfirmTerritory.publisherName}
+                      </strong>
+                    </span>
+                  ) : (
+                    <span>Currently Assigned</span>
+                  )}
+                </p>
               </div>
+
+              {/* Status Selectors Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Territory Target Status */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">
+                    Territory Status After Return *
+                  </Label>
+                  <Select
+                    value={revokeTerritoryStatus}
+                    onValueChange={setRevokeTerritoryStatus}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs bg-card">
+                      <SelectValue placeholder="Select territory status" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="available">
+                        🟢 Available (Ready for checkout)
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        ⚪ Completed (Mark cycle finished)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Assignment History Outcome Status */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">
+                    Assignment Record Outcome *
+                  </Label>
+                  <Select
+                    value={revokeAssignmentStatus}
+                    onValueChange={setRevokeAssignmentStatus}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl text-xs bg-card">
+                      <SelectValue placeholder="Select assignment outcome" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="completed">
+                        ✅ Completed (Fully worked)
+                      </SelectItem>
+                      <SelectItem value="returned">
+                        ↺ Returned (Early / Partial)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Formatted Effective Date Input & Quick Select */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold">
+                    Effective Return / Revocation Date *
+                  </Label>
+                  <span className="text-[11px] font-semibold text-primary">
+                    📅 {formatDate(revokeDate)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={revokeDate}
+                    onChange={(e) => setRevokeDate(e.target.value)}
+                    className="h-9 rounded-xl text-xs flex-1 bg-card"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 rounded-xl text-xs shrink-0 cursor-pointer"
+                    onClick={() => setRevokeDate(new Date().toISOString().slice(0, 10))}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2.5 rounded-xl text-xs shrink-0 cursor-pointer"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() - 1);
+                      setRevokeDate(d.toISOString().slice(0, 10));
+                    }}
+                  >
+                    Yesterday
+                  </Button>
+                </div>
+              </div>
+
+              {/* Dynamic summary text */}
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                This will close the current assignment as{' '}
+                <strong className="text-foreground">{revokeAssignmentStatus}</strong> effective{' '}
+                <strong className="text-foreground">{formatDate(revokeDate)}</strong>, and set Territory #{revokeConfirmTerritory.number} status to{' '}
+                <strong className="text-foreground">{revokeTerritoryStatus}</strong>.
+              </p>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <Button
@@ -1540,6 +1654,8 @@ export default function TerritoriesClient() {
                   onClick={() => {
                     setRevokeConfirmTerritory(null);
                     setRevokeDate(new Date().toISOString().slice(0, 10));
+                    setRevokeTerritoryStatus('available');
+                    setRevokeAssignmentStatus('completed');
                   }}
                   disabled={revokingTerritory}
                 >
@@ -1548,7 +1664,7 @@ export default function TerritoriesClient() {
                 <Button
                   type="button"
                   variant="destructive"
-                  className="rounded-xl text-xs font-semibold"
+                  className="rounded-xl text-xs font-semibold shadow-xs"
                   disabled={revokingTerritory || !revokeDate}
                   onClick={async () => {
                     if (revokeConfirmTerritory) {
@@ -1559,19 +1675,23 @@ export default function TerritoriesClient() {
                         user.role,
                         user.congregationRole,
                         user.id,
-                        user.name || user.email
+                        user.name || user.email,
+                        revokeTerritoryStatus,
+                        revokeAssignmentStatus
                       );
                       toast.success(
                         isDirect
-                          ? `Territory #${revokeConfirmTerritory.number} assignment revoked and marked available`
+                          ? `Territory #${revokeConfirmTerritory.number} marked as ${revokeTerritoryStatus}`
                           : `Territory #${revokeConfirmTerritory.number} revocation submitted for Service Overseer approval`
                       );
                       setRevokeConfirmTerritory(null);
                       setRevokeDate(new Date().toISOString().slice(0, 10));
+                      setRevokeTerritoryStatus('available');
+                      setRevokeAssignmentStatus('completed');
                     }
                   }}
                 >
-                  {revokingTerritory ? 'Revoking…' : 'Confirm Revocation'}
+                  {revokingTerritory ? 'Revoking…' : 'Confirm Revocation / Return'}
                 </Button>
               </div>
             </div>
