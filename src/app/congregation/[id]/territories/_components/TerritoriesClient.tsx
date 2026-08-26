@@ -79,7 +79,7 @@ import {
   canDeleteTerritory,
   canEditTerritory,
 } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate, formatDaysAgo } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
 import {
@@ -932,7 +932,7 @@ export default function TerritoriesClient() {
                             className="truncate"
                             title={
                               lastActivityDate
-                                ? `Last Activity: ${formatDate(lastActivityDate)}`
+                                ? `Last Activity: ${formatDate(lastActivityDate)} (${formatDaysAgo(lastActivityDate)})`
                                 : 'No door activity recorded yet'
                             }
                           >
@@ -940,7 +940,7 @@ export default function TerritoriesClient() {
                               <span>
                                 Activity:{' '}
                                 <strong className="text-foreground font-semibold">
-                                  {formatDate(lastActivityDate)}
+                                  {formatDaysAgo(lastActivityDate)}
                                 </strong>
                               </span>
                             ) : (
@@ -1182,8 +1182,11 @@ export default function TerritoriesClient() {
                         {lastActivityDate && (
                           <>
                             <span>•</span>
-                            <span className="text-muted-foreground">
-                              Activity {formatDate(lastActivityDate)}
+                            <span
+                              className="text-muted-foreground"
+                              title={`Last Activity: ${formatDate(lastActivityDate)}`}
+                            >
+                              Activity {formatDaysAgo(lastActivityDate)}
                             </span>
                           </>
                         )}
