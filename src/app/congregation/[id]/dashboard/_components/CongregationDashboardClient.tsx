@@ -42,6 +42,7 @@ import {
 import { formatDate, formatDaysAgo } from '@/lib/date-utils';
 import {
   canCreateTerritory,
+  canViewAllCongregationRecords,
   filterActiveAssignments,
   getUserGroupIds,
   resolveUserAssignments,
@@ -116,7 +117,11 @@ export default function CongregationDashboardClient() {
     return 'Publisher';
   })();
 
-  const canManageTerritories = canCreateTerritory(user.role);
+  const isManager =
+    canCreateTerritory(user.role, user.congregationRole) ||
+    canViewAllCongregationRecords(user.role, user.congregationRole);
+
+  const canManageTerritories = canCreateTerritory(user.role, user.congregationRole);
 
   const availableTerritories = territories.filter((t) => t.status === 'available');
   const inWorkTerritoriesCount = territories.filter(
@@ -135,7 +140,25 @@ export default function CongregationDashboardClient() {
     return filterActiveAssignments(userAssignments);
   }, [assignments, territories, user, userGroupIds, congregationId]);
 
-  const needsPinningCount = households.filter((h) => !h.latitude || !h.longitude).length;
+  const myActiveTerritoryIds = useMemo(() => {
+    return new Set(activeAssignments.map((a) => a.territoryId).filter(Boolean));
+  }, [activeAssignments]);
+
+  const myUnpinnedDoorsCount = useMemo(() => {
+    return households.filter((h) => {
+      const isUnpinned = !h.latitude || !h.longitude;
+      if (!isUnpinned) return false;
+      const isInMyTerritory = Boolean(h.territoryId && myActiveTerritoryIds.has(h.territoryId));
+      const isCreatedByMe = h.createdById === user?.id;
+      return isInMyTerritory || isCreatedByMe;
+    }).length;
+  }, [households, myActiveTerritoryIds, user?.id]);
+
+  const totalCongregationUnpinnedCount = useMemo(() => {
+    return households.filter((h) => !h.latitude || !h.longitude).length;
+  }, [households]);
+
+  const displayUnpinnedCount = isManager ? totalCongregationUnpinnedCount : myUnpinnedDoorsCount;
 
   // Congregation-wide territory door coverage
   const { totalDoorsCount, workedDoorsCount, congregationCoveragePercent } = useMemo(() => {
@@ -314,9 +337,15 @@ export default function CongregationDashboardClient() {
 
           <Link
             href={
-              needsPinningCount > 0
-                ? `/congregation/${congregationId}/records/households?filter=unpinned`
-                : `/congregation/${congregationId}/records/households`
+              displayUnpinnedCount > 0
+                ? isManager
+                  ? `/congregation/${congregationId}/records/households?filter=unpinned&scope=congregation`
+                  : activeAssignments[0]?.territoryId
+                    ? `/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`
+                    : `/congregation/${congregationId}/records/households?filter=unpinned&scope=mine`
+                : activeAssignments[0]?.territoryId
+                  ? `/congregation/${congregationId}/territories/${activeAssignments[0].territoryId}`
+                  : `/congregation/${congregationId}/records/households`
             }
             className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border hover:border-amber-500/40 hover:bg-muted/50 hover:shadow-xs transition-all group"
           >
@@ -328,14 +357,20 @@ export default function CongregationDashboardClient() {
                 <p className="text-xs font-bold text-foreground truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                   Pin Doors
                 </p>
-                {needsPinningCount > 0 && (
+                {displayUnpinnedCount > 0 && (
                   <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500 text-white font-bold">
-                    {needsPinningCount}
+                    {displayUnpinnedCount}
                   </Badge>
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground truncate">
-                {needsPinningCount > 0 ? `${needsPinningCount} needs pinning` : 'All pinned'}
+                {displayUnpinnedCount > 0
+                  ? isManager
+                    ? `${displayUnpinnedCount} needs pinning`
+                    : `${displayUnpinnedCount} in your territory`
+                  : isManager
+                    ? 'All pinned'
+                    : 'All your doors pinned'}
               </p>
             </div>
           </Link>
@@ -397,14 +432,22 @@ export default function CongregationDashboardClient() {
             title="Door Records"
             value={householdsLoading ? '—' : households.length}
             description={
-              needsPinningCount > 0 ? `📍 ${needsPinningCount} needs pinning` : 'All pinned on map'
+              isManager
+                ? totalCongregationUnpinnedCount > 0
+                  ? `📍 ${totalCongregationUnpinnedCount} needs pinning`
+                  : 'All pinned on map'
+                : myUnpinnedDoorsCount > 0
+                  ? `📍 ${myUnpinnedDoorsCount} to pin in your territory`
+                  : 'All your doors pinned'
             }
             icon={Home}
-            color={needsPinningCount > 0 ? 'orange' : 'purple'}
+            color={displayUnpinnedCount > 0 ? 'orange' : 'purple'}
             loading={householdsLoading}
             href={
-              needsPinningCount > 0
-                ? `/congregation/${congregationId}/records/households?filter=unpinned`
+              displayUnpinnedCount > 0
+                ? isManager
+                  ? `/congregation/${congregationId}/records/households?filter=unpinned&scope=congregation`
+                  : `/congregation/${congregationId}/records/households?filter=unpinned&scope=mine`
                 : `/congregation/${congregationId}/records/households`
             }
           />
