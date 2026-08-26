@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertTriangle,
+  Calendar,
   Clock,
   History,
   Map as MapIcon,
@@ -1288,9 +1289,13 @@ function TerritoryHistoryDialog({
         open={Boolean(territory)}
         onOpenChange={(op) => !op && onClose()}
         title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
-        description={territory ? `${territory.name} — Adjust status, assignment, and return dates` : ''}
+        description={
+          territory
+            ? `${territory.name} — ${assignments.length} assignment record${assignments.length === 1 ? '' : 's'}`
+            : ''
+        }
       >
-        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1.5">
           {isLoading ? (
             <div className="py-12 text-center text-xs text-muted-foreground">
               Loading assignment history…
@@ -1307,88 +1312,142 @@ function TerritoryHistoryDialog({
             <div className="space-y-3">
               {assignments.map((a) => {
                 const isEditing = editingId === a.id;
-                const isReturned = Boolean(a.returnedAt) || a.status === 'completed' || a.status === 'returned';
+                const isReturned =
+                  Boolean(a.returnedAt) || a.status === 'completed' || a.status === 'returned';
                 const isActive = a.status === 'assigned' || a.status === 'active';
+
+                // Calculate duration in days if start date exists
+                let durationDays: number | null = null;
+                if (a.assignedAt) {
+                  const start = new Date(a.assignedAt).getTime();
+                  const end = a.returnedAt ? new Date(a.returnedAt).getTime() : Date.now();
+                  if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+                    durationDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+                  }
+                }
 
                 return (
                   <div
                     key={a.id}
-                    className={`p-3.5 rounded-2xl border transition-all text-xs space-y-2.5 ${
-                      isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
+                    className={`p-3.5 sm:p-4 rounded-2xl border transition-all space-y-3 ${
+                      isActive
+                        ? 'border-primary/40 bg-primary/[0.03] dark:bg-primary/[0.06] ring-1 ring-primary/20 shadow-xs'
+                        : 'border-border/80 bg-card hover:border-border'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5 font-bold text-foreground">
-                          {a.serviceGroupId ? (
-                            <Users size={13} className="text-blue-500 shrink-0" />
-                          ) : (
-                            <User size={13} className="text-primary shrink-0" />
-                          )}
-                          <span>{a.groupName || a.assigneeName || 'Publisher / Group'}</span>
+                    {/* Card Header: Assignee + Status */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`p-2 rounded-xl shrink-0 ${
+                            a.serviceGroupId
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                              : 'bg-primary/10 text-primary'
+                          }`}
+                        >
+                          {a.serviceGroupId ? <Users size={16} /> : <User size={16} />}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {a.serviceGroupId ? 'Service Group Assignment' : 'Personal Assignment'}
-                        </p>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-foreground truncate">
+                            {a.groupName || a.assigneeName || 'Publisher / Group'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {a.serviceGroupId
+                              ? 'Service Group Assignment'
+                              : 'Personal Assignment'}
+                          </p>
+                        </div>
                       </div>
                       <Badge
                         variant="outline"
-                        className={`text-[9px] uppercase font-bold ${
+                        className={`text-[9px] uppercase font-bold tracking-wide shrink-0 px-2.5 py-0.5 rounded-lg ${
                           isActive
                             ? 'bg-primary/10 text-primary border-primary/30'
                             : isReturned
-                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                              : 'bg-muted text-muted-foreground'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-muted text-muted-foreground border-border'
                         }`}
                       >
-                        {a.status}
+                        {a.status.replace('_', ' ')}
                       </Badge>
                     </div>
 
                     {!isEditing ? (
-                      <div className="space-y-2 pt-1 border-t border-border/50">
-                        <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                          <div>
-                            <span className="font-semibold text-foreground">Assigned:</span>{' '}
-                            {a.assignedAt ? formatDate(a.assignedAt) : '—'}
+                      <div className="space-y-3 pt-2.5 border-t border-border/60">
+                        {/* Responsive Date & Duration Flow */}
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-2 text-xs">
+                          {/* Assigned Date Chip */}
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 text-muted-foreground">
+                            <Calendar size={13} className="text-primary shrink-0" />
+                            <span>
+                              <strong className="text-foreground font-semibold">Assigned:</strong>{' '}
+                              {a.assignedAt ? formatDate(a.assignedAt) : '—'}
+                            </span>
                           </div>
-                          <div>
-                            <span className="font-semibold text-foreground">Returned / Revoked:</span>{' '}
+
+                          {/* Returned or Active Status Chip */}
+                          <div
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${
+                              a.returnedAt
+                                ? 'bg-muted/50 text-muted-foreground'
+                                : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20'
+                            }`}
+                          >
                             {a.returnedAt ? (
-                              <span className="text-foreground font-medium">
-                                {formatDate(a.returnedAt)}
-                              </span>
+                              <RotateCcw size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                             ) : (
-                              <span className="text-amber-600 dark:text-amber-400 font-medium">
-                                Active in Field
-                              </span>
+                              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
                             )}
+                            <span>
+                              <strong className="text-foreground font-semibold">
+                                {a.returnedAt ? 'Returned:' : 'Status:'}
+                              </strong>{' '}
+                              {a.returnedAt ? formatDate(a.returnedAt) : 'Active in Field'}
+                            </span>
                           </div>
+
+                          {/* Due Date Chip (if set) */}
                           {a.dueAt && (
-                            <div>
-                              <span className="font-semibold text-foreground">Due:</span>{' '}
-                              {formatDate(a.dueAt)}
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 text-muted-foreground">
+                              <Clock size={13} className="text-muted-foreground shrink-0" />
+                              <span>
+                                <strong className="text-foreground font-semibold">Due:</strong>{' '}
+                                {formatDate(a.dueAt)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Duration Chip */}
+                          {durationDays !== null && (
+                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted/30 text-muted-foreground font-medium">
+                              <span>⏳</span>
+                              <span>
+                                {durationDays} {durationDays === 1 ? 'day' : 'days'}
+                                {!a.returnedAt ? ' in field' : ''}
+                              </span>
                             </div>
                           )}
                         </div>
 
+                        {/* Notes */}
                         {a.notes && (
-                          <p className="text-muted-foreground italic text-[11px]">
-                            Note: &ldquo;{a.notes}&rdquo;
-                          </p>
+                          <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs text-muted-foreground italic">
+                            &ldquo;{a.notes}&rdquo;
+                          </div>
                         )}
 
+                        {/* Action Buttons Row */}
                         {(canAdjustDates || canDelete) && (
-                          <div className="flex items-center justify-end gap-1.5 pt-1">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 pt-1 border-t border-border/40">
                             {canDelete && (
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-7 rounded-xl text-xs gap-1 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                className="h-8 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3"
                                 onClick={() => setDeletingAssignmentId(a.id)}
                                 title="Delete accidental/wrong assignment history entry"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={12} />
                                 <span>Delete</span>
                               </Button>
                             )}
@@ -1396,10 +1455,10 @@ function TerritoryHistoryDialog({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 rounded-xl text-xs gap-1 font-semibold hover:border-primary/50 hover:bg-primary/5"
+                                className="h-8 rounded-xl text-xs gap-1.5 font-semibold hover:border-primary/50 hover:bg-primary/5 cursor-pointer px-3.5 shadow-xs"
                                 onClick={() => startEdit(a)}
                               >
-                                <Pencil size={11} />
+                                <Pencil size={12} />
                                 <span>Adjust Details</span>
                               </Button>
                             )}
@@ -1407,12 +1466,12 @@ function TerritoryHistoryDialog({
                         )}
                       </div>
                     ) : (
-                      <div className="space-y-3 pt-2 border-t border-border/80 bg-muted/20 p-2.5 rounded-xl">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-3 pt-2.5 border-t border-border/80 bg-muted/20 p-3 rounded-xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <Label className="text-[11px] font-semibold">Assignment Status *</Label>
                             <Select value={status} onValueChange={handleStatusChange}>
-                              <SelectTrigger className="h-8 rounded-xl text-xs">
+                              <SelectTrigger className="h-9 rounded-xl text-xs">
                                 <SelectValue placeholder="Select status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1430,7 +1489,7 @@ function TerritoryHistoryDialog({
                               type="date"
                               value={assignedAt}
                               onChange={(e) => setAssignedAt(e.target.value)}
-                              className="h-8 rounded-xl text-xs"
+                              className="h-9 rounded-xl text-xs"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1441,7 +1500,7 @@ function TerritoryHistoryDialog({
                               type="date"
                               value={returnedAt}
                               onChange={(e) => setReturnedAt(e.target.value)}
-                              className="h-8 rounded-xl text-xs"
+                              className="h-9 rounded-xl text-xs"
                               placeholder="Leave empty if active"
                             />
                           </div>
@@ -1451,7 +1510,7 @@ function TerritoryHistoryDialog({
                               type="date"
                               value={dueAt}
                               onChange={(e) => setDueAt(e.target.value)}
-                              className="h-8 rounded-xl text-xs"
+                              className="h-9 rounded-xl text-xs"
                             />
                           </div>
                           <div className="space-y-1 sm:col-span-2">
@@ -1460,27 +1519,29 @@ function TerritoryHistoryDialog({
                               value={notes}
                               onChange={(e) => setNotes(e.target.value)}
                               placeholder="Reason for adjustment / notes"
-                              className="h-8 rounded-xl text-xs"
+                              className="h-9 rounded-xl text-xs"
                             />
                           </div>
                         </div>
-                        <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
                           {canDelete ? (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 rounded-xl text-xs gap-1 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              className="h-8 rounded-xl text-xs gap-1.5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3"
                               onClick={() => setDeletingAssignmentId(a.id)}
                             >
-                              <Trash2 size={11} />
+                              <Trash2 size={12} />
                               <span>Delete Record</span>
                             </Button>
-                          ) : <div />}
+                          ) : (
+                            <div />
+                          )}
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 rounded-xl text-xs"
+                              className="h-8 rounded-xl text-xs px-3 cursor-pointer"
                               onClick={cancelEdit}
                               disabled={isUpdating}
                             >
@@ -1488,7 +1549,7 @@ function TerritoryHistoryDialog({
                             </Button>
                             <Button
                               size="sm"
-                              className="h-7 rounded-xl text-xs font-semibold"
+                              className="h-8 rounded-xl text-xs font-semibold px-4 cursor-pointer"
                               onClick={() => handleSave(a)}
                               disabled={isUpdating || !assignedAt}
                             >
@@ -1509,7 +1570,7 @@ function TerritoryHistoryDialog({
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs"
+              className="rounded-xl text-xs h-8 px-4 cursor-pointer"
               onClick={onClose}
             >
               Close

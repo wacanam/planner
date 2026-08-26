@@ -1,11 +1,13 @@
 // mobile/app/(tabs)/territories/[territoryId].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  Calendar,
   CheckCircle2,
   Clock,
   Download,
   Home,
   MapPin,
+  RotateCcw,
   Trash2,
   UserCheck,
   Users,
@@ -776,38 +778,47 @@ export default function TerritoryDetailScreen() {
                         size="sm"
                       />
                     </View>
-                    <Text
-                      style={{
-                        color: colors.mutedForeground,
-                        fontSize: typography.xs,
-                        marginTop: 4,
-                      }}
-                    >
-                      Assigned: {a.assignedAt ? formatDate(a.assignedAt) : '—'}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                      Returned:{' '}
-                      {a.returnedAt
-                        ? formatDate(a.returnedAt)
-                        : 'Active in Field'}
-                    </Text>
-                    {a.dueAt && (
-                      <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                        Due: {formatDate(a.dueAt)}
-                      </Text>
-                    )}
-                    {a.notes ? (
-                      <Text
-                        style={{
-                          color: colors.mutedForeground,
-                          fontSize: typography.xs,
-                          fontStyle: 'italic',
-                          marginTop: 2,
-                        }}
-                      >
-                        Note: {a.notes}
-                      </Text>
-                    ) : null}
+                    <View style={{ gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Calendar size={13} color={colors.primary} />
+                        <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                          <Text style={{ fontWeight: '700', color: colors.foreground }}>Assigned:</Text>{' '}
+                          {a.assignedAt ? formatDate(a.assignedAt) : '—'}
+                        </Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {a.returnedAt ? (
+                          <RotateCcw size={13} color="#16a34a" />
+                        ) : (
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f59e0b', marginHorizontal: 2.5 }} />
+                        )}
+                        <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                          <Text style={{ fontWeight: '700', color: colors.foreground }}>
+                            {a.returnedAt ? 'Returned:' : 'Status:'}
+                          </Text>{' '}
+                          {a.returnedAt ? formatDate(a.returnedAt) : 'Active in Field'}
+                        </Text>
+                      </View>
+
+                      {a.dueAt && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Clock size={13} color={colors.mutedForeground} />
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                            <Text style={{ fontWeight: '700', color: colors.foreground }}>Due:</Text>{' '}
+                            {formatDate(a.dueAt)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {a.notes ? (
+                        <View style={{ padding: 8, borderRadius: radius.md, backgroundColor: colors.muted, marginTop: 2 }}>
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic' }}>
+                            "{a.notes}"
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
 
                     {(canAdjust || canDelete) && (
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
