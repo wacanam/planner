@@ -12,7 +12,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
-import { getPlannerFirestore } from '@/lib/firebase/client';
+import { getPlannerAuth, getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 import { isSystemAdmin } from '@/lib/permissions';
 import type { User } from '@/types/api';
@@ -154,17 +154,80 @@ export function useAdminUsers() {
     []
   );
 
-  const deleteUserRecord = useCallback(async (userId: string) => {
-    setIsProcessing(true);
-    try {
-      const db = getPlannerFirestore();
-      await deleteDoc(userDocument(userId));
-      const memberRef = doc(db, FIRESTORE_COLLECTIONS.congregationMembers, userId);
-      await deleteDoc(memberRef).catch(() => undefined);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
+  const deleteUserRecord = useCallback(
+    async (userId: string, transferRecipientId?: string) => {
+      setIsProcessing(true);
+      try {
+        const auth = getPlannerAuth();
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('You must be signed in as an administrator to perform this action.');
+        }
+
+        const idToken = await currentUser.getIdToken();
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            transferRecipientId: transferRecipientId || null,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to delete user record.');
+        }
+
+        return data;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
+
+  const updateUserEmail = useCallback(
+    async (
+      userId: string,
+      newEmail: string,
+      sendPasswordReset = true
+    ): Promise<{ resetLink?: string | null }> => {
+      setIsProcessing(true);
+      try {
+        const auth = getPlannerAuth();
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('You must be signed in as an administrator to perform this action.');
+        }
+
+        const idToken = await currentUser.getIdToken();
+        const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            newEmail: newEmail.trim().toLowerCase(),
+            sendPasswordReset,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update user email address.');
+        }
+
+        return { resetLink: data.resetLink };
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
 
   return {
     users,
@@ -172,6 +235,7 @@ export function useAdminUsers() {
     isProcessing,
     error,
     updateUserRole,
+    updateUserEmail,
     toggleUserStatus,
     unlinkUserCongregation,
     deleteUserRecord,

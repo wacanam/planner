@@ -4,7 +4,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   Building2,
+  Check,
+  Copy,
+  KeyRound,
   LogOut,
+  Mail,
   MoreVertical,
   Search,
   Shield,
@@ -53,6 +57,7 @@ export default function AdminUsersClient() {
     isLoading: loading,
     isProcessing,
     updateUserRole,
+    updateUserEmail,
     toggleUserStatus,
     unlinkUserCongregation,
     deleteUserRecord,
@@ -69,6 +74,13 @@ export default function AdminUsersClient() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<string>('USER');
 
+  // Email Replace Modal
+  const [emailTargetUser, setEmailTargetUser] = useState<User | null>(null);
+  const [newEmailAddress, setNewEmailAddress] = useState<string>('');
+  const [sendPasswordReset, setSendPasswordReset] = useState<boolean>(true);
+  const [generatedResetLink, setGeneratedResetLink] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+
   // Status Toggle Modal
   const [statusTargetUser, setStatusTargetUser] = useState<User | null>(null);
 
@@ -77,6 +89,7 @@ export default function AdminUsersClient() {
 
   // Delete Modal
   const [deleteTargetUser, setDeleteTargetUser] = useState<User | null>(null);
+  const [transferRecipientId, setTransferRecipientId] = useState<string>('');
 
   const congMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -137,6 +150,54 @@ export default function AdminUsersClient() {
     }
   };
 
+  const handleOpenEmailReplace = (u: User) => {
+    setEmailTargetUser(u);
+    setNewEmailAddress('');
+    setSendPasswordReset(true);
+    setGeneratedResetLink(null);
+    setCopiedLink(false);
+  };
+
+  const handleSaveEmail = async () => {
+    if (!emailTargetUser) return;
+    if (!newEmailAddress || !newEmailAddress.includes('@')) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+    if (newEmailAddress.trim().toLowerCase() === emailTargetUser.email.trim().toLowerCase()) {
+      toast.error('The new email address must be different from the current email.');
+      return;
+    }
+
+    try {
+      const result = await updateUserEmail(
+        emailTargetUser.id,
+        newEmailAddress.trim().toLowerCase(),
+        sendPasswordReset
+      );
+      toast.success(`Email updated for ${emailTargetUser.name}!`);
+      if (result.resetLink) {
+        setGeneratedResetLink(result.resetLink);
+      } else {
+        setEmailTargetUser(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update email address.');
+    }
+  };
+
+  const handleCopyResetLink = async () => {
+    if (!generatedResetLink) return;
+    try {
+      await navigator.clipboard.writeText(generatedResetLink);
+      setCopiedLink(true);
+      toast.success('Password reset link copied to clipboard!');
+      setTimeout(() => setCopiedLink(false), 3000);
+    } catch {
+      toast.error('Failed to copy link to clipboard.');
+    }
+  };
+
   const handleToggleStatus = async () => {
     if (!statusTargetUser) return;
     const nextStatus = !statusTargetUser.isActive;
@@ -164,11 +225,48 @@ export default function AdminUsersClient() {
     }
   };
 
+  const potentialRecipients = useMemo(() => {
+    if (!deleteTargetUser) return [];
+    return users
+      .filter((u) => u.id !== deleteTargetUser.id && u.isActive)
+      .sort((a, b) => {
+        const aSameCong =
+          deleteTargetUser.congregationId && a.congregationId === deleteTargetUser.congregationId
+            ? -1
+            : 1;
+        const bSameCong =
+          deleteTargetUser.congregationId && b.congregationId === deleteTargetUser.congregationId
+            ? -1
+            : 1;
+        if (aSameCong !== bSameCong) return aSameCong - bSameCong;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  }, [users, deleteTargetUser]);
+
+  const handleOpenDeleteModal = (u: User) => {
+    setDeleteTargetUser(u);
+    // Find candidate in same congregation first (prefer Service Overseer)
+    const sameCongUsers = users.filter(
+      (c) =>
+        c.id !== u.id && c.isActive && c.congregationId && c.congregationId === u.congregationId
+    );
+    const serviceOverseer = sameCongUsers.find(
+      (c) => String(c.role).toUpperCase() === 'SERVICE_OVERSEER'
+    );
+    const candidate =
+      serviceOverseer?.id ||
+      sameCongUsers[0]?.id ||
+      (currentUser?.id !== u.id ? currentUser?.id : '') ||
+      users.find((c) => c.id !== u.id && c.isActive)?.id ||
+      '';
+    setTransferRecipientId(candidate || '');
+  };
+
   const handleDeleteUser = async () => {
     if (!deleteTargetUser) return;
     try {
-      await deleteUserRecord(deleteTargetUser.id);
-      toast.success(`User record for ${deleteTargetUser.name} deleted.`);
+      const res = await deleteUserRecord(deleteTargetUser.id, transferRecipientId);
+      toast.success(res?.message || `User record for ${deleteTargetUser.name} deleted.`);
       setDeleteTargetUser(null);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete user record.');
@@ -383,6 +481,15 @@ export default function AdminUsersClient() {
                             <span>Change System Role</span>
                           </DropdownMenuItem>
 
+                          <DropdownMenuItem
+                            onClick={() => handleOpenEmailReplace(u)}
+                            className="cursor-pointer gap-2"
+                            disabled={isMe}
+                          >
+                            <Mail size={13} className="text-primary" />
+                            <span>Replace Email Address</span>
+                          </DropdownMenuItem>
+
                           {u.congregationId && (
                             <DropdownMenuItem
                               onClick={() => setUnlinkTargetUser(u)}
@@ -416,7 +523,7 @@ export default function AdminUsersClient() {
                           <DropdownMenuSeparator />
 
                           <DropdownMenuItem
-                            onClick={() => setDeleteTargetUser(u)}
+                            onClick={() => handleOpenDeleteModal(u)}
                             className="cursor-pointer gap-2 text-destructive focus:text-destructive"
                             disabled={isMe}
                           >
@@ -524,6 +631,149 @@ export default function AdminUsersClient() {
               )}
             </div>
           </div>
+        </ResponsiveDialog>
+
+        {/* Replace Email Dialog */}
+        <ResponsiveDialog
+          open={Boolean(emailTargetUser)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEmailTargetUser(null);
+              setGeneratedResetLink(null);
+              setCopiedLink(false);
+            }
+          }}
+          title={generatedResetLink ? 'Email Replaced Successfully' : 'Replace User Email Address'}
+          description={
+            generatedResetLink
+              ? `The email for ${emailTargetUser?.name || 'the user'} has been updated.`
+              : `Update the login email address for ${emailTargetUser?.name || emailTargetUser?.email}.`
+          }
+        >
+          {generatedResetLink ? (
+            <div className="space-y-4">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 space-y-2">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Check size={14} className="shrink-0 text-emerald-600" />
+                  <span>Email Updated to {newEmailAddress}</span>
+                </p>
+                <p>
+                  A password reset link was generated for the new email address. You can copy this
+                  link and send it directly to the user so they can set a password and regain access:
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Password Reset Link</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={generatedResetLink}
+                    className="h-10 rounded-xl text-xs bg-muted font-mono select-all truncate"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-xl h-10 px-3 shrink-0 gap-1.5 text-xs font-semibold"
+                    onClick={handleCopyResetLink}
+                  >
+                    {copiedLink ? (
+                      <Check size={14} className="text-emerald-600" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                    <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={() => {
+                    setEmailTargetUser(null);
+                    setGeneratedResetLink(null);
+                    setCopiedLink(false);
+                  }}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-foreground space-y-1">
+                <p className="font-semibold flex items-center gap-1.5 text-primary">
+                  <KeyRound size={14} className="shrink-0" />
+                  <span>Administrative Email Replacement</span>
+                </p>
+                <p className="text-muted-foreground">
+                  This will update the user's primary login in Firebase Authentication and their profile
+                  in Firestore. Any active sessions on other devices will be invalidated.
+                </p>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <span className="text-muted-foreground">Current Email:</span>{' '}
+                <span className="font-semibold text-foreground">
+                  {emailTargetUser?.email || 'None'}
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">New Email Address</Label>
+                <Input
+                  type="email"
+                  placeholder="e.g. publisher@example.com"
+                  value={newEmailAddress}
+                  onChange={(e) => setNewEmailAddress(e.target.value)}
+                  className="h-10 rounded-xl text-xs"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="sendPasswordReset"
+                  checked={sendPasswordReset}
+                  onChange={(e) => setSendPasswordReset(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <label
+                  htmlFor="sendPasswordReset"
+                  className="text-xs text-foreground font-medium cursor-pointer"
+                >
+                  Generate a password reset link for the user
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs"
+                  onClick={() => setEmailTargetUser(null)}
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={handleSaveEmail}
+                  disabled={isProcessing || !newEmailAddress.trim()}
+                >
+                  {isProcessing ? 'Updating Email…' : 'Replace Email'}
+                </Button>
+              </div>
+            </div>
+          )}
         </ResponsiveDialog>
 
         {/* Toggle Account Status Dialog */}
@@ -637,18 +887,70 @@ export default function AdminUsersClient() {
           onOpenChange={(open) => {
             if (!open) setDeleteTargetUser(null);
           }}
-          title="Delete User Record"
-          description={`Permanently remove ${deleteTargetUser?.name} from Firestore.`}
+          title="Delete User & Account"
+          description={`Permanently delete ${deleteTargetUser?.name || deleteTargetUser?.email} and all associated data.`}
         >
           <div className="space-y-4">
             <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive space-y-1">
               <p className="font-bold flex items-center gap-1.5">
                 <AlertTriangle size={14} className="shrink-0" />
-                <span>Permanent Deletion</span>
+                <span>Account Deletion & Record Transfer</span>
               </p>
               <p>
-                This action will delete the Firestore user document and congregation membership
-                entry.
+                This will permanently delete this user from <strong>Firebase Authentication</strong> and remove their profile from the <strong>users</strong> collection.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Transfer Records To (Service Overseer / Publisher)
+              </Label>
+              <Select
+                value={transferRecipientId}
+                onValueChange={setTransferRecipientId}
+              >
+                <SelectTrigger className="h-10 rounded-xl text-xs">
+                  <SelectValue placeholder="Select recipient for ministry records" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl text-xs max-h-56">
+                  {potentialRecipients.map((r) => {
+                    const isSameCong =
+                      deleteTargetUser?.congregationId &&
+                      r.congregationId === deleteTargetUser.congregationId;
+                    const congLabel = r.congregationId ? congMap.get(r.congregationId) : null;
+                    const isOverseer =
+                      String(r.role).toUpperCase() === 'SERVICE_OVERSEER';
+
+                    return (
+                      <SelectItem key={r.id} value={r.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{r.name || r.email}</span>
+                          {isOverseer && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/20"
+                            >
+                              Service Overseer
+                            </Badge>
+                          )}
+                          {isSameCong && !isOverseer && (
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                              Same Congregation
+                            </Badge>
+                          )}
+                          {congLabel && !isSameCong && (
+                            <span className="text-muted-foreground text-[10px]">
+                              ({congLabel})
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                All households, visits, encounters, and contacts created by {deleteTargetUser?.name || 'this user'} will be safely preserved and transferred to the selected person.
               </p>
             </div>
 
