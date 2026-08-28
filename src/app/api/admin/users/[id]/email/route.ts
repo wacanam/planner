@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { getAdminAuth, getAdminDb } from '@/lib/firebase/admin';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'];
 
 export async function POST(
