@@ -84,10 +84,27 @@ export default function CongregationDashboardClient() {
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
-      map.set(tId, calculateTerritoryCoverage(hList));
+      const activeAssignment = assignments.find(
+        (a) => a.territoryId === tId && (a.status === 'assigned' || a.status === 'active')
+      );
+      const latestCompleted = !activeAssignment
+        ? assignments
+            .filter((a) => a.territoryId === tId && (a.status === 'completed' || a.returnedAt))
+            .sort((a, b) => (b.returnedAt || '').localeCompare(a.returnedAt || ''))[0]
+        : null;
+
+      const targetAssignment = activeAssignment || latestCompleted;
+      map.set(
+        tId,
+        calculateTerritoryCoverage(hList, {
+          assignedAt: targetAssignment?.assignedAt,
+          returnedAt: targetAssignment?.returnedAt,
+          assignmentId: targetAssignment?.id,
+        })
+      );
     }
     return map;
-  }, [households]);
+  }, [households, assignments]);
 
   // Find all service groups that the current user belongs to (as overseer, assistant, or member)
   const userGroupIds = useMemo(() => {

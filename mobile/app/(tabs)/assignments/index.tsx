@@ -19,6 +19,7 @@ import { useCongregationTerritories } from '@/hooks/useTerritories';
 import { getUserGroupIds, isUserInGroup, resolveUserAssignments } from '@/lib/permissions';
 import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment } from '@/types/api';
 
 export default function MyAssignmentsScreen() {
@@ -155,9 +156,14 @@ export default function MyAssignmentsScreen() {
             const territoryHouseholds = households.filter(
               (h) => h.territoryId === item.territoryId
             );
-            const totalDoors = territoryHouseholds.length || territory?.householdsCount || 0;
-            const workedDoors = territoryHouseholds.filter((h) => h.lastVisitDate).length;
-            const coverage = totalDoors > 0 ? Math.round((workedDoors / totalDoors) * 100) : 0;
+            const stats = calculateTerritoryCoverage(territoryHouseholds, {
+              assignedAt: item.assignedAt,
+              returnedAt: item.returnedAt,
+              assignmentId: item.id,
+            });
+            const totalDoors = stats.totalDoors || territory?.householdsCount || 0;
+            const workedDoors = stats.workedDoors;
+            const coverage = stats.coveragePercent;
 
             return (
               <Card

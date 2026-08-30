@@ -150,6 +150,18 @@ export default function TerritoriesClient() {
   const { revoke: revokeTerritory, isPending: revokingTerritory } = useRevokeTerritory();
   const { remove: deleteTerritory, isDeleting: deletingTerritory } = useDeleteTerritory();
 
+  // Map territoryId -> Array<Assignment>
+  const assignmentsByTerritoryId = useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    for (const a of assignments) {
+      if (a.territoryId) {
+        if (!map.has(a.territoryId)) map.set(a.territoryId, []);
+        map.get(a.territoryId)?.push(a);
+      }
+    }
+    return map;
+  }, [assignments]);
+
   const coverageByTerritoryId = useMemo(() => {
     const map = new Map<
       string,
@@ -163,22 +175,28 @@ export default function TerritoriesClient() {
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
-      map.set(tId, calculateTerritoryCoverage(hList));
-    }
-    return map;
-  }, [households]);
+      const tAssignments = assignmentsByTerritoryId.get(tId) || [];
+      const activeAssignment = tAssignments.find(
+        (a) => a.status === 'assigned' || a.status === 'active'
+      );
+      const latestCompleted = !activeAssignment
+        ? tAssignments
+            .filter((a) => a.status === 'completed' || a.returnedAt)
+            .sort((a, b) => (b.returnedAt || '').localeCompare(a.returnedAt || ''))[0]
+        : null;
 
-  // Map territoryId -> Array<Assignment>
-  const assignmentsByTerritoryId = useMemo(() => {
-    const map = new Map<string, Assignment[]>();
-    for (const a of assignments) {
-      if (a.territoryId) {
-        if (!map.has(a.territoryId)) map.set(a.territoryId, []);
-        map.get(a.territoryId)?.push(a);
-      }
+      const targetAssignment = activeAssignment || latestCompleted;
+      map.set(
+        tId,
+        calculateTerritoryCoverage(hList, {
+          assignedAt: targetAssignment?.assignedAt,
+          returnedAt: targetAssignment?.returnedAt,
+          assignmentId: targetAssignment?.id,
+        })
+      );
     }
     return map;
-  }, [assignments]);
+  }, [households, assignmentsByTerritoryId]);
 
   // Map territoryId -> latest visit date string across its households
   const lastActivityByTerritoryId = useMemo(() => {

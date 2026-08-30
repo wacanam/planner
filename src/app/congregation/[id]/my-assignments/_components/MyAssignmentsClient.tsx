@@ -98,10 +98,18 @@ export default function MyAssignmentsClient() {
       }
     }
     for (const [tId, hList] of byTerritory.entries()) {
-      map.set(tId, calculateTerritoryCoverage(hList));
+      const assignment = assignments.find((a) => a.territoryId === tId);
+      map.set(
+        tId,
+        calculateTerritoryCoverage(hList, {
+          assignedAt: assignment?.assignedAt,
+          returnedAt: assignment?.returnedAt,
+          assignmentId: assignment?.id,
+        })
+      );
     }
     return map;
-  }, [households]);
+  }, [households, assignments]);
 
   // Find all service groups that the current user belongs to (as overseer, assistant, or member)
   const userGroupIds = useMemo(() => {

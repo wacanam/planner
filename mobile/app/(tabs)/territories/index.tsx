@@ -12,11 +12,13 @@ import { Input } from '@/components/ui/Input';
 import { TerritoriesDirectorySkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useMyAssignments } from '@/hooks/useAssignments';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useHouseholds } from '@/hooks/useHouseholds';
 import { useCongregationTerritories } from '@/hooks/useTerritories';
 import { canCreateTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Territory } from '@/types/api';
 
 const STATUS_FILTERS = [
@@ -33,6 +35,7 @@ export default function TerritoriesDirectoryScreen() {
   const { colors, typography, spacing, radius } = useTheme();
 
   const { territories, isLoading } = useCongregationTerritories(activeCongregationId);
+  const { assignments = [] } = useMyAssignments(activeCongregationId);
   const { groups = [] } = useCongregationGroups(activeCongregationId);
   const { households = [] } = useHouseholds({ congregationId: activeCongregationId });
 
@@ -176,12 +179,26 @@ export default function TerritoriesDirectoryScreen() {
           }}
           renderItem={({ item }) => {
             const territoryHouseholds = households.filter((h) => h.territoryId === item.id);
-            const totalDoors = territoryHouseholds.length || item.householdsCount || 0;
-            const workedDoors = territoryHouseholds.filter((h) => h.lastVisitDate).length;
+            const tAssignments = assignments.filter((a) => a.territoryId === item.id);
+            const activeAssignment = tAssignments.find(
+              (a) => a.status === 'assigned' || a.status === 'active'
+            );
+            const latestCompleted = !activeAssignment
+              ? tAssignments
+                  .filter((a) => a.status === 'completed' || a.returnedAt)
+                  .sort((a, b) => (b.returnedAt || '').localeCompare(a.returnedAt || ''))[0]
+              : null;
+            const targetAssignment = activeAssignment || latestCompleted;
+
+            const stats = calculateTerritoryCoverage(territoryHouseholds, {
+              assignedAt: targetAssignment?.assignedAt,
+              returnedAt: targetAssignment?.returnedAt,
+              assignmentId: targetAssignment?.id,
+            });
+            const totalDoors = stats.totalDoors || item.householdsCount || 0;
+            const workedDoors = stats.workedDoors;
             const coverage =
-              totalDoors > 0
-                ? Math.round((workedDoors / totalDoors) * 100)
-                : parseFloat(item.coveragePercent || '0');
+              totalDoors > 0 ? stats.coveragePercent : parseFloat(item.coveragePercent || '0');
 
             return (
               <Card

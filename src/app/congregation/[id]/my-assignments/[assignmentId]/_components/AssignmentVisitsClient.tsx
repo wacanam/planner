@@ -214,7 +214,12 @@ export default function AssignmentVisitsClient() {
   // Coverage Stats
   const coverageStats = useMemo(() => {
     if (households && households.length > 0) {
-      return calculateTerritoryCoverage(households);
+      return calculateTerritoryCoverage(households, {
+        assignedAt: activeAssignment?.assignedAt,
+        returnedAt: activeAssignment?.returnedAt,
+        assignmentId: activeAssignment?.id,
+        visits,
+      });
     }
     const fallbackPercent = territory
       ? Math.round(parseFloat(territory.coveragePercent ?? '0'))
@@ -229,7 +234,7 @@ export default function AssignmentVisitsClient() {
       ),
       coveragePercent: fallbackPercent,
     };
-  }, [households, territory]);
+  }, [households, territory, activeAssignment, visits]);
 
   // Demographic & Outcome Stats Breakdown
   const demographicStats = useMemo(() => {

@@ -45,6 +45,7 @@ import { exportTerritoryCardPdf } from '@/lib/pdf-export';
 import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates, canDeleteAssignment, canEditTerritory } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment } from '@/types/api';
 
 export default function TerritoryDetailScreen() {
@@ -134,9 +135,21 @@ export default function TerritoryDetailScreen() {
     return undefined;
   }, [boundaryCoords]);
 
-  const totalDoors = households.length || territory?.householdsCount || 0;
-  const workedDoors = households.filter((h) => h.lastVisitDate).length;
-  const coverage = totalDoors > 0 ? Math.round((workedDoors / totalDoors) * 100) : 0;
+  const latestCompleted = !activeAssignment
+    ? assignments
+        .filter((a) => a.status === 'completed' || a.returnedAt)
+        .sort((a, b) => (b.returnedAt || '').localeCompare(a.returnedAt || ''))[0]
+    : null;
+  const targetAssignment = activeAssignment || latestCompleted;
+
+  const stats = calculateTerritoryCoverage(households, {
+    assignedAt: targetAssignment?.assignedAt,
+    returnedAt: targetAssignment?.returnedAt,
+    assignmentId: targetAssignment?.id,
+  });
+  const totalDoors = stats.totalDoors || territory?.householdsCount || 0;
+  const workedDoors = stats.workedDoors;
+  const coverage = totalDoors > 0 ? stats.coveragePercent : parseFloat(territory?.coveragePercent || '0');
 
   const handleSendRequest = async () => {
     if (!user || !territoryId) return;
