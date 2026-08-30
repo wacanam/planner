@@ -54,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ServiceYearCountdown } from '@/components/service-year-countdown';
 import {
   useActivityReport,
   useCongregation,
@@ -77,6 +78,7 @@ import {
 } from '@/lib/reports-csv-export';
 import { UserRole } from '@/lib/roles';
 import { exportS13ToPDF } from '@/lib/s13-pdf-export';
+import { getServiceYear } from '@/lib/service-year';
 import type { S13AssignmentRecord } from '@/types/api';
 
 type Tab = 'overview' | 's13' | 'groups-publishers' | 'doors' | 'activity';
@@ -88,6 +90,10 @@ export default function ReportsClient() {
   const { user } = useCurrentUser();
   const { congregation } = useCongregation(congregationId);
   const [tab, setTab] = useState<Tab>('overview');
+
+  // Service Year State
+  const currentSY = getServiceYear();
+  const [selectedServiceYear, setSelectedServiceYear] = useState<number | 'all'>('all');
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,13 +114,23 @@ export default function ReportsClient() {
   const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
   const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
 
-  // Hooks for reports
-  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
-  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId);
-  const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId);
-  const { data: publishersData, isLoading: publishersLoading } =
-    usePublishersReport(congregationId);
-  const { data: doorData, isLoading: doorLoading } = useDoorAnalyticsReport(congregationId);
+  // Hooks for reports with Service Year filtering
+  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: publishersData, isLoading: publishersLoading } = usePublishersReport(
+    congregationId,
+    { serviceYear: selectedServiceYear }
+  );
+  const { data: doorData, isLoading: doorLoading } = useDoorAnalyticsReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
   const { data: activityData, isLoading: activityLoading } = useActivityReport(congregationId);
 
   const congregationName = congregation?.name || 'Congregation';
@@ -175,7 +191,14 @@ export default function ReportsClient() {
         t.publisherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'unworked_sy'
+            ? !t.isWorkedInServiceYear
+            : statusFilter === 'worked_sy'
+              ? Boolean(t.isWorkedInServiceYear)
+              : t.status === statusFilter;
       const matchesHealth = healthFilter === 'all' || t.healthStatus === healthFilter;
 
       return matchesSearch && matchesStatus && matchesHealth;
@@ -248,8 +271,26 @@ export default function ReportsClient() {
             </p>
           </div>
 
-          {/* Export & PDF Direct Download Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Service Year Selector & Export Actions */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Select
+              value={String(selectedServiceYear)}
+              onValueChange={(val) => setSelectedServiceYear(val === 'all' ? 'all' : Number(val))}
+            >
+              <SelectTrigger className="w-[190px] h-9 text-xs rounded-xl font-semibold bg-card border-border shadow-2xs">
+                <Calendar size={13} className="mr-1.5 text-primary shrink-0" />
+                <SelectValue placeholder="Service Year" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl text-xs">
+                <SelectItem value="all">All Service Years</SelectItem>
+                {(coverageData?.availableServiceYears || [currentSY]).map((sy) => (
+                  <SelectItem key={sy} value={String(sy)}>
+                    {sy === currentSY ? `${sy - 1}–${sy} (Current SY)` : `${sy - 1}–${sy} Service Year`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Button
               variant="outline"
               size="sm"
@@ -298,14 +339,14 @@ export default function ReportsClient() {
                   <span>Download Full Report (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportS13ToPDF(s13Records, congregationName)}
+                  onClick={() => exportS13ToPDF(s13Records, congregationName, selectedServiceYear)}
                   className="cursor-pointer gap-2 py-2 font-semibold text-blue-600 dark:text-blue-400"
                 >
                   <FileSpreadsheet size={14} className="text-blue-600" />
                   <span>Download S-13 Record (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportS13ToCSV(s13Records, congregationName)}
+                  onClick={() => exportS13ToCSV(s13Records, congregationName, selectedServiceYear)}
                   className="cursor-pointer gap-2 py-2"
                 >
                   <FileSpreadsheet size={14} className="text-primary" />
@@ -313,7 +354,11 @@ export default function ReportsClient() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
-                    exportCoverageToCSV(coverageData?.territories || [], congregationName)
+                    exportCoverageToCSV(
+                      coverageData?.territories || [],
+                      congregationName,
+                      selectedServiceYear
+                    )
                   }
                   className="cursor-pointer gap-2 py-2"
                 >
@@ -563,6 +608,17 @@ export default function ReportsClient() {
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 'overview' && (
           <div className="space-y-6">
+            {/* Service Year Countdown & Pacing Banner */}
+            <ServiceYearCountdown
+              variant="banner"
+              serviceYear={selectedServiceYear}
+              coveragePercent={coverageData?.avgCoveragePercent}
+              workedTerritoriesCount={coverageData?.workedInCurrentSYCount}
+              totalTerritoriesCount={coverageData?.totalTerritories}
+              unworkedTerritoriesCount={coverageData?.unworkedInCurrentSYCount}
+              onFilterUnworked={() => setStatusFilter('unworked_sy')}
+            />
+
             {/* Status Breakdown & Health Matrix */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <Card className="bg-card border-border shadow-xs">
@@ -667,6 +723,12 @@ export default function ReportsClient() {
                     className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
                   >
                     <option value="all">All Statuses</option>
+                    <option value="unworked_sy">
+                      🔥 Unworked in SY ({coverageData?.unworkedInCurrentSYCount ?? 0})
+                    </option>
+                    <option value="worked_sy">
+                      ✓ Worked in SY ({coverageData?.workedInCurrentSYCount ?? 0})
+                    </option>
                     <option value="available">Available</option>
                     <option value="assigned">Assigned</option>
                     <option value="completed">Completed</option>
@@ -781,21 +843,31 @@ export default function ReportsClient() {
         {/* TAB 2: OFFICIAL S-13 CONGREGATION TERRITORY RECORD */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 's13' && (
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-bold">
-                    Official S-13 Congregation Territory Record
-                  </CardTitle>
-                  <Badge variant="outline" className="text-[10px] font-mono font-bold bg-muted/60">
-                    S-13 (8/19)
-                  </Badge>
+          <div className="space-y-6">
+            <ServiceYearCountdown
+              variant="banner"
+              serviceYear={selectedServiceYear}
+              coveragePercent={coverageData?.avgCoveragePercent}
+              workedTerritoriesCount={coverageData?.workedInCurrentSYCount}
+              totalTerritoriesCount={coverageData?.totalTerritories}
+              unworkedTerritoriesCount={coverageData?.unworkedInCurrentSYCount}
+            />
+
+            <Card className="bg-card border-border shadow-xs">
+              <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-base font-bold">
+                      Official S-13 Congregation Territory Record
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono font-bold bg-muted/60">
+                      S-13 (8/19)
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Complete territory assignment history, turnaround duration, and return coverage %
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Complete territory assignment history, turnaround duration, and return coverage %
-                </p>
-              </div>
 
               {/* S-13 Search & Filter Controls */}
               <div className="flex flex-wrap items-center gap-2">
@@ -826,7 +898,7 @@ export default function ReportsClient() {
 
                 <Button
                   size="sm"
-                  onClick={() => exportS13ToPDF(filteredS13, congregationName)}
+                  onClick={() => exportS13ToPDF(filteredS13, congregationName, selectedServiceYear)}
                   className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs"
                 >
                   <FileText size={12} />
@@ -836,7 +908,7 @@ export default function ReportsClient() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => exportS13ToCSV(filteredS13, congregationName)}
+                  onClick={() => exportS13ToCSV(filteredS13, congregationName, selectedServiceYear)}
                   className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
                 >
                   <Download size={12} />
@@ -968,6 +1040,7 @@ export default function ReportsClient() {
               )}
             </CardContent>
           </Card>
+          </div>
         )}
 
         {/* S-13 Adjust Dates Dialog */}

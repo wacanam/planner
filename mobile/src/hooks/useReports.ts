@@ -2,6 +2,12 @@
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { FIRESTORE_COLLECTIONS, getPlannerFirestore } from '@/lib/firebase';
+import {
+  getAvailableServiceYears,
+  getServiceYear,
+  getServiceYearRange,
+  isDateInServiceYear,
+} from '@/lib/service-year';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type {
   Assignment,
@@ -14,12 +20,21 @@ import type {
   Visit,
 } from '@/types/api';
 
-export function useCoverageReport(congregationId: string | null | undefined) {
+export interface ReportFilterOptions {
+  serviceYear?: number | 'all';
+}
+
+export function useCoverageReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   useEffect(() => {
     if (!congregationId) {
@@ -87,9 +102,21 @@ export function useCoverageReport(congregationId: string | null | undefined) {
   }, [congregationId]);
 
   const report: CoverageReport = useMemo(() => {
+    const currentSY = getServiceYear(new Date());
+    const syForEvaluation = selectedServiceYear === 'all' ? currentSY : selectedServiceYear;
+    const syRange = getServiceYearRange(syForEvaluation);
+
+    const allRecordDates = [
+      ...assignments.map((a) => a.assignedAt),
+      ...assignments.map((a) => a.returnedAt),
+      ...visits.map((v) => v.visitDate),
+    ];
+    const availableServiceYears = getAvailableServiceYears(allRecordDates, true);
+
     const totalTerritories = territories.length;
     let totalDoors = 0;
     let workedDoors = 0;
+    let workedInCurrentSYCount = 0;
 
     const householdTerritoryMap = new Map<string, string>();
     for (const h of households) {
@@ -186,17 +213,36 @@ export function useCoverageReport(congregationId: string | null | undefined) {
 
       // Calculate days since worked from households and visits
       let latestVisitMs = 0;
+      let hasVisitInTargetSY = false;
+
       for (const h of tHouseholds) {
         if (h.lastVisitDate) {
           const ms = new Date(h.lastVisitDate).getTime();
           if (ms > latestVisitMs) latestVisitMs = ms;
+          if (ms >= syRange.startMs && ms <= syRange.endMs) {
+            hasVisitInTargetSY = true;
+          }
         }
       }
       for (const v of tVisits) {
         if (v.visitDate) {
           const ms = new Date(v.visitDate).getTime();
           if (ms > latestVisitMs) latestVisitMs = ms;
+          if (ms >= syRange.startMs && ms <= syRange.endMs) {
+            hasVisitInTargetSY = true;
+          }
         }
+      }
+
+      const hasAssignmentInTargetSY = pastAssignments.some(
+        (a) =>
+          isDateInServiceYear(a.returnedAt, syForEvaluation) ||
+          isDateInServiceYear(a.assignedAt, syForEvaluation)
+      ) || (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
+
+      const isWorkedInServiceYear = Boolean(hasVisitInTargetSY || hasAssignmentInTargetSY);
+      if (isWorkedInServiceYear) {
+        workedInCurrentSYCount += 1;
       }
 
       if (latestVisitMs > 0) {
@@ -223,6 +269,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         unworkedDoors: stats.unworkedDoors,
         healthStatus,
         daysSinceWorked,
+        isWorkedInServiceYear,
         publisherName: activeAssignment?.assigneeName || t.publisherName || undefined,
         groupName: activeAssignment?.groupName || t.groupName || undefined,
       };
@@ -238,6 +285,10 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       unworkedDoors: Math.max(0, totalDoors - workedDoors),
       activeAssignmentRate: 0,
       avgTurnaroundDays: 0,
+      serviceYear: selectedServiceYear,
+      availableServiceYears,
+      workedInCurrentSYCount,
+      unworkedInCurrentSYCount: Math.max(0, territories.length - workedInCurrentSYCount),
       byStatus: {
         available: territories.filter((t) => t.status === 'available').length,
         assigned: territories.filter((t) => t.status === 'assigned').length,
@@ -252,17 +303,22 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       },
       territories: mappedTerritories,
     };
-  }, [territories, households, assignments, visits]);
+  }, [territories, households, assignments, visits, selectedServiceYear]);
 
   return { data: report, isLoading };
 }
 
-export function useS13Report(congregationId: string | null | undefined) {
+export function useS13Report(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   useEffect(() => {
     if (!congregationId) {
@@ -356,7 +412,7 @@ export function useS13Report(congregationId: string | null | undefined) {
       }
     }
 
-    return assignments.map((a) => {
+    const allRecords = assignments.map((a) => {
       const terr = territoryMap.get(a.territoryId);
       const terrHouseholds = householdsByTerritory.get(a.territoryId) || [];
       const terrVisits = visitsByTerritory.get(a.territoryId) || [];
@@ -381,6 +437,9 @@ export function useS13Report(congregationId: string | null | undefined) {
         durationDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
       }
 
+      const effectiveDate = a.returnedAt || a.assignedAt || a.createdAt;
+      const serviceYear = getServiceYear(effectiveDate);
+
       return {
         id: a.id,
         territoryId: a.territoryId,
@@ -397,9 +456,23 @@ export function useS13Report(congregationId: string | null | undefined) {
         coverageAtReturn,
         durationDays,
         status: a.status,
+        serviceYear,
       };
     });
-  }, [assignments, territories, households, visits]);
+
+    if (selectedServiceYear === 'all') {
+      return allRecords;
+    }
+
+    return allRecords.filter((rec) => {
+      if (rec.serviceYear === selectedServiceYear) return true;
+      if (!rec.returnedAt && isDateInServiceYear(rec.assignedAt, selectedServiceYear)) {
+        return true;
+      }
+      return false;
+    });
+  }, [assignments, territories, households, visits, selectedServiceYear]);
 
   return { data: s13Records, isLoading };
 }
+

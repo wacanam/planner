@@ -8,7 +8,8 @@ import type { S13AssignmentRecord } from '@/types/api';
  */
 export function exportS13ToPDF(
   records: S13AssignmentRecord[],
-  congregationName = 'Congregation'
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
 ): jsPDF {
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -49,6 +50,11 @@ export function exportS13ToPDF(
   let currentPage = 1;
   let currentY = marginTop;
 
+  const syLabel =
+    serviceYear && serviceYear !== 'all'
+      ? `${serviceYear - 1}–${serviceYear} Service Year`
+      : 'All Service Years';
+
   const drawHeader = (isFirstPage: boolean) => {
     if (isFirstPage) {
       // Top S-13 Form Title Bar
@@ -68,11 +74,11 @@ export function exportS13ToPDF(
         align: 'right',
       });
 
-      // Sub-bar with Congregation name & stats
+      // Sub-bar with Congregation name & stats & Service Year
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(
-        `Congregation: ${congregationName}   •   Generated: ${formatDate(new Date())}`,
+        `Congregation: ${congregationName}   •   ${syLabel}   •   Generated: ${formatDate(new Date())}`,
         marginLeft + 6,
         currentY + 13.5
       );
@@ -264,7 +270,8 @@ export function exportS13ToPDF(
   drawFooter(currentPage);
 
   // Trigger browser download if in browser
-  const filename = `S-13_Territory_Record_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const sySuffix = serviceYear && serviceYear !== 'all' ? `_SY${serviceYear}` : '';
+  const filename = `S-13_Territory_Record_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
   if (typeof window !== 'undefined') {
     doc.save(filename);
   }

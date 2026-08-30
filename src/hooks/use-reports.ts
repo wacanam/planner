@@ -2,6 +2,12 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/schema';
+import {
+  getAvailableServiceYears,
+  getServiceYear,
+  getServiceYearRange,
+  isDateInServiceYear,
+} from '@/lib/service-year';
 import { calculateTerritoryCoverage, type TerritoryCoverageStats } from '@/lib/territory-coverage';
 import type {
   ActivityReport,
@@ -328,11 +334,32 @@ function useReportSources(congregationId: string | null | undefined) {
   };
 }
 
-export function useCoverageReport(congregationId: string | null | undefined) {
+export interface ReportFilterOptions {
+  serviceYear?: number | 'all';
+}
+
+export function useCoverageReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const { territories, assignments, households, visits, isLoading, error } =
     useReportSources(congregationId);
 
+  const selectedServiceYear = options?.serviceYear ?? 'all';
+
   const data = useMemo<CoverageReport>(() => {
+    const currentSY = getServiceYear(new Date());
+    const syForEvaluation = selectedServiceYear === 'all' ? currentSY : selectedServiceYear;
+    const syRange = getServiceYearRange(syForEvaluation);
+
+    // Compute available service years across historical records
+    const allRecordDates = [
+      ...assignments.map((a) => a.assignedAt),
+      ...assignments.map((a) => a.returnedAt),
+      ...visits.map((v) => v.visitDate),
+    ];
+    const availableServiceYears = getAvailableServiceYears(allRecordDates, true);
+
     const householdsByTerritory = new Map<string, Household[]>();
     const householdTerritoryMap = new Map<string, string>();
     for (const h of households) {
@@ -373,6 +400,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
     const now = Date.now();
     let totalWorked = 0;
     let totalDoors = 0;
+    let workedInCurrentSYCount = 0;
 
     const calculatedTerritories: CoverageTerritory[] = territories.map((territory) => {
       const terrHouseholds = householdsByTerritory.get(territory.id) || [];
@@ -446,17 +474,36 @@ export function useCoverageReport(congregationId: string | null | undefined) {
 
       // Calculate last worked date from households and visits
       let latestVisitMs = 0;
+      let hasVisitInTargetSY = false;
+
       for (const h of terrHouseholds) {
         if (h.lastVisitDate) {
           const ms = new Date(h.lastVisitDate).getTime();
           if (ms > latestVisitMs) latestVisitMs = ms;
+          if (ms >= syRange.startMs && ms <= syRange.endMs) {
+            hasVisitInTargetSY = true;
+          }
         }
       }
       for (const v of terrVisits) {
         if (v.visitDate) {
           const ms = new Date(v.visitDate).getTime();
           if (ms > latestVisitMs) latestVisitMs = ms;
+          if (ms >= syRange.startMs && ms <= syRange.endMs) {
+            hasVisitInTargetSY = true;
+          }
         }
+      }
+
+      const hasAssignmentInTargetSY = pastAssignments.some(
+        (a) =>
+          isDateInServiceYear(a.returnedAt, syForEvaluation) ||
+          isDateInServiceYear(a.assignedAt, syForEvaluation)
+      ) || (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
+
+      const isWorkedInServiceYear = Boolean(hasVisitInTargetSY || hasAssignmentInTargetSY);
+      if (isWorkedInServiceYear) {
+        workedInCurrentSYCount += 1;
       }
 
       const daysSinceWorked = latestVisitMs
@@ -486,6 +533,7 @@ export function useCoverageReport(congregationId: string | null | undefined) {
         groupName: activeAssignment?.groupName ?? territory.groupName ?? undefined,
         healthStatus,
         daysSinceWorked,
+        isWorkedInServiceYear,
       };
     });
 
@@ -518,6 +566,10 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       unworkedDoors: Math.max(0, totalDoors - totalWorked),
       activeAssignmentRate,
       avgTurnaroundDays,
+      serviceYear: selectedServiceYear,
+      availableServiceYears,
+      workedInCurrentSYCount,
+      unworkedInCurrentSYCount: Math.max(0, territories.length - workedInCurrentSYCount),
       byStatus: {
         available: territories.filter((t) => t.status === 'available').length,
         assigned: assignedCount,
@@ -532,14 +584,19 @@ export function useCoverageReport(congregationId: string | null | undefined) {
       },
       territories: calculatedTerritories,
     };
-  }, [territories, assignments, households, visits]);
+  }, [territories, assignments, households, visits, selectedServiceYear]);
 
   return { data, isLoading, error };
 }
 
-export function useS13Report(congregationId: string | null | undefined) {
+export function useS13Report(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const { territories, assignments, households, visits, isLoading, error } =
     useReportSources(congregationId);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   const data = useMemo<S13AssignmentRecord[]>(() => {
     const territoryById = new Map(territories.map((t) => [t.id, t]));
@@ -566,7 +623,7 @@ export function useS13Report(congregationId: string | null | undefined) {
       }
     }
 
-    return assignments
+    const allRecords = assignments
       .map((a) => {
         const terr = territoryById.get(a.territoryId);
         const terrHouseholds = householdsByTerritory.get(a.territoryId) || [];
@@ -592,6 +649,9 @@ export function useS13Report(congregationId: string | null | undefined) {
           durationDays = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
         }
 
+        const effectiveDate = a.returnedAt || a.assignedAt || a.createdAt;
+        const serviceYear = getServiceYear(effectiveDate);
+
         return {
           id: a.id,
           territoryId: a.territoryId,
@@ -609,6 +669,7 @@ export function useS13Report(congregationId: string | null | undefined) {
           coverageAtReturn: periodCoverage,
           durationDays,
           status: a.status,
+          serviceYear,
         };
       })
       .sort((left, right) => {
@@ -616,14 +677,31 @@ export function useS13Report(congregationId: string | null | undefined) {
         const dateB = right.assignedAt ? new Date(right.assignedAt).getTime() : 0;
         return dateB - dateA;
       });
-  }, [assignments, territories, households, visits]);
+
+    if (selectedServiceYear === 'all') {
+      return allRecords;
+    }
+
+    return allRecords.filter((rec) => {
+      if (rec.serviceYear === selectedServiceYear) return true;
+      if (!rec.returnedAt && isDateInServiceYear(rec.assignedAt, selectedServiceYear)) {
+        return true;
+      }
+      return false;
+    });
+  }, [assignments, territories, households, visits, selectedServiceYear]);
 
   return { data, isLoading, error };
 }
 
-export function useGroupsReport(congregationId: string | null | undefined) {
+export function useGroupsReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const { groups, territories, assignments, households, visits, isLoading, error } =
     useReportSources(congregationId);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   const data = useMemo<GroupReportStats[]>(() => {
     const householdsByTerritory = new Map<string, Household[]>();
@@ -652,9 +730,15 @@ export function useGroupsReport(congregationId: string | null | undefined) {
     const territoryById = new Map(territories.map((t) => [t.id, t]));
 
     return groups.map((group) => {
-      const groupAssignments = assignments.filter(
+      let groupAssignments = assignments.filter(
         (a) => a.serviceGroupId === group.id && (a.status === 'assigned' || a.status === 'active')
       );
+
+      if (selectedServiceYear !== 'all') {
+        groupAssignments = groupAssignments.filter((a) =>
+          isDateInServiceYear(a.assignedAt || a.createdAt, selectedServiceYear)
+        );
+      }
 
       const assignedTerritories = groupAssignments
         .map((a) => territoryById.get(a.territoryId))
@@ -698,14 +782,19 @@ export function useGroupsReport(congregationId: string | null | undefined) {
         territoryNumbers: assignedTerritories.map((t) => `#${t.number}`),
       };
     });
-  }, [groups, territories, assignments, households, visits]);
+  }, [groups, territories, assignments, households, visits, selectedServiceYear]);
 
   return { data, isLoading, error };
 }
 
-export function usePublishersReport(congregationId: string | null | undefined) {
+export function usePublishersReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const { territories, assignments, members, groups, visits, isLoading, error } =
     useReportSources(congregationId);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   const data = useMemo<PublishersReport>(() => {
     const territoryById = new Map(territories.map((t) => [t.id, t]));
@@ -718,9 +807,15 @@ export function usePublishersReport(congregationId: string | null | undefined) {
       }
     }
 
+    // Filter visits if selected service year
+    const relevantVisits =
+      selectedServiceYear === 'all'
+        ? visits
+        : visits.filter((v) => isDateInServiceYear(v.visitDate, selectedServiceYear));
+
     // Map memberId -> total visits & last active date
     const visitStatsByUser = new Map<string, { count: number; lastDate: string | null }>();
-    for (const v of visits) {
+    for (const v of relevantVisits) {
       if (v.userId) {
         const curr = visitStatsByUser.get(v.userId) || { count: 0, lastDate: null };
         curr.count += 1;
@@ -734,7 +829,14 @@ export function usePublishersReport(congregationId: string | null | undefined) {
     return {
       publishers: members.map((member) => {
         const uid = member.userId || member.id;
-        const memberAssignments = assignments.filter((a) => a.userId === uid);
+        let memberAssignments = assignments.filter((a) => a.userId === uid);
+
+        if (selectedServiceYear !== 'all') {
+          memberAssignments = memberAssignments.filter((a) =>
+            isDateInServiceYear(a.returnedAt || a.assignedAt || a.createdAt, selectedServiceYear)
+          );
+        }
+
         const activeAssignments = memberAssignments.filter(
           (a) => !['completed', 'returned'].includes(a.status)
         );
@@ -758,15 +860,24 @@ export function usePublishersReport(congregationId: string | null | undefined) {
         };
       }),
     };
-  }, [assignments, members, territories, groups, visits]);
+  }, [assignments, members, territories, groups, visits, selectedServiceYear]);
 
   return { data, isLoading, error };
 }
 
-export function useDoorAnalyticsReport(congregationId: string | null | undefined) {
+export function useDoorAnalyticsReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
   const { households, visits, isLoading, error } = useReportSources(congregationId);
+  const selectedServiceYear = options?.serviceYear ?? 'all';
 
   const data = useMemo<DoorAnalyticsReport>(() => {
+    const relevantVisits =
+      selectedServiceYear === 'all'
+        ? visits
+        : visits.filter((v) => isDateInServiceYear(v.visitDate, selectedServiceYear));
+
     const totalDoors = households.length;
     let workedDoors = 0;
     let doNotCallCount = 0;
@@ -844,7 +955,7 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       streetCounts.set(street, curr);
     }
 
-    for (const v of visits) {
+    for (const v of relevantVisits) {
       const outcome = (v.outcome || '').toLowerCase();
       if (outcome === 'study_conducted' || outcome.includes('study')) {
         outcomeCounts.studyConducted += 1;
@@ -915,7 +1026,7 @@ export function useDoorAnalyticsReport(congregationId: string | null | undefined
       outcomeCounts,
       topStreets,
     };
-  }, [households, visits]);
+  }, [households, visits, selectedServiceYear]);
 
   return { data, isLoading, error };
 }
@@ -964,3 +1075,4 @@ export function useActivityReport(congregationId: string | null | undefined) {
 
   return { data, isLoading, error };
 }
+

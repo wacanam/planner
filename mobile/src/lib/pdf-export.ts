@@ -9,13 +9,19 @@ import type { S13AssignmentRecord, Territory } from '@/types/api';
  */
 export function generateS13Html(
   records: S13AssignmentRecord[],
-  congregationName = 'Congregation'
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
 ): string {
   const dateStr = formatDate(new Date());
   const activeCount = records.filter((r) => !r.returnedAt).length;
   const completedCount = records.filter(
     (r) => Boolean(r.returnedAt) || r.status === 'completed'
   ).length;
+
+  const syLabel =
+    serviceYear && serviceYear !== 'all'
+      ? `${serviceYear - 1}–${serviceYear} Service Year`
+      : 'All Service Years';
 
   const rowsHtml = records
     .map((r, index) => {
@@ -70,7 +76,7 @@ export function generateS13Html(
           <div class="header-code">FORM S-13 (8/19)</div>
         </div>
         <div class="sub-bar">
-          <div>Congregation: <strong>${congregationName}</strong> &bull; Generated: ${dateStr}</div>
+          <div>Congregation: <strong>${congregationName}</strong> &bull; ${syLabel} &bull; Generated: ${dateStr}</div>
           <div>Total: ${records.length} &bull; Active: ${activeCount} &bull; Completed: ${completedCount}</div>
         </div>
 
@@ -107,9 +113,10 @@ export function generateS13Html(
  */
 export async function exportS13Pdf(
   records: S13AssignmentRecord[],
-  congregationName = 'Congregation'
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
 ): Promise<void> {
-  const html = generateS13Html(records, congregationName);
+  const html = generateS13Html(records, congregationName, serviceYear);
   const { uri } = await Print.printToFileAsync({
     html,
     margins: { left: 20, top: 20, right: 20, bottom: 20 },

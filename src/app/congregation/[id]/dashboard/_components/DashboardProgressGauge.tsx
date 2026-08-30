@@ -2,6 +2,7 @@
 
 import { TrendingUp, Users } from 'lucide-react';
 import Link from 'next/link';
+import { ServiceYearCountdown } from '@/components/service-year-countdown';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DashboardContextProps } from './types';
@@ -44,7 +45,8 @@ export function DashboardProgressGauge({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <ServiceYearCountdown variant="compact" />
               <Badge
                 variant="outline"
                 className="text-xs font-bold px-2.5 py-0.5 border-primary/30 text-primary bg-primary/5"
