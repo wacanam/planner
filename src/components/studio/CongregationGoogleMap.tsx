@@ -3,6 +3,10 @@
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ensureWebGLDrawingBufferPreserved } from '@/lib/webgl-preserve';
+
+// Ensure WebGL drawing buffers are preserved before Google Maps loads
+ensureWebGLDrawingBufferPreserved();
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
 import type {
