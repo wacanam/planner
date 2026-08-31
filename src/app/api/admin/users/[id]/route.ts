@@ -56,8 +56,7 @@ async function resolveServiceOverseer(
       const userDoc = await db.collection(FIRESTORE_COLLECTIONS.users).doc(candidateId).get();
       const userData = userDoc.data();
       const name =
-        userData?.name ||
-        (serviceOverseerId ? 'Service Overseer' : 'Congregation Servant');
+        userData?.name || (serviceOverseerId ? 'Service Overseer' : 'Congregation Servant');
       return {
         userId: candidateId,
         name,
@@ -79,10 +78,7 @@ async function resolveServiceOverseer(
   };
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: targetUserId } = await params;
 

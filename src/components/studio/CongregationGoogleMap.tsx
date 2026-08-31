@@ -26,7 +26,6 @@ import {
 } from './StudioBasemapPopup';
 import { getTerritoryBoundaries } from './StudioGoogleMap';
 
-
 export interface CongregationGoogleMapProps {
   territories: Territory[];
   congregation?: Congregation | null;
@@ -438,7 +437,6 @@ export function CongregationGoogleMap({
   const initialBoundsFittedRef = useRef(false);
   const isProgrammaticCameraUpdateRef = useRef(false);
 
-
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
   // Filtered Territories list
@@ -539,7 +537,6 @@ export function CongregationGoogleMap({
           maxZoom: 22,
           mapId,
 
-
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
@@ -555,7 +552,6 @@ export function CongregationGoogleMap({
           scaleControl: false,
           gestureHandling: 'greedy',
         });
-
 
         map.addListener('click', () => {
           handleDeselectAllRef.current?.();
@@ -589,8 +585,6 @@ export function CongregationGoogleMap({
         };
 
         map.addListener('idle', syncZoomState);
-
-
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -1113,7 +1107,6 @@ export function CongregationGoogleMap({
               map.panTo({ lat, lng });
               map.setZoom(targetZoom);
             },
-
           });
 
           const clusterMarker = new AdvancedMarkerElement({
@@ -1129,7 +1122,6 @@ export function CongregationGoogleMap({
           const pointProps = item.properties as unknown as { id: string; household: Household };
           renderSingleHouseholdPin(pointProps.household);
         }
-
       });
     } else {
       filteredHouseholds.forEach((h) => {
@@ -1145,7 +1137,6 @@ export function CongregationGoogleMap({
     currentZoom,
     selectedHouseholdId,
   ]);
-
 
   // 8. Render All Congregation Annotations (Landmarks, Roads, Start Meeting Flags)
   useEffect(() => {
@@ -1494,7 +1485,6 @@ export function CongregationGoogleMap({
     selectedRoadId,
     selectedStartFlagTerritoryId,
   ]);
-
 
   // 9. Live GPS & Member Location Tracking
   useEffect(() => {

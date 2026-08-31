@@ -65,10 +65,15 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate">
                     Monthly Ministry Reports
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">Activity & S-13/S-89 records</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Activity & S-13/S-89 records
+                  </p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
 
             <Link
@@ -83,10 +88,15 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-emerald-600 transition-colors truncate">
                     Publisher Directory
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{members.length} active publishers</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {members.length} active publishers
+                  </p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
           </>
         ) : isTerritoryServantTier ? (
@@ -103,10 +113,15 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate">
                     All Territories Inventory
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{territories.length} territory zones</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {territories.length} territory zones
+                  </p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
 
             <Link
@@ -121,10 +136,15 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-amber-600 transition-colors truncate">
                     Coordinate Cleanup
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{totalCongregationUnpinnedCount} unpinned doors</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {totalCongregationUnpinnedCount} unpinned doors
+                  </p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
           </>
         ) : (
@@ -141,10 +161,15 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors truncate">
                     Household Directory
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">{households.length} door records</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {households.length} door records
+                  </p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
 
             <Link
@@ -162,7 +187,10 @@ export function RecordsAndResourcesDock({
                   <p className="text-[10px] text-muted-foreground truncate">Door-to-door logs</p>
                 </div>
               </div>
-              <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+              <ArrowRight
+                size={14}
+                className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+              />
             </Link>
           </>
         )}
@@ -183,7 +211,10 @@ export function RecordsAndResourcesDock({
               <p className="text-[10px] text-muted-foreground truncate">All boundary zones</p>
             </div>
           </div>
-          <ArrowRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+          <ArrowRight
+            size={14}
+            className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5"
+          />
         </Link>
       </CardContent>
     </Card>

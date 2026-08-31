@@ -1,6 +1,13 @@
-// mobile/app/(tabs)/assignments/index.tsx
 import { useRouter } from 'expo-router';
-import { Calendar, ChevronRight, Sparkles, Users } from 'lucide-react-native';
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Sparkles,
+  Users,
+} from 'lucide-react-native';
 import { useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +24,7 @@ import { useCongregationMembers } from '@/hooks/useCongregationMembers';
 import { useHouseholds } from '@/hooks/useHouseholds';
 import { useCongregationTerritories } from '@/hooks/useTerritories';
 import { getUserGroupIds, isUserInGroup, resolveUserAssignments } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate, getDueStatus } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment } from '@/types/api';
@@ -164,6 +171,7 @@ export default function MyAssignmentsScreen() {
             const totalDoors = stats.totalDoors || territory?.householdsCount || 0;
             const workedDoors = stats.workedDoors;
             const coverage = stats.coveragePercent;
+            const dueStatus = getDueStatus(item.dueAt);
 
             return (
               <Card
@@ -204,9 +212,9 @@ export default function MyAssignmentsScreen() {
                   </View>
 
                   {item.serviceGroupId ? (
-                    <Badge label="Group" variant="secondary" />
+                    <Badge label={myGroup?.name || 'Group'} variant="secondary" size="sm" />
                   ) : (
-                    <Badge label="Personal" variant="primary" />
+                    <Badge label="Personal" variant="primary" size="sm" />
                   )}
                 </View>
 
@@ -249,22 +257,53 @@ export default function MyAssignmentsScreen() {
                   </View>
                 </View>
 
-                {/* Card footer details */}
-                <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                  {item.assignedAt && (
-                    <View style={styles.footerItem}>
+                {/* Dates & Urgency Status row */}
+                <View
+                  style={{
+                    marginTop: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  {item.assignedAt ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Calendar size={13} color={colors.mutedForeground} />
                       <Text
-                        style={[
-                          styles.footerText,
-                          { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 },
-                        ]}
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          marginLeft: 4,
+                        }}
                       >
                         Assigned {formatDate(item.assignedAt)}
                       </Text>
                     </View>
+                  ) : (
+                    <View />
                   )}
 
+                  {item.dueAt && dueStatus.status !== 'none' && (
+                    <View>
+                      {dueStatus.status === 'overdue' ? (
+                        <Badge label={dueStatus.label} variant="destructive" size="sm" />
+                      ) : dueStatus.status === 'due-soon' ? (
+                        <Badge label={dueStatus.label} variant="warning" size="sm" />
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Clock size={12} color={colors.mutedForeground} />
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                            {dueStatus.label}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Card footer details */}
+                <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                  <View style={{ flex: 1 }} />
                   <View style={styles.actionRow}>
                     <Text
                       style={[
@@ -272,7 +311,7 @@ export default function MyAssignmentsScreen() {
                         { color: colors.primary, fontSize: typography.xs },
                       ]}
                     >
-                      Open Map & Doors
+                      Work Territory
                     </Text>
                     <ChevronRight size={14} color={colors.primary} />
                   </View>

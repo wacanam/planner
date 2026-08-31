@@ -1,5 +1,7 @@
 if (typeof window !== 'undefined') {
-  throw new Error('Firebase Admin SDK cannot be imported or executed in client/browser environments.');
+  throw new Error(
+    'Firebase Admin SDK cannot be imported or executed in client/browser environments.'
+  );
 }
 import { type App, cert, getApp, getApps, initializeApp } from 'firebase-admin/app';
 import { type Auth, getAuth } from 'firebase-admin/auth';
@@ -30,7 +32,8 @@ export function getAdminApp(): App {
   }
 
   const serverEnv = getServerEnv();
-  const projectId = serverEnv.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const projectId =
+    serverEnv.FIREBASE_ADMIN_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = serverEnv.FIREBASE_ADMIN_CLIENT_EMAIL;
   const rawPrivateKey = serverEnv.FIREBASE_ADMIN_PRIVATE_KEY;
 

@@ -42,13 +42,7 @@ export function ServiceYearCountdown({
 
   if (variant === 'compact') {
     if (countdown.isPastServiceYear) {
-      return (
-        <Badge
-          label={`${range.shortLabel} Concluded`}
-          variant="secondary"
-          size="sm"
-        />
-      );
+      return <Badge label={`${range.shortLabel} Concluded`} variant="secondary" size="sm" />;
     }
 
     return (
@@ -97,7 +91,14 @@ export function ServiceYearCountdown({
         </View>
 
         <View style={{ flex: 1, marginLeft: spacing.sm, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 6,
+            }}
+          >
             <Text
               numberOfLines={1}
               style={{
@@ -109,11 +110,7 @@ export function ServiceYearCountdown({
             >
               {range.label}
             </Text>
-            <Badge
-              label={countdown.phaseTitle}
-              variant="primary"
-              size="sm"
-            />
+            <Badge label={countdown.phaseTitle} variant="primary" size="sm" />
           </View>
 
           <Text

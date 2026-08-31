@@ -259,7 +259,6 @@ export function StudioLayout({
   );
   const boundaryDisplaySaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
   // Service Groups for permission scoping & location tracking
   const { groups = [] } = useCongregationGroups(congregationId);
 
@@ -766,7 +765,9 @@ export function StudioLayout({
       return;
     }
     if (tool === 'boundary' && !canModifyBoundary(user)) {
-      toast.error('Only Territory Servants, Service Overseers, and Admins can draw territory boundaries.');
+      toast.error(
+        'Only Territory Servants, Service Overseers, and Admins can draw territory boundaries.'
+      );
       setActiveTool('pointer');
       return;
     }

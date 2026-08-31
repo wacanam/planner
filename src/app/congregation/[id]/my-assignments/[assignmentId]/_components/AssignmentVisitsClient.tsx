@@ -430,9 +430,7 @@ export default function AssignmentVisitsClient() {
                     <span>•</span>
                     <span className="inline-flex items-center gap-1">
                       <Calendar size={12} />
-                      <span>
-                        Assigned {formatDate(activeAssignment.assignedAt)}
-                      </span>
+                      <span>Assigned {formatDate(activeAssignment.assignedAt)}</span>
                     </span>
                   </>
                 )}

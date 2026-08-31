@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Flame,
-  Info,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, Flame, Info, Sparkles, TrendingUp } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -242,7 +234,8 @@ export function ServiceYearCountdown({
               Territories
             </p>
             <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate">
-              {typeof workedTerritoriesCount === 'number' && typeof totalTerritoriesCount === 'number'
+              {typeof workedTerritoriesCount === 'number' &&
+              typeof totalTerritoriesCount === 'number'
                 ? `${workedTerritoriesCount} / ${totalTerritoriesCount}`
                 : '—'}
             </p>

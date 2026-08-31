@@ -34,7 +34,12 @@ export function ReturnVisitsCard({
               : 'Return Visits & Follow-ups'}
           </span>
         </CardTitle>
-        <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground"
+        >
           <Link href={`/congregation/${congregationId}/records/households?filter=return_visit`}>
             View All
           </Link>

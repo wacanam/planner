@@ -134,9 +134,7 @@ export default function CongregationDashboardClient() {
   const userIsGroupAssistant = useMemo(() => {
     return (
       !userIsGroupOverseer &&
-      groups.some((g) =>
-        isGroupOverseerAssistant(user?.id, g, user?.role, user?.congregationRole)
-      )
+      groups.some((g) => isGroupOverseerAssistant(user?.id, g, user?.role, user?.congregationRole))
     );
   }, [groups, user, userIsGroupOverseer]);
 
@@ -162,9 +160,7 @@ export default function CongregationDashboardClient() {
   const ledGroupMemberIds = useMemo(() => {
     if (!ledGroup) return new Set<string>();
     const ids = new Set<string>(
-      (ledGroup.members || [])
-        .map((m) => m.userId || m.id)
-        .filter((x): x is string => Boolean(x))
+      (ledGroup.members || []).map((m) => m.userId || m.id).filter((x): x is string => Boolean(x))
     );
     if (ledGroup.overseerId) ids.add(ledGroup.overseerId);
     if (ledGroup.assistantOverseerId) ids.add(ledGroup.assistantOverseerId);
@@ -207,9 +203,7 @@ export default function CongregationDashboardClient() {
     return groupHouseholds
       .filter(
         (h) =>
-          h.status === 'return_visit' ||
-          h.status === 'busy' ||
-          Boolean(h.notes && h.lastVisitDate)
+          h.status === 'return_visit' || h.status === 'busy' || Boolean(h.notes && h.lastVisitDate)
       )
       .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
       .slice(0, 3);
@@ -223,10 +217,7 @@ export default function CongregationDashboardClient() {
     if (userIsTerritoryServant) return 'Territory Servant';
     if (userIsGroupOverseer) return `${ledGroup?.name || 'Group'} Overseer`;
     if (userIsGroupAssistant) return `${ledGroup?.name || 'Group'} Assistant`;
-    if (
-      user.congregationRole === 'VISITING_PUBLISHER' ||
-      user.role === 'VISITING_PUBLISHER'
-    )
+    if (user.congregationRole === 'VISITING_PUBLISHER' || user.role === 'VISITING_PUBLISHER')
       return 'Visiting Publisher';
     return 'Publisher';
   }, [

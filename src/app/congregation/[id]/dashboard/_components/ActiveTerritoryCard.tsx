@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Clock,
-  Compass,
-  User,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { Clock, Compass, User, Users, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,7 +22,9 @@ export function ActiveTerritoryCard({
 }: DashboardContextProps) {
   const displayAssignments = isGroupLeaderTier ? groupActiveAssignments : activeAssignments;
   const primaryAssignment = displayAssignments[0];
-  const primaryTerritory = primaryAssignment ? territoryMap.get(primaryAssignment.territoryId) : null;
+  const primaryTerritory = primaryAssignment
+    ? territoryMap.get(primaryAssignment.territoryId)
+    : null;
   const primaryCoverage = primaryAssignment
     ? coverageByTerritoryId.get(primaryAssignment.territoryId) || {
         totalDoors: 0,
@@ -63,7 +59,12 @@ export function ActiveTerritoryCard({
                 <span>Browse Available Zones ({availableTerritories.length})</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="rounded-2xl text-xs font-semibold h-9 px-4">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="rounded-2xl text-xs font-semibold h-9 px-4"
+            >
               <Link href={`/congregation/${congregationId}/records/households`}>
                 <span>View Household Records</span>
               </Link>
@@ -87,7 +88,11 @@ export function ActiveTerritoryCard({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">
                 <Zap size={12} />
-                <span>{isGroupLeaderTier ? `${ledGroup?.name || 'Group'} Active Zone` : 'Active Territory in Work'}</span>
+                <span>
+                  {isGroupLeaderTier
+                    ? `${ledGroup?.name || 'Group'} Active Zone`
+                    : 'Active Territory in Work'}
+                </span>
               </span>
 
               {assignedGroup ? (
@@ -131,7 +136,12 @@ export function ActiveTerritoryCard({
 
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Clock size={12} className="text-muted-foreground shrink-0" />
-              <span>Assigned {primaryAssignment.assignedAt ? formatDaysAgo(primaryAssignment.assignedAt) : 'recently'}</span>
+              <span>
+                Assigned{' '}
+                {primaryAssignment.assignedAt
+                  ? formatDaysAgo(primaryAssignment.assignedAt)
+                  : 'recently'}
+              </span>
             </p>
           </div>
 
@@ -141,7 +151,9 @@ export function ActiveTerritoryCard({
               asChild
               className="rounded-2xl font-bold text-xs gap-1.5 h-10 px-5 shadow-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-102 cursor-pointer w-full sm:w-auto justify-center"
             >
-              <Link href={`/congregation/${congregationId}/territories/${primaryAssignment.territoryId}`}>
+              <Link
+                href={`/congregation/${congregationId}/territories/${primaryAssignment.territoryId}`}
+              >
                 <Compass size={16} />
                 <span>Launch Studio Map</span>
               </Link>
@@ -155,7 +167,8 @@ export function ActiveTerritoryCard({
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground font-medium">
                 <span className="font-bold text-foreground">{primaryCoverage.workedDoors}</span> of{' '}
-                <span className="font-bold text-foreground">{primaryCoverage.totalDoors}</span> doors visited
+                <span className="font-bold text-foreground">{primaryCoverage.totalDoors}</span>{' '}
+                doors visited
               </span>
               <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                 {primaryCoverage.coveragePercent}%

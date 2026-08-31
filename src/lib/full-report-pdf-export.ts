@@ -403,14 +403,9 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     if (r.returnedAt) {
       doc.setTextColor(30, 41, 59);
-      doc.text(
-        formatDate(r.returnedAt),
-        x + s13Columns[5].width / 2,
-        currentY + 4.2,
-        {
-          align: 'center',
-        }
-      );
+      doc.text(formatDate(r.returnedAt), x + s13Columns[5].width / 2, currentY + 4.2, {
+        align: 'center',
+      });
     } else {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(37, 99, 235);

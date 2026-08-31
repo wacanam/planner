@@ -1,6 +1,5 @@
 import type Supercluster from 'supercluster';
 
-
 export interface PointFeatureProperties<T = unknown> {
   id: string;
   data: T;
@@ -86,8 +85,7 @@ export function createClusterBadgeElement(
     fontSize = 11.5;
   }
 
-  const displayCount =
-    pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;
+  const displayCount = pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;
 
   const container = document.createElement('div');
   container.style.position = 'relative';

@@ -285,7 +285,9 @@ export default function ReportsClient() {
                 <SelectItem value="all">All Service Years</SelectItem>
                 {(coverageData?.availableServiceYears || [currentSY]).map((sy) => (
                   <SelectItem key={sy} value={String(sy)}>
-                    {sy === currentSY ? `${sy - 1}–${sy} (Current SY)` : `${sy - 1}–${sy} Service Year`}
+                    {sy === currentSY
+                      ? `${sy - 1}–${sy} (Current SY)`
+                      : `${sy - 1}–${sy} Service Year`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -860,302 +862,312 @@ export default function ReportsClient() {
                     <CardTitle className="text-sm sm:text-base font-bold">
                       Official S-13 Congregation Territory Record
                     </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-mono font-bold bg-muted/60 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-mono font-bold bg-muted/60 shrink-0"
+                    >
                       S-13 (8/19)
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Complete territory assignment history, turnaround duration, and return coverage %
+                    Complete territory assignment history, turnaround duration, and return coverage
+                    %
                   </p>
                 </div>
 
-              {/* S-13 Search & Filter Controls */}
-              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
-                <div className="relative w-full sm:w-56">
-                  <Search
-                    size={13}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    placeholder="Search S-13 records…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-xs w-full rounded-xl"
-                  />
-                </div>
-
-                <select
-                  value={s13Filter}
-                  onChange={(e) => setS13Filter(e.target.value)}
-                  className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
-                >
-                  <option value="all">All Assignments</option>
-                  <option value="active">Active Only</option>
-                  <option value="returned">Returned / Completed</option>
-                  <option value="group">Service Groups</option>
-                  <option value="personal">Personal Publishers</option>
-                </select>
-
-                <Button
-                  size="sm"
-                  onClick={() => exportS13ToPDF(filteredS13, congregationName, selectedServiceYear)}
-                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs justify-center"
-                >
-                  <FileText size={12} className="shrink-0" />
-                  <span>Download S-13 PDF</span>
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => exportS13ToCSV(filteredS13, congregationName, selectedServiceYear)}
-                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold justify-center"
-                >
-                  <Download size={12} className="shrink-0" />
-                  <span>CSV</span>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">
-              {filteredS13.length === 0 ? (
-                <div className="text-center py-12 space-y-2">
-                  <FileSpreadsheet size={36} className="text-muted-foreground/40 mx-auto" />
-                  <p className="text-sm font-semibold text-foreground">
-                    No assignment records found
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Assignments and completions will automatically populate the S-13 record.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* 1. Mobile Cards View (< md) */}
-                  <div className="space-y-3 block md:hidden min-w-0">
-                    {filteredS13.map((rec) => {
-                      const isReturned = Boolean(rec.returnedAt);
-                      return (
-                        <div
-                          key={rec.id}
-                          className="p-3.5 rounded-2xl border border-border bg-background space-y-2.5 shadow-2xs min-w-0"
-                        >
-                          <div className="flex items-start justify-between gap-2 min-w-0">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                                <span className="font-extrabold text-xs text-primary shrink-0">
-                                  #{rec.territoryNumber}
-                                </span>
-                                <span className="font-bold text-xs text-foreground truncate">
-                                  {rec.territoryName}
-                                </span>
-                              </div>
-                              <div className="mt-1 min-w-0">
-                                {rec.isGroupAssignment ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 shrink-0"
-                                  >
-                                    👥 {rec.groupName || rec.assigneeName}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-xs font-semibold text-foreground truncate block">
-                                    👤 {rec.assigneeName}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <Badge
-                              variant="outline"
-                              className={`text-[9px] uppercase font-bold shrink-0 ${
-                                rec.status === 'completed' || isReturned
-                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                                  : 'bg-primary/10 text-primary border-primary/30'
-                              }`}
-                            >
-                              {rec.status === 'completed' || isReturned ? 'Returned' : 'Active In Field'}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
-                            <div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
-                                Assigned
-                              </span>
-                              <span className="font-medium text-foreground">
-                                {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
-                                Returned
-                              </span>
-                              <span className="font-medium text-foreground">
-                                {isReturned ? formatDate(rec.returnedAt) : '—'}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
-                                Duration
-                              </span>
-                              <span className="font-medium text-foreground">
-                                {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
-                                Coverage
-                              </span>
-                              <span className="font-bold text-foreground">
-                                {Math.round(rec.coverageAtReturn)}%
-                              </span>
-                            </div>
-                          </div>
-
-                          {(canAdjust || canDelete) && (
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
-                              {canDelete && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2 gap-1 rounded-xl"
-                                  onClick={() => setDeletingS13Record(rec)}
-                                >
-                                  <Trash2 size={12} />
-                                  <span>Delete</span>
-                                </Button>
-                              )}
-                              {canAdjust && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-xs text-foreground hover:bg-muted px-2.5 gap-1 rounded-xl"
-                                  onClick={() => handleOpenEditS13(rec)}
-                                >
-                                  <Pencil size={12} />
-                                  <span>Adjust Dates</span>
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                {/* S-13 Search & Filter Controls */}
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+                  <div className="relative w-full sm:w-56">
+                    <Search
+                      size={13}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Input
+                      placeholder="Search S-13 records…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-8 pl-8 text-xs w-full rounded-xl"
+                    />
                   </div>
 
-                  {/* 2. Desktop Table View (>= md) */}
-                  <div className="hidden md:block overflow-x-auto rounded-2xl border border-border w-full min-w-0 max-w-full">
-                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
-                      <thead>
-                        <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
-                          <th className="py-2.5 px-3">Territory</th>
-                          <th className="py-2.5 px-3">Assigned To</th>
-                          <th className="py-2.5 px-3">Date Assigned</th>
-                          <th className="py-2.5 px-3">Date Returned</th>
-                          <th className="py-2.5 px-3 text-center">Duration</th>
-                          <th className="py-2.5 px-3 text-center">Coverage</th>
-                          <th className="py-2.5 px-3 text-right">Status</th>
-                          {canAdjust && <th className="py-2.5 px-3 text-right">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {filteredS13.map((rec) => {
-                          const isReturned = Boolean(rec.returnedAt);
-                          return (
-                            <tr key={rec.id} className="hover:bg-muted/20 transition-colors">
-                              <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
-                                <span className="text-primary font-bold mr-1">
-                                  #{rec.territoryNumber}
-                                </span>
-                                <span>{rec.territoryName}</span>
-                              </td>
-                              <td className="py-2.5 px-3 whitespace-nowrap">
-                                <div className="flex items-center gap-1.5">
+                  <select
+                    value={s13Filter}
+                    onChange={(e) => setS13Filter(e.target.value)}
+                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
+                  >
+                    <option value="all">All Assignments</option>
+                    <option value="active">Active Only</option>
+                    <option value="returned">Returned / Completed</option>
+                    <option value="group">Service Groups</option>
+                    <option value="personal">Personal Publishers</option>
+                  </select>
+
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      exportS13ToPDF(filteredS13, congregationName, selectedServiceYear)
+                    }
+                    className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs justify-center"
+                  >
+                    <FileText size={12} className="shrink-0" />
+                    <span>Download S-13 PDF</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      exportS13ToCSV(filteredS13, congregationName, selectedServiceYear)
+                    }
+                    className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold justify-center"
+                  >
+                    <Download size={12} className="shrink-0" />
+                    <span>CSV</span>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">
+                {filteredS13.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <FileSpreadsheet size={36} className="text-muted-foreground/40 mx-auto" />
+                    <p className="text-sm font-semibold text-foreground">
+                      No assignment records found
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Assignments and completions will automatically populate the S-13 record.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* 1. Mobile Cards View (< md) */}
+                    <div className="space-y-3 block md:hidden min-w-0">
+                      {filteredS13.map((rec) => {
+                        const isReturned = Boolean(rec.returnedAt);
+                        return (
+                          <div
+                            key={rec.id}
+                            className="p-3.5 rounded-2xl border border-border bg-background space-y-2.5 shadow-2xs min-w-0"
+                          >
+                            <div className="flex items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                  <span className="font-extrabold text-xs text-primary shrink-0">
+                                    #{rec.territoryNumber}
+                                  </span>
+                                  <span className="font-bold text-xs text-foreground truncate">
+                                    {rec.territoryName}
+                                  </span>
+                                </div>
+                                <div className="mt-1 min-w-0">
                                   {rec.isGroupAssignment ? (
                                     <Badge
                                       variant="outline"
-                                      className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
+                                      className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 shrink-0"
                                     >
                                       👥 {rec.groupName || rec.assigneeName}
                                     </Badge>
                                   ) : (
-                                    <span className="font-medium text-foreground">
-                                      {rec.assigneeName}
+                                    <span className="text-xs font-semibold text-foreground truncate block">
+                                      👤 {rec.assigneeName}
                                     </span>
                                   )}
                                 </div>
-                              </td>
-                              <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
-                                {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
-                              </td>
-                              <td className="py-2.5 px-3 whitespace-nowrap">
-                                {isReturned ? (
-                                  <span className="text-foreground font-medium">
-                                    {formatDate(rec.returnedAt)}
-                                  </span>
-                                ) : (
-                                  <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
-                                    Active In Field
-                                  </Badge>
+                              </div>
+
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] uppercase font-bold shrink-0 ${
+                                  rec.status === 'completed' || isReturned
+                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                    : 'bg-primary/10 text-primary border-primary/30'
+                                }`}
+                              >
+                                {rec.status === 'completed' || isReturned
+                                  ? 'Returned'
+                                  : 'Active In Field'}
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                  Assigned
+                                </span>
+                                <span className="font-medium text-foreground">
+                                  {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                  Returned
+                                </span>
+                                <span className="font-medium text-foreground">
+                                  {isReturned ? formatDate(rec.returnedAt) : '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                  Duration
+                                </span>
+                                <span className="font-medium text-foreground">
+                                  {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                  Coverage
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {Math.round(rec.coverageAtReturn)}%
+                                </span>
+                              </div>
+                            </div>
+
+                            {(canAdjust || canDelete) && (
+                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                                {canDelete && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2 gap-1 rounded-xl"
+                                    onClick={() => setDeletingS13Record(rec)}
+                                  >
+                                    <Trash2 size={12} />
+                                    <span>Delete</span>
+                                  </Button>
                                 )}
-                              </td>
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap text-muted-foreground">
-                                {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
-                              </td>
-                              <td className="py-2.5 px-3 text-center whitespace-nowrap font-bold text-foreground">
-                                {Math.round(rec.coverageAtReturn)}%
-                              </td>
-                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                <Badge
-                                  variant="outline"
-                                  className={`text-[9px] uppercase font-bold ${
-                                    rec.status === 'completed' || isReturned
-                                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                                      : 'bg-primary/10 text-primary border-primary/30'
-                                  }`}
-                                >
-                                  {rec.status}
-                                </Badge>
-                              </td>
-                              {(canAdjust || canDelete) && (
-                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                  <div className="flex items-center justify-end gap-1">
-                                    {canDelete && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                                        onClick={() => setDeletingS13Record(rec)}
-                                        title="Delete accidental/wrong assignment record"
+                                {canAdjust && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs text-foreground hover:bg-muted px-2.5 gap-1 rounded-xl"
+                                    onClick={() => handleOpenEditS13(rec)}
+                                  >
+                                    <Pencil size={12} />
+                                    <span>Adjust Dates</span>
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* 2. Desktop Table View (>= md) */}
+                    <div className="hidden md:block overflow-x-auto rounded-2xl border border-border w-full min-w-0 max-w-full">
+                      <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                        <thead>
+                          <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
+                            <th className="py-2.5 px-3">Territory</th>
+                            <th className="py-2.5 px-3">Assigned To</th>
+                            <th className="py-2.5 px-3">Date Assigned</th>
+                            <th className="py-2.5 px-3">Date Returned</th>
+                            <th className="py-2.5 px-3 text-center">Duration</th>
+                            <th className="py-2.5 px-3 text-center">Coverage</th>
+                            <th className="py-2.5 px-3 text-right">Status</th>
+                            {canAdjust && <th className="py-2.5 px-3 text-right">Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {filteredS13.map((rec) => {
+                            const isReturned = Boolean(rec.returnedAt);
+                            return (
+                              <tr key={rec.id} className="hover:bg-muted/20 transition-colors">
+                                <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
+                                  <span className="text-primary font-bold mr-1">
+                                    #{rec.territoryNumber}
+                                  </span>
+                                  <span>{rec.territoryName}</span>
+                                </td>
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  <div className="flex items-center gap-1.5">
+                                    {rec.isGroupAssignment ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
                                       >
-                                        <Trash2 size={12} />
-                                        <span className="sr-only">Delete Record</span>
-                                      </Button>
-                                    )}
-                                    {canAdjust && (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-                                        onClick={() => handleOpenEditS13(rec)}
-                                        title="Adjust assignment / return dates"
-                                      >
-                                        <Pencil size={12} />
-                                        <span className="sr-only">Edit Dates</span>
-                                      </Button>
+                                        👥 {rec.groupName || rec.assigneeName}
+                                      </Badge>
+                                    ) : (
+                                      <span className="font-medium text-foreground">
+                                        {rec.assigneeName}
+                                      </span>
                                     )}
                                   </div>
                                 </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                                <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
+                                  {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
+                                </td>
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  {isReturned ? (
+                                    <span className="text-foreground font-medium">
+                                      {formatDate(rec.returnedAt)}
+                                    </span>
+                                  ) : (
+                                    <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
+                                      Active In Field
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap text-muted-foreground">
+                                  {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
+                                </td>
+                                <td className="py-2.5 px-3 text-center whitespace-nowrap font-bold text-foreground">
+                                  {Math.round(rec.coverageAtReturn)}%
+                                </td>
+                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] uppercase font-bold ${
+                                      rec.status === 'completed' || isReturned
+                                        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                        : 'bg-primary/10 text-primary border-primary/30'
+                                    }`}
+                                  >
+                                    {rec.status}
+                                  </Badge>
+                                </td>
+                                {(canAdjust || canDelete) && (
+                                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {canDelete && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => setDeletingS13Record(rec)}
+                                          title="Delete accidental/wrong assignment record"
+                                        >
+                                          <Trash2 size={12} />
+                                          <span className="sr-only">Delete Record</span>
+                                        </Button>
+                                      )}
+                                      {canAdjust && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                          onClick={() => handleOpenEditS13(rec)}
+                                          title="Adjust assignment / return dates"
+                                        >
+                                          <Pencil size={12} />
+                                          <span className="sr-only">Edit Dates</span>
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -1301,10 +1313,12 @@ export default function ReportsClient() {
         >
           <div className="space-y-3 pt-1 text-xs">
             <p className="text-muted-foreground leading-relaxed">
-              Are you sure you want to permanently delete this assignment history record? This will remove the entry from the territory history and S-13 reports.
+              Are you sure you want to permanently delete this assignment history record? This will
+              remove the entry from the territory history and S-13 reports.
             </p>
             <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
-              ⚠️ If this is the currently active assignment, the parent territory will automatically be marked available for checkout.
+              ⚠️ If this is the currently active assignment, the parent territory will automatically
+              be marked available for checkout.
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button
@@ -1356,7 +1370,10 @@ export default function ReportsClient() {
               ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
                   {groupsData.map((g) => (
-                    <Card key={g.groupId} className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                    <Card
+                      key={g.groupId}
+                      className="bg-card border-border shadow-xs overflow-hidden min-w-0"
+                    >
                       <CardContent className="p-4 space-y-3 min-w-0">
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0">
@@ -1471,22 +1488,26 @@ export default function ReportsClient() {
 
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-center text-xs">
                         <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Group</p>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                            Group
+                          </p>
                           <p className="font-medium text-foreground truncate mt-0.5">
                             {pub.groupName || '—'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Done</p>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                            Done
+                          </p>
                           <p className="font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
                             {pub.totalCompleted}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Visits</p>
-                          <p className="font-extrabold text-foreground mt-0.5">
-                            {pub.totalVisits}
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                            Visits
                           </p>
+                          <p className="font-extrabold text-foreground mt-0.5">{pub.totalVisits}</p>
                         </div>
                       </div>
                     </div>
@@ -1528,9 +1549,7 @@ export default function ReportsClient() {
                             {pub.totalVisits}
                           </td>
                           <td className="py-2.5 px-3 text-right whitespace-nowrap text-muted-foreground">
-                            {pub.lastActiveDate
-                              ? formatDate(pub.lastActiveDate)
-                              : '—'}
+                            {pub.lastActiveDate ? formatDate(pub.lastActiveDate) : '—'}
                           </td>
                         </tr>
                       ))}
@@ -1554,7 +1573,9 @@ export default function ReportsClient() {
                     Total Doors Mapped
                   </p>
                   <p className="text-2xl font-black text-foreground">{doorData?.totalDoors ?? 0}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">in territory boundaries</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    in territory boundaries
+                  </p>
                 </CardContent>
               </Card>
 
@@ -1609,8 +1630,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Contacted &amp;
-                        Discussed
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Contacted
+                        &amp; Discussed
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.contacted ?? 0}</span>
                     </div>
@@ -1628,9 +1649,12 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <BookOpen size={13} className="text-purple-500 shrink-0" /> Bible Study Conducted
+                        <BookOpen size={13} className="text-purple-500 shrink-0" /> Bible Study
+                        Conducted
                       </span>
-                      <span className="shrink-0">{doorData?.outcomeCounts.studyConducted ?? 0}</span>
+                      <span className="shrink-0">
+                        {doorData?.outcomeCounts.studyConducted ?? 0}
+                      </span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1646,7 +1670,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <RefreshCw size={13} className="text-indigo-500 shrink-0" /> Return Visits Made
+                        <RefreshCw size={13} className="text-indigo-500 shrink-0" /> Return Visits
+                        Made
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.returnVisit ?? 0}</span>
                     </div>
@@ -1682,7 +1707,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <PhoneCall size={13} className="text-orange-500 shrink-0" /> Busy / Call Back
+                        <PhoneCall size={13} className="text-orange-500 shrink-0" /> Busy / Call
+                        Back
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.busy ?? 0}</span>
                     </div>
@@ -1702,7 +1728,9 @@ export default function ReportsClient() {
                       <span className="flex items-center gap-1.5 truncate">
                         <Sparkles size={13} className="text-blue-500 shrink-0" /> Literature Placed
                       </span>
-                      <span className="shrink-0">{doorData?.outcomeCounts.placedLiterature ?? 0}</span>
+                      <span className="shrink-0">
+                        {doorData?.outcomeCounts.placedLiterature ?? 0}
+                      </span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1718,9 +1746,12 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <Globe size={13} className="text-cyan-500 shrink-0" /> Foreign Language Contact
+                        <Globe size={13} className="text-cyan-500 shrink-0" /> Foreign Language
+                        Contact
                       </span>
-                      <span className="shrink-0">{doorData?.outcomeCounts.foreignLanguage ?? 0}</span>
+                      <span className="shrink-0">
+                        {doorData?.outcomeCounts.foreignLanguage ?? 0}
+                      </span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1754,7 +1785,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <Lock size={13} className="text-stone-500 shrink-0" /> Inaccessible / Gated / Dog
+                        <Lock size={13} className="text-stone-500 shrink-0" /> Inaccessible / Gated
+                        / Dog
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.inaccessible ?? 0}</span>
                     </div>
@@ -1772,7 +1804,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <Building size={13} className="text-slate-500 shrink-0" /> Vacant / Unoccupied
+                        <Building size={13} className="text-slate-500 shrink-0" /> Vacant /
+                        Unoccupied
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.vacant ?? 0}</span>
                     </div>
@@ -1790,7 +1823,8 @@ export default function ReportsClient() {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center justify-between font-semibold gap-2">
                       <span className="flex items-center gap-1.5 truncate">
-                        <AlertTriangle size={13} className="text-rose-500 shrink-0" /> Do Not Call (DNC)
+                        <AlertTriangle size={13} className="text-rose-500 shrink-0" /> Do Not Call
+                        (DNC)
                       </span>
                       <span className="shrink-0">{doorData?.outcomeCounts.doNotCall ?? 0}</span>
                     </div>
@@ -1847,7 +1881,9 @@ export default function ReportsClient() {
           <div className="w-full min-w-0 max-w-full">
             <Card className="bg-card border-border shadow-xs overflow-hidden w-full min-w-0 max-w-full">
               <CardHeader className="p-4 sm:p-6 pb-3 min-w-0">
-                <CardTitle className="text-base font-bold">Ministry Event &amp; Audit Log</CardTitle>
+                <CardTitle className="text-base font-bold">
+                  Ministry Event &amp; Audit Log
+                </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Real-time chronological activity feed for assignments, completions, and returns
                 </p>
@@ -1870,7 +1906,9 @@ export default function ReportsClient() {
                               {act.publisherName}
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {act.assignedAt ? new Date(act.assignedAt).toLocaleString() : 'Recent'}
+                              {act.assignedAt
+                                ? new Date(act.assignedAt).toLocaleString()
+                                : 'Recent'}
                             </p>
                           </div>
                         </div>

@@ -220,12 +220,9 @@ export function exportS13ToPDF(
     // Col 6: Date Returned
     if (r.returnedAt) {
       doc.setTextColor(30, 41, 59);
-      doc.text(
-        formatDate(r.returnedAt),
-        x + columns[5].width / 2,
-        currentY + 5,
-        { align: 'center' }
-      );
+      doc.text(formatDate(r.returnedAt), x + columns[5].width / 2, currentY + 5, {
+        align: 'center',
+      });
     } else {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(37, 99, 235); // Blue-600

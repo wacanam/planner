@@ -535,11 +535,8 @@ export default function AssignmentDetailScreen() {
                     {item.address}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    Last Visit:{' '}
-                    {item.lastVisitDate
-                      ? formatDate(item.lastVisitDate)
-                      : 'Never'}{' '}
-                    ({item.lastVisitOutcome || 'None'})
+                    Last Visit: {item.lastVisitDate ? formatDate(item.lastVisitDate) : 'Never'} (
+                    {item.lastVisitOutcome || 'None'})
                   </Text>
                 </View>
                 <Button

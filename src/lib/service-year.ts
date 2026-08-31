@@ -36,7 +36,9 @@ export interface ServiceYearCountdownInfo {
  * A Service Year runs from September 1 of year Y-1 to August 31 of year Y, and is named year Y.
  * (Months are 0-indexed in JS Date: 0 = Jan, 7 = Aug, 8 = Sep)
  */
-export function getServiceYear(date: Date | string | number | null | undefined = new Date()): number {
+export function getServiceYear(
+  date: Date | string | number | null | undefined = new Date()
+): number {
   if (!date) {
     const now = new Date();
     return now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
@@ -156,7 +158,10 @@ export function getServiceYearCountdown(
   const daysRemainingUnit = daysRemaining === 1 ? 'Day' : 'Days';
   const daysRemainingFormatted = daysRemaining === 1 ? '1 day' : `${daysRemaining} days`;
 
-  const percentYearElapsed = Math.min(100, Math.max(0, Math.round((elapsedMs / totalDurationMs) * 100)));
+  const percentYearElapsed = Math.min(
+    100,
+    Math.max(0, Math.round((elapsedMs / totalDurationMs) * 100))
+  );
 
   const isCurrentServiceYear = serviceYear === currentSY;
   const isPastServiceYear = serviceYear < currentSY || nowMs > range.endMs;

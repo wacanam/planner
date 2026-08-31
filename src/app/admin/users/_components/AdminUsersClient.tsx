@@ -659,7 +659,8 @@ export default function AdminUsersClient() {
                 </p>
                 <p>
                   A password reset link was generated for the new email address. You can copy this
-                  link and send it directly to the user so they can set a password and regain access:
+                  link and send it directly to the user so they can set a password and regain
+                  access:
                 </p>
               </div>
 
@@ -711,8 +712,8 @@ export default function AdminUsersClient() {
                   <span>Administrative Email Replacement</span>
                 </p>
                 <p className="text-muted-foreground">
-                  This will update the user's primary login in Firebase Authentication and their profile
-                  in Firestore. Any active sessions on other devices will be invalidated.
+                  This will update the user's primary login in Firebase Authentication and their
+                  profile in Firestore. Any active sessions on other devices will be invalidated.
                 </p>
               </div>
 
@@ -897,7 +898,8 @@ export default function AdminUsersClient() {
                 <span>Account Deletion & Record Transfer</span>
               </p>
               <p>
-                This will permanently delete this user from <strong>Firebase Authentication</strong> and remove their profile from the <strong>users</strong> collection.
+                This will permanently delete this user from <strong>Firebase Authentication</strong>{' '}
+                and remove their profile from the <strong>users</strong> collection.
               </p>
             </div>
 
@@ -905,10 +907,7 @@ export default function AdminUsersClient() {
               <Label className="text-xs font-semibold">
                 Transfer Records To (Service Overseer / Publisher)
               </Label>
-              <Select
-                value={transferRecipientId}
-                onValueChange={setTransferRecipientId}
-              >
+              <Select value={transferRecipientId} onValueChange={setTransferRecipientId}>
                 <SelectTrigger className="h-10 rounded-xl text-xs">
                   <SelectValue placeholder="Select recipient for ministry records" />
                 </SelectTrigger>
@@ -918,8 +917,7 @@ export default function AdminUsersClient() {
                       deleteTargetUser?.congregationId &&
                       r.congregationId === deleteTargetUser.congregationId;
                     const congLabel = r.congregationId ? congMap.get(r.congregationId) : null;
-                    const isOverseer =
-                      String(r.role).toUpperCase() === 'SERVICE_OVERSEER';
+                    const isOverseer = String(r.role).toUpperCase() === 'SERVICE_OVERSEER';
 
                     return (
                       <SelectItem key={r.id} value={r.id}>
@@ -939,9 +937,7 @@ export default function AdminUsersClient() {
                             </Badge>
                           )}
                           {congLabel && !isSameCong && (
-                            <span className="text-muted-foreground text-[10px]">
-                              ({congLabel})
-                            </span>
+                            <span className="text-muted-foreground text-[10px]">({congLabel})</span>
                           )}
                         </div>
                       </SelectItem>
@@ -950,7 +946,9 @@ export default function AdminUsersClient() {
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
-                All households, visits, encounters, and contacts created by {deleteTargetUser?.name || 'this user'} will be safely preserved and transferred to the selected person.
+                All households, visits, encounters, and contacts created by{' '}
+                {deleteTargetUser?.name || 'this user'} will be safely preserved and transferred to
+                the selected person.
               </p>
             </div>
 

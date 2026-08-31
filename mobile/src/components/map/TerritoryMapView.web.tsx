@@ -116,7 +116,6 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
         });
         markersRef.current = [];
         markers.forEach((m) => {
-
           const lat = Number(m.coordinate?.latitude);
           const lng = Number(m.coordinate?.longitude);
           if (Number.isNaN(lat) || Number.isNaN(lng) || (lat === 0 && lng === 0)) return;
@@ -163,7 +162,6 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
         markersRef.current = [];
       };
     }, [apiKey, markers, boundaryCoordinates]);
-
 
     return (
       <View style={[styles.container, style]}>
