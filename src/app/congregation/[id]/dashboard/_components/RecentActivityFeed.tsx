@@ -134,11 +134,11 @@ export function RecentActivityFeed({
   }
 
   return (
-    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 whitespace-nowrap">
+    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
+      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
+        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <Activity size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>Recent Ministry Activity</span>
+          <span className="truncate">Recent Ministry Activity</span>
         </CardTitle>
         <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
           <Link href={`/congregation/${congregationId}/records/visits`}>

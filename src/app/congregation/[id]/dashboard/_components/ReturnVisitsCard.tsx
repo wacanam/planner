@@ -24,11 +24,11 @@ export function ReturnVisitsCard({
   }
 
   return (
-    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 whitespace-nowrap">
+    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
+      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
+        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <UserCheck size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
-          <span>
+          <span className="truncate">
             {isGroupLeaderTier
               ? `${ledGroup?.name || 'Group'} Follow-ups`
               : 'Return Visits & Follow-ups'}

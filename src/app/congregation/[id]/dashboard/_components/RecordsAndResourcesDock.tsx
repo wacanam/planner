@@ -35,11 +35,11 @@ export function RecordsAndResourcesDock({
   onStartTour,
 }: DashboardContextProps) {
   return (
-    <Card data-tour="records-hub" className="bg-card border-border shadow-xs rounded-3xl">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 whitespace-nowrap">
+    <Card data-tour="records-hub" className="bg-card border-border shadow-xs rounded-3xl min-w-0">
+      <CardHeader className="pb-3 min-w-0">
+        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <FileText size={16} className="text-primary shrink-0" />
-          <span>
+          <span className="truncate">
             {isExecutiveTier
               ? 'Executive Hub & Records'
               : isTerritoryServantTier

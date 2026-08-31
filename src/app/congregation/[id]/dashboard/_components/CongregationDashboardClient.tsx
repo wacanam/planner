@@ -363,7 +363,7 @@ export default function CongregationDashboardClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
+      <main className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0 overflow-x-hidden">
         {/* 1. Welcome Greeting Header */}
         <DashboardHeroDeck {...contextProps} />
 

@@ -22,11 +22,11 @@ export function ServiceArrangementsWidget({
   }
 
   return (
-    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 whitespace-nowrap">
+    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2 min-w-0">
+        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <Users size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
-          <span>Service Group Arrangements</span>
+          <span className="truncate">Service Group Arrangements</span>
         </CardTitle>
         <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
           <Link href={`/congregation/${congregationId}/groups`}>
