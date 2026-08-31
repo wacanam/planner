@@ -385,8 +385,7 @@ export default function HouseholdDetailScreen() {
                   <Text
                     style={{ color: colors.foreground, fontWeight: '700', fontSize: typography.sm }}
                   >
-                    {formatDate(v.visitDate)} &bull;{' '}
-                    {v.publisherName || 'Publisher'}
+                    {formatDate(v.visitDate)} &bull; {v.publisherName || 'Publisher'}
                   </Text>
                 </View>
                 <Badge

@@ -149,7 +149,8 @@ export default function TerritoryDetailScreen() {
   });
   const totalDoors = stats.totalDoors || territory?.householdsCount || 0;
   const workedDoors = stats.workedDoors;
-  const coverage = totalDoors > 0 ? stats.coveragePercent : parseFloat(territory?.coveragePercent || '0');
+  const coverage =
+    totalDoors > 0 ? stats.coveragePercent : parseFloat(territory?.coveragePercent || '0');
 
   const handleSendRequest = async () => {
     if (!user || !territoryId) return;
@@ -791,11 +792,21 @@ export default function TerritoryDetailScreen() {
                         size="sm"
                       />
                     </View>
-                    <View style={{ gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <View
+                      style={{
+                        gap: 6,
+                        marginTop: 8,
+                        paddingTop: 8,
+                        borderTopWidth: 1,
+                        borderTopColor: colors.border,
+                      }}
+                    >
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <Calendar size={13} color={colors.primary} />
                         <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                          <Text style={{ fontWeight: '700', color: colors.foreground }}>Assigned:</Text>{' '}
+                          <Text style={{ fontWeight: '700', color: colors.foreground }}>
+                            Assigned:
+                          </Text>{' '}
                           {a.assignedAt ? formatDate(a.assignedAt) : '—'}
                         </Text>
                       </View>
@@ -804,7 +815,15 @@ export default function TerritoryDetailScreen() {
                         {a.returnedAt ? (
                           <RotateCcw size={13} color="#16a34a" />
                         ) : (
-                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#f59e0b', marginHorizontal: 2.5 }} />
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: '#f59e0b',
+                              marginHorizontal: 2.5,
+                            }}
+                          />
                         )}
                         <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
                           <Text style={{ fontWeight: '700', color: colors.foreground }}>
@@ -818,15 +837,30 @@ export default function TerritoryDetailScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Clock size={13} color={colors.mutedForeground} />
                           <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                            <Text style={{ fontWeight: '700', color: colors.foreground }}>Due:</Text>{' '}
+                            <Text style={{ fontWeight: '700', color: colors.foreground }}>
+                              Due:
+                            </Text>{' '}
                             {formatDate(a.dueAt)}
                           </Text>
                         </View>
                       )}
 
                       {a.notes ? (
-                        <View style={{ padding: 8, borderRadius: radius.md, backgroundColor: colors.muted, marginTop: 2 }}>
-                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, fontStyle: 'italic' }}>
+                        <View
+                          style={{
+                            padding: 8,
+                            borderRadius: radius.md,
+                            backgroundColor: colors.muted,
+                            marginTop: 2,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: colors.mutedForeground,
+                              fontSize: typography.xs,
+                              fontStyle: 'italic',
+                            }}
+                          >
                             "{a.notes}"
                           </Text>
                         </View>
@@ -879,10 +913,16 @@ export default function TerritoryDetailScreen() {
             </View>
 
             <View style={{ gap: 10, marginVertical: 10 }}>
-              <Text style={{ fontSize: typography.xs, fontWeight: 'bold', color: colors.foreground }}>
+              <Text
+                style={{ fontSize: typography.xs, fontWeight: 'bold', color: colors.foreground }}
+              >
                 Assignment Status
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 2 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginVertical: 2 }}
+              >
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {(
                     [
@@ -900,7 +940,10 @@ export default function TerritoryDetailScreen() {
                         onPress={() => {
                           setEditStatus(st.key);
                           const today = new Date().toISOString().slice(0, 10);
-                          if ((st.key === 'completed' || st.key === 'returned') && !editReturnedAt) {
+                          if (
+                            (st.key === 'completed' || st.key === 'returned') &&
+                            !editReturnedAt
+                          ) {
                             setEditReturnedAt(today);
                           } else if (st.key === 'active' || st.key === 'pending_approval') {
                             setEditReturnedAt('');

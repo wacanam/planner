@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import Supercluster from 'supercluster';
 import type { ClusterProperties, MapMarkerItem, MapRegion } from '../types';
 
-
 export interface PointFeatureProperties {
   id: string;
   marker: MapMarkerItem;
@@ -62,13 +61,7 @@ export function useSupercluster(
   region: MapRegion | undefined,
   options: UseSuperclusterOptions = {}
 ) {
-  const {
-    radius = 45,
-    maxZoom = 16,
-    minPoints = 2,
-    enabled = true,
-    marginRatio = 0.15,
-  } = options;
+  const { radius = 45, maxZoom = 16, minPoints = 2, enabled = true, marginRatio = 0.15 } = options;
 
   // 1. Build Supercluster spatial index from markers
   const supercluster = useMemo(() => {

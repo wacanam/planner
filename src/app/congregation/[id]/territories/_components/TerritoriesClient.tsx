@@ -90,10 +90,7 @@ import {
 } from '@/schemas';
 import type { Assignment, Household, Territory } from '@/types/api';
 
-const statusConfig: Record<
-  string,
-  { label: string; dot: string; badge: string }
-> = {
+const statusConfig: Record<string, { label: string; dot: string; badge: string }> = {
   available: {
     label: 'Available',
     dot: 'bg-emerald-500',
@@ -216,7 +213,8 @@ export default function TerritoriesClient() {
   const initialStatus = searchParams?.get('status');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(
-    initialStatus && ['available', 'assigned', 'pending', 'completed', 'overdue'].includes(initialStatus)
+    initialStatus &&
+      ['available', 'assigned', 'pending', 'completed', 'overdue'].includes(initialStatus)
       ? initialStatus
       : 'all'
   );
@@ -258,9 +256,7 @@ export default function TerritoriesClient() {
       const d = cov?.totalDoors ?? t.householdsCount ?? 0;
       const w =
         cov?.workedDoors ??
-        (d > 0 && t.coveragePercent
-          ? Math.round((parseFloat(t.coveragePercent) / 100) * d)
-          : 0);
+        (d > 0 && t.coveragePercent ? Math.round((parseFloat(t.coveragePercent) / 100) * d) : 0);
       totalDoors += d;
       workedDoors += w;
     }
@@ -569,7 +565,9 @@ export default function TerritoriesClient() {
                   : 'bg-muted/30 border-border/60 hover:bg-muted/50'
               }`}
             >
-              <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground">Total</p>
+              <p className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground">
+                Total
+              </p>
               <p className="text-base sm:text-lg font-bold text-foreground leading-tight mt-0.5">
                 {stats.total}
               </p>
@@ -834,7 +832,10 @@ export default function TerritoriesClient() {
               const availableSinceDate =
                 lastCompletedAssignment?.returnedAt || t.updatedAt || t.createdAt;
               const daysAvailable = availableSinceDate
-                ? Math.max(0, Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000))
+                ? Math.max(
+                    0,
+                    Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000)
+                  )
                 : null;
 
               const lastActivityDate = lastActivityByTerritoryId.get(t.id);
@@ -940,7 +941,10 @@ export default function TerritoriesClient() {
                                   {daysAssigned !== null ? `${daysAssigned}d` : '—'}
                                 </strong>
                                 {daysAssigned !== null && daysAssigned >= 120 && (
-                                  <span className="text-[9px] text-amber-500 font-bold ml-0.5" title="Overdue (> 4 months)">
+                                  <span
+                                    className="text-[9px] text-amber-500 font-bold ml-0.5"
+                                    title="Overdue (> 4 months)"
+                                  >
                                     ⚠️
                                   </span>
                                 )}
@@ -1150,7 +1154,10 @@ export default function TerritoriesClient() {
               const availableSinceDate =
                 lastCompletedAssignment?.returnedAt || t.updatedAt || t.createdAt;
               const daysAvailable = availableSinceDate
-                ? Math.max(0, Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000))
+                ? Math.max(
+                    0,
+                    Math.floor((nowMs - new Date(availableSinceDate).getTime()) / 86400000)
+                  )
                 : null;
 
               const lastActivityDate = lastActivityByTerritoryId.get(t.id);
@@ -1198,7 +1205,13 @@ export default function TerritoriesClient() {
                             {daysAvailable !== null ? `Avail ${daysAvailable}d` : 'Available'}
                           </span>
                         ) : (
-                          <span className={daysAssigned !== null && daysAssigned >= 120 ? 'text-amber-600 font-semibold' : ''}>
+                          <span
+                            className={
+                              daysAssigned !== null && daysAssigned >= 120
+                                ? 'text-amber-600 font-semibold'
+                                : ''
+                            }
+                          >
                             {daysAssigned !== null ? `Assigned ${daysAssigned}d` : 'Assigned'}
                             {daysAssigned !== null && daysAssigned >= 120 ? ' ⚠️' : ''}
                           </span>
@@ -1766,46 +1779,28 @@ export default function TerritoriesClient() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Territory Target Status */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">
-                    Territory Status After Return *
-                  </Label>
-                  <Select
-                    value={revokeTerritoryStatus}
-                    onValueChange={setRevokeTerritoryStatus}
-                  >
+                  <Label className="text-xs font-semibold">Territory Status After Return *</Label>
+                  <Select value={revokeTerritoryStatus} onValueChange={setRevokeTerritoryStatus}>
                     <SelectTrigger className="h-9 rounded-xl text-xs bg-card">
                       <SelectValue placeholder="Select territory status" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="available">
-                        🟢 Available (Ready for checkout)
-                      </SelectItem>
-                      <SelectItem value="completed">
-                        ⚪ Completed (Mark cycle finished)
-                      </SelectItem>
+                      <SelectItem value="available">🟢 Available (Ready for checkout)</SelectItem>
+                      <SelectItem value="completed">⚪ Completed (Mark cycle finished)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* Assignment History Outcome Status */}
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">
-                    Assignment Record Outcome *
-                  </Label>
-                  <Select
-                    value={revokeAssignmentStatus}
-                    onValueChange={setRevokeAssignmentStatus}
-                  >
+                  <Label className="text-xs font-semibold">Assignment Record Outcome *</Label>
+                  <Select value={revokeAssignmentStatus} onValueChange={setRevokeAssignmentStatus}>
                     <SelectTrigger className="h-9 rounded-xl text-xs bg-card">
                       <SelectValue placeholder="Select assignment outcome" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="completed">
-                        ✅ Completed (Fully worked)
-                      </SelectItem>
-                      <SelectItem value="returned">
-                        ↺ Returned (Early / Partial)
-                      </SelectItem>
+                      <SelectItem value="completed">✅ Completed (Fully worked)</SelectItem>
+                      <SelectItem value="returned">↺ Returned (Early / Partial)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1864,7 +1859,8 @@ export default function TerritoriesClient() {
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 This will close the current assignment as{' '}
                 <strong className="text-foreground">{revokeAssignmentStatus}</strong> effective{' '}
-                <strong className="text-foreground">{formatDate(revokeDate)}</strong>, and set Territory #{revokeConfirmTerritory.number} status to{' '}
+                <strong className="text-foreground">{formatDate(revokeDate)}</strong>, and set
+                Territory #{revokeConfirmTerritory.number} status to{' '}
                 <strong className="text-foreground">{revokeTerritoryStatus}</strong>.
               </p>
 
@@ -2135,7 +2131,9 @@ function TerritoryHistoryDialog({
       <ResponsiveDialog
         open={Boolean(territory)}
         onOpenChange={(op) => !op && onClose()}
-        title={territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'}
+        title={
+          territory ? `Territory #${territory.number} Assignment History` : 'Assignment History'
+        }
         description={
           territory
             ? `${territory.name} — ${assignments.length} assignment record${assignments.length === 1 ? '' : 's'}`
@@ -2199,9 +2197,7 @@ function TerritoryHistoryDialog({
                             {a.groupName || a.assigneeName || 'Publisher / Group'}
                           </p>
                           <p className="text-[11px] text-muted-foreground truncate">
-                            {a.serviceGroupId
-                              ? 'Service Group Assignment'
-                              : 'Personal Assignment'}
+                            {a.serviceGroupId ? 'Service Group Assignment' : 'Personal Assignment'}
                           </p>
                         </div>
                       </div>
@@ -2241,7 +2237,10 @@ function TerritoryHistoryDialog({
                             }`}
                           >
                             {a.returnedAt ? (
-                              <RotateCcw size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <RotateCcw
+                                size={13}
+                                className="text-emerald-600 dark:text-emerald-400 shrink-0"
+                              />
                             ) : (
                               <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
                             )}
@@ -2359,7 +2358,9 @@ function TerritoryHistoryDialog({
                               <div className="flex items-center justify-between w-full h-9 px-3 rounded-xl border border-input bg-card text-xs font-medium text-foreground cursor-pointer shadow-2xs hover:border-primary/50 transition-colors">
                                 <span className="flex items-center gap-2">
                                   <Calendar size={13} className="text-primary shrink-0" />
-                                  <span>{returnedAt ? formatDate(returnedAt) : 'None (Active in field)'}</span>
+                                  <span>
+                                    {returnedAt ? formatDate(returnedAt) : 'None (Active in field)'}
+                                  </span>
                                 </span>
                                 <ChevronDown size={13} className="text-muted-foreground shrink-0" />
                               </div>
@@ -2468,10 +2469,12 @@ function TerritoryHistoryDialog({
       >
         <div className="space-y-3 pt-1 text-xs">
           <p className="text-muted-foreground leading-relaxed">
-            Are you sure you want to permanently delete this assignment history entry? This action is intended for removing accidental or duplicate assignment records.
+            Are you sure you want to permanently delete this assignment history entry? This action
+            is intended for removing accidental or duplicate assignment records.
           </p>
           <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
-            ⚠️ If this is the currently active assignment, the territory will automatically be marked available for checkout.
+            ⚠️ If this is the currently active assignment, the territory will automatically be marked
+            available for checkout.
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button

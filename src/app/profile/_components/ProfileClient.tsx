@@ -1349,8 +1349,7 @@ export default function ProfilePage() {
                       {pendingLeaveRequest && (
                         <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
                           <p className="font-semibold">
-                            Request submitted on{' '}
-                            {formatDate(pendingLeaveRequest.requestedAt)}
+                            Request submitted on {formatDate(pendingLeaveRequest.requestedAt)}
                           </p>
                           {pendingLeaveRequest.reason && (
                             <p className="italic">&ldquo;{pendingLeaveRequest.reason}&rdquo;</p>

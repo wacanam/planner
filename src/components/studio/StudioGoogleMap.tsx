@@ -880,8 +880,6 @@ export function StudioGoogleMap({
   const isProgrammaticCameraUpdateRef = useRef(false);
   const lastFitBoundsTimestampRef = useRef<number | null>(null);
 
-
-
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
   // Stable string keys to prevent object reference thrashing in effects
@@ -1070,7 +1068,6 @@ export function StudioGoogleMap({
           maxZoom: 22,
           mapId,
 
-
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
@@ -1086,7 +1083,6 @@ export function StudioGoogleMap({
           scaleControl: false,
           gestureHandling: 'greedy',
         });
-
 
         // Initialize Snap Target Marker for road intersections (Y, T, X)
         const snapContainer = document.createElement('div');
@@ -1336,8 +1332,6 @@ export function StudioGoogleMap({
 
         map.addListener('idle', syncZoomState);
 
-
-
         // Attach OverlayView for accurate Container Pixel <-> LatLng coordinate projection calculations
         const overlay = new google.maps.OverlayView();
         overlay.draw = () => {};
@@ -1474,7 +1468,6 @@ export function StudioGoogleMap({
     territory,
     households,
   ]);
-
 
   // Zoom In / Zoom Out shortcut trigger
   useEffect(() => {
@@ -1776,7 +1769,11 @@ export function StudioGoogleMap({
         const isSelected = selectedBoundaryId === boundary.id;
         const canModify = canModifyBoundary(currentUser);
         const isEditable =
-          !isReadOnly && !isPrintViewportActive && isSelected && activeTool === 'pointer' && canModify;
+          !isReadOnly &&
+          !isPrintViewportActive &&
+          isSelected &&
+          activeTool === 'pointer' &&
+          canModify;
 
         const polygon = new google.maps.Polygon({
           paths: boundary.points,
@@ -1794,7 +1791,8 @@ export function StudioGoogleMap({
 
         // Handle right-click to delete vertex (only when polygon is editable by authorized user)
         polygon.addListener('rightclick', (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !polygon.getEditable()) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !polygon.getEditable())
+            return;
           if (e.vertex != null) {
             const path = polygon.getPath();
             if (path.getLength() > 3) {
@@ -2192,7 +2190,6 @@ export function StudioGoogleMap({
               map.panTo({ lat, lng });
               map.setZoom(targetZoom);
             },
-
           });
 
           const clusterMarker = new AdvancedMarkerElement({
@@ -2208,7 +2205,6 @@ export function StudioGoogleMap({
           const pointProps = item.properties as unknown as { id: string; household: Household };
           renderSingleHouseholdPin(pointProps.household);
         }
-
       });
     } else {
       filteredHouseholds.forEach((h) => {
@@ -2227,7 +2223,6 @@ export function StudioGoogleMap({
     activeTool,
     isPrintViewportActive,
   ]);
-
 
   // 6b. Zero-Flicker Household Selection Synchronizer (In-place styling with 0 marker rebuilds)
   useEffect(() => {
@@ -2548,7 +2543,8 @@ export function StudioGoogleMap({
 
         // Right-click vertex deletion on road (only when road is editable by authorized user)
         const handleRoadRightClick = (e: google.maps.PolyMouseEvent) => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable()) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable())
+            return;
           if (e.vertex != null) {
             const path = pavement.getPath();
             if (path.getLength() > 2) {
@@ -2567,7 +2563,8 @@ export function StudioGoogleMap({
         // Sync vertex modifications across all 3 layers and propagate to database
         const roadPath = pavement.getPath();
         const handleRoadPathChange = () => {
-          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable()) return;
+          if (isPrintViewportActiveRef.current || isReadOnlyRef.current || !pavement.getEditable())
+            return;
           casing.setPath(roadPath);
           centerline.setPath(roadPath);
           highlightAura.setPath(roadPath);
@@ -3012,8 +3009,14 @@ export function StudioGoogleMap({
           : '0 1px 2px rgba(0,0,0,0.25)';
       }
     });
-  }, [selectedLandmarkId, selectedRoadId, currentZoom, activeTool, isReadOnly, isPrintViewportActive]);
-
+  }, [
+    selectedLandmarkId,
+    selectedRoadId,
+    currentZoom,
+    activeTool,
+    isReadOnly,
+    isPrintViewportActive,
+  ]);
 
   // 9a. Render User Live GPS Location Dot & Accuracy Circle (Runs ONLY on position or layer change)
   useEffect(() => {

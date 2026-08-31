@@ -856,11 +856,8 @@ export default function RecordsScreen() {
 
                   <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                     <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                      Last Visit:{' '}
-                      {item.lastVisitDate
-                        ? formatDate(item.lastVisitDate)
-                        : 'Never'}{' '}
-                      ({item.lastVisitOutcome || 'None'})
+                      Last Visit: {item.lastVisitDate ? formatDate(item.lastVisitDate) : 'Never'} (
+                      {item.lastVisitOutcome || 'None'})
                     </Text>
                     <ChevronRight size={14} color={colors.primary} />
                   </View>
@@ -946,8 +943,7 @@ export default function RecordsScreen() {
                           marginTop: 2,
                         }}
                       >
-                        {formatDate(item.visitDate)} &bull;{' '}
-                        {item.publisherName || 'Publisher'}
+                        {formatDate(item.visitDate)} &bull; {item.publisherName || 'Publisher'}
                       </Text>
                     </View>
                     <Badge

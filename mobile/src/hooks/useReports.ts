@@ -200,7 +200,10 @@ export function useCoverageReport(
         stats = {
           totalDoors: t.householdsCount,
           workedDoors: Math.round((percent / 100) * t.householdsCount),
-          unworkedDoors: Math.max(0, t.householdsCount - Math.round((percent / 100) * t.householdsCount)),
+          unworkedDoors: Math.max(
+            0,
+            t.householdsCount - Math.round((percent / 100) * t.householdsCount)
+          ),
           coveragePercent: percent,
         };
       }
@@ -234,11 +237,13 @@ export function useCoverageReport(
         }
       }
 
-      const hasAssignmentInTargetSY = pastAssignments.some(
-        (a) =>
-          isDateInServiceYear(a.returnedAt, syForEvaluation) ||
-          isDateInServiceYear(a.assignedAt, syForEvaluation)
-      ) || (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
+      const hasAssignmentInTargetSY =
+        pastAssignments.some(
+          (a) =>
+            isDateInServiceYear(a.returnedAt, syForEvaluation) ||
+            isDateInServiceYear(a.assignedAt, syForEvaluation)
+        ) ||
+        (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
 
       const isWorkedInServiceYear = Boolean(hasVisitInTargetSY || hasAssignmentInTargetSY);
       if (isWorkedInServiceYear) {
@@ -475,4 +480,3 @@ export function useS13Report(
 
   return { data: s13Records, isLoading };
 }
-

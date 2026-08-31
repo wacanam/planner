@@ -5,10 +5,7 @@
  * @param date - The date value to format
  * @param fallback - The fallback string when date is null/undefined/invalid (default: '—')
  */
-export function formatDate(
-  date?: string | number | Date | null,
-  fallback = '—'
-): string {
+export function formatDate(date?: string | number | Date | null, fallback = '—'): string {
   if (!date) return fallback;
 
   // Handle YYYY-MM-DD string directly to avoid UTC midnight timezone rollback
@@ -37,10 +34,7 @@ export function formatDate(
  * Formats a date with time into short text format:
  * e.g. "Jan 1, 2026, 10:30 AM"
  */
-export function formatDateTime(
-  date?: string | number | Date | null,
-  fallback = '—'
-): string {
+export function formatDateTime(date?: string | number | Date | null, fallback = '—'): string {
   if (!date) return fallback;
   const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
   if (isNaN(d.getTime())) return fallback;
@@ -52,4 +46,85 @@ export function formatDateTime(
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+export interface DueStatus {
+  status: 'overdue' | 'due-soon' | 'normal' | 'none';
+  label: string;
+  diffDays: number;
+}
+
+/**
+ * Calculates urgency and relative due status for assignments
+ */
+export function getDueStatus(date?: string | number | Date | null): DueStatus {
+  if (!date) {
+    return { status: 'none', label: '', diffDays: 0 };
+  }
+
+  let d: Date;
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    const [year, month, day] = date.trim().split('-').map(Number);
+    d = new Date(year, month - 1, day);
+  } else {
+    d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  }
+
+  if (isNaN(d.getTime())) {
+    return { status: 'none', label: '', diffDays: 0 };
+  }
+
+  const now = new Date();
+  const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetDateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+  const diffDays = Math.round((targetDateOnly - nowDateOnly) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    const absDays = Math.abs(diffDays);
+    return {
+      status: 'overdue',
+      label: absDays === 1 ? 'Overdue by 1 day' : `Overdue by ${absDays} days`,
+      diffDays,
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      status: 'due-soon',
+      label: 'Due today',
+      diffDays,
+    };
+  }
+
+  if (diffDays === 1) {
+    return {
+      status: 'due-soon',
+      label: 'Due tomorrow',
+      diffDays,
+    };
+  }
+
+  if (diffDays <= 14) {
+    return {
+      status: 'due-soon',
+      label: `Due in ${diffDays} days`,
+      diffDays,
+    };
+  }
+
+  if (diffDays <= 60) {
+    const weeks = Math.round(diffDays / 7);
+    return {
+      status: 'normal',
+      label: `Due in ${weeks}w (${formatDate(date)})`,
+      diffDays,
+    };
+  }
+
+  return {
+    status: 'normal',
+    label: `Due ${formatDate(date)}`,
+    diffDays,
+  };
 }

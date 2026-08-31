@@ -223,9 +223,7 @@ describe('Group Roles and Territory Return Permissions', () => {
     );
 
     // Another publisher CANNOT return someone else's personal assignment or group assignments
-    expect(canReturnAssignment({ id: 'user-other', role: 'USER' }, personalAssignment)).toBe(
-      false
-    );
+    expect(canReturnAssignment({ id: 'user-other', role: 'USER' }, personalAssignment)).toBe(false);
     expect(
       canReturnAssignment({ id: 'user-publisher', role: 'USER' }, groupAssignment, group)
     ).toBe(false);
@@ -327,15 +325,9 @@ describe('Group Roles and Territory Return Permissions', () => {
     });
 
     it('returns group members when user is linked via explicit groupId or congregationMembers', () => {
-      const congregationMembers = [
-        { id: 'cm-1', userId: 'user-pub-d', groupId: 'group-1' },
-      ];
+      const congregationMembers = [{ id: 'cm-1', userId: 'user-pub-d', groupId: 'group-1' }];
       // user-pub-d linked via congregationMembers
-      const mates = getUserGroupMateIds(
-        { id: 'user-pub-d' },
-        mockGroups,
-        congregationMembers
-      );
+      const mates = getUserGroupMateIds({ id: 'user-pub-d' }, mockGroups, congregationMembers);
       expect(mates.has('user-pub-d')).toBe(true);
       expect(mates.has('user-pub-a')).toBe(true);
       expect(mates.has('user-overseer-1')).toBe(true);

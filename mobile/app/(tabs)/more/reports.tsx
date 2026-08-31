@@ -40,9 +40,12 @@ export default function ReportsScreen() {
   const [activeSegment, setActiveSegment] = useState<'overview' | 's13'>('overview');
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(activeCongregationId, {
-    serviceYear: selectedServiceYear,
-  });
+  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(
+    activeCongregationId,
+    {
+      serviceYear: selectedServiceYear,
+    }
+  );
   const { data: s13Records = [], isLoading: s13Loading } = useS13Report(activeCongregationId, {
     serviceYear: selectedServiceYear,
   });
@@ -111,7 +114,8 @@ export default function ReportsScreen() {
           >
             <Text
               style={{
-                color: selectedServiceYear === 'all' ? colors.primaryForeground : colors.mutedForeground,
+                color:
+                  selectedServiceYear === 'all' ? colors.primaryForeground : colors.mutedForeground,
                 fontSize: typography.xs,
                 fontWeight: selectedServiceYear === 'all' ? '700' : '500',
               }}

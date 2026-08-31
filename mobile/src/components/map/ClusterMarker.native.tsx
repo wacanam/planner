@@ -55,7 +55,6 @@ export const ClusterMarker = memo(
       fontSize = 12.5;
     }
 
-
     const displayCount = pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;
 
     return (

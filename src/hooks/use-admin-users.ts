@@ -154,40 +154,37 @@ export function useAdminUsers() {
     []
   );
 
-  const deleteUserRecord = useCallback(
-    async (userId: string, transferRecipientId?: string) => {
-      setIsProcessing(true);
-      try {
-        const auth = getPlannerAuth();
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          throw new Error('You must be signed in as an administrator to perform this action.');
-        }
-
-        const idToken = await currentUser.getIdToken();
-        const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            transferRecipientId: transferRecipientId || null,
-          }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to delete user record.');
-        }
-
-        return data;
-      } finally {
-        setIsProcessing(false);
+  const deleteUserRecord = useCallback(async (userId: string, transferRecipientId?: string) => {
+    setIsProcessing(true);
+    try {
+      const auth = getPlannerAuth();
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be signed in as an administrator to perform this action.');
       }
-    },
-    []
-  );
+
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          transferRecipientId: transferRecipientId || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete user record.');
+      }
+
+      return data;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
 
   const updateUserEmail = useCallback(
     async (

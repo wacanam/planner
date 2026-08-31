@@ -5,10 +5,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import MapView, { Polygon, PROVIDER_DEFAULT, type Region, UrlTile } from 'react-native-maps';
 import { useTheme } from '@/context/ThemeContext';
 import { ClusterMarker } from './ClusterMarker.native';
-import {
-  getLongitudeDeltaFromZoom,
-  useSupercluster,
-} from './hooks/useSupercluster';
+import { getLongitudeDeltaFromZoom, useSupercluster } from './hooks/useSupercluster';
 import { MapMarker } from './MapMarker.native';
 import type {
   FitOptions,
@@ -141,7 +138,6 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
           zoomEnabled={zoomEnabled}
           minZoomLevel={5}
           onMapReady={onMapReady}
-
           onRegionChangeComplete={handleRegionChangeComplete}
         >
           {/* Fallback tile provider for Expo Go on Android where Google Maps native SDK has no API key */}

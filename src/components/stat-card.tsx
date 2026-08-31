@@ -106,7 +106,10 @@ export function StatCard({
 
   if (href) {
     return (
-      <Link href={href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl">
+      <Link
+        href={href}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+      >
         {content}
       </Link>
     );

@@ -44,8 +44,7 @@ export function RecentActivityFeed({
     for (const v of visits) {
       const h = households.find((item) => item.id === v.householdId);
       const isMine =
-        (v.userId && v.userId === user.id) ||
-        Boolean(user.name && v.publisherName === user.name);
+        (v.userId && v.userId === user.id) || Boolean(user.name && v.publisherName === user.name);
 
       const addressFallback =
         v.householdAddress ||
@@ -55,7 +54,11 @@ export function RecentActivityFeed({
 
       // Primary display is the Name (if present), else the address
       const primaryName = h?.name ? h.name : addressFallback;
-      const subtitle = h?.name ? addressFallback : (h?.territoryId ? territoryMap.get(h.territoryId)?.name : undefined);
+      const subtitle = h?.name
+        ? addressFallback
+        : h?.territoryId
+          ? territoryMap.get(h.territoryId)?.name
+          : undefined;
       const outcomeName = v.outcome?.replace(/_/g, ' ') || 'Visited';
 
       items.push({
@@ -66,7 +69,7 @@ export function RecentActivityFeed({
         badgeLabel: outcomeName,
         badgeVariant: 'visit',
         date: v.visitDate || v.createdAt,
-        contributorName: isMine ? 'You' : (v.publisherName || 'Publisher'),
+        contributorName: isMine ? 'You' : v.publisherName || 'Publisher',
         isMine,
         household: h || null,
         householdId: v.householdId || null,
@@ -81,8 +84,12 @@ export function RecentActivityFeed({
         Boolean(h.creatorName && user.name && h.creatorName === user.name);
 
       const addressStr = `${h.houseNumber ? '#' + h.houseNumber + ' ' : ''}${h.streetName || h.address || ''}`;
-      const primaryName = h.name ? h.name : (addressStr || 'Household');
-      const subtitle = h.name ? addressStr : (h.territoryId ? territoryMap.get(h.territoryId)?.name : h.city);
+      const primaryName = h.name ? h.name : addressStr || 'Household';
+      const subtitle = h.name
+        ? addressStr
+        : h.territoryId
+          ? territoryMap.get(h.territoryId)?.name
+          : h.city;
 
       items.push({
         id: `house-${h.id}`,
@@ -92,7 +99,7 @@ export function RecentActivityFeed({
         badgeLabel: 'Pinned House',
         badgeVariant: 'pinned',
         date: h.createdAt,
-        contributorName: isMine ? 'You' : (h.creatorName || 'Publisher'),
+        contributorName: isMine ? 'You' : h.creatorName || 'Publisher',
         isMine,
         household: h,
         householdId: h.id,
@@ -114,7 +121,7 @@ export function RecentActivityFeed({
         badgeLabel: 'Shared',
         badgeVariant: 'share',
         date: s.createdAt,
-        contributorName: isMine ? 'You' : (s.fromUserName || 'Publisher'),
+        contributorName: isMine ? 'You' : s.fromUserName || 'Publisher',
         isMine,
         household: h || null,
         householdId: s.householdId || null,
@@ -122,9 +129,7 @@ export function RecentActivityFeed({
     }
 
     // Sort by newest date first and take top 6
-    return items
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      .slice(0, 6);
+    return items.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
   }, [visits, households, incomingShares, outgoingShares, user.id, user.name, territoryMap]);
 
   const isLoading = visitsLoading && sharesLoading;
@@ -140,10 +145,13 @@ export function RecentActivityFeed({
           <Activity size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
           <span className="truncate">Recent Ministry Activity</span>
         </CardTitle>
-        <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
-          <Link href={`/congregation/${congregationId}/records/visits`}>
-            View History
-          </Link>
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          <Link href={`/congregation/${congregationId}/records/visits`}>View History</Link>
         </Button>
       </CardHeader>
       <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5 min-w-0">
@@ -209,9 +217,7 @@ export function RecentActivityFeed({
 
                   {/* Subtitle / Address if distinct from Name */}
                   {act.subtitle && act.subtitle !== act.title && (
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {act.subtitle}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">{act.subtitle}</p>
                   )}
 
                   {/* Contributor Tag + Timestamp */}

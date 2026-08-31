@@ -713,9 +713,7 @@ export default function EncountersClient() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-1">
                             <Calendar size={12} className="shrink-0" />
-                            <span>
-                              Last met: {formatDate(contact.lastVisitDate)}
-                            </span>
+                            <span>Last met: {formatDate(contact.lastVisitDate)}</span>
                           </div>
                           {contact.creatorName && (
                             <span className="text-foreground/80 font-medium">
@@ -724,9 +722,7 @@ export default function EncountersClient() {
                           )}
                           {contact.firstMetDate &&
                             contact.firstMetDate !== contact.lastVisitDate && (
-                              <span>
-                                (First: {formatDate(contact.firstMetDate)})
-                              </span>
+                              <span>(First: {formatDate(contact.firstMetDate)})</span>
                             )}
                         </div>
 
@@ -744,9 +740,7 @@ export default function EncountersClient() {
                         )}
                         {contact.nextVisitDate && (
                           <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                            <span>
-                              🗓️ Next Visit: {formatDate(contact.nextVisitDate)}
-                            </span>
+                            <span>🗓️ Next Visit: {formatDate(contact.nextVisitDate)}</span>
                             {contact.nextVisitPlannedTopic && (
                               <span className="font-normal text-muted-foreground">
                                 · Topic: &ldquo;{contact.nextVisitPlannedTopic}&rdquo;

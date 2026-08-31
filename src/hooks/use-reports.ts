@@ -461,8 +461,7 @@ export function useCoverageReport(
             0,
             (territory.householdsCount || 0) -
               Math.round(
-                ((Number(territory.coveragePercent) || 0) / 100) *
-                  (territory.householdsCount || 0)
+                ((Number(territory.coveragePercent) || 0) / 100) * (territory.householdsCount || 0)
               )
           ),
           coveragePercent: Number(territory.coveragePercent) || 0,
@@ -495,11 +494,13 @@ export function useCoverageReport(
         }
       }
 
-      const hasAssignmentInTargetSY = pastAssignments.some(
-        (a) =>
-          isDateInServiceYear(a.returnedAt, syForEvaluation) ||
-          isDateInServiceYear(a.assignedAt, syForEvaluation)
-      ) || (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
+      const hasAssignmentInTargetSY =
+        pastAssignments.some(
+          (a) =>
+            isDateInServiceYear(a.returnedAt, syForEvaluation) ||
+            isDateInServiceYear(a.assignedAt, syForEvaluation)
+        ) ||
+        (activeAssignment && isDateInServiceYear(activeAssignment.assignedAt, syForEvaluation));
 
       const isWorkedInServiceYear = Boolean(hasVisitInTargetSY || hasAssignmentInTargetSY);
       if (isWorkedInServiceYear) {
@@ -1075,4 +1076,3 @@ export function useActivityReport(congregationId: string | null | undefined) {
 
   return { data, isLoading, error };
 }
-

@@ -64,7 +64,6 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   householdFilter: 'all',
 };
 
-
 export type { BoundaryDisplaySettings };
 
 export const DEFAULT_BOUNDARY_DISPLAY: Required<
@@ -177,7 +176,6 @@ export function StudioBasemapPopup({
       householdFilter: 'all',
     });
   };
-
 
   const handleUpdateBoundary = (partial: Partial<BoundaryDisplaySettings>) => {
     onChangeBoundaryDisplay?.({

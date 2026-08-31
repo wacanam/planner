@@ -120,7 +120,8 @@ export function DashboardProgressGauge({
                   {ledGroup?.name || 'Service Group'} Territory Progress
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {groupCoverage.workedDoors} of {groupCoverage.totalDoors} doors completed in group zones
+                  {groupCoverage.workedDoors} of {groupCoverage.totalDoors} doors completed in group
+                  zones
                 </p>
               </div>
             </div>

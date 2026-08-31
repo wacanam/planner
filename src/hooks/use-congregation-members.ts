@@ -16,7 +16,13 @@ import { createClientId, FIRESTORE_COLLECTIONS, nowIso } from '@/lib/firebase/sc
 import { commitChunkedBatch, type BatchOperation } from '@/lib/firebase/batch-utils';
 import { queueWelcomeEmail } from '@/lib/mail';
 import { createInAppNotification } from '@/lib/notifications';
-import { AssignmentStatus, CongregationRole, MemberStatus, NotificationType, UserRole } from '@/lib/roles';
+import {
+  AssignmentStatus,
+  CongregationRole,
+  MemberStatus,
+  NotificationType,
+  UserRole,
+} from '@/lib/roles';
 import type { JoinRequest, Member } from '@/types/api';
 
 function memberCollection() {
@@ -452,9 +458,7 @@ export function useRemoveMember(_congregationId: string) {
       const ops: BatchOperation[] = [];
 
       // 1. Mark member status removed
-      ops.push((b) =>
-        b.update(memberDocument(arg.userId), { status: 'removed', updatedAt: now })
-      );
+      ops.push((b) => b.update(memberDocument(arg.userId), { status: 'removed', updatedAt: now }));
 
       // 2. Clear congregationId on user document
       ops.push((b) =>

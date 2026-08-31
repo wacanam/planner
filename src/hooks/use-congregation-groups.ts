@@ -266,10 +266,7 @@ export function useDeleteGroup(_congregationId: string) {
 
       // 2. Find all territories assigned to this group
       const territoriesSnap = await getDocs(
-        query(
-          collection(firestore, FIRESTORE_COLLECTIONS.territories),
-          where('groupId', '==', id)
-        )
+        query(collection(firestore, FIRESTORE_COLLECTIONS.territories), where('groupId', '==', id))
       );
 
       // 3. Find congregation members assigned to this group

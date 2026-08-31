@@ -70,4 +70,3 @@ export interface TerritoryMapViewRef {
   fitToCoordinates: (coordinates: MapCoordinate[], options?: FitOptions) => void;
   animateToRegion: (region: MapRegion, duration?: number) => void;
 }
-

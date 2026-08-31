@@ -28,10 +28,13 @@ export function ServiceArrangementsWidget({
           <Users size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
           <span className="truncate">Service Group</span>
         </CardTitle>
-        <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
-          <Link href={`/congregation/${congregationId}/groups`}>
-            All ({groups.length})
-          </Link>
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          <Link href={`/congregation/${congregationId}/groups`}>All ({groups.length})</Link>
         </Button>
       </CardHeader>
       <CardContent className="p-4 sm:p-6 pt-0 space-y-3 min-w-0">
@@ -48,7 +51,10 @@ export function ServiceArrangementsWidget({
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/30 border-purple-200 shrink-0">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/30 border-purple-200 shrink-0"
+            >
               Active Group
             </Badge>
           </div>
@@ -75,9 +81,21 @@ export function ServiceArrangementsWidget({
           </div>
         </div>
 
-        <Button asChild variant="outline" size="sm" className="w-full rounded-2xl text-xs font-semibold justify-between h-9 min-w-0 px-3">
-          <Link href={`/congregation/${congregationId}/groups`} className="flex items-center justify-between w-full min-w-0">
-            <span className="truncate">{isGroupLeaderTier || isExecutiveTier ? 'Manage Group & Territories' : 'View Group & Territories'}</span>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-full rounded-2xl text-xs font-semibold justify-between h-9 min-w-0 px-3"
+        >
+          <Link
+            href={`/congregation/${congregationId}/groups`}
+            className="flex items-center justify-between w-full min-w-0"
+          >
+            <span className="truncate">
+              {isGroupLeaderTier || isExecutiveTier
+                ? 'Manage Group & Territories'
+                : 'View Group & Territories'}
+            </span>
             <ChevronRight size={14} className="shrink-0 ml-1.5" />
           </Link>
         </Button>

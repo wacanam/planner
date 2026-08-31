@@ -7,10 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'];
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: targetUserId } = await params;
 
@@ -80,7 +77,9 @@ export async function POST(
     });
 
     // 5. Revoke existing refresh tokens so old sessions cannot refresh
-    await getAdminAuth().revokeRefreshTokens(targetUserId).catch(() => undefined);
+    await getAdminAuth()
+      .revokeRefreshTokens(targetUserId)
+      .catch(() => undefined);
 
     // 6. Update Firestore user document
     const now = nowIso();
@@ -99,10 +98,12 @@ export async function POST(
       .doc(targetUserId);
     const memberSnap = await memberDocRef.get();
     if (memberSnap.exists) {
-      await memberDocRef.update({
-        email: normalizedEmail,
-        updatedAt: now,
-      }).catch(() => undefined);
+      await memberDocRef
+        .update({
+          email: normalizedEmail,
+          updatedAt: now,
+        })
+        .catch(() => undefined);
     }
 
     // 8. Generate password reset link if requested

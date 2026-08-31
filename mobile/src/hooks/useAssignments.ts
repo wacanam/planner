@@ -386,11 +386,7 @@ export function useUpdateAssignment() {
         );
         const tSnap = await getDoc(territoryRef);
         if (tSnap.exists()) {
-          if (
-            newStatus === 'completed' ||
-            newStatus === 'returned' ||
-            newStatus === 'rejected'
-          ) {
+          if (newStatus === 'completed' || newStatus === 'returned' || newStatus === 'rejected') {
             await updateDoc(territoryRef, {
               status: 'available',
               publisherId: null,
@@ -559,7 +555,11 @@ export function useDeleteAssignment() {
       await deleteDoc(assignmentDocument(id));
 
       if (assignment?.territoryId) {
-        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, assignment.territoryId);
+        const territoryRef = doc(
+          firestore,
+          FIRESTORE_COLLECTIONS.territories,
+          assignment.territoryId
+        );
         const territorySnap = await getDoc(territoryRef);
 
         if (territorySnap.exists()) {

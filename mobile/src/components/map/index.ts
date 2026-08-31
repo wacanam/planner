@@ -2,4 +2,3 @@
 export * from './TerritoryMapView';
 export * from './types';
 export * from './hooks/useSupercluster';
-

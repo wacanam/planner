@@ -480,10 +480,13 @@ export function useApproveAssignment(congregationId?: string) {
                 );
                 for (const reqDoc of pendingReqs.docs) {
                   const reqData = reqDoc.data();
-                  const isTargetUser = assignment.userId && reqData.publisherId === assignment.userId;
+                  const isTargetUser =
+                    assignment.userId && reqData.publisherId === assignment.userId;
                   await updateDoc(reqDoc.ref, {
                     status: isTargetUser ? 'approved' : 'rejected',
-                    responseMessage: isTargetUser ? null : 'Territory assigned to another publisher',
+                    responseMessage: isTargetUser
+                      ? null
+                      : 'Territory assigned to another publisher',
                     reviewedAt: now,
                     updatedAt: now,
                   });
@@ -730,11 +733,7 @@ export function useUpdateAssignment() {
         );
         const tSnap = await getDoc(territoryRef);
         if (tSnap.exists()) {
-          if (
-            newStatus === 'completed' ||
-            newStatus === 'returned' ||
-            newStatus === 'rejected'
-          ) {
+          if (newStatus === 'completed' || newStatus === 'returned' || newStatus === 'rejected') {
             await updateDoc(territoryRef, {
               status: 'available',
               publisherId: null,
@@ -785,7 +784,11 @@ export function useDeleteAssignment() {
       await deleteDoc(assignmentDocument(id));
 
       if (assignment?.territoryId) {
-        const territoryRef = doc(firestore, FIRESTORE_COLLECTIONS.territories, assignment.territoryId);
+        const territoryRef = doc(
+          firestore,
+          FIRESTORE_COLLECTIONS.territories,
+          assignment.territoryId
+        );
         const territorySnap = await getDoc(territoryRef);
 
         if (territorySnap.exists()) {

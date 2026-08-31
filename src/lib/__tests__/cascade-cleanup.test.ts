@@ -364,7 +364,8 @@ describe('Cascade Cleanup & Architectural Edge Cases', () => {
       };
 
       const isCurrentActive =
-        (oldCompletedAssignment.userId && territory.publisherId === oldCompletedAssignment.userId) ||
+        (oldCompletedAssignment.userId &&
+          territory.publisherId === oldCompletedAssignment.userId) ||
         oldCompletedAssignment.status === AssignmentStatus.ACTIVE;
 
       const updatedTerritory: Territory = isCurrentActive

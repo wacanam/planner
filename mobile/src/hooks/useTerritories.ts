@@ -308,10 +308,7 @@ export function useDeleteTerritory() {
           )
         ),
         getDocs(
-          query(
-            collection(firestore, FIRESTORE_COLLECTIONS.visits),
-            where('territoryId', '==', id)
-          )
+          query(collection(firestore, FIRESTORE_COLLECTIONS.visits), where('territoryId', '==', id))
         ),
         getDocs(
           query(

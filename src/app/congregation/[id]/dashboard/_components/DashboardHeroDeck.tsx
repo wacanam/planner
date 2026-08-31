@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  Building2,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { Building2, Sparkles, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { DashboardContextProps } from './types';
@@ -54,7 +50,9 @@ export function DashboardHeroDeck({
 
           <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5">
             <Building2 size={14} className="text-primary shrink-0" />
-            <span className="font-semibold text-foreground">{congregation?.name || 'Congregation Workspace'}</span>
+            <span className="font-semibold text-foreground">
+              {congregation?.name || 'Congregation Workspace'}
+            </span>
             {congregation?.city && <span>• {congregation.city}</span>}
           </p>
         </div>
