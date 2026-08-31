@@ -128,3 +128,35 @@ export function getDueStatus(date?: string | number | Date | null): DueStatus {
     diffDays,
   };
 }
+
+/**
+ * Formats duration between assignment and return date into human-readable text
+ * e.g., "14 days", "3 weeks", "2.5 months"
+ */
+export function formatAssignmentDuration(
+  assignedAt?: string | number | Date | null,
+  returnedAt?: string | number | Date | null
+): string | null {
+  if (!assignedAt || !returnedAt) return null;
+  const start =
+    typeof assignedAt === 'string' || typeof assignedAt === 'number'
+      ? new Date(assignedAt)
+      : assignedAt;
+  const end =
+    typeof returnedAt === 'string' || typeof returnedAt === 'number'
+      ? new Date(returnedAt)
+      : returnedAt;
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  const diffMs = Math.max(0, end.getTime() - start.getTime());
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 1) return '1 day';
+  if (diffDays < 14) return `${diffDays} days`;
+  if (diffDays < 60) {
+    const weeks = Math.round(diffDays / 7);
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+  }
+  const months = (diffDays / 30.4375).toFixed(1).replace(/\.0$/, '');
+  return `${months} ${months === '1' ? 'month' : 'months'}`;
+}

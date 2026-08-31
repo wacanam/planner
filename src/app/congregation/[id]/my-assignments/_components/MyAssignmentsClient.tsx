@@ -14,7 +14,9 @@ import {
   Home,
   Layers,
   MapPin,
+  Navigation,
   RotateCcw,
+  Share2,
   User,
   Users,
 } from 'lucide-react';
@@ -48,7 +50,7 @@ import {
   isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
-import { formatDate, getDueStatus } from '@/lib/date-utils';
+import { formatAssignmentDuration, formatDate, getDueStatus } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment, Household } from '@/types/api';
 
@@ -135,6 +137,67 @@ export default function MyAssignmentsClient() {
     });
   }, [myAssignments]);
   const isLoading = loadingAssignments || loadingTerritories || loadingGroups || loadingHouseholds;
+
+  const handleNavigateTerritory = (
+    terr?: (typeof territories)[0],
+    houseList: typeof households = []
+  ) => {
+    if (terr?.annotations?.startFlag) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${terr.annotations.startFlag.lat},${terr.annotations.startFlag.lng}`,
+        '_blank'
+      );
+      return;
+    }
+    if (terr?.boundaryCoordinates) {
+      const coords = Array.isArray(terr.boundaryCoordinates[0])
+        ? (terr.boundaryCoordinates as unknown as { lat: number; lng: number }[][])[0][0]
+        : (terr.boundaryCoordinates as unknown as { lat: number; lng: number }[])[0];
+      if (coords?.lat && coords?.lng) {
+        window.open(
+          `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`,
+          '_blank'
+        );
+        return;
+      }
+    }
+    const houseWithCoords = houseList.find((h) => h.latitude && h.longitude);
+    if (houseWithCoords?.latitude && houseWithCoords?.longitude) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&destination=${houseWithCoords.latitude},${houseWithCoords.longitude}`,
+        '_blank'
+      );
+      return;
+    }
+    const query = [terr?.name, terr?.city].filter(Boolean).join(', ');
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+      '_blank'
+    );
+  };
+
+  const handleShareAssignment = async (assignment: Assignment, terr?: (typeof territories)[0]) => {
+    const number = terr?.number || assignment.territoryNumber || '';
+    const name = terr?.name || assignment.territoryName || 'Territory';
+    const url = `${window.location.origin}/congregation/${congregationId}/my-assignments/${assignment.territoryId}`;
+    const title = `Territory #${number} - ${name}`;
+    const text = `Work Territory #${number} (${name}) with me!`;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Territory link copied to clipboard!');
+    } catch {
+      toast.error('Unable to copy link');
+    }
+  };
 
   return (
     <ProtectedPage congregationId={congregationId}>
@@ -380,7 +443,7 @@ export default function MyAssignmentsClient() {
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
+                      {/* Action Buttons & Quick Tools */}
                       <div className="space-y-2 pt-3 border-t border-border">
                         <div className="grid grid-cols-2 gap-2">
                           <Button
@@ -410,13 +473,44 @@ export default function MyAssignmentsClient() {
                           </Button>
                         </div>
 
+                        {/* Quick Utility Tools: Directions & Share */}
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              handleNavigateTerritory(
+                                terr,
+                                households.filter((h) => h.territoryId === assignment.territoryId)
+                              )
+                            }
+                            className="h-8 rounded-xl text-xs font-medium gap-1.5 bg-muted/60 hover:bg-muted text-foreground/90 border border-border/50 shadow-2xs"
+                            title="Open Google Maps directions to this territory"
+                          >
+                            <Navigation size={12} className="text-primary" />
+                            <span>Directions</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleShareAssignment(assignment, terr)}
+                            className="h-8 rounded-xl text-xs font-medium gap-1.5 bg-muted/60 hover:bg-muted text-foreground/90 border border-border/50 shadow-2xs"
+                            title="Share territory link with partner or car group"
+                          >
+                            <Share2 size={12} className="text-primary" />
+                            <span>Share Link</span>
+                          </Button>
+                        </div>
+
                         {canReturn ? (
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => setReturnConfirmAssignment(assignment)}
-                            className="w-full h-8.5 rounded-xl text-xs font-medium text-foreground/80 bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors gap-1.5 border-border shadow-2xs"
+                            className="w-full h-8.5 rounded-xl text-xs font-medium text-foreground/80 bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors gap-1.5 border-border shadow-2xs mt-1"
                           >
                             <RotateCcw size={13} className="text-muted-foreground" />
                             <span>Return Territory to Congregation</span>
@@ -472,6 +566,10 @@ export default function MyAssignmentsClient() {
                   const terr = territoryMap.get(assignment.territoryId);
                   const number = terr?.number || assignment.territoryNumber || '';
                   const name = terr?.name || assignment.territoryName || 'Territory';
+                  const duration = formatAssignmentDuration(
+                    assignment.assignedAt,
+                    assignment.returnedAt
+                  );
 
                   return (
                     <div
@@ -483,11 +581,25 @@ export default function MyAssignmentsClient() {
                           <span className="font-bold text-primary">#{number}</span>
                           <p className="font-semibold text-foreground truncate">{name}</p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Returned {assignment.returnedAt ? formatDate(assignment.returnedAt) : '—'}
+                        <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>
+                            Returned{' '}
+                            {assignment.returnedAt ? formatDate(assignment.returnedAt) : '—'}
+                          </span>
+                          {duration && (
+                            <>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span className="text-foreground/80 font-medium">
+                                Worked for {duration}
+                              </span>
+                            </>
+                          )}
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-[9px] capitalize shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] capitalize shrink-0 font-medium bg-muted/30"
+                      >
                         {assignment.status}
                       </Badge>
                     </div>

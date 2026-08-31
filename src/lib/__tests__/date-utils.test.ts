@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateTime, getDueStatus } from '../date-utils';
+import { formatAssignmentDuration, formatDate, formatDateTime, getDueStatus } from '../date-utils';
 
 describe('formatDate & formatDateTime', () => {
   it('formats YYYY-MM-DD date strings into short text e.g. "Jan 1, 2026"', () => {
@@ -63,6 +63,19 @@ describe('formatDate & formatDateTime', () => {
       const res = getDueStatus(futureDate);
       expect(res.status).toBe('normal');
       expect(res.label).toContain('Due');
+    });
+  });
+
+  describe('formatAssignmentDuration', () => {
+    it('returns null for missing dates', () => {
+      expect(formatAssignmentDuration(null, null)).toBeNull();
+      expect(formatAssignmentDuration('2026-01-01', null)).toBeNull();
+    });
+
+    it('calculates days, weeks, and months correctly', () => {
+      expect(formatAssignmentDuration('2026-01-01', '2026-01-08')).toBe('7 days');
+      expect(formatAssignmentDuration('2026-01-01', '2026-01-22')).toBe('3 weeks');
+      expect(formatAssignmentDuration('2026-01-01', '2026-04-01')).toContain('month');
     });
   });
 });
