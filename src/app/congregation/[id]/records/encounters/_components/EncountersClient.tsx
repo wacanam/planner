@@ -51,21 +51,33 @@ import {
   saveEncounterRecord,
   updateEncounterRecord,
 } from '@/lib/record-writes';
+import { normalizeEncounterResponse } from '@/lib/status-rules';
 import type { Encounter } from '@/types/api';
 
 const responseColors: Record<string, string> = {
   receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   study_accepted:
     'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
+  study_offered:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+  return_visit_requested:
+    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   neutral: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
   foreign_language:
+    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
+  foreign_speaker:
     'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
   not_interested:
     'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   hostile: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
+  do_not_visit_demanded:
+    'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
+  minor:
+    'text-indigo-700 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
+  moving_away: 'text-muted-foreground border-border bg-muted/30',
 };
 
 export default function EncountersClient() {
@@ -192,7 +204,8 @@ export default function EncountersClient() {
   const filtered = useMemo(() => {
     let list = encounters;
     if (responseFilter !== 'all') {
-      list = list.filter((e) => e.response === responseFilter);
+      const normFilter = normalizeEncounterResponse(responseFilter);
+      list = list.filter((e) => normalizeEncounterResponse(e.response) === normFilter);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -540,16 +553,19 @@ export default function EncountersClient() {
             onChange={(e) => setResponseFilter(e.target.value)}
             className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
           >
-            <option value="all">All responses</option>
+            <option value="all">All Responses</option>
             <option value="receptive">Receptive / Interested</option>
             <option value="study_accepted">Bible Study Accepted</option>
-            <option value="neutral">Neutral</option>
+            <option value="study_offered">Bible Study Offered</option>
+            <option value="return_visit_requested">Return Visit Requested</option>
+            <option value="neutral">Neutral / Polite</option>
             <option value="busy">Busy / Call Back</option>
-            <option value="foreign_language">Foreign Language</option>
+            <option value="foreign_speaker">Foreign Language / Speaker</option>
+            <option value="minor">Minor / Youth Only</option>
             <option value="not_interested">Not Interested</option>
             <option value="hostile">Hostile</option>
-            <option value="do_not_visit">Do Not Visit</option>
-            <option value="moved">Moved Away</option>
+            <option value="do_not_visit_demanded">Do Not Visit Demanded</option>
+            <option value="moving_away">Moving Away</option>
           </select>
         </div>
       </div>

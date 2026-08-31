@@ -197,3 +197,78 @@ export function exportGroupsToCSV(
   const filename = `Service_Groups_Performance_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
   triggerCsvDownload(filename, csv);
 }
+
+/**
+ * Generates and downloads the Teaching & Follow-up Ministry Analytics CSV.
+ */
+export function exportTeachingAnalyticsToCSV(
+  report: {
+    totals: any;
+    byGroup: any[];
+    byPublisher: any[];
+  },
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
+): void {
+  const headers = [
+    'Category',
+    'Name',
+    'Role / Group',
+    'Interested Contacts',
+    'RV Completed',
+    'RV Missed / Overdue',
+    'RV Upcoming',
+    'Studies Conducted',
+    'Studies Offered',
+    'Studies Missed',
+    'Active Studies',
+  ];
+
+  const groupRows = (report.byGroup || []).map((g) => [
+    escapeCsvCell('Service Group'),
+    escapeCsvCell(g.name),
+    escapeCsvCell(g.overseerName ? `Overseer: ${g.overseerName}` : '—'),
+    escapeCsvCell(g.metrics.interestedContacts.total),
+    escapeCsvCell(g.metrics.returnVisits.visited),
+    escapeCsvCell(g.metrics.returnVisits.missed),
+    escapeCsvCell(g.metrics.returnVisits.upcoming),
+    escapeCsvCell(g.metrics.bibleStudies.conducted),
+    escapeCsvCell(g.metrics.bibleStudies.offered),
+    escapeCsvCell(g.metrics.bibleStudies.missed),
+    escapeCsvCell(g.metrics.bibleStudies.activeCount),
+  ]);
+
+  const publisherRows = (report.byPublisher || []).map((p) => [
+    escapeCsvCell('Publisher'),
+    escapeCsvCell(p.name),
+    escapeCsvCell(p.groupName || p.role || '—'),
+    escapeCsvCell(p.metrics.interestedContacts.total),
+    escapeCsvCell(p.metrics.returnVisits.visited),
+    escapeCsvCell(p.metrics.returnVisits.missed),
+    escapeCsvCell(p.metrics.returnVisits.upcoming),
+    escapeCsvCell(p.metrics.bibleStudies.conducted),
+    escapeCsvCell(p.metrics.bibleStudies.offered),
+    escapeCsvCell(p.metrics.bibleStudies.missed),
+    escapeCsvCell(p.metrics.bibleStudies.activeCount),
+  ]);
+
+  const totalRow = [
+    escapeCsvCell('CONGREGATION TOTAL'),
+    escapeCsvCell(congregationName),
+    escapeCsvCell('All Members'),
+    escapeCsvCell(report.totals?.interestedContacts?.total ?? 0),
+    escapeCsvCell(report.totals?.returnVisits?.visited ?? 0),
+    escapeCsvCell(report.totals?.returnVisits?.missed ?? 0),
+    escapeCsvCell(report.totals?.returnVisits?.upcoming ?? 0),
+    escapeCsvCell(report.totals?.bibleStudies?.conducted ?? 0),
+    escapeCsvCell(report.totals?.bibleStudies?.offered ?? 0),
+    escapeCsvCell(report.totals?.bibleStudies?.missed ?? 0),
+    escapeCsvCell(report.totals?.bibleStudies?.activeCount ?? 0),
+  ];
+
+  const allRows = [totalRow, ...groupRows, ...publisherRows];
+  const csv = [headers.join(','), ...allRows.map((row) => row.join(','))].join('\r\n');
+  const sySuffix = serviceYear && serviceYear !== 'all' ? `_SY${serviceYear}` : '';
+  const filename = `Teaching_Ministry_Analytics_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerCsvDownload(filename, csv);
+}

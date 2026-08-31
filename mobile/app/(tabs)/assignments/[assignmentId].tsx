@@ -39,14 +39,18 @@ import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '
 import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
+import { resolveHouseholdStatusAfter } from '@/lib/status-rules';
 import type { Household } from '@/types/api';
 
 const OUTCOME_OPTIONS = [
   { id: 'answered', label: 'Answered', color: '#16a34a' },
+  { id: 'return_visit', label: 'Return Visit', color: '#6b9ecc' },
+  { id: 'return_visit_missed', label: 'RV Missed', color: '#f59e0b' },
+  { id: 'study_conducted', label: 'Bible Study', color: '#8b5cf6' },
+  { id: 'study_offered', label: 'Study Offered', color: '#a855f7' },
+  { id: 'study_missed', label: 'Study Missed', color: '#ec4899' },
   { id: 'not_home', label: 'Not Home', color: '#d97706' },
   { id: 'busy', label: 'Busy / Callback', color: '#ea580c' },
-  { id: 'return_visit', label: 'Return Visit', color: '#6b9ecc' },
-  { id: 'study_conducted', label: 'Bible Study', color: '#8b5cf6' },
   { id: 'minor_only', label: 'Minor Only', color: '#6366f1' },
   { id: 'foreign_language', label: 'Foreign Lang', color: '#06b6d4' },
   { id: 'inaccessible', label: 'Inaccessible', color: '#78716c' },
@@ -199,45 +203,34 @@ export default function AssignmentDetailScreen() {
     setVisitModalVisible(true);
   };
 
-  const resolveHouseholdStatusAfter = (selectedOutcome: string) => {
-    switch (selectedOutcome) {
-      case 'do_not_visit':
-        return 'do_not_visit';
-      case 'moved':
-        return 'moved';
-      case 'vacant':
-        return 'vacant';
-      case 'foreign_language':
-        return 'foreign_language';
-      case 'inaccessible':
-        return 'inaccessible';
-      case 'not_home':
-        return 'not_home';
-      case 'busy':
-        return 'busy';
-      case 'return_visit':
-      case 'study_conducted':
-        return 'return_visit';
-      default:
-        return 'active';
-    }
-  };
-
   const handleSubmitVisit = async () => {
     if (!selectedHousehold || !user) return;
     try {
+      const isRV = outcome === 'return_visit' || outcome === 'return_visit_missed';
+      const isStudy = outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
+
       await createVisit({
         householdId: selectedHousehold.id,
         userId: user.id,
         publisherName: user.name || 'Publisher',
         assignmentId: activeAssignment?.id || null,
         outcome,
-        householdStatusAfter: resolveHouseholdStatusAfter(outcome),
+        householdStatusAfter: resolveHouseholdStatusAfter(outcome, null, selectedHousehold.status),
         notes: notes || null,
         bibleTopicDiscussed: topicDiscussed || null,
         literatureLeft: literatureLeft || null,
-        returnVisitPlanned:
-          returnVisitPlanned || outcome === 'return_visit' || outcome === 'study_conducted',
+        returnVisitPlanned: returnVisitPlanned || isRV || isStudy,
+        scheduledAppointmentType: isStudy ? 'bible_study' : isRV ? 'return_visit' : null,
+        bibleStudyStatus:
+          outcome === 'study_conducted'
+            ? 'conducted'
+            : outcome === 'study_offered'
+              ? 'offered'
+              : outcome === 'study_missed'
+                ? 'missed'
+                : null,
+        studyOffered: outcome === 'study_offered',
+        isAppointmentMissed: outcome === 'return_visit_missed' || outcome === 'study_missed',
       });
       await triggerHaptic('success');
       setVisitModalVisible(false);

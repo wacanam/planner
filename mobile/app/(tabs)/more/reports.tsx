@@ -1,6 +1,5 @@
 // mobile/app/(tabs)/more/reports.tsx
-import { useRouter } from 'expo-router';
-import { BarChart2, Calendar, Download, FileText, Home } from 'lucide-react-native';
+import { BarChart2, BookOpen, Calendar, CheckCircle2, Download, FileText, Home, Sparkles, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,14 +21,13 @@ import { ReportsOverviewSkeleton, ReportsS13Skeleton } from '@/components/ui/Scr
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregation } from '@/hooks/useCongregations';
-import { useCoverageReport, useS13Report } from '@/hooks/useReports';
+import { useCoverageReport, useS13Report, useTeachingAnalyticsReport } from '@/hooks/useReports';
 import { exportS13Pdf } from '@/lib/pdf-export';
 import { formatDate } from '@/lib/date-utils';
 import { getServiceYear } from '@/lib/service-year';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function ReportsScreen() {
-  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeCongregationId } = useAuth();
   const { congregation } = useCongregation(activeCongregationId);
@@ -37,7 +35,7 @@ export default function ReportsScreen() {
 
   const currentSY = getServiceYear();
   const [selectedServiceYear, setSelectedServiceYear] = useState<number | 'all'>('all');
-  const [activeSegment, setActiveSegment] = useState<'overview' | 's13'>('overview');
+  const [activeSegment, setActiveSegment] = useState<'overview' | 's13' | 'teaching'>('overview');
   const [isExporting, setIsExporting] = useState(false);
 
   const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(
@@ -49,6 +47,12 @@ export default function ReportsScreen() {
   const { data: s13Records = [], isLoading: s13Loading } = useS13Report(activeCongregationId, {
     serviceYear: selectedServiceYear,
   });
+  const { data: teachingData, isLoading: teachingLoading } = useTeachingAnalyticsReport(
+    activeCongregationId,
+    {
+      serviceYear: selectedServiceYear,
+    }
+  );
 
   const congregationName = congregation?.name || 'Congregation';
 
@@ -191,6 +195,30 @@ export default function ReportsScreen() {
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
+            setActiveSegment('teaching');
+          }}
+          style={[
+            styles.segmentItem,
+            activeSegment === 'teaching' && {
+              borderBottomColor: colors.primary,
+              borderBottomWidth: 2.5,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color: activeSegment === 'teaching' ? colors.primary : colors.mutedForeground,
+              fontWeight: activeSegment === 'teaching' ? '700' : '500',
+              fontSize: typography.sm,
+            }}
+          >
+            Teaching &amp; RVs
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
             setActiveSegment('s13');
           }}
           style={[
@@ -208,7 +236,7 @@ export default function ReportsScreen() {
               fontSize: typography.sm,
             }}
           >
-            Form S-13 Record ({s13Records.length})
+            S-13 Record ({s13Records.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -345,96 +373,254 @@ export default function ReportsScreen() {
             </Card>
           </ScrollView>
         )
-      ) : s13Loading ? (
-        <ReportsS13Skeleton />
+      ) : activeSegment === 's13' ? (
+        s13Loading ? (
+          <ReportsS13Skeleton />
+        ) : (
+          /* S-13 Assignment Records Table / List */
+          <FlatList
+            data={s13Records}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
+            renderItem={({ item }) => (
+              <Card style={[styles.s13Card, { marginBottom: spacing.sm }]}>
+                <View style={styles.s13Header}>
+                  <View style={styles.numberBox}>
+                    <Text
+                      style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}
+                    >
+                      #{item.territoryNumber}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <Text
+                      style={{
+                        fontWeight: '700',
+                        color: colors.foreground,
+                        fontSize: typography.sm + 1,
+                      }}
+                    >
+                      {item.territoryName}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                      {item.assigneeName} {item.isGroupAssignment ? '(Group)' : ''}
+                    </Text>
+                  </View>
+                  <Badge
+                    label={item.returnedAt ? 'Completed' : 'Active'}
+                    variant={item.returnedAt ? 'success' : 'primary'}
+                    size="sm"
+                  />
+                </View>
+
+                <View style={[styles.s13DatesRow, { borderTopColor: colors.border }]}>
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      ASSIGNED
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.assignedAt ? formatDate(item.assignedAt) : '—'}
+                    </Text>
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      RETURNED
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.returnedAt ? formatDate(item.returnedAt) : 'In Field'}
+                    </Text>
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      DURATION
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.durationDays !== null ? `${item.durationDays}d` : '—'}
+                    </Text>
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      COVERAGE
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}
+                    >
+                      {Math.round(item.coverageAtReturn)}%
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            )}
+          />
+        )
       ) : (
-        /* S-13 Assignment Records Table / List */
-        <FlatList
-          data={s13Records}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{
-            padding: spacing.md,
-            paddingBottom: insets.bottom + spacing.xxl,
-          }}
-          renderItem={({ item }) => (
-            <Card style={[styles.s13Card, { marginBottom: spacing.sm }]}>
-              <View style={styles.s13Header}>
-                <View style={styles.numberBox}>
-                  <Text
-                    style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}
-                  >
-                    #{item.territoryNumber}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text
-                    style={{
-                      fontWeight: '700',
-                      color: colors.foreground,
-                      fontSize: typography.sm + 1,
-                    }}
-                  >
-                    {item.territoryName}
-                  </Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    {item.assigneeName} {item.isGroupAssignment ? '(Group)' : ''}
-                  </Text>
-                </View>
-                <Badge
-                  label={item.returnedAt ? 'Completed' : 'Active'}
-                  variant={item.returnedAt ? 'success' : 'primary'}
-                  size="sm"
-                />
-              </View>
+        /* Teaching & RVs Analytics */
+        teachingLoading ? (
+          <ReportsOverviewSkeleton />
+        ) : (
+          <ScrollView
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
+          >
+            {/* 4 Teaching KPI Cards */}
+            <View style={styles.kpiGrid}>
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <Sparkles size={18} color="#10b981" />
+                <Text
+                  style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}
+                >
+                  {teachingData?.totals.interestedContacts.total ?? 0}
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                  Interested Contacts
+                </Text>
+                <Text style={{ color: '#10b981', fontSize: 10, marginTop: 2, fontWeight: '600' }}>
+                  {teachingData?.totals.interestedContacts.studyInterested ?? 0} study interests
+                </Text>
+              </Card>
 
-              <View style={[styles.s13DatesRow, { borderTopColor: colors.border }]}>
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    ASSIGNED
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.assignedAt ? formatDate(item.assignedAt) : '—'}
-                  </Text>
-                </View>
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <CheckCircle2 size={18} color="#3b82f6" />
+                <Text
+                  style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}
+                >
+                  {teachingData?.totals.returnVisits.visited ?? 0}
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                  RVs Completed
+                </Text>
+                <Text style={{ color: '#f59e0b', fontSize: 10, marginTop: 2, fontWeight: '600' }}>
+                  {teachingData?.totals.returnVisits.missed ?? 0} missed
+                </Text>
+              </Card>
+            </View>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    RETURNED
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.returnedAt ? formatDate(item.returnedAt) : 'In Field'}
-                  </Text>
-                </View>
+            <View style={[styles.kpiGrid, { marginTop: spacing.sm }]}>
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <BookOpen size={18} color="#8b5cf6" />
+                <Text
+                  style={[styles.kpiVal, { color: colors.foreground, fontSize: typography.xl }]}
+                >
+                  {teachingData?.totals.bibleStudies.conducted ?? 0}
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                  Studies Conducted
+                </Text>
+                <Text style={{ color: '#8b5cf6', fontSize: 10, marginTop: 2, fontWeight: '600' }}>
+                  {teachingData?.totals.bibleStudies.offered ?? 0} offered
+                </Text>
+              </Card>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    DURATION
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.durationDays !== null ? `${item.durationDays}d` : '—'}
-                  </Text>
-                </View>
+              <Card style={[styles.kpiCard, { flex: 1 }]}>
+                <Users size={18} color="#ec4899" />
+                <Text
+                  style={[styles.kpiVal, { color: '#ec4899', fontSize: typography.xl }]}
+                >
+                  {teachingData?.totals.bibleStudies.activeCount ?? 0}
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                  Active Studies
+                </Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 2 }}>
+                  Live pipeline
+                </Text>
+              </Card>
+            </View>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    COVERAGE
+            {/* Service Groups Teaching Breakdown */}
+            <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
+              <Text style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}>
+                Service Groups Breakdown ({teachingData?.byGroup?.length ?? 0})
+              </Text>
+              {(teachingData?.byGroup || []).map((g) => (
+                <View
+                  key={g.groupId}
+                  style={{
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.border,
+                    paddingVertical: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: colors.foreground, fontWeight: '700', fontSize: typography.sm }}>
+                      {g.name}
+                    </Text>
+                    <Badge
+                      label={`${g.metrics.bibleStudies.activeCount} active`}
+                      variant={g.metrics.bibleStudies.activeCount > 0 ? 'primary' : 'secondary'}
+                      size="sm"
+                    />
+                  </View>
+                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
+                    Overseer: {g.overseerName || 'Unassigned'}
                   </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}
-                  >
-                    {Math.round(item.coverageAtReturn)}%
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, backgroundColor: `${colors.muted}40`, padding: 8, borderRadius: 8 }}>
+                    <Text style={{ color: colors.foreground, fontSize: typography.xs }}>
+                      Interested: <Text style={{ fontWeight: '700' }}>{g.metrics.interestedContacts.total}</Text>
+                    </Text>
+                    <Text style={{ color: '#3b82f6', fontSize: typography.xs }}>
+                      RVs: <Text style={{ fontWeight: '700' }}>{g.metrics.returnVisits.visited}</Text> ({g.metrics.returnVisits.missed} msd)
+                    </Text>
+                    <Text style={{ color: '#8b5cf6', fontSize: typography.xs }}>
+                      Studies: <Text style={{ fontWeight: '700' }}>{g.metrics.bibleStudies.conducted}</Text>
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              ))}
             </Card>
-          )}
-        />
+
+            {/* Top Publishers Teaching Activity */}
+            <Card style={[styles.sectionCard, { marginTop: spacing.md }]}>
+              <Text style={[styles.cardTitle, { color: colors.foreground, fontSize: typography.base }]}>
+                Publishers Activity ({(teachingData?.byPublisher || []).length})
+              </Text>
+              {(teachingData?.byPublisher || []).slice(0, 15).map((p) => (
+                <View
+                  key={p.userId}
+                  style={{
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: colors.border,
+                    paddingVertical: 8,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: typography.xs }}>
+                      {p.name}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                      {p.groupName || 'No group'} • {p.metrics.interestedContacts.total} contacts
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ color: '#8b5cf6', fontWeight: '700', fontSize: typography.xs }}>
+                      {p.metrics.bibleStudies.conducted} studies
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>
+                      {p.metrics.returnVisits.visited} RVs ({p.metrics.returnVisits.missed} missed)
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </Card>
+          </ScrollView>
+        )
       )}
     </View>
   );

@@ -26,6 +26,13 @@ import {
 } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
+import {
+  getHouseholdStatusMeta,
+  normalizeEncounterResponse,
+  normalizeHouseholdStatus,
+  normalizeVisitOutcome,
+  resolveHouseholdStatusAfter,
+} from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
@@ -35,13 +42,19 @@ import { ContactAutocompleteInput } from './contact-autocomplete-input';
 const responseBadgeColors: Record<string, string> = {
   receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   study_accepted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
-  neutral: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  study_offered: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+  return_visit_requested: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  neutral: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
   busy: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
   foreign_language: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
+  foreign_speaker: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
   not_interested: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   hostile: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
   do_not_visit: 'bg-destructive/10 text-destructive border-destructive/20',
+  do_not_visit_demanded: 'bg-destructive/10 text-destructive border-destructive/20',
+  minor: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
   moved: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
+  moving_away: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
 };
 
 interface LogVisitSheetProps {
@@ -255,83 +268,72 @@ export function HouseholdLogVisitSheet({
   const handleOutcomeChange = (val: LogVisitFormData['outcome']) => {
     form.setValue('outcome', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
 
-    switch (val) {
-      case 'not_home':
-        form.setValue('status', 'not_home', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'busy':
-        form.setValue('status', 'busy', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'vacant':
-        form.setValue('status', 'vacant', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'inaccessible':
-        form.setValue('status', 'inaccessible', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'moved':
-        form.setValue('status', 'moved', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'do_not_visit':
-        form.setValue('status', 'do_not_visit', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'foreign_language':
-        form.setValue('status', 'foreign_language', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'minor_only':
-        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
-        setRecordEncounter(false);
-        setEncounterReturnVisitRequested(false);
-        break;
-      case 'return_visit':
-        form.setValue('status', 'return_visit', { shouldValidate: true, shouldDirty: true });
-        form.setValue('returnVisitPlanned', true);
-        setRecordEncounter(true);
-        setEncounterReturnVisitRequested(true);
-        break;
-      case 'study_conducted':
-        form.setValue('status', 'return_visit', { shouldValidate: true, shouldDirty: true });
-        form.setValue('returnVisitPlanned', true);
+    const isRV = val === 'return_visit' || val === 'return_visit_completed' || val === 'return_visit_missed';
+    const isStudy = val === 'study_conducted' || val === 'study_offered' || val === 'study_missed';
+    const isMissed = val === 'return_visit_missed' || val === 'study_missed';
+
+    const resolvedStatus = resolveHouseholdStatusAfter(
+      val,
+      recordEncounter ? encounterResponse : null,
+      household?.status
+    );
+    form.setValue('status', resolvedStatus, { shouldValidate: true, shouldDirty: true });
+
+    if (isStudy) {
+      form.setValue('returnVisitPlanned', true);
+      form.setValue('scheduledAppointmentType', 'bible_study');
+      form.setValue(
+        'bibleStudyStatus',
+        val === 'study_conducted' ? 'conducted' : val === 'study_offered' ? 'offered' : 'missed'
+      );
+      form.setValue('studyOffered', val === 'study_offered');
+      form.setValue('isAppointmentMissed', isMissed);
+      if (val === 'study_conducted' || val === 'study_offered') {
         setRecordEncounter(true);
         setEncounterBibleStudyInterest(true);
         setEncounterReturnVisitRequested(true);
-        break;
-      case 'answered':
-        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
+      }
+    } else if (isRV) {
+      form.setValue('returnVisitPlanned', true);
+      form.setValue('scheduledAppointmentType', 'return_visit');
+      form.setValue('isAppointmentMissed', isMissed);
+      if (val === 'return_visit' || val === 'return_visit_completed') {
         setRecordEncounter(true);
-        break;
-      default:
-        form.setValue('status', 'active', { shouldValidate: true, shouldDirty: true });
-        break;
+        setEncounterReturnVisitRequested(true);
+      }
+    } else if (val === 'answered' || val === 'literature_placed') {
+      form.setValue('isAppointmentMissed', false);
+      setRecordEncounter(true);
+    } else {
+      form.setValue('isAppointmentMissed', false);
+      setRecordEncounter(false);
     }
   };
 
   const handleStatusChange = (val: LogVisitFormData['status']) => {
     form.setValue('status', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    if (val === 'return_visit') {
+    if (val === 'return_visit' || val === 'bible_study') {
       setEncounterReturnVisitRequested(true);
     } else if (
       val === 'do_not_visit' ||
-      val === 'moved' ||
       val === 'vacant' ||
-      val === 'not_home' ||
-      val === 'inaccessible'
+      val === 'inaccessible' ||
+      val === 'moved'
     ) {
       setEncounterReturnVisitRequested(false);
     }
+  };
+
+  const handleEncounterResponseChange = (val: string) => {
+    setEncounterResponse(val);
+    if (val === 'study_accepted' || val === 'study_offered') {
+      setEncounterBibleStudyInterest(true);
+      setEncounterReturnVisitRequested(true);
+    } else if (val === 'return_visit_requested' || val === 'receptive') {
+      setEncounterReturnVisitRequested(true);
+    }
+    const resolved = resolveHouseholdStatusAfter(form.getValues('outcome'), val, household?.status);
+    form.setValue('status', resolved, { shouldValidate: true, shouldDirty: true });
   };
 
   const handleSelectContact = (contact: HouseholdContactSummary | any) => {
@@ -403,6 +405,10 @@ export function HouseholdLogVisitSheet({
         returnVisitDate: followUpDate,
         nextVisitDate: followUpDate,
         returnVisitPlanned: Boolean(followUpDate || encounterReturnVisitRequested),
+        scheduledAppointmentType: data.scheduledAppointmentType ?? (data.outcome.includes('study') ? 'bible_study' : 'return_visit'),
+        bibleStudyStatus: data.bibleStudyStatus ?? (data.outcome === 'study_conducted' ? 'conducted' : data.outcome === 'study_offered' ? 'offered' : data.outcome === 'study_missed' ? 'missed' : undefined),
+        studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered'),
+        isAppointmentMissed: Boolean(data.isAppointmentMissed || data.outcome === 'return_visit_missed' || data.outcome === 'study_missed'),
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
       });
@@ -429,6 +435,7 @@ export function HouseholdLogVisitSheet({
           nextVisitTime: encounterNextVisitTime || undefined,
           nextVisitNotes: encounterNextVisitNotes || undefined,
           bibleStudyInterest: encounterBibleStudyInterest,
+          studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered' || encounterResponse === 'study_offered'),
           bibleStudyPublication: encounterPublication || undefined,
           bibleStudyLesson: encounterLesson || undefined,
           notes: data.notes || undefined,
@@ -492,10 +499,14 @@ export function HouseholdLogVisitSheet({
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
               <SelectItem value="answered">Answered / Conversation</SelectItem>
+              <SelectItem value="return_visit_completed">Return Visit (Visited / Completed)</SelectItem>
+              <SelectItem value="return_visit_missed">Return Visit Missed (Resident Absent / Reschedule)</SelectItem>
+              <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
+              <SelectItem value="study_offered">Bible Study Offered</SelectItem>
+              <SelectItem value="study_missed">Bible Study Missed / Cancelled</SelectItem>
+              <SelectItem value="literature_placed">Literature Placed / Video Shown</SelectItem>
               <SelectItem value="not_home">Not Home</SelectItem>
               <SelectItem value="busy">Busy / Call Back Later</SelectItem>
-              <SelectItem value="return_visit">Return Visit Made</SelectItem>
-              <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
               <SelectItem value="minor_only">Minor / Youth Only</SelectItem>
               <SelectItem value="foreign_language">Foreign / Different Language</SelectItem>
               <SelectItem value="inaccessible">Inaccessible / Gated / Dog</SelectItem>
@@ -509,7 +520,7 @@ export function HouseholdLogVisitSheet({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div className="space-y-1">
-            <Label className="text-xs font-semibold">Update Household Status</Label>
+            <Label className="text-xs font-semibold">House Territory Standing</Label>
             <Select
               value={form.watch('status')}
               onValueChange={(val) => handleStatusChange(val as LogVisitFormData['status'])}
@@ -518,16 +529,17 @@ export function HouseholdLogVisitSheet({
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="not_home">Not Home</SelectItem>
-                <SelectItem value="busy">Busy / Call Back</SelectItem>
-                <SelectItem value="return_visit">Return Visit</SelectItem>
-                <SelectItem value="foreign_language">Foreign Language</SelectItem>
-                <SelectItem value="vacant">Vacant</SelectItem>
-                <SelectItem value="inaccessible">Inaccessible</SelectItem>
-                <SelectItem value="do_not_visit">Do Not Visit</SelectItem>
-                <SelectItem value="moved">Moved</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="available">Available / Active Door</SelectItem>
+                <SelectItem value="return_visit">Return Visit (Interested Contact)</SelectItem>
+                <SelectItem value="bible_study">Bible Study (Ongoing Study)</SelectItem>
+                <SelectItem value="not_home">Not Home (Pending Callback)</SelectItem>
+                <SelectItem value="busy">Busy (Pending Callback)</SelectItem>
+                <SelectItem value="foreign_language">Foreign Language Referral</SelectItem>
+                <SelectItem value="inaccessible">Inaccessible / Barrier</SelectItem>
+                <SelectItem value="vacant">Vacant / Unoccupied</SelectItem>
+                <SelectItem value="do_not_visit">Do Not Call / Visit</SelectItem>
+                <SelectItem value="moved">Moved Away</SelectItem>
+                <SelectItem value="inactive">Inactive / Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -702,21 +714,24 @@ export function HouseholdLogVisitSheet({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold">Response *</Label>
-                  <Select value={encounterResponse} onValueChange={setEncounterResponse}>
+                  <Label className="text-xs font-semibold">Resident Response *</Label>
+                  <Select value={encounterResponse} onValueChange={handleEncounterResponseChange}>
                     <SelectTrigger className="h-9 rounded-xl text-xs bg-background">
                       <SelectValue placeholder="Response" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
                       <SelectItem value="receptive">Receptive / Interested</SelectItem>
                       <SelectItem value="study_accepted">Bible Study Accepted</SelectItem>
-                      <SelectItem value="neutral">Neutral</SelectItem>
-                      <SelectItem value="busy">Busy / Call Back</SelectItem>
-                      <SelectItem value="foreign_language">Foreign Language</SelectItem>
+                      <SelectItem value="study_offered">Bible Study Offered / Shown</SelectItem>
+                      <SelectItem value="return_visit_requested">Welcomed Return Visit</SelectItem>
+                      <SelectItem value="neutral">Neutral / Polite</SelectItem>
+                      <SelectItem value="busy">Busy / In a Hurry</SelectItem>
+                      <SelectItem value="foreign_speaker">Foreign Language Speaker</SelectItem>
                       <SelectItem value="not_interested">Not Interested</SelectItem>
                       <SelectItem value="hostile">Hostile / Opposed</SelectItem>
-                      <SelectItem value="do_not_visit">Do Not Call / Visit</SelectItem>
-                      <SelectItem value="moved">Moved Out</SelectItem>
+                      <SelectItem value="do_not_visit_demanded">Demanded Do Not Call</SelectItem>
+                      <SelectItem value="minor">Minor / Child</SelectItem>
+                      <SelectItem value="moving_away">Moving Away Soon</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

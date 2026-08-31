@@ -33,6 +33,7 @@ import {
   resolveUserAssignments,
 } from '@/lib/permissions';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
+import { normalizeHouseholdStatus } from '@/lib/status-rules';
 import type { Household } from '@/types/api';
 import { ActiveTerritoryCard } from './ActiveTerritoryCard';
 import { DashboardHeroDeck } from './DashboardHeroDeck';
@@ -201,10 +202,15 @@ export default function CongregationDashboardClient() {
 
   const groupReturnVisits = useMemo(() => {
     return groupHouseholds
-      .filter(
-        (h) =>
-          h.status === 'return_visit' || h.status === 'busy' || Boolean(h.notes && h.lastVisitDate)
-      )
+      .filter((h) => {
+        const norm = normalizeHouseholdStatus(h.status);
+        return (
+          norm === 'return_visit' ||
+          norm === 'bible_study' ||
+          norm === 'busy' ||
+          Boolean(h.notes && h.lastVisitDate)
+        );
+      })
       .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
       .slice(0, 3);
   }, [groupHouseholds]);
@@ -300,9 +306,11 @@ export default function CongregationDashboardClient() {
     return households
       .filter((h) => {
         const isMine = h.createdById === user.id || h.collaboratorIds?.includes(user.id);
+        const norm = normalizeHouseholdStatus(h.status);
         const isFollowup =
-          h.status === 'return_visit' ||
-          h.status === 'busy' ||
+          norm === 'return_visit' ||
+          norm === 'bible_study' ||
+          norm === 'busy' ||
           Boolean(h.notes && h.notes.trim().length > 0 && h.lastVisitDate);
         return isMine && isFollowup;
       })

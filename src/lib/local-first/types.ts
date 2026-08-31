@@ -56,6 +56,10 @@ export interface LocalVisit extends FirestoreRecordMetadata {
   nextVisitDate: string | null;
   nextVisitTime: string | null;
   nextVisitNotes: string | null;
+  scheduledAppointmentType?: 'return_visit' | 'bible_study' | null;
+  bibleStudyStatus?: 'conducted' | 'offered' | 'missed' | 'none' | null;
+  studyOffered?: boolean | null;
+  isAppointmentMissed?: boolean | null;
   assignmentId: string | null;
   notes: string | null;
 }

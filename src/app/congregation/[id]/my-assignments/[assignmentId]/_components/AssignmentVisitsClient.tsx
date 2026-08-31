@@ -51,16 +51,23 @@ import {
   canReturnAssignment,
 } from '@/lib/permissions';
 import { formatDate } from '@/lib/date-utils';
+import {
+  normalizeEncounterResponse,
+  normalizeHouseholdStatus,
+  normalizeVisitOutcome,
+} from '@/lib/status-rules';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
 
 const statusBadgeColors: Record<string, string> = {
   new: 'bg-muted text-muted-foreground border-border',
+  available: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   active: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+  bible_study: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
+  return_visit: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   not_home: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   busy: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
-  return_visit: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
   foreign_language: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
   vacant: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
   inaccessible: 'bg-stone-500/10 text-stone-700 dark:text-stone-400 border-stone-500/20',
@@ -71,10 +78,17 @@ const statusBadgeColors: Record<string, string> = {
 
 const outcomeBadgeColors: Record<string, string> = {
   answered: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+  return_visit_completed:
+    'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  return_visit: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  return_visit_missed:
+    'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  study_conducted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
+  study_offered: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+  study_missed: 'bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20',
+  literature_placed: 'bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20',
   not_home: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   busy: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
-  return_visit: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
-  study_conducted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
   minor_only: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
   foreign_language: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
   inaccessible: 'bg-stone-500/10 text-stone-700 dark:text-stone-400 border-stone-500/20',
@@ -241,6 +255,7 @@ export default function AssignmentVisitsClient() {
     let answered = 0;
     let notHome = 0;
     let busy = 0;
+    let bibleStudy = 0;
     let returnVisit = 0;
     let foreignLanguage = 0;
     let vacant = 0;
@@ -249,16 +264,20 @@ export default function AssignmentVisitsClient() {
     let moved = 0;
 
     for (const h of households) {
-      if (h.status === 'active' || h.lastVisitOutcome === 'answered') answered++;
-      if (h.status === 'not_home' || h.lastVisitOutcome === 'not_home') notHome++;
-      if (h.status === 'busy' || h.lastVisitOutcome === 'busy') busy++;
-      if (h.status === 'return_visit' || h.lastVisitOutcome === 'return_visit') returnVisit++;
-      if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language')
+      const normStatus = normalizeHouseholdStatus(h.status);
+      const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
+
+      if (normStatus === 'available' || normOutcome === 'answered') answered++;
+      if (normStatus === 'bible_study' || normOutcome === 'study_conducted') bibleStudy++;
+      if (normStatus === 'return_visit' || normOutcome === 'return_visit_completed') returnVisit++;
+      if (normStatus === 'not_home' || normOutcome === 'not_home') notHome++;
+      if (normStatus === 'busy' || normOutcome === 'busy') busy++;
+      if (normStatus === 'foreign_language' || normOutcome === 'foreign_language')
         foreignLanguage++;
-      if (h.status === 'vacant' || h.lastVisitOutcome === 'vacant') vacant++;
-      if (h.status === 'inaccessible' || h.lastVisitOutcome === 'inaccessible') inaccessible++;
-      if (h.status === 'do_not_visit' || h.lastVisitOutcome === 'do_not_visit') doNotCall++;
-      if (h.status === 'moved' || h.lastVisitOutcome === 'moved') moved++;
+      if (normStatus === 'vacant' || normOutcome === 'vacant') vacant++;
+      if (normStatus === 'inaccessible' || normOutcome === 'inaccessible') inaccessible++;
+      if (normStatus === 'do_not_visit' || normOutcome === 'do_not_visit') doNotCall++;
+      if (normStatus === 'moved' || normOutcome === 'moved') moved++;
     }
 
     const scheduledRVs = visits.filter((v) => v.returnVisitPlanned && v.nextVisitDate).length;
@@ -266,14 +285,16 @@ export default function AssignmentVisitsClient() {
       (e) =>
         e.bibleStudyInterest ||
         e.returnVisitRequested ||
-        e.response === 'receptive' ||
-        e.response === 'study_accepted'
+        normalizeEncounterResponse(e.response) === 'receptive' ||
+        normalizeEncounterResponse(e.response) === 'study_accepted' ||
+        normalizeEncounterResponse(e.response) === 'study_offered'
     ).length;
 
     return {
       answered,
       notHome,
       busy,
+      bibleStudy,
       returnVisit,
       foreignLanguage,
       vacant,
@@ -360,7 +381,13 @@ export default function AssignmentVisitsClient() {
       if (statusFilter === 'unworked') {
         return !h.lastVisitDate && (!h.totalVisitsCount || h.totalVisitsCount === 0);
       }
-      return h.status === statusFilter || h.lastVisitOutcome === statusFilter;
+      const normFilter = normalizeHouseholdStatus(statusFilter);
+      const normStatus = normalizeHouseholdStatus(h.status);
+      const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
+      return (
+        normStatus === normFilter ||
+        normOutcome === normalizeVisitOutcome(statusFilter)
+      );
     });
   }, [households, doorSearch, statusFilter]);
 
@@ -702,6 +729,7 @@ export default function AssignmentVisitsClient() {
                 { key: 'all', label: `All (${households.length})` },
                 { key: 'worked', label: `Worked (${coverageStats.workedDoors})` },
                 { key: 'unworked', label: `Unworked (${coverageStats.unworkedDoors})` },
+                { key: 'bible_study', label: `Bible Studies (${demographicStats.bibleStudy})` },
                 { key: 'return_visit', label: `Return Visits (${demographicStats.returnVisit})` },
                 { key: 'not_home', label: `Not Home (${demographicStats.notHome})` },
                 { key: 'busy', label: `Busy (${demographicStats.busy})` },

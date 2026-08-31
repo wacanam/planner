@@ -1,7 +1,6 @@
 // mobile/src/hooks/useCongregationGroups.ts
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,

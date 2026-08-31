@@ -24,7 +24,12 @@ export const editVisitSchema = z.object({
     'not_home',
     'busy',
     'return_visit',
+    'return_visit_completed',
+    'return_visit_missed',
     'study_conducted',
+    'study_offered',
+    'study_missed',
+    'literature_placed',
     'minor_only',
     'foreign_language',
     'inaccessible',
@@ -90,10 +95,13 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
           </SelectTrigger>
           <SelectContent className="bg-popover border-border">
             <SelectItem value="answered">Answered (Conversation)</SelectItem>
+            <SelectItem value="return_visit">Return Visit (Visited / Completed)</SelectItem>
+            <SelectItem value="return_visit_missed">Return Visit Missed (Resident Absent / Reschedule)</SelectItem>
+            <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
+            <SelectItem value="study_offered">Bible Study Offered</SelectItem>
+            <SelectItem value="study_missed">Bible Study Missed / Cancelled</SelectItem>
             <SelectItem value="not_home">Not Home</SelectItem>
             <SelectItem value="busy">Busy / Call Back Later</SelectItem>
-            <SelectItem value="return_visit">Return Visit Made</SelectItem>
-            <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
             <SelectItem value="minor_only">Minor / Youth Only</SelectItem>
             <SelectItem value="foreign_language">Foreign / Different Language</SelectItem>
             <SelectItem value="inaccessible">Inaccessible / Gated</SelectItem>

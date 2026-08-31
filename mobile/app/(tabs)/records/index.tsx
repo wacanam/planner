@@ -54,6 +54,7 @@ import {
 } from '@/lib/permissions';
 import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
+import { normalizeHouseholdStatus, normalizeVisitOutcome } from '@/lib/status-rules';
 
 type Tab = 'households' | 'visits' | 'encounters';
 type RecordScope = 'mine' | 'group' | 'congregation';
@@ -138,11 +139,13 @@ export default function RecordsScreen() {
         h.createdById === user.id ||
         h.collaboratorIds?.includes(user.id) ||
         h.readOnlyUserIds?.includes(user.id);
+      const normStatus = normalizeHouseholdStatus(h.status);
+      const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
       const isFollowup =
-        h.status === 'return_visit' ||
-        h.status === 'study_conducted' ||
-        h.lastVisitOutcome === 'return_visit' ||
-        h.lastVisitOutcome === 'study_conducted';
+        normStatus === 'return_visit' ||
+        normStatus === 'bible_study' ||
+        normOutcome === 'return_visit_completed' ||
+        normOutcome === 'study_conducted';
       return isMine && isFollowup;
     });
   }, [households, user?.id]);
@@ -395,15 +398,21 @@ export default function RecordsScreen() {
     switch (status) {
       case 'do_not_visit':
         return 'destructive';
+      case 'bible_study':
       case 'return_visit':
+      case 'return_visit_completed':
       case 'study_conducted':
       case 'foreign_language':
         return 'primary';
+      case 'available':
       case 'active':
       case 'answered':
+      case 'literature_placed':
         return 'success';
       case 'not_home':
       case 'busy':
+      case 'return_visit_missed':
+      case 'study_missed':
         return 'warning';
       default:
         return 'secondary';

@@ -40,6 +40,7 @@ import {
 } from '@/lib/permissions';
 import { formatDate } from '@/lib/date-utils';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
+import { normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
 
@@ -48,9 +49,19 @@ const outcomeColors: Record<string, string> = {
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
   return_visit:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  return_visit_completed:
+    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  return_visit_missed:
+    'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   study_conducted:
     'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
+  study_offered:
+    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
+  study_missed:
+    'text-pink-700 border-pink-200 bg-pink-50 dark:bg-pink-950/40 dark:text-pink-400',
+  literature_placed:
+    'text-teal-700 border-teal-200 bg-teal-50 dark:bg-teal-950/40 dark:text-teal-400',
   minor_only:
     'text-indigo-700 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-400',
   foreign_language:
@@ -216,7 +227,8 @@ export default function VisitsClient() {
   const filtered = useMemo(() => {
     let list = visits;
     if (outcomeFilter !== 'all') {
-      list = list.filter((v) => v.outcome === outcomeFilter);
+      const normFilter = normalizeVisitOutcome(outcomeFilter);
+      list = list.filter((v) => normalizeVisitOutcome(v.outcome) === normFilter);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -462,19 +474,23 @@ export default function VisitsClient() {
           onChange={(e) => setOutcomeFilter(e.target.value)}
           className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
         >
-          <option value="all">All outcomes</option>
-          <option value="answered">Answered</option>
+          <option value="all">All Outcomes</option>
+          <option value="answered">Answered / Conversation</option>
+          <option value="return_visit_completed">Return Visit (Visited / Completed)</option>
+          <option value="return_visit_missed">Return Visit Missed</option>
+          <option value="study_conducted">Bible Study Conducted</option>
+          <option value="study_offered">Bible Study Offered</option>
+          <option value="study_missed">Bible Study Missed</option>
+          <option value="literature_placed">Literature Placed</option>
           <option value="not_home">Not Home</option>
           <option value="busy">Busy / Call Back</option>
-          <option value="return_visit">Return Visit Made</option>
-          <option value="study_conducted">Bible Study Conducted</option>
           <option value="minor_only">Minor / Youth Only</option>
           <option value="foreign_language">Foreign Language</option>
           <option value="inaccessible">Inaccessible / Gated</option>
           <option value="vacant">Vacant / Unoccupied</option>
           <option value="do_not_visit">Do Not Visit</option>
           <option value="moved">Moved Away</option>
-          <option value="other">Other</option>
+          <option value="other">Other Outcome</option>
         </select>
       </div>
 

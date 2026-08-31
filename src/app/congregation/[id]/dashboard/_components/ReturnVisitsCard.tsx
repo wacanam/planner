@@ -1,10 +1,12 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Plus, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { normalizeHouseholdStatus, normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import type { DashboardContextProps } from './types';
 
@@ -19,6 +21,19 @@ export function ReturnVisitsCard({
 }: DashboardContextProps) {
   const returnVisitsList = isGroupLeaderTier ? groupReturnVisits : myReturnVisits;
 
+  const studyCount = useMemo(() => {
+    return returnVisitsList.filter((h) => {
+      const s = normalizeHouseholdStatus(h.status);
+      const outcome = normalizeVisitOutcome(h.lastVisitOutcome);
+      return (
+        s === 'bible_study' ||
+        outcome === 'study_conducted' ||
+        outcome === 'study_offered' ||
+        h.notes?.toLowerCase().includes('study')
+      );
+    }).length;
+  }, [returnVisitsList]);
+
   if (returnVisitsList.length === 0) {
     return null;
   }
@@ -26,14 +41,24 @@ export function ReturnVisitsCard({
   return (
     <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
       <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <UserCheck size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
-          <span className="truncate">
+          <CardTitle className="text-sm sm:text-base font-bold truncate">
             {isGroupLeaderTier
               ? `${ledGroup?.name || 'Group'} Follow-ups`
               : 'Return Visits & Follow-ups'}
-          </span>
-        </CardTitle>
+          </CardTitle>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-semibold">
+              {returnVisitsList.length}
+            </Badge>
+            {studyCount > 0 && (
+              <Badge className="text-[10px] px-1.5 py-0 h-5 font-semibold bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30">
+                {studyCount} {studyCount === 1 ? 'study' : 'studies'}
+              </Badge>
+            )}
+          </div>
+        </div>
         <Button
           asChild
           variant="ghost"
@@ -48,6 +73,12 @@ export function ReturnVisitsCard({
       <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5 min-w-0">
         {returnVisitsList.map((h) => {
           const terr = h.territoryId ? territoryMap.get(h.territoryId) : null;
+          const isStudy =
+            h.lastVisitOutcome === 'study_conducted' ||
+            h.lastVisitOutcome === 'study_offered' ||
+            h.notes?.toLowerCase().includes('study');
+          const isMissed = h.lastVisitOutcome === 'return_visit_missed' || h.lastVisitOutcome === 'study_missed';
+
           return (
             <div
               key={h.id}
@@ -62,12 +93,28 @@ export function ReturnVisitsCard({
                     {h.houseNumber ? `#${h.houseNumber} ` : ''}
                     {h.streetName || h.address || 'Household'}
                   </Link>
-                  <Badge
-                    variant="outline"
-                    className="text-[9px] uppercase font-bold text-purple-700 bg-purple-50 dark:bg-purple-950/40 border-purple-200 shrink-0"
-                  >
-                    Return Visit
-                  </Badge>
+                  {isStudy ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] uppercase font-bold text-violet-700 bg-violet-50 dark:bg-violet-950/40 border-violet-200 shrink-0"
+                    >
+                      Bible Study
+                    </Badge>
+                  ) : isMissed ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] uppercase font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border-amber-200 shrink-0"
+                    >
+                      Missed Call
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] uppercase font-bold text-purple-700 bg-purple-50 dark:bg-purple-950/40 border-purple-200 shrink-0"
+                    >
+                      Return Visit
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground truncate">
