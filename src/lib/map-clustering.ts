@@ -75,14 +75,14 @@ export function createClusterBadgeElement(
 ): HTMLDivElement {
   const { color = '#2563EB', textColor = '#FFFFFF', onClick } = options;
 
-  let size = 26;
-  let fontSize = 11;
+  let size = 20;
+  let fontSize = 9;
   if (pointCount >= 100) {
-    size = 34;
-    fontSize = 12.5;
+    size = 28;
+    fontSize = 11;
   } else if (pointCount >= 10) {
-    size = 30;
-    fontSize = 11.5;
+    size = 24;
+    fontSize = 10;
   }
 
   const displayCount = pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;

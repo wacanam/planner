@@ -236,7 +236,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'tree':
       return {
         bg: '#10B981', // Emerald
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="currentColor" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="display: block; margin: auto;">
           <path d="M12 2C9.24 2 7 4.24 7 7c0 .52.08 1.02.24 1.49C5.35 9.38 4 11.03 4 13c0 2.76 2.24 5 5 5h6c2.76 0 5-2.24 5-5 0-1.97-1.35-3.62-3.24-4.51.16-.47.24-.97.24-1.49 0-2.76-2.24-5-5-5z"/>
           <path d="M10.5 18H13.5V22H10.5z"/>
         </svg>`,
@@ -244,7 +244,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'school':
       return {
         bg: '#3B82F6', // Blue
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
           <path d="M6 12v5c3 3 9 3 12 0v-5"/>
         </svg>`,
@@ -252,7 +252,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'church':
       return {
         bg: '#8B5CF6', // Purple
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M12 2v5"/>
           <path d="M9.5 4.5h5"/>
           <path d="m18 10-6-4-6 4v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2Z"/>
@@ -262,7 +262,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'hospital':
       return {
         bg: '#F43F5E', // Rose
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M12 6v12M6 12h12"/>
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
         </svg>`,
@@ -270,7 +270,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'store':
       return {
         bg: '#F59E0B', // Amber
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
           <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
           <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
@@ -280,7 +280,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'restaurant':
       return {
         bg: '#EA580C', // Orange
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M18 2v6a3 3 0 0 1-3 3 3 3 0 0 1-3-3V2"/>
           <path d="M15 2v12"/>
           <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
@@ -290,7 +290,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'park':
       return {
         bg: '#059669', // Emerald Dark
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
           <path d="M2 12h20"/>
@@ -299,7 +299,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'government':
       return {
         bg: '#7C3AED', // Violet
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
           <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
           <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
@@ -309,14 +309,14 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'water':
       return {
         bg: '#06B6D4', // Cyan
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
         </svg>`,
       };
     case 'bridge':
       return {
         bg: '#0284C7', // Sky
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14"/>
           <path d="M4 12h16"/>
           <path d="M12 12v7"/>
@@ -325,7 +325,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'gas_station':
       return {
         bg: '#D97706', // Amber Dark
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M3 22h12"/>
           <path d="M4 22V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v18"/>
           <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
@@ -335,7 +335,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'transit':
       return {
         bg: '#0D9488', // Teal
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M8 6v6M16 6v6M4 18v3M20 18v3"/>
           <path d="M4 11V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/>
           <path d="M4 11h16a2 2 0 0 1 2 2v5H2v-5a2 2 0 0 1 2-2Z"/>
@@ -344,7 +344,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'building':
       return {
         bg: '#475569', // Slate
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
           <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>
         </svg>`,
@@ -352,7 +352,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'tower':
       return {
         bg: '#78716C', // Stone
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M4.93 4.93a10 10 0 0 1 14.14 0"/>
           <path d="M7.76 7.76a6 6 0 0 1 8.48 0"/>
           <circle cx="12" cy="12" r="2"/>
@@ -362,7 +362,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'gate':
       return {
         bg: '#64748B', // Slate
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="M3 21h18"/>
           <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/>
           <circle cx="14" cy="12" r="1"/>
@@ -371,7 +371,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'hazard':
       return {
         bg: '#EF4444', // Rose / Red
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
           <line x1="12" y1="9" x2="12" y2="13"/>
           <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -380,7 +380,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     case 'landmark':
       return {
         bg: '#6366F1', // Indigo
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <line x1="2" x2="22" y1="20" y2="20"/>
           <path d="M4 16v-6"/>
           <path d="M9 16v-6"/>
@@ -392,7 +392,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
     default:
       return {
         bg: '#F97316', // Orange
-        svg: `<svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        svg: `<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <circle cx="12" cy="10" r="3"/>
           <path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
         </svg>`,
@@ -1098,37 +1098,37 @@ export function StudioGoogleMap({
 
         const snapRing = document.createElement('div');
         snapRing.style.position = 'absolute';
-        snapRing.style.left = '-12px';
-        snapRing.style.top = '-12px';
-        snapRing.style.width = '24px';
-        snapRing.style.height = '24px';
+        snapRing.style.left = '-9px';
+        snapRing.style.top = '-9px';
+        snapRing.style.width = '18px';
+        snapRing.style.height = '18px';
         snapRing.style.borderRadius = '50%';
-        snapRing.style.border = '2.5px solid #2563EB';
+        snapRing.style.border = '2px solid #2563EB';
         snapRing.style.backgroundColor = 'rgba(59, 130, 246, 0.25)';
-        snapRing.style.boxShadow = '0 0 10px rgba(37, 99, 235, 0.7)';
+        snapRing.style.boxShadow = '0 0 8px rgba(37, 99, 235, 0.7)';
 
         const snapDot = document.createElement('div');
         snapDot.style.position = 'absolute';
-        snapDot.style.left = '-4px';
-        snapDot.style.top = '-4px';
-        snapDot.style.width = '8px';
-        snapDot.style.height = '8px';
+        snapDot.style.left = '-3px';
+        snapDot.style.top = '-3px';
+        snapDot.style.width = '6px';
+        snapDot.style.height = '6px';
         snapDot.style.borderRadius = '50%';
         snapDot.style.backgroundColor = '#1D4ED8';
-        snapDot.style.border = '1.5px solid #FFFFFF';
+        snapDot.style.border = '1px solid #FFFFFF';
         snapDot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
 
         const snapBadge = document.createElement('div');
         snapBadge.style.position = 'absolute';
-        snapBadge.style.left = '16px';
-        snapBadge.style.top = '-10px';
+        snapBadge.style.left = '13px';
+        snapBadge.style.top = '-8px';
         snapBadge.style.whiteSpace = 'nowrap';
         snapBadge.style.backgroundColor = 'rgba(15, 23, 42, 0.9)';
         snapBadge.style.color = '#FFFFFF';
-        snapBadge.style.fontSize = '10px';
+        snapBadge.style.fontSize = '8.5px';
         snapBadge.style.fontWeight = '700';
-        snapBadge.style.padding = '2px 7px';
-        snapBadge.style.borderRadius = '6px';
+        snapBadge.style.padding = '1.5px 5px';
+        snapBadge.style.borderRadius = '5px';
         snapBadge.style.border = '1px solid rgba(255,255,255,0.2)';
         snapBadge.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
         snapBadge.style.pointerEvents = 'none';
@@ -2022,8 +2022,8 @@ export function StudioGoogleMap({
 
       const pinCircle = document.createElement('div');
       pinCircle.style.backgroundColor = pinColor;
-      pinCircle.style.width = '24px';
-      pinCircle.style.height = '24px';
+      pinCircle.style.width = '18px';
+      pinCircle.style.height = '18px';
       pinCircle.style.borderRadius = '50%';
       pinCircle.style.display = 'flex';
       pinCircle.style.alignItems = 'center';
@@ -2035,10 +2035,10 @@ export function StudioGoogleMap({
       pinCircle.style.color = '#FFFFFF';
       pinCircle.style.zIndex = '2';
       pinCircle.style.boxSizing = 'border-box';
-      pinCircle.style.padding = '5.5px';
+      pinCircle.style.padding = '3.5px';
       pinCircle.style.transition = 'box-shadow 0.15s ease-out';
       pinCircle.innerHTML = `
-        <svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
           <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
           <polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
@@ -2046,10 +2046,10 @@ export function StudioGoogleMap({
 
       const pinTip = document.createElement('div');
       pinTip.style.backgroundColor = pinColor;
-      pinTip.style.width = '6.5px';
-      pinTip.style.height = '6.5px';
+      pinTip.style.width = '5px';
+      pinTip.style.height = '5px';
       pinTip.style.transform = 'rotate(45deg)';
-      pinTip.style.marginTop = '-4px';
+      pinTip.style.marginTop = '-3px';
       pinTip.style.borderRight = '2px solid #FFFFFF';
       pinTip.style.borderBottom = '2px solid #FFFFFF';
       pinTip.style.zIndex = '1';
@@ -2066,17 +2066,17 @@ export function StudioGoogleMap({
       if (shouldShowLabel) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
-        labelWrapper.style.left = '15px';
-        labelWrapper.style.bottom = '10px';
+        labelWrapper.style.left = '12px';
+        labelWrapper.style.bottom = '7px';
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
         labelEl = document.createElement('span');
-        labelEl.style.fontSize = '10px';
+        labelEl.style.fontSize = '8.5px';
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1D4ED8' : '#1E293B';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.webkitTextStroke = '1.5px #FFFFFF';
         labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
@@ -2301,14 +2301,14 @@ export function StudioGoogleMap({
         dotWrapper.style.cursor = 'pointer';
 
         const dot = document.createElement('div');
-        dot.style.width = '16px';
-        dot.style.height = '16px';
+        dot.style.width = '13px';
+        dot.style.height = '13px';
         dot.style.borderRadius = '50%';
         dot.style.backgroundColor = idx === 0 ? '#10B981' : '#F59E0B';
-        dot.style.border = '2.5px solid #FFFFFF';
+        dot.style.border = '2px solid #FFFFFF';
         dot.style.boxShadow =
           activeTool === 'boundary' && idx === 0 && drawnPoints.length >= 3
-            ? '0 0 0 3px #10B981, 0 2px 6px rgba(0,0,0,0.35)'
+            ? '0 0 0 2.5px #10B981, 0 2px 6px rgba(0,0,0,0.35)'
             : '0 2px 6px rgba(0,0,0,0.35)';
         dot.style.transition = 'transform 0.15s ease-out';
 
@@ -2649,11 +2649,11 @@ export function StudioGoogleMap({
           labelText = document.createElement('div');
           labelText.style.transform = 'translate(-50%, -50%)';
           labelText.style.whiteSpace = 'nowrap';
-          labelText.style.fontSize = '11px';
+          labelText.style.fontSize = '9px';
           labelText.style.fontWeight = '800';
           labelText.style.color = isSelected ? '#1D4ED8' : '#334155';
           labelText.style.paintOrder = 'stroke fill';
-          labelText.style.webkitTextStroke = isSelected ? '1.75px #DBEAFE' : '1.75px #FFFFFF';
+          labelText.style.webkitTextStroke = isSelected ? '1.5px #DBEAFE' : '1.5px #FFFFFF';
           labelText.style.textShadow = isSelected
             ? '0 0 3px #93C5FD, 0 1px 2px rgba(0,0,0,0.25)'
             : '0 1px 2px rgba(0,0,0,0.25)';
@@ -2744,8 +2744,8 @@ export function StudioGoogleMap({
 
         const pinCircle = document.createElement('div');
         pinCircle.style.backgroundColor = bg;
-        pinCircle.style.width = '24px';
-        pinCircle.style.height = '24px';
+        pinCircle.style.width = '18px';
+        pinCircle.style.height = '18px';
         pinCircle.style.borderRadius = '50%';
         pinCircle.style.display = 'flex';
         pinCircle.style.alignItems = 'center';
@@ -2757,16 +2757,16 @@ export function StudioGoogleMap({
         pinCircle.style.color = '#FFFFFF';
         pinCircle.style.zIndex = '2';
         pinCircle.style.boxSizing = 'border-box';
-        pinCircle.style.padding = '5.5px';
+        pinCircle.style.padding = '3.5px';
         pinCircle.style.transition = 'box-shadow 0.15s ease-out';
         pinCircle.innerHTML = svg;
 
         const pinTip = document.createElement('div');
         pinTip.style.backgroundColor = bg;
-        pinTip.style.width = '6.5px';
-        pinTip.style.height = '6.5px';
+        pinTip.style.width = '5px';
+        pinTip.style.height = '5px';
         pinTip.style.transform = 'rotate(45deg)';
-        pinTip.style.marginTop = '-4px';
+        pinTip.style.marginTop = '-3px';
         pinTip.style.borderRight = '2px solid #FFFFFF';
         pinTip.style.borderBottom = '2px solid #FFFFFF';
         pinTip.style.zIndex = '1';
@@ -2778,17 +2778,17 @@ export function StudioGoogleMap({
         // Label beside pin: pure text with white stroke / halo
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
-        labelWrapper.style.left = '15px';
-        labelWrapper.style.bottom = '10px';
+        labelWrapper.style.left = '12px';
+        labelWrapper.style.bottom = '7px';
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
         const labelEl = document.createElement('span');
-        labelEl.style.fontSize = '10px';
+        labelEl.style.fontSize = '8.5px';
         labelEl.style.fontWeight = '700';
         labelEl.style.color = isSelected ? '#1D4ED8' : '#334155';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.webkitTextStroke = '1.5px #FFFFFF';
         labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
@@ -2854,25 +2854,25 @@ export function StudioGoogleMap({
         wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
         wrapper.title = sf.label || 'Territory Start Meeting Point';
 
-        // Pin Element: 24px wide, positioned left: -12px and bottom: 0px -> tip is PRECISELY at (0, 0)
+        // Pin Element: 18px wide, positioned left: -9px and bottom: 0px -> tip is PRECISELY at (0, 0)
         const pinContainer = document.createElement('div');
         pinContainer.style.position = 'absolute';
-        pinContainer.style.left = '-12px';
+        pinContainer.style.left = '-9px';
         pinContainer.style.bottom = '0px';
-        pinContainer.style.width = '24px';
+        pinContainer.style.width = '18px';
         pinContainer.style.display = 'flex';
         pinContainer.style.flexDirection = 'column';
         pinContainer.style.alignItems = 'center';
         pinContainer.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.32))';
 
         pinContainer.innerHTML = `
-          <div style="background-color: #059669; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF; color: #FFFFFF; z-index: 2; box-sizing: border-box; padding: 5.5px;">
-            <svg width="9.5" height="9.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
+          <div style="background-color: #059669; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #FFFFFF; color: #FFFFFF; z-index: 2; box-sizing: border-box; padding: 3.5px;">
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;">
               <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
               <line x1="4" x2="4" y1="22" y2="15"/>
             </svg>
           </div>
-          <div style="background-color: #059669; width: 6.5px; height: 6.5px; transform: rotate(45deg); margin-top: -4px; border-right: 2px solid #FFFFFF; border-bottom: 2px solid #FFFFFF; z-index: 1;"></div>
+          <div style="background-color: #059669; width: 5px; height: 5px; transform: rotate(45deg); margin-top: -3px; border-right: 2px solid #FFFFFF; border-bottom: 2px solid #FFFFFF; z-index: 1;"></div>
         `;
 
         wrapper.appendChild(pinContainer);
@@ -2880,17 +2880,17 @@ export function StudioGoogleMap({
         // Label beside pin: pure text with white stroke / halo
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
-        labelWrapper.style.left = '15px';
-        labelWrapper.style.bottom = '10px';
+        labelWrapper.style.left = '12px';
+        labelWrapper.style.bottom = '7px';
         labelWrapper.style.whiteSpace = 'nowrap';
         labelWrapper.style.pointerEvents = 'none';
 
         const labelEl = document.createElement('span');
-        labelEl.style.fontSize = '10.5px';
+        labelEl.style.fontSize = '8.5px';
         labelEl.style.fontWeight = '700';
         labelEl.style.color = '#065F46';
         labelEl.style.paintOrder = 'stroke fill';
-        labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
+        labelEl.style.webkitTextStroke = '1.5px #FFFFFF';
         labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
@@ -2986,7 +2986,7 @@ export function StudioGoogleMap({
       }
       if (item.labelText) {
         item.labelText.style.color = isSelected ? '#1D4ED8' : '#334155';
-        item.labelText.style.webkitTextStroke = isSelected ? '1.75px #DBEAFE' : '1.75px #FFFFFF';
+        item.labelText.style.webkitTextStroke = isSelected ? '1.5px #DBEAFE' : '1.5px #FFFFFF';
         item.labelText.style.textShadow = isSelected
           ? '0 0 3px #93C5FD, 0 1px 2px rgba(0,0,0,0.25)'
           : '0 1px 2px rgba(0,0,0,0.25)';
@@ -3290,8 +3290,8 @@ export function StudioGoogleMap({
         // Create new member marker
         const container = document.createElement('div');
         container.style.position = 'relative';
-        container.style.width = '36px';
-        container.style.height = '36px';
+        container.style.width = '28px';
+        container.style.height = '28px';
         container.style.display = 'flex';
         container.style.alignItems = 'center';
         container.style.justifyContent = 'center';
@@ -3300,8 +3300,8 @@ export function StudioGoogleMap({
         // Pulsing Live Halo
         const haloDiv = document.createElement('div');
         haloDiv.style.position = 'absolute';
-        haloDiv.style.width = '44px';
-        haloDiv.style.height = '44px';
+        haloDiv.style.width = '34px';
+        haloDiv.style.height = '34px';
         haloDiv.style.borderRadius = '50%';
         haloDiv.style.backgroundColor = isLive ? 'rgba(16, 185, 129, 0.22)' : 'transparent';
         haloDiv.style.border = isLive ? '1.5px solid rgba(16, 185, 129, 0.55)' : 'none';
@@ -3311,11 +3311,11 @@ export function StudioGoogleMap({
         // Pin Container (Avatar or Initials)
         const pinContainer = document.createElement('div');
         pinContainer.style.position = 'relative';
-        pinContainer.style.width = '32px';
-        pinContainer.style.height = '32px';
+        pinContainer.style.width = '24px';
+        pinContainer.style.height = '24px';
         pinContainer.style.borderRadius = '50%';
         pinContainer.style.backgroundColor = isLive ? '#10B981' : '#64748B';
-        pinContainer.style.border = isLive ? '2.5px solid #FFFFFF' : '2px solid #FFFFFF';
+        pinContainer.style.border = isLive ? '2px solid #FFFFFF' : '1.5px solid #FFFFFF';
         pinContainer.style.display = 'flex';
         pinContainer.style.alignItems = 'center';
         pinContainer.style.justifyContent = 'center';
@@ -3335,10 +3335,10 @@ export function StudioGoogleMap({
         if (loc.avatarUrl) {
           pinContainer.innerHTML = `
             <img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; display: block;" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-            <span style="display: none; color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; align-items: center; justify-content: center;">${initials}</span>
+            <span style="display: none; color: #FFFFFF; font-size: 9px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; align-items: center; justify-content: center;">${initials}</span>
           `;
         } else {
-          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${initials}</span>`;
+          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 9px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${initials}</span>`;
         }
 
         // Live dot badge
@@ -3347,11 +3347,11 @@ export function StudioGoogleMap({
           liveBadge.style.position = 'absolute';
           liveBadge.style.top = '-2px';
           liveBadge.style.right = '-2px';
-          liveBadge.style.width = '9px';
-          liveBadge.style.height = '9px';
+          liveBadge.style.width = '7px';
+          liveBadge.style.height = '7px';
           liveBadge.style.borderRadius = '50%';
           liveBadge.style.backgroundColor = '#10B981';
-          liveBadge.style.border = '1.5px solid #FFFFFF';
+          liveBadge.style.border = '1px solid #FFFFFF';
           liveBadge.style.boxShadow = '0 0 4px #10B981';
           liveBadge.style.pointerEvents = 'none';
           pinContainer.appendChild(liveBadge);
