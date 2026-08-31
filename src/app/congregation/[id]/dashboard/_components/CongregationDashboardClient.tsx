@@ -363,7 +363,7 @@ export default function CongregationDashboardClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-4 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0 overflow-x-hidden">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         {/* 1. Welcome Greeting Header */}
         <DashboardHeroDeck {...contextProps} />
 
@@ -377,9 +377,9 @@ export default function CongregationDashboardClient() {
         <DashboardProgressGauge {...contextProps} />
 
         {/* 4. 2-Column Responsive Bento Grid */}
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid lg:grid-cols-3 gap-5 min-w-0">
           {/* Main Left Column (2 cols wide) */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 min-w-0">
             {/* Follow-ups & Return Visits Radar */}
             <ReturnVisitsCard {...contextProps} />
 
@@ -388,7 +388,7 @@ export default function CongregationDashboardClient() {
           </div>
 
           {/* Main Right Column (1 col wide) */}
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             {/* Service Group & Meeting Arrangements */}
             <ServiceArrangementsWidget {...contextProps} />
 

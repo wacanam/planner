@@ -25,7 +25,7 @@ export function ReturnVisitsCard({
 
   return (
     <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
-      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
+      <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
         <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <UserCheck size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
           <span className="truncate">
@@ -40,16 +40,16 @@ export function ReturnVisitsCard({
           </Link>
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5 min-w-0">
         {returnVisitsList.map((h) => {
           const terr = h.territoryId ? territoryMap.get(h.territoryId) : null;
           return (
             <div
               key={h.id}
-              className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 hover:border-purple-400/40 transition-all shadow-2xs"
+              className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 hover:border-purple-400/40 transition-all shadow-2xs min-w-0"
             >
               <div className="min-w-0 flex-1 space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <Link
                     href={`/congregation/${congregationId}/records/households/${h.id}`}
                     className="font-bold text-xs text-foreground hover:text-primary transition-colors truncate"
@@ -59,7 +59,7 @@ export function ReturnVisitsCard({
                   </Link>
                   <Badge
                     variant="outline"
-                    className="text-[9px] uppercase font-bold text-purple-700 bg-purple-50 dark:bg-purple-950/40 border-purple-200"
+                    className="text-[9px] uppercase font-bold text-purple-700 bg-purple-50 dark:bg-purple-950/40 border-purple-200 shrink-0"
                   >
                     Return Visit
                   </Badge>
