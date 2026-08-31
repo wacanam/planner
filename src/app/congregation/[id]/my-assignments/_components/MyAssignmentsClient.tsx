@@ -139,12 +139,12 @@ export default function MyAssignmentsClient() {
   return (
     <ProtectedPage congregationId={congregationId}>
       <DashboardHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 pb-24 lg:pb-8 w-full min-w-0">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
             My Territory Assignments
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Territory cards assigned to you directly or inherited through your service group
           </p>
         </div>
@@ -153,24 +153,32 @@ export default function MyAssignmentsClient() {
         {myGroup && (
           <Link
             href={`/congregation/${congregationId}/groups`}
-            className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 group hover:border-primary/40 transition-all shadow-xs"
+            className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/5 to-transparent border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-primary/40 transition-all shadow-xs"
           >
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-xs">
-                <Users size={20} />
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-xs">
+                <Users size={18} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="font-bold text-sm sm:text-base text-foreground">{myGroup.name}</h2>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20 px-2 py-0.5"
-                  >
-                    {groupmateCount} Publishers
-                  </Badge>
+                <div className="flex items-center justify-between sm:justify-start gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="font-bold text-sm sm:text-base text-foreground whitespace-nowrap">
+                      {myGroup.name}
+                    </h2>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-bold bg-primary/10 text-primary border-primary/20 px-1.5 py-0.5 whitespace-nowrap"
+                    >
+                      {groupmateCount} Publishers
+                    </Badge>
+                  </div>
+                  <div className="flex sm:hidden items-center gap-0.5 text-xs font-semibold text-primary shrink-0">
+                    <span>View Group</span>
+                    <ChevronRight size={14} />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap truncate">
-                  <span>
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="whitespace-nowrap">
                     Overseer:{' '}
                     <strong className="text-foreground font-medium">
                       {myGroup.overseerName || 'Unassigned'}
@@ -178,8 +186,8 @@ export default function MyAssignmentsClient() {
                   </span>
                   {myGroup.assistantOverseerName && (
                     <>
-                      <span className="text-muted-foreground/50">•</span>
-                      <span>
+                      <span className="text-muted-foreground/40">•</span>
+                      <span className="whitespace-nowrap">
                         Assistant:{' '}
                         <strong className="text-foreground font-medium">
                           {myGroup.assistantOverseerName}
@@ -191,7 +199,7 @@ export default function MyAssignmentsClient() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-xs font-semibold text-primary self-end sm:self-center shrink-0 bg-primary/5 sm:bg-transparent px-2.5 py-1 sm:p-0 rounded-lg">
+            <div className="hidden sm:flex items-center gap-1 text-xs font-semibold text-primary shrink-0">
               <span>View Service Group</span>
               <ChevronRight
                 size={15}
@@ -202,14 +210,19 @@ export default function MyAssignmentsClient() {
         )}
 
         {/* Active Assignments */}
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Compass size={18} className="text-primary" />
+            <h2 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2 whitespace-nowrap shrink-0">
+              <Compass size={17} className="text-primary shrink-0" />
               <span>Currently Assigned ({active.length})</span>
             </h2>
             {active.length > 0 && (
-              <Button asChild variant="outline" size="sm" className="rounded-xl text-xs h-8 px-3">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="rounded-xl text-xs h-8 px-2.5 shrink-0"
+              >
                 <Link href={`/congregation/${congregationId}/territories`}>
                   Browse All Territories
                 </Link>
@@ -259,24 +272,24 @@ export default function MyAssignmentsClient() {
                     key={assignment.id}
                     className="bg-card border-border shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between min-w-0 rounded-2xl overflow-hidden"
                   >
-                    <CardContent className="p-5 space-y-4 flex-1 flex flex-col justify-between min-w-0">
-                      <div className="space-y-3.5 min-w-0">
+                    <CardContent className="p-4 sm:p-5 space-y-3.5 flex-1 flex flex-col justify-between min-w-0">
+                      <div className="space-y-3 min-w-0">
                         {/* Header: Number, Name & Group Badge */}
-                        <div className="flex items-start justify-between gap-2.5 min-w-0">
-                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            <div className="px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary font-extrabold text-xs shrink-0 mt-0.5">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-primary font-bold text-xs shrink-0">
                               #{number}
                             </div>
                             <div className="min-w-0 flex-1">
                               <h3
-                                className="font-bold text-base text-foreground line-clamp-2 leading-snug break-words"
+                                className="font-bold text-sm sm:text-base text-foreground truncate leading-snug"
                                 title={name}
                               >
                                 {name}
                               </h3>
                               {terr?.city && (
                                 <p
-                                  className="text-xs text-muted-foreground truncate mt-0.5"
+                                  className="text-xs text-muted-foreground truncate"
                                   title={terr.city}
                                 >
                                   {terr.city}
@@ -289,7 +302,7 @@ export default function MyAssignmentsClient() {
                           {isGroupAssignment ? (
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-950/40 border-blue-200 shrink-0 gap-1 px-2 py-0.5"
+                              className="text-[10px] font-semibold text-blue-700 bg-blue-50 dark:bg-blue-950/40 border-blue-200 shrink-0 gap-1 px-2 py-0.5 whitespace-nowrap"
                             >
                               <Users size={11} />
                               <span>{assignment.groupName || assignedGroup?.name || 'Group'}</span>
@@ -297,7 +310,7 @@ export default function MyAssignmentsClient() {
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/30 shrink-0 gap-1 px-2 py-0.5"
+                              className="text-[10px] font-semibold text-primary bg-primary/10 border-primary/30 shrink-0 gap-1 px-2 py-0.5 whitespace-nowrap"
                             >
                               <User size={11} />
                               <span>Personal</span>
@@ -306,15 +319,15 @@ export default function MyAssignmentsClient() {
                         </div>
 
                         {/* Progress Bar & Stats */}
-                        <div className="space-y-1.5 pt-1">
+                        <div className="space-y-1.5 pt-0.5">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                            <span className="text-muted-foreground font-medium flex items-center gap-1.5 whitespace-nowrap">
                               <Home size={13} className="text-muted-foreground/70" />
                               <span>
                                 {workedDoors} of {totalDoors} doors worked
                               </span>
                             </span>
-                            <span className="font-bold text-foreground">{coverage}%</span>
+                            <span className="font-bold text-foreground shrink-0">{coverage}%</span>
                           </div>
                           <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                             <div
@@ -327,8 +340,8 @@ export default function MyAssignmentsClient() {
                         </div>
 
                         {/* Dates & Urgency Status */}
-                        <div className="space-y-1.5 text-xs text-muted-foreground pt-1">
-                          <div className="flex items-center gap-1.5">
+                        <div className="space-y-1.5 text-xs text-muted-foreground pt-0.5">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
                             <Calendar size={12} className="text-muted-foreground/70 shrink-0" />
                             <span>
                               Assigned{' '}
@@ -343,7 +356,7 @@ export default function MyAssignmentsClient() {
                               {dueStatus.status === 'overdue' ? (
                                 <Badge
                                   variant="destructive"
-                                  className="text-[10px] px-2 py-0.5 gap-1 font-semibold"
+                                  className="text-[10px] px-2 py-0.5 gap-1 font-semibold whitespace-nowrap"
                                 >
                                   <AlertCircle size={11} />
                                   <span>{dueStatus.label}</span>
@@ -351,13 +364,13 @@ export default function MyAssignmentsClient() {
                               ) : dueStatus.status === 'due-soon' ? (
                                 <Badge
                                   variant="outline"
-                                  className="text-[10px] px-2 py-0.5 gap-1 font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                                  className="text-[10px] px-2 py-0.5 gap-1 font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 whitespace-nowrap"
                                 >
                                   <Clock size={11} />
                                   <span>{dueStatus.label}</span>
                                 </Badge>
                               ) : (
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap">
                                   <Clock size={12} className="text-muted-foreground/70 shrink-0" />
                                   <span>{dueStatus.label}</span>
                                 </div>
@@ -401,11 +414,11 @@ export default function MyAssignmentsClient() {
                           <Button
                             type="button"
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => setReturnConfirmAssignment(assignment)}
-                            className="w-full h-8 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 gap-1.5"
+                            className="w-full h-8.5 rounded-xl text-xs font-medium text-foreground/80 bg-background hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors gap-1.5 border-border shadow-2xs"
                           >
-                            <RotateCcw size={12} />
+                            <RotateCcw size={13} className="text-muted-foreground" />
                             <span>Return Territory to Congregation</span>
                           </Button>
                         ) : (
