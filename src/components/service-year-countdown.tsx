@@ -98,10 +98,10 @@ export function ServiceYearCountdown({
       return (
         <Badge
           variant="outline"
-          className={`text-[11px] font-semibold gap-1.5 py-0.5 px-2.5 bg-muted/80 text-muted-foreground border-border ${className}`}
+          className={`text-[11px] font-semibold gap-1.5 py-0.5 px-2.5 bg-muted/80 text-muted-foreground border-border max-w-full shrink-0 ${className}`}
         >
-          <CheckCircle2 size={12} className="text-muted-foreground" />
-          <span>{range.shortLabel} Concluded</span>
+          <CheckCircle2 size={12} className="text-muted-foreground shrink-0" />
+          <span className="truncate">{range.shortLabel} Concluded</span>
         </Badge>
       );
     }
@@ -109,11 +109,11 @@ export function ServiceYearCountdown({
     return (
       <Badge
         variant="outline"
-        className={`text-[11px] font-bold gap-1.5 py-0.5 px-2.5 bg-primary/10 text-primary border-primary/30 shadow-2xs ${className}`}
+        className={`text-[11px] font-bold gap-1.5 py-0.5 px-2.5 bg-primary/10 text-primary border-primary/30 shadow-2xs max-w-full shrink-0 ${className}`}
         title={`${range.label}: Ends ${countdown.endDateFormatted}`}
       >
-        <Clock size={12} className="text-primary animate-pulse" />
-        <span>
+        <Clock size={12} className="text-primary animate-pulse shrink-0" />
+        <span className="truncate">
           {countdown.daysRemaining}d left in {range.shortLabel}
         </span>
       </Badge>
@@ -123,7 +123,7 @@ export function ServiceYearCountdown({
   // 2. Full Pacing Banner variant (for Reports screen header)
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-5 sm:p-6 shadow-xs ${className}`}
+      className={`relative overflow-hidden rounded-2xl sm:rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4 sm:p-6 shadow-xs ${className}`}
     >
       {/* Background glow effects */}
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -131,50 +131,57 @@ export function ServiceYearCountdown({
 
       <div className="relative z-10 space-y-4">
         {/* Header Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-primary/15 text-primary shrink-0 shadow-2xs">
-              <Calendar size={20} />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-primary/15 text-primary shrink-0 shadow-2xs mt-0.5 sm:mt-0">
+              <Calendar size={18} className="sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base sm:text-lg font-extrabold text-foreground tracking-tight">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-lg font-extrabold text-foreground tracking-tight">
                   {range.label}
                 </h3>
                 <Badge
                   variant="outline"
-                  className={`text-[11px] font-bold py-0.5 px-2 border ${phaseBadgeVariant}`}
+                  className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${phaseBadgeVariant}`}
                 >
                   {countdown.phaseTitle}
                 </Badge>
                 {pacing && (
-                  <Badge variant="outline" className={`text-[11px] font-bold py-0.5 px-2 border ${pacing.bg}`}>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${pacing.bg}`}
+                  >
                     {pacing.label}
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
                 {countdown.phaseDescription} • Ends {countdown.endDateFormatted}
               </p>
             </div>
           </div>
 
           {/* Countdown Highlight Box */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
             {countdown.isPastServiceYear ? (
-              <div className="px-3.5 py-1.5 rounded-2xl bg-muted border border-border text-center">
+              <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-muted border border-border text-center">
                 <p className="text-xs font-bold text-muted-foreground">Historical Record</p>
                 <p className="text-[10px] text-muted-foreground">Concluded</p>
               </div>
             ) : (
-              <div className="px-4 py-2 rounded-2xl bg-background/90 border border-primary/25 text-center shadow-2xs">
+              <div className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-background/90 border border-primary/25 text-center shadow-2xs">
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-xl sm:text-2xl font-black text-primary">
+                  <span className="text-lg sm:text-2xl font-black text-primary">
                     {countdown.daysRemaining}
                   </span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase">Days</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase">
+                    Days
+                  </span>
                 </div>
-                <p className="text-[10px] text-muted-foreground">Remaining in {range.shortLabel}</p>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                  Remaining in {range.shortLabel}
+                </p>
               </div>
             )}
           </div>
@@ -182,15 +189,17 @@ export function ServiceYearCountdown({
 
         {/* Progress & Pacing Metrics */}
         <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 text-[11px] sm:text-xs">
             <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Clock size={13} className="text-primary" />
+              <Clock size={13} className="text-primary shrink-0" />
               Annual Timeline Elapsed
             </span>
-            <span className="font-bold text-foreground">{countdown.percentYearElapsed}% of Year Passed</span>
+            <span className="font-bold text-foreground">
+              {countdown.percentYearElapsed}% of Year Passed
+            </span>
           </div>
 
-          <div className="h-2.5 w-full bg-muted/80 rounded-full overflow-hidden flex shadow-inner">
+          <div className="h-2 sm:h-2.5 w-full bg-muted/80 rounded-full overflow-hidden flex shadow-inner">
             <div
               className="h-full bg-gradient-to-r from-primary to-blue-500 transition-all duration-500 rounded-full"
               style={{ width: `${countdown.percentYearElapsed}%` }}
@@ -200,25 +209,31 @@ export function ServiceYearCountdown({
 
         {/* Bottom Pacing Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-          <div className="p-3 rounded-2xl bg-background/60 border border-border/80 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Time Left</p>
-            <p className="text-sm sm:text-base font-extrabold text-foreground mt-0.5">
+          <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-background/60 border border-border/80 text-center min-w-0">
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+              Time Left
+            </p>
+            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate">
               {countdown.isPastServiceYear
                 ? 'Concluded'
                 : `${countdown.monthsRemaining} mo (${countdown.daysRemaining}d)`}
             </p>
           </div>
 
-          <div className="p-3 rounded-2xl bg-background/60 border border-border/80 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">SY Coverage</p>
-            <p className="text-sm sm:text-base font-extrabold text-foreground mt-0.5">
+          <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-background/60 border border-border/80 text-center min-w-0">
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+              SY Coverage
+            </p>
+            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate">
               {typeof coveragePercent === 'number' ? `${coveragePercent}%` : '—'}
             </p>
           </div>
 
-          <div className="p-3 rounded-2xl bg-background/60 border border-border/80 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Territories Worked</p>
-            <p className="text-sm sm:text-base font-extrabold text-foreground mt-0.5">
+          <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-background/60 border border-border/80 text-center min-w-0">
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+              Territories
+            </p>
+            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate">
               {typeof workedTerritoriesCount === 'number' && typeof totalTerritoriesCount === 'number'
                 ? `${workedTerritoriesCount} / ${totalTerritoriesCount}`
                 : '—'}
@@ -227,17 +242,17 @@ export function ServiceYearCountdown({
 
           <div
             onClick={onFilterUnworked}
-            className={`p-3 rounded-2xl border text-center transition-all ${
+            className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border text-center transition-all min-w-0 ${
               onFilterUnworked
                 ? 'bg-background/80 border-border/80 hover:border-amber-500/50 hover:bg-amber-50/10 cursor-pointer group'
                 : 'bg-background/60 border-border/80'
             }`}
           >
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-center gap-1">
-              <Flame size={11} className="text-amber-500" />
-              Unworked In SY
+            <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-center gap-1 truncate">
+              <Flame size={11} className="text-amber-500 shrink-0" />
+              Unworked
             </p>
-            <p className="text-sm sm:text-base font-extrabold text-foreground mt-0.5 group-hover:scale-105 transition-transform">
+            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 group-hover:scale-105 transition-transform truncate">
               {typeof unworkedTerritoriesCount === 'number' ? unworkedTerritoriesCount : '—'}
             </p>
           </div>

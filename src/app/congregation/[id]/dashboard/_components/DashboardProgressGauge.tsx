@@ -30,26 +30,26 @@ export function DashboardProgressGauge({
         data-tour="congregation-coverage"
         className="bg-card border-border shadow-xs overflow-hidden rounded-3xl"
       >
-        <CardContent className="p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-2xl bg-primary/10 text-primary shrink-0">
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+              <div className="p-2 rounded-2xl bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
                 <TrendingUp size={18} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-sm font-bold text-foreground tracking-tight">
                   Congregation Territory Campaign Progress
                 </h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
                   {workedDoorsCount} of {totalDoorsCount} door records worked in field service
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
               <ServiceYearCountdown variant="compact" />
               <Badge
                 variant="outline"
-                className="text-xs font-bold px-2.5 py-0.5 border-primary/30 text-primary bg-primary/5"
+                className="text-xs font-bold px-2.5 py-0.5 border-primary/30 text-primary bg-primary/5 shrink-0"
               >
                 {congregationCoveragePercent}% Worked
               </Badge>

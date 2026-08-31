@@ -62,7 +62,10 @@ export function ServiceYearCountdown({
         ]}
       >
         <Clock size={12} color={colors.primary} />
-        <Text style={[styles.compactText, { color: colors.primary, fontSize: typography.xs - 1 }]}>
+        <Text
+          numberOfLines={1}
+          style={[styles.compactText, { color: colors.primary, fontSize: typography.xs - 1 }]}
+        >
           {countdown.daysRemaining}d left in {range.shortLabel}
         </Text>
       </View>
@@ -91,7 +94,7 @@ export function ServiceYearCountdown({
           <Calendar size={20} color={colors.primary} />
         </View>
 
-        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+        <View style={{ flex: 1, marginLeft: spacing.sm, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             <Text
               style={{
@@ -109,7 +112,10 @@ export function ServiceYearCountdown({
             />
           </View>
 
-          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}
+          >
             {countdown.daysRemaining} days left • Ends {countdown.endDateFormatted}
           </Text>
         </View>
@@ -142,19 +148,33 @@ export function ServiceYearCountdown({
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
         <View style={[styles.statBox, { borderColor: colors.border }]}>
-          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}>
-            TIME REMAINING
+          <Text
+            numberOfLines={1}
+            style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}
+          >
+            TIME LEFT
           </Text>
-          <Text style={[styles.statValue, { color: colors.foreground, fontSize: typography.sm }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.statValue, { color: colors.foreground, fontSize: typography.sm }]}
+          >
             {countdown.monthsRemaining} mo ({countdown.daysRemaining}d)
           </Text>
         </View>
 
         <View style={[styles.statBox, { borderColor: colors.border }]}>
-          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}
+          >
             SY COVERAGE
           </Text>
-          <Text style={[styles.statValue, { color: colors.foreground, fontSize: typography.sm }]}>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.statValue, { color: colors.foreground, fontSize: typography.sm }]}
+          >
             {typeof coveragePercent === 'number' ? `${coveragePercent}%` : '—'}
           </Text>
         </View>
@@ -164,14 +184,22 @@ export function ServiceYearCountdown({
           disabled={!onPressUnworked}
           style={[styles.statBox, { borderColor: colors.border }]}
         >
-          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}>
+          <Text
+            numberOfLines={1}
+            style={{ color: colors.mutedForeground, fontSize: typography.xs - 2 }}
+          >
             UNWORKED SY
           </Text>
           <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
             style={[
               styles.statValue,
               {
-                color: typeof unworkedCount === 'number' && unworkedCount > 0 ? colors.warning || '#f59e0b' : colors.foreground,
+                color:
+                  typeof unworkedCount === 'number' && unworkedCount > 0
+                    ? colors.warning || '#f59e0b'
+                    : colors.foreground,
                 fontSize: typography.sm,
               },
             ]}
@@ -193,6 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     gap: 4,
+    maxWidth: '100%',
   },
   compactText: {
     fontWeight: '700',
@@ -203,7 +232,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   iconBox: {
     padding: 8,
@@ -235,6 +264,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
+    minWidth: 0,
   },
   statValue: {
     fontWeight: '800',

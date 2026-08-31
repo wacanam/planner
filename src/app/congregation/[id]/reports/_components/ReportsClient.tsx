@@ -272,12 +272,12 @@ export default function ReportsClient() {
           </div>
 
           {/* Service Year Selector & Export Actions */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto shrink-0">
             <Select
               value={String(selectedServiceYear)}
               onValueChange={(val) => setSelectedServiceYear(val === 'all' ? 'all' : Number(val))}
             >
-              <SelectTrigger className="w-[190px] h-9 text-xs rounded-xl font-semibold bg-card border-border shadow-2xs">
+              <SelectTrigger className="w-full sm:w-[185px] h-9 text-xs rounded-xl font-semibold bg-card border-border shadow-2xs">
                 <Calendar size={13} className="mr-1.5 text-primary shrink-0" />
                 <SelectValue placeholder="Service Year" />
               </SelectTrigger>
@@ -305,19 +305,19 @@ export default function ReportsClient() {
                   activityData,
                 })
               }
-              className="rounded-xl text-xs gap-1.5 h-9 font-semibold text-primary border-primary/30 hover:bg-primary/5"
+              className="w-full sm:w-auto rounded-xl text-xs gap-1.5 h-9 font-semibold text-primary border-primary/30 hover:bg-primary/5 justify-center"
               title="Direct Download Full Multi-Page PDF Report"
             >
-              <FileText size={13} className="text-primary" />
+              <FileText size={13} className="text-primary shrink-0" />
               <span>Download Full Report (PDF)</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs">
-                  <Download size={13} />
+                <Button className="w-full sm:w-auto rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs justify-center">
+                  <Download size={13} className="shrink-0" />
                   <span>Export &amp; Download</span>
-                  <ChevronDown size={12} className="opacity-70" />
+                  <ChevronDown size={12} className="opacity-70 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 rounded-xl text-xs">
@@ -703,8 +703,8 @@ export default function ReportsClient() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-56">
                     <Search
                       size={13}
                       className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -713,14 +713,14 @@ export default function ReportsClient() {
                       placeholder="Search territories or assignees…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-8 pl-8 text-xs w-48 sm:w-56 rounded-xl"
+                      className="h-8 pl-8 text-xs w-full rounded-xl"
                     />
                   </div>
 
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                   >
                     <option value="all">All Statuses</option>
                     <option value="unworked_sy">
@@ -737,7 +737,7 @@ export default function ReportsClient() {
                   <select
                     value={healthFilter}
                     onChange={(e) => setHealthFilter(e.target.value)}
-                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                   >
                     <option value="all">All Health</option>
                     <option value="fresh">Fresh (&lt; 30d)</option>
@@ -870,8 +870,8 @@ export default function ReportsClient() {
                 </div>
 
               {/* S-13 Search & Filter Controls */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <div className="relative w-full sm:w-56">
                   <Search
                     size={13}
                     className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -880,14 +880,14 @@ export default function ReportsClient() {
                     placeholder="Search S-13 records…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-xs w-48 sm:w-56 rounded-xl"
+                    className="h-8 pl-8 text-xs w-full rounded-xl"
                   />
                 </div>
 
                 <select
                   value={s13Filter}
                   onChange={(e) => setS13Filter(e.target.value)}
-                  className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                  className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                 >
                   <option value="all">All Assignments</option>
                   <option value="active">Active Only</option>
@@ -899,9 +899,9 @@ export default function ReportsClient() {
                 <Button
                   size="sm"
                   onClick={() => exportS13ToPDF(filteredS13, congregationName, selectedServiceYear)}
-                  className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs"
+                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs justify-center"
                 >
-                  <FileText size={12} />
+                  <FileText size={12} className="shrink-0" />
                   <span>Download S-13 PDF</span>
                 </Button>
 
@@ -909,9 +909,9 @@ export default function ReportsClient() {
                   size="sm"
                   variant="outline"
                   onClick={() => exportS13ToCSV(filteredS13, congregationName, selectedServiceYear)}
-                  className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
+                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold justify-center"
                 >
-                  <Download size={12} />
+                  <Download size={12} className="shrink-0" />
                   <span>CSV</span>
                 </Button>
               </div>
