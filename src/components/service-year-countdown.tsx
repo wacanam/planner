@@ -114,7 +114,7 @@ export function ServiceYearCountdown({
       >
         <Clock size={12} className="text-primary animate-pulse shrink-0" />
         <span className="truncate">
-          {countdown.daysRemaining}d left in {range.shortLabel}
+          {countdown.daysRemaining === 1 ? `1d left in ${range.shortLabel}` : `${countdown.daysRemaining}d left in ${range.shortLabel}`}
         </span>
       </Badge>
     );
@@ -156,32 +156,39 @@ export function ServiceYearCountdown({
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
-                {countdown.phaseDescription} • Ends {countdown.endDateFormatted}
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                {countdown.phaseDescription}
               </p>
             </div>
           </div>
 
           {/* Countdown Highlight Box */}
-          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <div className="w-full sm:w-auto shrink-0 self-stretch sm:self-auto">
             {countdown.isPastServiceYear ? (
-              <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-muted border border-border text-center">
+              <div className="px-3.5 py-2 rounded-xl sm:rounded-2xl bg-muted border border-border text-center">
                 <p className="text-xs font-bold text-muted-foreground">Historical Record</p>
                 <p className="text-[10px] text-muted-foreground">Concluded</p>
               </div>
             ) : (
-              <div className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-background/90 border border-primary/25 text-center shadow-2xs">
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-lg sm:text-2xl font-black text-primary">
+              <div className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-background/90 border border-primary/25 shadow-2xs flex sm:flex-col items-center justify-between sm:justify-center gap-2">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl sm:text-2xl font-black text-primary">
                     {countdown.daysRemaining}
                   </span>
-                  <span className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase">
-                    Days
+                  <span className="text-xs font-bold text-muted-foreground uppercase">
+                    {countdown.daysRemainingUnit}
                   </span>
                 </div>
-                <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                  Remaining in {range.shortLabel}
-                </p>
+                <div className="text-right sm:text-center">
+                  <p className="text-[11px] font-medium text-foreground">
+                    {countdown.daysRemaining === 1
+                      ? `Final day in ${range.shortLabel}`
+                      : `Remaining in ${range.shortLabel}`}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Ends {countdown.endDateFormatted}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -213,10 +220,8 @@ export function ServiceYearCountdown({
             <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Time Left
             </p>
-            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate">
-              {countdown.isPastServiceYear
-                ? 'Concluded'
-                : `${countdown.monthsRemaining} mo (${countdown.daysRemaining}d)`}
+            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate" title={countdown.timeRemainingFormatted}>
+              {countdown.timeRemainingFormatted}
             </p>
           </div>
 

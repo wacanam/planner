@@ -95,9 +95,24 @@ describe('Service Year Calculations', () => {
       const countdown = getServiceYearCountdown('2026-09-01T00:00:00.000Z', 2027);
       expect(countdown.serviceYear).toBe(2027);
       expect(countdown.daysRemaining).toBeGreaterThanOrEqual(364);
+      expect(countdown.daysRemainingUnit).toBe('Days');
       expect(countdown.percentYearElapsed).toBe(0);
       expect(countdown.phase).toBe('early');
       expect(countdown.isCurrentServiceYear).toBe(true);
+    });
+
+    it('handles final day of service year with accurate singular unit and timeRemaining formatting', () => {
+      // On Aug 31, 2026 morning (final day of SY 2026)
+      const countdown = getServiceYearCountdown('2026-08-31T08:50:00.000Z', 2026);
+      expect(countdown.serviceYear).toBe(2026);
+      expect(countdown.daysRemaining).toBe(1);
+      expect(countdown.daysRemainingUnit).toBe('Day');
+      expect(countdown.daysRemainingFormatted).toBe('1 day');
+      expect(countdown.timeRemainingFormatted).toBe('1 day (Ends today)');
+      expect(countdown.monthsRemaining).toBe(0);
+      expect(countdown.percentYearElapsed).toBe(100);
+      expect(countdown.phase).toBe('transition');
+      expect(countdown.phaseTitle).toBe('Year-End Closing');
     });
 
     it('computes accurate metrics for mid-year (Spring campaign season)', () => {
@@ -106,6 +121,7 @@ describe('Service Year Calculations', () => {
       expect(countdown.serviceYear).toBe(2027);
       expect(countdown.daysRemaining).toBeLessThan(180);
       expect(countdown.daysRemaining).toBeGreaterThan(60);
+      expect(countdown.daysRemainingUnit).toBe('Days');
       expect(countdown.phase).toBe('campaign');
       expect(countdown.percentYearElapsed).toBeGreaterThan(50);
     });
@@ -123,6 +139,8 @@ describe('Service Year Calculations', () => {
       expect(countdown.isPastServiceYear).toBe(true);
       expect(countdown.percentYearElapsed).toBe(100);
       expect(countdown.daysRemaining).toBe(0);
+      expect(countdown.daysRemainingUnit).toBe('Days');
+      expect(countdown.timeRemainingFormatted).toBe('Concluded');
       expect(countdown.phase).toBe('transition');
     });
   });

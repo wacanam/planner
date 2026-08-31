@@ -66,7 +66,9 @@ export function ServiceYearCountdown({
           numberOfLines={1}
           style={[styles.compactText, { color: colors.primary, fontSize: typography.xs - 1 }]}
         >
-          {countdown.daysRemaining}d left in {range.shortLabel}
+          {countdown.daysRemaining === 1
+            ? `1d left in ${range.shortLabel}`
+            : `${countdown.daysRemaining}d left in ${range.shortLabel}`}
         </Text>
       </View>
     );
@@ -116,7 +118,7 @@ export function ServiceYearCountdown({
             numberOfLines={1}
             style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}
           >
-            {countdown.daysRemaining} days left • Ends {countdown.endDateFormatted}
+            {countdown.daysRemainingFormatted} remaining • Ends {countdown.endDateFormatted}
           </Text>
         </View>
       </View>
@@ -159,7 +161,7 @@ export function ServiceYearCountdown({
             adjustsFontSizeToFit
             style={[styles.statValue, { color: colors.foreground, fontSize: typography.sm }]}
           >
-            {countdown.monthsRemaining} mo ({countdown.daysRemaining}d)
+            {countdown.timeRemainingFormatted}
           </Text>
         </View>
 

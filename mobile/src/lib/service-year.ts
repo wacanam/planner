@@ -17,6 +17,9 @@ export type ServiceYearPhase = 'early' | 'mid' | 'campaign' | 'final_push' | 'tr
 export interface ServiceYearCountdownInfo {
   serviceYear: number;
   daysRemaining: number;
+  daysRemainingUnit: string; // 'Day' or 'Days'
+  daysRemainingFormatted: string; // '1 day' or '184 days'
+  timeRemainingFormatted: string; // 'Final day', '1 day left', '15 days', '6 mo (184d)'
   monthsRemaining: number;
   percentYearElapsed: number;
   phase: ServiceYearPhase;
@@ -31,6 +34,7 @@ export interface ServiceYearCountdownInfo {
 /**
  * Returns the Service Year number for any given date.
  * A Service Year runs from September 1 of year Y-1 to August 31 of year Y, and is named year Y.
+ * (Months are 0-indexed in JS Date: 0 = Jan, 7 = Aug, 8 = Sep)
  */
 export function getServiceYear(date: Date | string | number | null | undefined = new Date()): number {
   if (!date) {
@@ -39,11 +43,13 @@ export function getServiceYear(date: Date | string | number | null | undefined =
   }
 
   let d: Date;
-  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-    const [year, month, day] = date.trim().split('-').map(Number);
-    d = new Date(year, month - 1, day);
+  if (date instanceof Date) {
+    d = date;
+  } else if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    const [y, m, day] = date.trim().split('-').map(Number);
+    d = new Date(y, m - 1, day, 12, 0, 0, 0);
   } else {
-    d = typeof date === 'object' ? date : new Date(date);
+    d = new Date(date);
   }
 
   if (isNaN(d.getTime())) {
@@ -51,22 +57,24 @@ export function getServiceYear(date: Date | string | number | null | undefined =
     return now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
   }
 
-  const calendarYear = d.getFullYear();
+  const year = d.getFullYear();
   const month = d.getMonth();
-
-  return month >= 8 ? calendarYear + 1 : calendarYear;
+  return month >= 8 ? year + 1 : year;
 }
 
 /**
- * Returns the full date range boundaries and labels for a specific service year.
+ * Returns the full date boundaries (September 1 to August 31) for a designated Service Year.
  */
 export function getServiceYearRange(serviceYear: number): ServiceYearRange {
-  const startDate = new Date(serviceYear - 1, 8, 1, 0, 0, 0, 0);
-  const endDate = new Date(serviceYear, 7, 31, 23, 59, 59, 999);
+  const startYear = serviceYear - 1;
+  const endYear = serviceYear;
+
+  const startDate = new Date(startYear, 8, 1, 0, 0, 0, 0);
+  const endDate = new Date(endYear, 7, 31, 23, 59, 59, 999);
 
   return {
     year: serviceYear,
-    label: `${serviceYear - 1}–${serviceYear} Service Year`,
+    label: `${startYear}–${endYear} Service Year`,
     shortLabel: `SY ${serviceYear}`,
     startDate,
     endDate,
@@ -124,7 +132,8 @@ export function getAvailableServiceYears(
 }
 
 /**
- * Computes countdown metrics, percentage of year elapsed, and seasonal phase.
+ * Computes countdown metrics, percentage of year elapsed, and seasonal phase
+ * for a target Service Year relative to a given reference time.
  */
 export function getServiceYearCountdown(
   referenceDate: Date | string | number = new Date(),
@@ -141,12 +150,28 @@ export function getServiceYearCountdown(
   const remainingMs = Math.max(0, range.endMs - nowMs);
 
   const daysRemaining = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60 * 24)));
-  const monthsRemaining = Math.max(0, Math.ceil(daysRemaining / 30.44));
+  const monthsRemaining = Math.max(0, Math.floor(daysRemaining / 30.4375));
+  const daysRemainingUnit = daysRemaining === 1 ? 'Day' : 'Days';
+  const daysRemainingFormatted = daysRemaining === 1 ? '1 day' : `${daysRemaining} days`;
+
   const percentYearElapsed = Math.min(100, Math.max(0, Math.round((elapsedMs / totalDurationMs) * 100)));
 
   const isCurrentServiceYear = serviceYear === currentSY;
   const isPastServiceYear = serviceYear < currentSY || nowMs > range.endMs;
   const isFutureServiceYear = serviceYear > currentSY && nowMs < range.startMs;
+
+  let timeRemainingFormatted: string;
+  if (isPastServiceYear) {
+    timeRemainingFormatted = 'Concluded';
+  } else if (daysRemaining === 0) {
+    timeRemainingFormatted = 'Ends today';
+  } else if (daysRemaining === 1) {
+    timeRemainingFormatted = '1 day (Ends today)';
+  } else if (daysRemaining < 30) {
+    timeRemainingFormatted = `${daysRemaining} days`;
+  } else {
+    timeRemainingFormatted = `${monthsRemaining} mo (${daysRemaining}d)`;
+  }
 
   let phase: ServiceYearPhase = 'mid';
   let phaseTitle = 'Mid-Year Progress';
@@ -191,6 +216,9 @@ export function getServiceYearCountdown(
   return {
     serviceYear,
     daysRemaining,
+    daysRemainingUnit,
+    daysRemainingFormatted,
+    timeRemainingFormatted,
     monthsRemaining,
     percentYearElapsed,
     phase,
