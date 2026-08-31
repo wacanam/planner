@@ -93,8 +93,11 @@ const getLandmarkEmoji = (type?: string) => {
 
 const getHouseholdStatusBadge = (status?: string) => {
   switch (status) {
+    case 'available':
     case 'active':
       return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200';
+    case 'bible_study':
+      return 'bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300 border-violet-200';
     case 'not_home':
       return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200';
     case 'busy':

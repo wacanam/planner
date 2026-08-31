@@ -49,15 +49,18 @@ import {
   saveHouseholdRecord,
   updateHouseholdRecord,
 } from '@/lib/record-writes';
+import { normalizeHouseholdStatus, normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
 
 const statusLabels: Record<string, string> = {
   new: 'New Record',
-  active: 'Active',
+  available: 'Available Door',
+  active: 'Available Door',
+  bible_study: 'Bible Study',
+  return_visit: 'Return Visit',
   not_home: 'Not Home',
   busy: 'Busy / Call Back',
-  return_visit: 'Return Visit',
   foreign_language: 'Foreign Language',
   vacant: 'Vacant / Unoccupied',
   inaccessible: 'Inaccessible / Gated',
@@ -68,11 +71,15 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   new: 'text-muted-foreground border-border bg-muted/30',
+  available:
+    'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   active: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  bible_study:
+    'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
+  return_visit:
+    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
-  return_visit:
-    'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
   foreign_language:
     'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
   vacant: 'text-slate-700 border-slate-200 bg-slate-50 dark:bg-slate-950/40 dark:text-slate-400',
@@ -86,10 +93,11 @@ const statusColors: Record<string, string> = {
 const statusTabs: { id: string; label: string; icon?: string; dot?: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'needs_pinning', label: 'Needs Pinning', icon: '📍' },
-  { id: 'active', label: 'Active', dot: 'bg-green-500' },
+  { id: 'available', label: 'Available', dot: 'bg-green-500' },
+  { id: 'bible_study', label: 'Bible Study', dot: 'bg-violet-500' },
+  { id: 'return_visit', label: 'Return Visit', dot: 'bg-blue-500' },
   { id: 'not_home', label: 'Not Home', dot: 'bg-amber-500' },
   { id: 'busy', label: 'Busy / Call Back', dot: 'bg-orange-500' },
-  { id: 'return_visit', label: 'Return Visit', dot: 'bg-purple-500' },
   { id: 'new', label: 'New Record', dot: 'bg-slate-400' },
   { id: 'foreign_language', label: 'Foreign Language', dot: 'bg-cyan-500' },
   { id: 'vacant', label: 'Vacant', dot: 'bg-slate-500' },
@@ -256,11 +264,13 @@ export default function HouseholdsClient() {
         h.createdById === user.id ||
         h.collaboratorIds?.includes(user.id) ||
         h.readOnlyUserIds?.includes(user.id);
+      const normStatus = normalizeHouseholdStatus(h.status);
+      const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
       const isFollowup =
-        h.status === 'return_visit' ||
-        h.status === 'study_conducted' ||
-        h.lastVisitOutcome === 'return_visit' ||
-        h.lastVisitOutcome === 'study_conducted';
+        normStatus === 'return_visit' ||
+        normStatus === 'bible_study' ||
+        normOutcome === 'return_visit_completed' ||
+        normOutcome === 'study_conducted';
       return isMine && isFollowup;
     });
   }, [households, user?.id]);
@@ -280,7 +290,8 @@ export default function HouseholdsClient() {
     if (statusFilter === 'needs_pinning') {
       list = list.filter((h) => !h.latitude || !h.longitude);
     } else if (statusFilter !== 'all') {
-      list = list.filter((h) => h.status === statusFilter);
+      const normFilter = normalizeHouseholdStatus(statusFilter);
+      list = list.filter((h) => normalizeHouseholdStatus(h.status) === normFilter);
     }
     if (search.trim()) {
       const s = search.toLowerCase();
@@ -321,7 +332,12 @@ export default function HouseholdsClient() {
     };
     for (const h of baseList) {
       if (h.status) {
-        counts[h.status] = (counts[h.status] || 0) + 1;
+        const norm = normalizeHouseholdStatus(h.status);
+        counts[norm] = (counts[norm] || 0) + 1;
+        // Also map legacy alias 'active' -> counts for backward compatibility
+        if (norm === 'available') {
+          counts['active'] = (counts['active'] || 0) + 1;
+        }
       }
     }
     return counts;

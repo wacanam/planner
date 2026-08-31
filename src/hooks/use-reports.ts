@@ -12,6 +12,7 @@ import {
   calculateMinistryTeachingMetrics,
   buildTeachingAnalyticsReport,
 } from '@/lib/teaching-metrics';
+import { normalizeHouseholdStatus, normalizeVisitOutcome } from '@/lib/status-rules';
 import { calculateTerritoryCoverage, type TerritoryCoverageStats } from '@/lib/territory-coverage';
 import type {
   ActivityReport,
@@ -981,8 +982,11 @@ export function useDoorAnalyticsReport(
     const streetCounts = new Map<string, { total: number; worked: number }>();
 
     for (const h of households) {
+      const normStatus = normalizeHouseholdStatus(h.status);
+      const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
+
       if (
-        h.status === 'visited' ||
+        normStatus === 'available' ||
         h.lastVisitDate ||
         (h.totalVisitsCount || 0) > 0 ||
         (h.status && h.status.trim().toLowerCase() !== 'new')
@@ -990,30 +994,30 @@ export function useDoorAnalyticsReport(
         workedDoors += 1;
       }
       if (
-        h.status === 'do_not_call' ||
-        h.status === 'do_not_visit' ||
-        h.lastVisitOutcome === 'do_not_call' ||
-        h.lastVisitOutcome === 'do_not_visit'
+        normStatus === 'do_not_visit' ||
+        normOutcome === 'do_not_visit'
       ) {
         doNotCallCount += 1;
       }
       if (
-        h.status === 'return_visit' ||
-        h.lastVisitOutcome === 'return_visit' ||
+        normStatus === 'return_visit' ||
+        normStatus === 'bible_study' ||
+        normOutcome === 'return_visit_completed' ||
+        normOutcome === 'study_conducted' ||
         (h.totalVisitsCount || 0) > 1
       ) {
         returnVisitsCount += 1;
       }
-      if (h.status === 'foreign_language' || h.lastVisitOutcome === 'foreign_language') {
+      if (normStatus === 'foreign_language' || normOutcome === 'foreign_language') {
         foreignLanguageCount += 1;
       }
-      if (h.status === 'vacant' || h.lastVisitOutcome === 'vacant') {
+      if (normStatus === 'vacant' || normOutcome === 'vacant') {
         vacantCount += 1;
       }
-      if (h.status === 'inaccessible' || h.lastVisitOutcome === 'inaccessible') {
+      if (normStatus === 'inaccessible' || normOutcome === 'inaccessible') {
         inaccessibleCount += 1;
       }
-      if (h.status === 'busy' || h.lastVisitOutcome === 'busy') {
+      if (normStatus === 'busy' || normOutcome === 'busy') {
         busyCount += 1;
       }
 
@@ -1021,7 +1025,7 @@ export function useDoorAnalyticsReport(
       const curr = streetCounts.get(street) || { total: 0, worked: 0 };
       curr.total += 1;
       if (
-        h.status === 'visited' ||
+        normStatus === 'available' ||
         h.lastVisitDate ||
         (h.status && h.status.trim().toLowerCase() !== 'new')
       ) {

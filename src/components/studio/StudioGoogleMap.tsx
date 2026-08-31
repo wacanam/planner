@@ -17,6 +17,7 @@ import {
   getBoundingBoxFromGoogleBounds,
 } from '@/lib/map-clustering';
 import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
+import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
 import Supercluster from 'supercluster';
 
 import type {
@@ -1962,36 +1963,14 @@ export function StudioGoogleMap({
     const { AdvancedMarkerElement } = google.maps.marker;
 
     const getStatusColor = (status?: string) => {
-      switch (status) {
-        case 'active':
-          return '#16A34A'; // Green
-        case 'not_home':
-          return '#D97706'; // Amber / Orange
-        case 'busy':
-          return '#F97316'; // Orange
-        case 'return_visit':
-          return '#2563EB'; // Vibrant Blue
-        case 'foreign_language':
-          return '#06B6D4'; // Cyan
-        case 'inaccessible':
-          return '#78716C'; // Stone
-        case 'vacant':
-          return '#64748B'; // Slate
-        case 'do_not_visit':
-          return '#DC2626'; // Crimson Red
-        case 'moved':
-        case 'inactive':
-          return '#9CA3AF'; // Muted Gray
-        default:
-          return '#64748B'; // Cool Slate / Steel
-      }
+      return getHouseholdStatusMeta(status || 'new').pinColor;
     };
 
     const isPointerMode = !isPrintViewportActive && activeTool === 'pointer';
 
     const filteredHouseholds = households.filter((h) => {
       if (!layerSettings.householdFilter || layerSettings.householdFilter === 'all') return true;
-      return h.status === layerSettings.householdFilter;
+      return normalizeHouseholdStatus(h.status) === normalizeHouseholdStatus(layerSettings.householdFilter);
     });
 
     const shouldCluster = layerSettings.clusterHouseholds !== false && currentZoom < 17;
