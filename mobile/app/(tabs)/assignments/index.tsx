@@ -257,40 +257,53 @@ export default function MyAssignmentsScreen() {
                   </View>
                 </View>
 
-                {/* Due status pill if available */}
-                {item.dueAt && dueStatus.status !== 'none' && (
-                  <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
-                    {dueStatus.status === 'overdue' ? (
-                      <Badge label={dueStatus.label} variant="destructive" size="sm" />
-                    ) : dueStatus.status === 'due-soon' ? (
-                      <Badge label={dueStatus.label} variant="warning" size="sm" />
-                    ) : (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Clock size={12} color={colors.mutedForeground} />
-                        <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                          {dueStatus.label}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Card footer details */}
-                <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                  {item.assignedAt && (
-                    <View style={styles.footerItem}>
+                {/* Dates & Urgency Status row */}
+                <View
+                  style={{
+                    marginTop: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  {item.assignedAt ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Calendar size={13} color={colors.mutedForeground} />
                       <Text
-                        style={[
-                          styles.footerText,
-                          { color: colors.mutedForeground, fontSize: typography.xs, marginLeft: 4 },
-                        ]}
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          marginLeft: 4,
+                        }}
                       >
                         Assigned {formatDate(item.assignedAt)}
                       </Text>
                     </View>
+                  ) : (
+                    <View />
                   )}
 
+                  {item.dueAt && dueStatus.status !== 'none' && (
+                    <View>
+                      {dueStatus.status === 'overdue' ? (
+                        <Badge label={dueStatus.label} variant="destructive" size="sm" />
+                      ) : dueStatus.status === 'due-soon' ? (
+                        <Badge label={dueStatus.label} variant="warning" size="sm" />
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Clock size={12} color={colors.mutedForeground} />
+                          <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                            {dueStatus.label}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Card footer details */}
+                <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                  <View style={{ flex: 1 }} />
                   <View style={styles.actionRow}>
                     <Text
                       style={[

@@ -339,11 +339,11 @@ export default function MyAssignmentsClient() {
                           </div>
                         </div>
 
-                        {/* Dates & Urgency Status */}
-                        <div className="space-y-1.5 text-xs text-muted-foreground pt-0.5">
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {/* Dates & Urgency Status Row */}
+                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground pt-0.5 min-w-0">
+                          <div className="flex items-center gap-1.5 whitespace-nowrap min-w-0">
                             <Calendar size={12} className="text-muted-foreground/70 shrink-0" />
-                            <span>
+                            <span className="truncate">
                               Assigned{' '}
                               {assignment.assignedAt
                                 ? formatDate(assignment.assignedAt)
@@ -352,7 +352,7 @@ export default function MyAssignmentsClient() {
                           </div>
 
                           {assignment.dueAt && (
-                            <div className="flex items-center gap-1.5">
+                            <div className="shrink-0">
                               {dueStatus.status === 'overdue' ? (
                                 <Badge
                                   variant="destructive"
