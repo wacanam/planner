@@ -369,6 +369,7 @@ export interface CoverageTerritory {
   groupName?: string;
   healthStatus: TerritoryHealthStatus;
   daysSinceWorked: number | null;
+  isWorkedInServiceYear?: boolean;
 }
 
 export interface CoverageReport {
@@ -379,6 +380,10 @@ export interface CoverageReport {
   unworkedDoors: number;
   activeAssignmentRate: number;
   avgTurnaroundDays: number;
+  serviceYear?: number | 'all';
+  availableServiceYears?: number[];
+  unworkedInCurrentSYCount?: number;
+  workedInCurrentSYCount?: number;
   byStatus: {
     available: number;
     assigned: number;
@@ -410,6 +415,7 @@ export interface S13AssignmentRecord {
   coverageAtReturn: number;
   durationDays: number | null;
   status: string;
+  serviceYear?: number;
 }
 
 export interface GroupReportStats {

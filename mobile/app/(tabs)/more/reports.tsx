@@ -1,6 +1,6 @@
 // mobile/app/(tabs)/more/reports.tsx
 import { useRouter } from 'expo-router';
-import { BarChart2, Download, FileText, Home } from 'lucide-react-native';
+import { BarChart2, Calendar, Download, FileText, Home } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ServiceYearCountdown } from '@/components/ServiceYearCountdown';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +25,7 @@ import { useCongregation } from '@/hooks/useCongregations';
 import { useCoverageReport, useS13Report } from '@/hooks/useReports';
 import { exportS13Pdf } from '@/lib/pdf-export';
 import { formatDate } from '@/lib/date-utils';
+import { getServiceYear } from '@/lib/service-year';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function ReportsScreen() {
@@ -33,12 +35,17 @@ export default function ReportsScreen() {
   const { congregation } = useCongregation(activeCongregationId);
   const { colors, typography, spacing, radius } = useTheme();
 
+  const currentSY = getServiceYear();
+  const [selectedServiceYear, setSelectedServiceYear] = useState<number | 'all'>('all');
   const [activeSegment, setActiveSegment] = useState<'overview' | 's13'>('overview');
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data: coverageData, isLoading: coverageLoading } =
-    useCoverageReport(activeCongregationId);
-  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(activeCongregationId);
+  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(activeCongregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(activeCongregationId, {
+    serviceYear: selectedServiceYear,
+  });
 
   const congregationName = congregation?.name || 'Congregation';
 
@@ -51,13 +58,15 @@ export default function ReportsScreen() {
     setIsExporting(true);
     try {
       await triggerHaptic('medium');
-      await exportS13Pdf(s13Records, congregationName);
+      await exportS13Pdf(s13Records, congregationName, selectedServiceYear);
     } catch (err: any) {
       Alert.alert('Export Error', err.message || 'Failed to generate S-13 PDF report');
     } finally {
       setIsExporting(false);
     }
   };
+
+  const availableYears = coverageData?.availableServiceYears || [currentSY];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -79,6 +88,70 @@ export default function ReportsScreen() {
           </TouchableOpacity>
         }
       />
+
+      {/* Service Year Filter Chips Row */}
+      <View style={[styles.syChipsContainer, { borderBottomColor: colors.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.md, gap: 8, paddingVertical: 8 }}
+        >
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('light');
+              setSelectedServiceYear('all');
+            }}
+            style={[
+              styles.syChip,
+              {
+                backgroundColor: selectedServiceYear === 'all' ? colors.primary : colors.card,
+                borderColor: selectedServiceYear === 'all' ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                color: selectedServiceYear === 'all' ? colors.primaryForeground : colors.mutedForeground,
+                fontSize: typography.xs,
+                fontWeight: selectedServiceYear === 'all' ? '700' : '500',
+              }}
+            >
+              All Years
+            </Text>
+          </TouchableOpacity>
+
+          {availableYears.map((sy) => {
+            const isSelected = selectedServiceYear === sy;
+            const isCurrent = sy === currentSY;
+            return (
+              <TouchableOpacity
+                key={sy}
+                onPress={() => {
+                  triggerHaptic('light');
+                  setSelectedServiceYear(sy);
+                }}
+                style={[
+                  styles.syChip,
+                  {
+                    backgroundColor: isSelected ? colors.primary : colors.card,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: isSelected ? colors.primaryForeground : colors.mutedForeground,
+                    fontSize: typography.xs,
+                    fontWeight: isSelected ? '700' : '500',
+                  }}
+                >
+                  SY {sy} {isCurrent ? '(Current)' : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Segment Switcher */}
       <View
@@ -147,8 +220,18 @@ export default function ReportsScreen() {
               paddingBottom: insets.bottom + spacing.xxl,
             }}
           >
+            {/* Service Year Countdown & Pacing Banner */}
+            <ServiceYearCountdown
+              variant="full"
+              serviceYear={selectedServiceYear}
+              coveragePercent={coverageData.avgCoveragePercent}
+              workedCount={coverageData.workedInCurrentSYCount}
+              totalCount={coverageData.totalTerritories}
+              unworkedCount={coverageData.unworkedInCurrentSYCount}
+            />
+
             {/* Top KPI Cards */}
-            <View style={styles.kpiGrid}>
+            <View style={[styles.kpiGrid, { marginTop: spacing.md }]}>
               <Card style={[styles.kpiCard, { flex: 1 }]}>
                 <BarChart2 size={18} color={colors.primary} />
                 <Text
@@ -415,5 +498,16 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: 10,
     paddingTop: 8,
+  },
+  syChipsContainer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  syChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

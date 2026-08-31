@@ -93,9 +93,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   // =========================================================================
   let pageNumber = 1;
 
+  const sySubtitle =
+    coverageData?.serviceYear && coverageData.serviceYear !== 'all'
+      ? `   •   ${coverageData.serviceYear - 1}–${coverageData.serviceYear} Service Year`
+      : '';
+
   drawSectionHeader(
     'CONGREGATION EXECUTIVE OVERVIEW & TERRITORY HEALTH',
-    `Congregation: ${congregationName}   •   Generated: ${formatDate(new Date())}`,
+    `Congregation: ${congregationName}${sySubtitle}   •   Generated: ${formatDate(new Date())}`,
     'EXECUTIVE SUMMARY'
   );
 
@@ -709,7 +714,11 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   drawPageFooter(pageNumber, `${pageNumber}`);
 
   // Download Trigger
-  const filename = `Congregation_Reports_Analytics_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const sySuffix =
+    coverageData?.serviceYear && coverageData.serviceYear !== 'all'
+      ? `_SY${coverageData.serviceYear}`
+      : '';
+  const filename = `Congregation_Reports_Analytics_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
   if (typeof window !== 'undefined') {
     doc.save(filename);
   }

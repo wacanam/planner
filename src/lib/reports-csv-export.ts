@@ -39,7 +39,8 @@ export function triggerCsvDownload(filename: string, csvContent: string): void {
  */
 export function exportS13ToCSV(
   records: S13AssignmentRecord[],
-  congregationName = 'Congregation'
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
 ): void {
   const headers = [
     'Territory Number',
@@ -47,6 +48,7 @@ export function exportS13ToCSV(
     'Assigned To',
     'Type',
     'Service Group',
+    'Service Year',
     'Date Assigned',
     'Date Due',
     'Date Returned',
@@ -62,6 +64,7 @@ export function exportS13ToCSV(
     escapeCsvCell(r.assigneeName),
     escapeCsvCell(r.isGroupAssignment ? 'Service Group' : 'Personal'),
     escapeCsvCell(r.groupName || '—'),
+    escapeCsvCell(r.serviceYear ? `SY ${r.serviceYear}` : '—'),
     escapeCsvCell(r.assignedAt ? formatDate(r.assignedAt) : '—'),
     escapeCsvCell(r.dueAt ? formatDate(r.dueAt) : '—'),
     escapeCsvCell(r.returnedAt ? formatDate(r.returnedAt) : 'Active'),
@@ -72,7 +75,8 @@ export function exportS13ToCSV(
   ]);
 
   const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
-  const filename = `S-13_Territory_Record_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const sySuffix = serviceYear && serviceYear !== 'all' ? `_SY${serviceYear}` : '';
+  const filename = `S-13_Territory_Record_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
   triggerCsvDownload(filename, csv);
 }
 
@@ -81,13 +85,15 @@ export function exportS13ToCSV(
  */
 export function exportCoverageToCSV(
   territories: CoverageTerritory[],
-  congregationName = 'Congregation'
+  congregationName = 'Congregation',
+  serviceYear?: number | 'all'
 ): void {
   const headers = [
     'Territory Number',
     'Territory Name',
     'Status',
     'Coverage (%)',
+    'Worked in SY',
     'Total Doors',
     'Worked Doors',
     'Unworked Doors',
@@ -103,6 +109,7 @@ export function exportCoverageToCSV(
     escapeCsvCell(t.name),
     escapeCsvCell(t.status.toUpperCase()),
     escapeCsvCell(Math.round(t.coveragePercent)),
+    escapeCsvCell(t.isWorkedInServiceYear ? 'Yes' : 'No'),
     escapeCsvCell(t.householdsCount),
     escapeCsvCell(t.workedDoors),
     escapeCsvCell(t.unworkedDoors),
@@ -114,7 +121,8 @@ export function exportCoverageToCSV(
   ]);
 
   const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
-  const filename = `Territory_Coverage_${congregationName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const sySuffix = serviceYear && serviceYear !== 'all' ? `_SY${serviceYear}` : '';
+  const filename = `Territory_Coverage_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
   triggerCsvDownload(filename, csv);
 }
 

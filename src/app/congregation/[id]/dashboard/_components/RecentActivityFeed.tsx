@@ -134,11 +134,11 @@ export function RecentActivityFeed({
   }
 
   return (
-    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl">
-      <CardHeader className="flex flex-row items-center justify-between pb-3 gap-2">
-        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 whitespace-nowrap">
+    <Card className="bg-card border-border shadow-xs overflow-hidden rounded-3xl min-w-0">
+      <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between pb-3 gap-2 min-w-0">
+        <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
           <Activity size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>Recent Ministry Activity</span>
+          <span className="truncate">Recent Ministry Activity</span>
         </CardTitle>
         <Button asChild variant="ghost" size="sm" className="text-xs h-7 px-2 shrink-0 text-muted-foreground hover:text-foreground">
           <Link href={`/congregation/${congregationId}/records/visits`}>
@@ -146,7 +146,7 @@ export function RecentActivityFeed({
           </Link>
         </Button>
       </CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent className="p-4 sm:p-6 pt-0 space-y-2.5 min-w-0">
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
@@ -158,7 +158,7 @@ export function RecentActivityFeed({
             return (
               <div
                 key={act.id}
-                className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 hover:border-emerald-500/40 transition-all shadow-2xs"
+                className="p-3 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 hover:border-emerald-500/40 transition-all shadow-2xs min-w-0"
               >
                 <div className="min-w-0 flex-1 space-y-0.5">
                   {/* Top Line: Name & Activity Type Badge */}

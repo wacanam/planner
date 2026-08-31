@@ -54,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ServiceYearCountdown } from '@/components/service-year-countdown';
 import {
   useActivityReport,
   useCongregation,
@@ -77,6 +78,7 @@ import {
 } from '@/lib/reports-csv-export';
 import { UserRole } from '@/lib/roles';
 import { exportS13ToPDF } from '@/lib/s13-pdf-export';
+import { getServiceYear } from '@/lib/service-year';
 import type { S13AssignmentRecord } from '@/types/api';
 
 type Tab = 'overview' | 's13' | 'groups-publishers' | 'doors' | 'activity';
@@ -88,6 +90,10 @@ export default function ReportsClient() {
   const { user } = useCurrentUser();
   const { congregation } = useCongregation(congregationId);
   const [tab, setTab] = useState<Tab>('overview');
+
+  // Service Year State
+  const currentSY = getServiceYear();
+  const [selectedServiceYear, setSelectedServiceYear] = useState<number | 'all'>('all');
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,13 +114,23 @@ export default function ReportsClient() {
   const canAdjust = canAdjustAssignmentDates(user?.role, user?.congregationRole);
   const canDelete = canDeleteAssignment(user?.role, user?.congregationRole);
 
-  // Hooks for reports
-  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId);
-  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId);
-  const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId);
-  const { data: publishersData, isLoading: publishersLoading } =
-    usePublishersReport(congregationId);
-  const { data: doorData, isLoading: doorLoading } = useDoorAnalyticsReport(congregationId);
+  // Hooks for reports with Service Year filtering
+  const { data: coverageData, isLoading: coverageLoading } = useCoverageReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
+  const { data: publishersData, isLoading: publishersLoading } = usePublishersReport(
+    congregationId,
+    { serviceYear: selectedServiceYear }
+  );
+  const { data: doorData, isLoading: doorLoading } = useDoorAnalyticsReport(congregationId, {
+    serviceYear: selectedServiceYear,
+  });
   const { data: activityData, isLoading: activityLoading } = useActivityReport(congregationId);
 
   const congregationName = congregation?.name || 'Congregation';
@@ -175,7 +191,14 @@ export default function ReportsClient() {
         t.publisherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'unworked_sy'
+            ? !t.isWorkedInServiceYear
+            : statusFilter === 'worked_sy'
+              ? Boolean(t.isWorkedInServiceYear)
+              : t.status === statusFilter;
       const matchesHealth = healthFilter === 'all' || t.healthStatus === healthFilter;
 
       return matchesSearch && matchesStatus && matchesHealth;
@@ -248,8 +271,26 @@ export default function ReportsClient() {
             </p>
           </div>
 
-          {/* Export & PDF Direct Download Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Service Year Selector & Export Actions */}
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto shrink-0">
+            <Select
+              value={String(selectedServiceYear)}
+              onValueChange={(val) => setSelectedServiceYear(val === 'all' ? 'all' : Number(val))}
+            >
+              <SelectTrigger className="w-full sm:w-[185px] h-9 text-xs rounded-xl font-semibold bg-card border-border shadow-2xs">
+                <Calendar size={13} className="mr-1.5 text-primary shrink-0" />
+                <SelectValue placeholder="Service Year" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl text-xs">
+                <SelectItem value="all">All Service Years</SelectItem>
+                {(coverageData?.availableServiceYears || [currentSY]).map((sy) => (
+                  <SelectItem key={sy} value={String(sy)}>
+                    {sy === currentSY ? `${sy - 1}–${sy} (Current SY)` : `${sy - 1}–${sy} Service Year`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Button
               variant="outline"
               size="sm"
@@ -264,19 +305,19 @@ export default function ReportsClient() {
                   activityData,
                 })
               }
-              className="rounded-xl text-xs gap-1.5 h-9 font-semibold text-primary border-primary/30 hover:bg-primary/5"
+              className="w-full sm:w-auto rounded-xl text-xs gap-1.5 h-9 font-semibold text-primary border-primary/30 hover:bg-primary/5 justify-center"
               title="Direct Download Full Multi-Page PDF Report"
             >
-              <FileText size={13} className="text-primary" />
+              <FileText size={13} className="text-primary shrink-0" />
               <span>Download Full Report (PDF)</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs">
-                  <Download size={13} />
+                <Button className="w-full sm:w-auto rounded-xl text-xs font-semibold gap-1.5 h-9 px-3.5 shadow-xs justify-center">
+                  <Download size={13} className="shrink-0" />
                   <span>Export &amp; Download</span>
-                  <ChevronDown size={12} className="opacity-70" />
+                  <ChevronDown size={12} className="opacity-70 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 rounded-xl text-xs">
@@ -298,14 +339,14 @@ export default function ReportsClient() {
                   <span>Download Full Report (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportS13ToPDF(s13Records, congregationName)}
+                  onClick={() => exportS13ToPDF(s13Records, congregationName, selectedServiceYear)}
                   className="cursor-pointer gap-2 py-2 font-semibold text-blue-600 dark:text-blue-400"
                 >
                   <FileSpreadsheet size={14} className="text-blue-600" />
                   <span>Download S-13 Record (PDF)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportS13ToCSV(s13Records, congregationName)}
+                  onClick={() => exportS13ToCSV(s13Records, congregationName, selectedServiceYear)}
                   className="cursor-pointer gap-2 py-2"
                 >
                   <FileSpreadsheet size={14} className="text-primary" />
@@ -313,7 +354,11 @@ export default function ReportsClient() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
-                    exportCoverageToCSV(coverageData?.territories || [], congregationName)
+                    exportCoverageToCSV(
+                      coverageData?.territories || [],
+                      congregationName,
+                      selectedServiceYear
+                    )
                   }
                   className="cursor-pointer gap-2 py-2"
                 >
@@ -562,7 +607,18 @@ export default function ReportsClient() {
         {/* TAB 1: EXECUTIVE OVERVIEW */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full min-w-0 max-w-full">
+            {/* Service Year Countdown & Pacing Banner */}
+            <ServiceYearCountdown
+              variant="banner"
+              serviceYear={selectedServiceYear}
+              coveragePercent={coverageData?.avgCoveragePercent}
+              workedTerritoriesCount={coverageData?.workedInCurrentSYCount}
+              totalTerritoriesCount={coverageData?.totalTerritories}
+              unworkedTerritoriesCount={coverageData?.unworkedInCurrentSYCount}
+              onFilterUnworked={() => setStatusFilter('unworked_sy')}
+            />
+
             {/* Status Breakdown & Health Matrix */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <Card className="bg-card border-border shadow-xs">
@@ -647,8 +703,8 @@ export default function ReportsClient() {
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-56">
                     <Search
                       size={13}
                       className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -657,16 +713,22 @@ export default function ReportsClient() {
                       placeholder="Search territories or assignees…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-8 pl-8 text-xs w-48 sm:w-56 rounded-xl"
+                      className="h-8 pl-8 text-xs w-full rounded-xl"
                     />
                   </div>
 
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                   >
                     <option value="all">All Statuses</option>
+                    <option value="unworked_sy">
+                      🔥 Unworked in SY ({coverageData?.unworkedInCurrentSYCount ?? 0})
+                    </option>
+                    <option value="worked_sy">
+                      ✓ Worked in SY ({coverageData?.workedInCurrentSYCount ?? 0})
+                    </option>
                     <option value="available">Available</option>
                     <option value="assigned">Assigned</option>
                     <option value="completed">Completed</option>
@@ -675,7 +737,7 @@ export default function ReportsClient() {
                   <select
                     value={healthFilter}
                     onChange={(e) => setHealthFilter(e.target.value)}
-                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                    className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                   >
                     <option value="all">All Health</option>
                     <option value="fresh">Fresh (&lt; 30d)</option>
@@ -781,25 +843,35 @@ export default function ReportsClient() {
         {/* TAB 2: OFFICIAL S-13 CONGREGATION TERRITORY RECORD */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 's13' && (
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-bold">
-                    Official S-13 Congregation Territory Record
-                  </CardTitle>
-                  <Badge variant="outline" className="text-[10px] font-mono font-bold bg-muted/60">
-                    S-13 (8/19)
-                  </Badge>
+          <div className="space-y-6 w-full min-w-0 max-w-full">
+            <ServiceYearCountdown
+              variant="banner"
+              serviceYear={selectedServiceYear}
+              coveragePercent={coverageData?.avgCoveragePercent}
+              workedTerritoriesCount={coverageData?.workedInCurrentSYCount}
+              totalTerritoriesCount={coverageData?.totalTerritories}
+              unworkedTerritoriesCount={coverageData?.unworkedInCurrentSYCount}
+            />
+
+            <Card className="bg-card border-border shadow-xs overflow-hidden w-full min-w-0 max-w-full">
+              <CardHeader className="p-4 sm:p-6 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <CardTitle className="text-sm sm:text-base font-bold">
+                      Official S-13 Congregation Territory Record
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] font-mono font-bold bg-muted/60 shrink-0">
+                      S-13 (8/19)
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Complete territory assignment history, turnaround duration, and return coverage %
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Complete territory assignment history, turnaround duration, and return coverage %
-                </p>
-              </div>
 
               {/* S-13 Search & Filter Controls */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+                <div className="relative w-full sm:w-56">
                   <Search
                     size={13}
                     className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -808,14 +880,14 @@ export default function ReportsClient() {
                     placeholder="Search S-13 records…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-xs w-48 sm:w-56 rounded-xl"
+                    className="h-8 pl-8 text-xs w-full rounded-xl"
                   />
                 </div>
 
                 <select
                   value={s13Filter}
                   onChange={(e) => setS13Filter(e.target.value)}
-                  className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none"
+                  className="h-8 text-xs bg-muted/40 border border-border rounded-xl px-2.5 text-foreground cursor-pointer focus:outline-none w-full sm:w-auto"
                 >
                   <option value="all">All Assignments</option>
                   <option value="active">Active Only</option>
@@ -826,25 +898,25 @@ export default function ReportsClient() {
 
                 <Button
                   size="sm"
-                  onClick={() => exportS13ToPDF(filteredS13, congregationName)}
-                  className="h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs"
+                  onClick={() => exportS13ToPDF(filteredS13, congregationName, selectedServiceYear)}
+                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold bg-primary text-primary-foreground shadow-xs justify-center"
                 >
-                  <FileText size={12} />
+                  <FileText size={12} className="shrink-0" />
                   <span>Download S-13 PDF</span>
                 </Button>
 
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => exportS13ToCSV(filteredS13, congregationName)}
-                  className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
+                  onClick={() => exportS13ToCSV(filteredS13, congregationName, selectedServiceYear)}
+                  className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold justify-center"
                 >
-                  <Download size={12} />
+                  <Download size={12} className="shrink-0" />
                   <span>CSV</span>
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">
               {filteredS13.length === 0 ? (
                 <div className="text-center py-12 space-y-2">
                   <FileSpreadsheet size={36} className="text-muted-foreground/40 mx-auto" />
@@ -856,118 +928,235 @@ export default function ReportsClient() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-border">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
-                        <th className="py-2.5 px-3">Territory</th>
-                        <th className="py-2.5 px-3">Assigned To</th>
-                        <th className="py-2.5 px-3">Date Assigned</th>
-                        <th className="py-2.5 px-3">Date Returned</th>
-                        <th className="py-2.5 px-3 text-center">Duration</th>
-                        <th className="py-2.5 px-3 text-center">Coverage</th>
-                        <th className="py-2.5 px-3 text-right">Status</th>
-                        {canAdjust && <th className="py-2.5 px-3 text-right">Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {filteredS13.map((rec) => {
-                        const isReturned = Boolean(rec.returnedAt);
-                        return (
-                          <tr key={rec.id} className="hover:bg-muted/20 transition-colors">
-                            <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
-                              <span className="text-primary font-bold mr-1">
-                                #{rec.territoryNumber}
-                              </span>
-                              <span>{rec.territoryName}</span>
-                            </td>
-                            <td className="py-2.5 px-3 whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
+                <>
+                  {/* 1. Mobile Cards View (< md) */}
+                  <div className="space-y-3 block md:hidden min-w-0">
+                    {filteredS13.map((rec) => {
+                      const isReturned = Boolean(rec.returnedAt);
+                      return (
+                        <div
+                          key={rec.id}
+                          className="p-3.5 rounded-2xl border border-border bg-background space-y-2.5 shadow-2xs min-w-0"
+                        >
+                          <div className="flex items-start justify-between gap-2 min-w-0">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                <span className="font-extrabold text-xs text-primary shrink-0">
+                                  #{rec.territoryNumber}
+                                </span>
+                                <span className="font-bold text-xs text-foreground truncate">
+                                  {rec.territoryName}
+                                </span>
+                              </div>
+                              <div className="mt-1 min-w-0">
                                 {rec.isGroupAssignment ? (
                                   <Badge
                                     variant="outline"
-                                    className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
+                                    className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 shrink-0"
                                   >
                                     👥 {rec.groupName || rec.assigneeName}
                                   </Badge>
                                 ) : (
-                                  <span className="font-medium text-foreground">
-                                    {rec.assigneeName}
+                                  <span className="text-xs font-semibold text-foreground truncate block">
+                                    👤 {rec.assigneeName}
                                   </span>
                                 )}
                               </div>
-                            </td>
-                            <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
-                              {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
-                            </td>
-                            <td className="py-2.5 px-3 whitespace-nowrap">
-                              {isReturned ? (
-                                <span className="text-foreground font-medium">
-                                  {formatDate(rec.returnedAt)}
-                                </span>
-                              ) : (
-                                <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
-                                  Active In Field
-                                </Badge>
+                            </div>
+
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] uppercase font-bold shrink-0 ${
+                                rec.status === 'completed' || isReturned
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                  : 'bg-primary/10 text-primary border-primary/30'
+                              }`}
+                            >
+                              {rec.status === 'completed' || isReturned ? 'Returned' : 'Active In Field'}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                Assigned
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                Returned
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {isReturned ? formatDate(rec.returnedAt) : '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                Duration
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase font-bold tracking-wider block text-muted-foreground">
+                                Coverage
+                              </span>
+                              <span className="font-bold text-foreground">
+                                {Math.round(rec.coverageAtReturn)}%
+                              </span>
+                            </div>
+                          </div>
+
+                          {(canAdjust || canDelete) && (
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                              {canDelete && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2 gap-1 rounded-xl"
+                                  onClick={() => setDeletingS13Record(rec)}
+                                >
+                                  <Trash2 size={12} />
+                                  <span>Delete</span>
+                                </Button>
                               )}
-                            </td>
-                            <td className="py-2.5 px-3 text-center whitespace-nowrap text-muted-foreground">
-                              {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
-                            </td>
-                            <td className="py-2.5 px-3 text-center whitespace-nowrap font-bold text-foreground">
-                              {Math.round(rec.coverageAtReturn)}%
-                            </td>
-                            <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] uppercase font-bold ${
-                                  rec.status === 'completed' || isReturned
-                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                                    : 'bg-primary/10 text-primary border-primary/30'
-                                }`}
-                              >
-                                {rec.status}
-                              </Badge>
-                            </td>
-                            {(canAdjust || canDelete) && (
-                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-1">
-                                  {canDelete && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
-                                      onClick={() => setDeletingS13Record(rec)}
-                                      title="Delete accidental/wrong assignment record"
+                              {canAdjust && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs text-foreground hover:bg-muted px-2.5 gap-1 rounded-xl"
+                                  onClick={() => handleOpenEditS13(rec)}
+                                >
+                                  <Pencil size={12} />
+                                  <span>Adjust Dates</span>
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 2. Desktop Table View (>= md) */}
+                  <div className="hidden md:block overflow-x-auto rounded-2xl border border-border w-full min-w-0 max-w-full">
+                    <table className="w-full text-left text-xs border-collapse min-w-[650px]">
+                      <thead>
+                        <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
+                          <th className="py-2.5 px-3">Territory</th>
+                          <th className="py-2.5 px-3">Assigned To</th>
+                          <th className="py-2.5 px-3">Date Assigned</th>
+                          <th className="py-2.5 px-3">Date Returned</th>
+                          <th className="py-2.5 px-3 text-center">Duration</th>
+                          <th className="py-2.5 px-3 text-center">Coverage</th>
+                          <th className="py-2.5 px-3 text-right">Status</th>
+                          {canAdjust && <th className="py-2.5 px-3 text-right">Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {filteredS13.map((rec) => {
+                          const isReturned = Boolean(rec.returnedAt);
+                          return (
+                            <tr key={rec.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
+                                <span className="text-primary font-bold mr-1">
+                                  #{rec.territoryNumber}
+                                </span>
+                                <span>{rec.territoryName}</span>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  {rec.isGroupAssignment ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200"
                                     >
-                                      <Trash2 size={12} />
-                                      <span className="sr-only">Delete Record</span>
-                                    </Button>
-                                  )}
-                                  {canAdjust && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
-                                      onClick={() => handleOpenEditS13(rec)}
-                                      title="Adjust assignment / return dates"
-                                    >
-                                      <Pencil size={12} />
-                                      <span className="sr-only">Edit Dates</span>
-                                    </Button>
+                                      👥 {rec.groupName || rec.assigneeName}
+                                    </Badge>
+                                  ) : (
+                                    <span className="font-medium text-foreground">
+                                      {rec.assigneeName}
+                                    </span>
                                   )}
                                 </div>
                               </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
+                                {rec.assignedAt ? formatDate(rec.assignedAt) : '—'}
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                {isReturned ? (
+                                  <span className="text-foreground font-medium">
+                                    {formatDate(rec.returnedAt)}
+                                  </span>
+                                ) : (
+                                  <Badge className="text-[9px] bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">
+                                    Active In Field
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap text-muted-foreground">
+                                {rec.durationDays !== null ? `${rec.durationDays} days` : '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap font-bold text-foreground">
+                                {Math.round(rec.coverageAtReturn)}%
+                              </td>
+                              <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[9px] uppercase font-bold ${
+                                    rec.status === 'completed' || isReturned
+                                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                                      : 'bg-primary/10 text-primary border-primary/30'
+                                  }`}
+                                >
+                                  {rec.status}
+                                </Badge>
+                              </td>
+                              {(canAdjust || canDelete) && (
+                                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {canDelete && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() => setDeletingS13Record(rec)}
+                                        title="Delete accidental/wrong assignment record"
+                                      >
+                                        <Trash2 size={12} />
+                                        <span className="sr-only">Delete Record</span>
+                                      </Button>
+                                    )}
+                                    {canAdjust && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                                        onClick={() => handleOpenEditS13(rec)}
+                                        title="Adjust assignment / return dates"
+                                      >
+                                        <Pencil size={12} />
+                                        <span className="sr-only">Edit Dates</span>
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
+          </div>
         )}
 
         {/* S-13 Adjust Dates Dialog */}
@@ -1144,10 +1333,10 @@ export default function ReportsClient() {
         {/* TAB 3: SERVICE GROUPS & PUBLISHERS PERFORMANCE */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 'groups-publishers' && (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full min-w-0 max-w-full">
             {/* Service Groups Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="space-y-3 w-full min-w-0 max-w-full">
+              <div className="flex items-center justify-between gap-2 flex-wrap min-w-0">
                 <h2 className="text-base font-bold text-foreground">Service Groups Performance</h2>
                 <Button
                   size="sm"
@@ -1165,26 +1354,26 @@ export default function ReportsClient() {
                   No service groups created yet.
                 </p>
               ) : (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
                   {groupsData.map((g) => (
-                    <Card key={g.groupId} className="bg-card border-border shadow-xs">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-bold text-sm text-foreground">{g.name}</h3>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <Card key={g.groupId} className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                      <CardContent className="p-4 space-y-3 min-w-0">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-sm text-foreground truncate">{g.name}</h3>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                               {g.memberCount} publisher{g.memberCount === 1 ? '' : 's'}
                             </p>
                           </div>
-                          <span className="font-black text-sm text-primary">
+                          <span className="font-black text-sm text-primary shrink-0">
                             {Math.round(g.avgCoveragePercent)}%
                           </span>
                         </div>
 
                         {/* Leadership info */}
-                        <div className="p-2 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-muted-foreground flex items-center gap-1">
+                        <div className="p-2 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1 min-w-0">
+                          <div className="flex items-center justify-between text-[11px] gap-2 min-w-0">
+                            <span className="text-muted-foreground flex items-center gap-1 shrink-0">
                               <Crown size={11} className="text-amber-500" /> Overseer:
                             </span>
                             <span className="font-semibold text-foreground truncate">
@@ -1192,8 +1381,8 @@ export default function ReportsClient() {
                             </span>
                           </div>
                           {g.assistantOverseerName && (
-                            <div className="flex items-center justify-between text-[11px] pt-0.5 border-t border-border/40">
-                              <span className="text-muted-foreground flex items-center gap-1">
+                            <div className="flex items-center justify-between text-[11px] pt-0.5 border-t border-border/40 gap-2 min-w-0">
+                              <span className="text-muted-foreground flex items-center gap-1 shrink-0">
                                 <Shield size={11} className="text-blue-500" /> Assistant:
                               </span>
                               <span className="font-semibold text-foreground truncate">
@@ -1226,18 +1415,18 @@ export default function ReportsClient() {
             </div>
 
             {/* Publishers Leaderboard */}
-            <Card className="bg-card border-border shadow-xs">
-              <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-base font-bold">
+            <Card className="bg-card border-border shadow-xs overflow-hidden w-full min-w-0 max-w-full">
+              <CardHeader className="p-4 sm:p-6 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
+                <div className="min-w-0">
+                  <CardTitle className="text-sm sm:text-base font-bold">
                     Publishers Activity Leaderboard
                   </CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Active territory assignments, completions, and field ministry visits logged
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+                  <div className="relative w-full sm:w-56">
                     <Search
                       size={13}
                       className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -1246,7 +1435,7 @@ export default function ReportsClient() {
                       placeholder="Search publishers…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-8 pl-8 text-xs w-48 sm:w-56 rounded-xl"
+                      className="h-8 pl-8 text-xs w-full rounded-xl"
                     />
                   </div>
                   <Button
@@ -1255,16 +1444,58 @@ export default function ReportsClient() {
                     onClick={() =>
                       exportPublishersToCSV(publishersData?.publishers || [], congregationName)
                     }
-                    className="h-8 rounded-xl text-xs gap-1.5 font-semibold"
+                    className="w-full sm:w-auto h-8 rounded-xl text-xs gap-1.5 font-semibold justify-center"
                   >
                     <Download size={12} />
                     <span>CSV</span>
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto rounded-2xl border border-border">
-                  <table className="w-full text-left text-xs border-collapse">
+              <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">
+                {/* 1. Mobile Card List (< md) */}
+                <div className="space-y-3 block md:hidden min-w-0">
+                  {filteredPublishers.map((pub) => (
+                    <div
+                      key={pub.userId}
+                      className="p-3.5 rounded-2xl border border-border bg-background space-y-2 shadow-2xs min-w-0"
+                    >
+                      <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-xs text-foreground truncate">{pub.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{pub.email}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] font-bold shrink-0">
+                          {pub.activeAssignments} active
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-center text-xs">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Group</p>
+                          <p className="font-medium text-foreground truncate mt-0.5">
+                            {pub.groupName || '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Done</p>
+                          <p className="font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            {pub.totalCompleted}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Visits</p>
+                          <p className="font-extrabold text-foreground mt-0.5">
+                            {pub.totalVisits}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 2. Desktop Table (>= md) */}
+                <div className="hidden md:block overflow-x-auto rounded-2xl border border-border w-full min-w-0 max-w-full">
+                  <table className="w-full text-left text-xs border-collapse min-w-[550px]">
                     <thead>
                       <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
                         <th className="py-2.5 px-3">Publisher</th>
@@ -1315,25 +1546,25 @@ export default function ReportsClient() {
         {/* TAB 4: HOUSEHOLD & DOOR DEMOGRAPHICS */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 'doors' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-              <Card className="bg-card border-border shadow-xs">
-                <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+          <div className="space-y-6 w-full min-w-0 max-w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 min-w-0">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardContent className="p-4 space-y-1 min-w-0">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground truncate">
                     Total Doors Mapped
                   </p>
                   <p className="text-2xl font-black text-foreground">{doorData?.totalDoors ?? 0}</p>
-                  <p className="text-[10px] text-muted-foreground">in territory boundaries</p>
+                  <p className="text-[10px] text-muted-foreground truncate">in territory boundaries</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-card border-border shadow-xs">
-                <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardContent className="p-4 space-y-1 min-w-0">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground truncate">
                     Doors Visited
                   </p>
                   <p className="text-2xl font-black text-primary">{doorData?.workedDoors ?? 0}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {Math.round(
                       ((doorData?.workedDoors ?? 0) / Math.max(1, doorData?.totalDoors ?? 1)) * 100
                     )}
@@ -1342,46 +1573,46 @@ export default function ReportsClient() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-card border-border shadow-xs">
-                <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardContent className="p-4 space-y-1 min-w-0">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground truncate">
                     Return Visits Pipeline
                   </p>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
                     {doorData?.returnVisitsCount ?? 0}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Active follow-ups</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Active follow-ups</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-card border-border shadow-xs">
-                <CardContent className="p-4 space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-muted-foreground">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardContent className="p-4 space-y-1 min-w-0">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground truncate">
                     Do Not Call (DNC)
                   </p>
                   <p className="text-2xl font-black text-rose-600 dark:text-rose-400">
                     {doorData?.doNotCallCount ?? 0}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Marked addresses</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Marked addresses</p>
                 </CardContent>
               </Card>
             </div>
 
             {/* Door Contact Outcomes Distribution */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="bg-card border-border shadow-xs">
-                <CardHeader className="pb-3">
+            <div className="grid md:grid-cols-2 gap-4 min-w-0">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardHeader className="p-4 sm:p-6 pb-3 min-w-0">
                   <CardTitle className="text-base font-bold">Visit Outcomes Breakdown</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 text-xs">
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3 text-xs min-w-0">
                   {/* Contacted & Discussed */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <CheckCircle2 size={13} className="text-emerald-500" /> Contacted &amp;
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" /> Contacted &amp;
                         Discussed
                       </span>
-                      <span>{doorData?.outcomeCounts.contacted ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.contacted ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1394,12 +1625,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Bible Study Conducted */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen size={13} className="text-purple-500" /> Bible Study Conducted
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <BookOpen size={13} className="text-purple-500 shrink-0" /> Bible Study Conducted
                       </span>
-                      <span>{doorData?.outcomeCounts.studyConducted ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.studyConducted ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1412,12 +1643,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Return Visits Made */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <RefreshCw size={13} className="text-indigo-500" /> Return Visits Made
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <RefreshCw size={13} className="text-indigo-500 shrink-0" /> Return Visits Made
                       </span>
-                      <span>{doorData?.outcomeCounts.returnVisit ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.returnVisit ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1430,12 +1661,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Not Home */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Home size={13} className="text-amber-500" /> Not Home
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Home size={13} className="text-amber-500 shrink-0" /> Not Home
                       </span>
-                      <span>{doorData?.outcomeCounts.notHome ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.notHome ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1448,12 +1679,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Busy / Call Back */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <PhoneCall size={13} className="text-orange-500" /> Busy / Call Back
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <PhoneCall size={13} className="text-orange-500 shrink-0" /> Busy / Call Back
                       </span>
-                      <span>{doorData?.outcomeCounts.busy ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.busy ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1466,12 +1697,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Literature Placed */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles size={13} className="text-blue-500" /> Literature Placed
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Sparkles size={13} className="text-blue-500 shrink-0" /> Literature Placed
                       </span>
-                      <span>{doorData?.outcomeCounts.placedLiterature ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.placedLiterature ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1484,12 +1715,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Foreign Language */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Globe size={13} className="text-cyan-500" /> Foreign Language Contact
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Globe size={13} className="text-cyan-500 shrink-0" /> Foreign Language Contact
                       </span>
-                      <span>{doorData?.outcomeCounts.foreignLanguage ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.foreignLanguage ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1502,12 +1733,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Minor / Youth Only */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Users size={13} className="text-violet-400" /> Minor / Youth Only
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Users size={13} className="text-violet-400 shrink-0" /> Minor / Youth Only
                       </span>
-                      <span>{doorData?.outcomeCounts.minorOnly ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.minorOnly ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1520,12 +1751,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Inaccessible / Gated */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Lock size={13} className="text-stone-500" /> Inaccessible / Gated / Dog
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Lock size={13} className="text-stone-500 shrink-0" /> Inaccessible / Gated / Dog
                       </span>
-                      <span>{doorData?.outcomeCounts.inaccessible ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.inaccessible ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1538,12 +1769,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Vacant / Unoccupied */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <Building size={13} className="text-slate-500" /> Vacant / Unoccupied
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Building size={13} className="text-slate-500 shrink-0" /> Vacant / Unoccupied
                       </span>
-                      <span>{doorData?.outcomeCounts.vacant ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.vacant ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1556,12 +1787,12 @@ export default function ReportsClient() {
                   </div>
 
                   {/* Do Not Call (DNC) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="flex items-center gap-1.5">
-                        <AlertTriangle size={13} className="text-rose-500" /> Do Not Call (DNC)
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex items-center justify-between font-semibold gap-2">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <AlertTriangle size={13} className="text-rose-500 shrink-0" /> Do Not Call (DNC)
                       </span>
-                      <span>{doorData?.outcomeCounts.doNotCall ?? 0}</span>
+                      <span className="shrink-0">{doorData?.outcomeCounts.doNotCall ?? 0}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                       <div
@@ -1576,22 +1807,22 @@ export default function ReportsClient() {
               </Card>
 
               {/* Top Mapped Streets */}
-              <Card className="bg-card border-border shadow-xs">
-                <CardHeader className="pb-3">
+              <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                <CardHeader className="p-4 sm:p-6 pb-3 min-w-0">
                   <CardTitle className="text-base font-bold">Top Streets Density</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 sm:p-6 pt-0 min-w-0">
                   {doorData?.topStreets && doorData.topStreets.length > 0 ? (
-                    <div className="space-y-2.5 text-xs">
+                    <div className="space-y-2.5 text-xs min-w-0">
                       {doorData.topStreets.map((st) => (
                         <div
                           key={st.streetName}
-                          className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/50"
+                          className="flex items-center justify-between p-2 rounded-xl bg-muted/20 border border-border/50 gap-2 min-w-0"
                         >
-                          <span className="font-medium text-foreground truncate max-w-[200px]">
+                          <span className="font-medium text-foreground truncate min-w-0">
                             {st.streetName}
                           </span>
-                          <div className="flex items-center gap-3 text-muted-foreground font-semibold">
+                          <div className="flex items-center gap-2 sm:gap-3 text-muted-foreground font-semibold shrink-0 text-[11px] sm:text-xs">
                             <span>{st.workedCount} worked</span>
                             <span className="text-foreground font-bold">{st.doorsCount} total</span>
                           </div>
@@ -1613,51 +1844,53 @@ export default function ReportsClient() {
         {/* TAB 5: MINISTRY AUDIT TIMELINE */}
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {tab === 'activity' && (
-          <Card className="bg-card border-border shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold">Ministry Event &amp; Audit Log</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Real-time chronological activity feed for assignments, completions, and returns
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {activityData?.assignments && activityData.assignments.length > 0 ? (
-                  activityData.assignments.map((act) => (
-                    <div
-                      key={act.id}
-                      className="p-3.5 rounded-2xl border border-border bg-background flex items-center justify-between gap-4 text-xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
-                          <Calendar size={15} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-foreground truncate">
-                            #{act.territoryNumber} {act.territoryName} assigned to{' '}
-                            {act.publisherName}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {act.assignedAt ? new Date(act.assignedAt).toLocaleString() : 'Recent'}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] font-semibold text-primary shrink-0"
+          <div className="w-full min-w-0 max-w-full">
+            <Card className="bg-card border-border shadow-xs overflow-hidden w-full min-w-0 max-w-full">
+              <CardHeader className="p-4 sm:p-6 pb-3 min-w-0">
+                <CardTitle className="text-base font-bold">Ministry Event &amp; Audit Log</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Real-time chronological activity feed for assignments, completions, and returns
+                </p>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">
+                <div className="space-y-3 min-w-0">
+                  {activityData?.assignments && activityData.assignments.length > 0 ? (
+                    activityData.assignments.map((act) => (
+                      <div
+                        key={act.id}
+                        className="p-3.5 rounded-2xl border border-border bg-background flex items-center justify-between gap-3 text-xs min-w-0"
                       >
-                        Assigned
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs text-muted-foreground text-center py-8">
-                    No recent assignment events recorded.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                            <Calendar size={15} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-foreground truncate">
+                              #{act.territoryNumber} {act.territoryName} assigned to{' '}
+                              {act.publisherName}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {act.assignedAt ? new Date(act.assignedAt).toLocaleString() : 'Recent'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-semibold text-primary shrink-0"
+                        >
+                          Assigned
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-8">
+                      No recent assignment events recorded.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </main>
       <BottomTabBar />

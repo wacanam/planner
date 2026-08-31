@@ -377,9 +377,9 @@ export default function CongregationDashboardClient() {
         <DashboardProgressGauge {...contextProps} />
 
         {/* 4. 2-Column Responsive Bento Grid */}
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid lg:grid-cols-3 gap-5 min-w-0">
           {/* Main Left Column (2 cols wide) */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 min-w-0">
             {/* Follow-ups & Return Visits Radar */}
             <ReturnVisitsCard {...contextProps} />
 
@@ -388,7 +388,7 @@ export default function CongregationDashboardClient() {
           </div>
 
           {/* Main Right Column (1 col wide) */}
-          <div className="space-y-5">
+          <div className="space-y-5 min-w-0">
             {/* Service Group & Meeting Arrangements */}
             <ServiceArrangementsWidget {...contextProps} />
 
