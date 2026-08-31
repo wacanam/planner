@@ -19,7 +19,6 @@ import type {
   Household,
   Member,
   S13AssignmentRecord,
-  TeachingAnalyticsReport,
   Territory,
   TerritoryHealthStatus,
   Visit,

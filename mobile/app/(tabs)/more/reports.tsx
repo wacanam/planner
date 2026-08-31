@@ -28,7 +28,6 @@ import { getServiceYear } from '@/lib/service-year';
 import { triggerHaptic } from '@/lib/sound';
 
 export default function ReportsScreen() {
-  const _router = useRouter();
   const insets = useSafeAreaInsets();
   const { activeCongregationId } = useAuth();
   const { congregation } = useCongregation(activeCongregationId);
@@ -374,96 +373,98 @@ export default function ReportsScreen() {
             </Card>
           </ScrollView>
         )
-      ) : s13Loading ? (
-        <ReportsS13Skeleton />
-      ) : (
-        /* S-13 Assignment Records Table / List */
-        <FlatList
-          data={s13Records}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{
-            padding: spacing.md,
-            paddingBottom: insets.bottom + spacing.xxl,
-          }}
-          renderItem={({ item }) => (
-            <Card style={[styles.s13Card, { marginBottom: spacing.sm }]}>
-              <View style={styles.s13Header}>
-                <View style={styles.numberBox}>
-                  <Text
-                    style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}
-                  >
-                    #{item.territoryNumber}
-                  </Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <Text
-                    style={{
-                      fontWeight: '700',
-                      color: colors.foreground,
-                      fontSize: typography.sm + 1,
-                    }}
-                  >
-                    {item.territoryName}
-                  </Text>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    {item.assigneeName} {item.isGroupAssignment ? '(Group)' : ''}
-                  </Text>
-                </View>
-                <Badge
-                  label={item.returnedAt ? 'Completed' : 'Active'}
-                  variant={item.returnedAt ? 'success' : 'primary'}
-                  size="sm"
-                />
-              </View>
-
-              <View style={[styles.s13DatesRow, { borderTopColor: colors.border }]}>
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    ASSIGNED
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.assignedAt ? formatDate(item.assignedAt) : '—'}
-                  </Text>
+      ) : activeSegment === 's13' ? (
+        s13Loading ? (
+          <ReportsS13Skeleton />
+        ) : (
+          /* S-13 Assignment Records Table / List */
+          <FlatList
+            data={s13Records}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{
+              padding: spacing.md,
+              paddingBottom: insets.bottom + spacing.xxl,
+            }}
+            renderItem={({ item }) => (
+              <Card style={[styles.s13Card, { marginBottom: spacing.sm }]}>
+                <View style={styles.s13Header}>
+                  <View style={styles.numberBox}>
+                    <Text
+                      style={{ fontWeight: '800', color: colors.primary, fontSize: typography.base }}
+                    >
+                      #{item.territoryNumber}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <Text
+                      style={{
+                        fontWeight: '700',
+                        color: colors.foreground,
+                        fontSize: typography.sm + 1,
+                      }}
+                    >
+                      {item.territoryName}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
+                      {item.assigneeName} {item.isGroupAssignment ? '(Group)' : ''}
+                    </Text>
+                  </View>
+                  <Badge
+                    label={item.returnedAt ? 'Completed' : 'Active'}
+                    variant={item.returnedAt ? 'success' : 'primary'}
+                    size="sm"
+                  />
                 </View>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    RETURNED
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.returnedAt ? formatDate(item.returnedAt) : 'In Field'}
-                  </Text>
-                </View>
+                <View style={[styles.s13DatesRow, { borderTopColor: colors.border }]}>
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      ASSIGNED
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.assignedAt ? formatDate(item.assignedAt) : '—'}
+                    </Text>
+                  </View>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    DURATION
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
-                  >
-                    {item.durationDays !== null ? `${item.durationDays}d` : '—'}
-                  </Text>
-                </View>
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      RETURNED
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.returnedAt ? formatDate(item.returnedAt) : 'In Field'}
+                    </Text>
+                  </View>
 
-                <View>
-                  <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
-                    COVERAGE
-                  </Text>
-                  <Text
-                    style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}
-                  >
-                    {Math.round(item.coverageAtReturn)}%
-                  </Text>
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      DURATION
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '600' }}
+                    >
+                      {item.durationDays !== null ? `${item.durationDays}d` : '—'}
+                    </Text>
+                  </View>
+
+                  <View>
+                    <Text style={{ color: colors.mutedForeground, fontSize: typography.xs - 1 }}>
+                      COVERAGE
+                    </Text>
+                    <Text
+                      style={{ color: colors.foreground, fontSize: typography.xs, fontWeight: '700' }}
+                    >
+                      {Math.round(item.coverageAtReturn)}%
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            </Card>
-          )}
-        />
+              </Card>
+            )}
+          />
+        )
       ) : (
         /* Teaching & RVs Analytics */
         teachingLoading ? (
