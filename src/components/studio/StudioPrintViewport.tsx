@@ -324,6 +324,21 @@ export function StudioPrintViewport({
     });
   };
 
+  const waitForImageInElement = async (
+    container: HTMLElement | null,
+    timeoutMs = 1500
+  ): Promise<void> => {
+    if (!container) return;
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeoutMs) {
+      const img = container.querySelector('img');
+      if (img && img.src && img.complete && img.naturalWidth > 0) {
+        return;
+      }
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  };
+
   const handleDownloadPng = async () => {
     setIsExportingPng(true);
     try {
@@ -331,8 +346,11 @@ export function StudioPrintViewport({
       const snapshot = await acquireViewportSnapshot();
       setMapSnapshotUrl(snapshot);
 
-      // Wait a moment for image to render in hidden DOM
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for snapshot image to render and decode in hidden DOM
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      if (side === 'front' || side === 'both') {
+        await waitForImageInElement(hiddenFrontRef.current);
+      }
 
       // 2. Export requested side(s)
       if (side === 'front' && hiddenFrontRef.current) {
@@ -367,8 +385,11 @@ export function StudioPrintViewport({
       const snapshot = await acquireViewportSnapshot();
       setMapSnapshotUrl(snapshot);
 
-      // Wait a moment for image to render in hidden DOM
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for snapshot image to render and decode in hidden DOM
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      if (side === 'front' || side === 'both') {
+        await waitForImageInElement(hiddenFrontRef.current);
+      }
 
       // 2. Export PDF
       const filename = `${territoryFilePrefix}-PrintCard.pdf`;

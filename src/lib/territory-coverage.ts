@@ -29,7 +29,7 @@ export function parseDateStartMs(date?: string | number | Date | null): number |
     if (!trimmed) return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       const [y, m, d] = trimmed.split('-').map(Number);
-      return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+      return Date.UTC(y, m - 1, d, 0, 0, 0, 0);
     }
     const parsed = new Date(trimmed).getTime();
     return Number.isNaN(parsed) ? null : parsed;
@@ -52,7 +52,7 @@ export function parseDateEndMs(date?: string | number | Date | null): number | n
     if (!trimmed) return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
       const [y, m, d] = trimmed.split('-').map(Number);
-      return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+      return Date.UTC(y, m - 1, d, 23, 59, 59, 999);
     }
     const parsed = new Date(trimmed);
     const t = parsed.getTime();

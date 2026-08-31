@@ -1,5 +1,9 @@
 import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import { ensureWebGLDrawingBufferPreserved } from './webgl-preserve';
+
+// Ensure WebGL drawing buffers are preserved on client
+ensureWebGLDrawingBufferPreserved();
 
 export async function captureMapViewportSnapshot({
   mapContainer,
@@ -14,25 +18,15 @@ export async function captureMapViewportSnapshot({
   frameW: number;
   frameH: number;
 }): Promise<string> {
-  // Ensure all Google tile images have crossOrigin set to anonymous and wait for them to load
+  // Wait for all Google map tile / overlay images to load
   const images = Array.from(mapContainer.querySelectorAll('img'));
   await Promise.all(
     images.map((img) => {
-      if (
-        !img.crossOrigin &&
-        img.src &&
-        (img.src.includes('google') ||
-          img.src.includes('khms') ||
-          img.src.includes('gstatic') ||
-          img.src.includes('googleapis'))
-      ) {
-        img.crossOrigin = 'anonymous';
-      }
       if (img.complete) return Promise.resolve();
       return new Promise((resolve) => {
         img.onload = resolve;
         img.onerror = resolve;
-        setTimeout(resolve, 400);
+        setTimeout(resolve, 300);
       });
     })
   );
@@ -48,7 +42,11 @@ export async function captureMapViewportSnapshot({
           node.classList.contains('no-capture') ||
           node.classList.contains('studio-print-overlay') ||
           node.classList.contains('gm-control-active') ||
-          node.classList.contains('gmnoprint')
+          node.classList.contains('gmnoprint') ||
+          node.classList.contains('gm-style-cc') ||
+          node.classList.contains('gm-bundled-control') ||
+          node.getAttribute('aria-label')?.includes('Google') ||
+          node.getAttribute('title')?.includes('Google')
         ) {
           return false;
         }
@@ -57,21 +55,24 @@ export async function captureMapViewportSnapshot({
     },
   });
 
-  const containerW = mapContainer.clientWidth || window.innerWidth;
-  const scale = fullCanvas.width / containerW;
+  const containerRect = mapContainer.getBoundingClientRect();
+  const containerW = containerRect.width || mapContainer.clientWidth || window.innerWidth;
+  const containerH = containerRect.height || mapContainer.clientHeight || window.innerHeight;
+  const scaleX = fullCanvas.width / containerW;
+  const scaleY = fullCanvas.height / containerH;
 
   const croppedCanvas = document.createElement('canvas');
-  croppedCanvas.width = Math.max(1, Math.round(frameW * scale));
-  croppedCanvas.height = Math.max(1, Math.round(frameH * scale));
+  croppedCanvas.width = Math.max(1, Math.round(frameW * scaleX));
+  croppedCanvas.height = Math.max(1, Math.round(frameH * scaleY));
   const ctx = croppedCanvas.getContext('2d');
   if (!ctx) throw new Error('Could not get 2D rendering context for snapshot');
 
   ctx.drawImage(
     fullCanvas,
-    Math.round(frameX * scale),
-    Math.round(frameY * scale),
-    Math.round(frameW * scale),
-    Math.round(frameH * scale),
+    Math.round(frameX * scaleX),
+    Math.round(frameY * scaleY),
+    Math.round(frameW * scaleX),
+    Math.round(frameH * scaleY),
     0,
     0,
     croppedCanvas.width,
@@ -123,7 +124,8 @@ export async function exportCardToPdf(options: ExportPdfOptions): Promise<void> 
     const dataUrl = await toPng(el, {
       quality: 0.98,
       pixelRatio: 2.5,
-      cacheBust: true,
+      cacheBust: false,
+      skipFonts: true,
     });
     if (!isFirstPage) {
       doc.addPage([effectiveW, effectiveH], effectiveOrientation);
@@ -148,3 +150,4 @@ export async function exportCardToPdf(options: ExportPdfOptions): Promise<void> 
 
   doc.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
 }
+
