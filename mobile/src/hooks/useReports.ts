@@ -8,13 +8,18 @@ import {
   getServiceYearRange,
   isDateInServiceYear,
 } from '@/lib/service-year';
+import { buildTeachingAnalyticsReport } from '@/lib/teaching-metrics';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type {
   Assignment,
   CoverageReport,
   CoverageTerritory,
+  Encounter,
+  Group,
   Household,
+  Member,
   S13AssignmentRecord,
+  TeachingAnalyticsReport,
   Territory,
   TerritoryHealthStatus,
   Visit,
@@ -479,4 +484,103 @@ export function useS13Report(
   }, [assignments, territories, households, visits, selectedServiceYear]);
 
   return { data: s13Records, isLoading };
+}
+
+export function useTeachingAnalyticsReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [encounters, setEncounters] = useState<Encounter[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
+
+  useEffect(() => {
+    if (!congregationId) {
+      setHouseholds([]);
+      setVisits([]);
+      setEncounters([]);
+      setGroups([]);
+      setMembers([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    const firestore = getPlannerFirestore();
+
+    const unsubHouseholds = onSnapshot(
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.households),
+        where('congregationId', '==', congregationId)
+      ),
+      (snap) => {
+        setHouseholds(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Household));
+      }
+    );
+
+    const unsubVisits = onSnapshot(
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.visits),
+        where('congregationId', '==', congregationId)
+      ),
+      (snap) => {
+        setVisits(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Visit));
+      }
+    );
+
+    const unsubEncounters = onSnapshot(
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.encounters),
+        where('congregationId', '==', congregationId)
+      ),
+      (snap) => {
+        setEncounters(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Encounter));
+      }
+    );
+
+    const unsubGroups = onSnapshot(
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.groups),
+        where('congregationId', '==', congregationId)
+      ),
+      (snap) => {
+        setGroups(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Group));
+      }
+    );
+
+    const unsubMembers = onSnapshot(
+      query(
+        collection(firestore, FIRESTORE_COLLECTIONS.congregationMembers),
+        where('congregationId', '==', congregationId)
+      ),
+      (snap) => {
+        setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Member));
+        setIsLoading(false);
+      },
+      () => {
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      unsubHouseholds();
+      unsubVisits();
+      unsubEncounters();
+      unsubGroups();
+      unsubMembers();
+    };
+  }, [congregationId]);
+
+  const report = useMemo(() => {
+    return buildTeachingAnalyticsReport(households, visits, encounters, groups, members, {
+      serviceYear: selectedServiceYear,
+    });
+  }, [households, visits, encounters, groups, members, selectedServiceYear]);
+
+  return { data: report, isLoading };
 }

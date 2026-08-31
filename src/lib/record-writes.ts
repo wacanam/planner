@@ -27,12 +27,17 @@ export async function saveVisitRecord(data: Record<string, unknown>): Promise<st
     outcome: String(data.outcome ?? 'other'),
     householdStatusAfter: (data.householdStatusAfter as string | null | undefined) ?? null,
     duration: (data.duration as number | null | undefined) ?? null,
-    literatureLeft: (data.literatureLeft as string | null | undefined) ?? null,
+    literatureLeft: ((data.literatureLeft ?? data.literaturePlaced) as string | null | undefined) ?? null,
+    literaturePlaced: ((data.literaturePlaced ?? data.literatureLeft) as string | null | undefined) ?? null,
     bibleTopicDiscussed: (data.bibleTopicDiscussed as string | null | undefined) ?? null,
     returnVisitPlanned: Boolean(data.returnVisitPlanned),
     nextVisitDate: (data.nextVisitDate as string | null | undefined) ?? null,
     nextVisitTime: (data.nextVisitTime as string | null | undefined) ?? null,
     nextVisitNotes: (data.nextVisitNotes as string | null | undefined) ?? null,
+    scheduledAppointmentType: (data.scheduledAppointmentType as any) ?? null,
+    bibleStudyStatus: (data.bibleStudyStatus as any) ?? null,
+    studyOffered: Boolean(data.studyOffered),
+    isAppointmentMissed: Boolean(data.isAppointmentMissed),
     notes: (data.notes as string | null | undefined) ?? null,
   });
   return visit.id;

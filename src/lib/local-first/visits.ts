@@ -29,11 +29,16 @@ export interface CreateVisitInput {
   householdStatusAfter?: string | null;
   duration?: number | null;
   literatureLeft?: string | null;
+  literaturePlaced?: string | null;
   bibleTopicDiscussed?: string | null;
   returnVisitPlanned?: boolean | null;
   nextVisitDate?: string | null;
   nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
+  scheduledAppointmentType?: 'return_visit' | 'bible_study' | null;
+  bibleStudyStatus?: 'conducted' | 'offered' | 'missed' | 'none' | null;
+  studyOffered?: boolean | null;
+  isAppointmentMissed?: boolean | null;
   notes?: string | null;
 }
 
@@ -150,6 +155,10 @@ export function toVisitView(
     nextVisitDate: record.nextVisitDate,
     nextVisitTime: record.nextVisitTime,
     nextVisitNotes: record.nextVisitNotes,
+    scheduledAppointmentType: record.scheduledAppointmentType ?? null,
+    bibleStudyStatus: record.bibleStudyStatus ?? null,
+    studyOffered: Boolean(record.studyOffered),
+    isAppointmentMissed: Boolean(record.isAppointmentMissed),
     notes: record.notes,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -182,6 +191,10 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
     nextVisitDate: visit.nextVisitDate ?? null,
     nextVisitTime: visit.nextVisitTime ?? null,
     nextVisitNotes: visit.nextVisitNotes ?? null,
+    scheduledAppointmentType: visit.scheduledAppointmentType ?? null,
+    bibleStudyStatus: visit.bibleStudyStatus ?? null,
+    studyOffered: Boolean(visit.studyOffered),
+    isAppointmentMissed: Boolean(visit.isAppointmentMissed),
     notes: visit.notes ?? null,
     deletedAt: null,
     createdAt: isoDate(visit.createdAt, now),
@@ -222,6 +235,10 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
     nextVisitDate: nullableString(input.nextVisitDate),
     nextVisitTime: nullableString(input.nextVisitTime),
     nextVisitNotes: nullableString(input.nextVisitNotes),
+    scheduledAppointmentType: input.scheduledAppointmentType ?? null,
+    bibleStudyStatus: input.bibleStudyStatus ?? null,
+    studyOffered: Boolean(input.studyOffered),
+    isAppointmentMissed: Boolean(input.isAppointmentMissed),
     notes: nullableString(input.notes),
     deletedAt: null,
     createdAt: now,

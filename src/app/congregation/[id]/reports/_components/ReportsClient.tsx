@@ -65,6 +65,7 @@ import {
   useGroupsReport,
   usePublishersReport,
   useS13Report,
+  useTeachingAnalyticsReport,
   useUpdateAssignment,
 } from '@/hooks';
 import { exportFullCongregationReportPDF } from '@/lib/full-report-pdf-export';
@@ -75,13 +76,14 @@ import {
   exportGroupsToCSV,
   exportPublishersToCSV,
   exportS13ToCSV,
+  exportTeachingAnalyticsToCSV,
 } from '@/lib/reports-csv-export';
 import { UserRole } from '@/lib/roles';
 import { exportS13ToPDF } from '@/lib/s13-pdf-export';
 import { getServiceYear } from '@/lib/service-year';
 import type { S13AssignmentRecord } from '@/types/api';
 
-type Tab = 'overview' | 's13' | 'groups-publishers' | 'doors' | 'activity';
+type Tab = 'overview' | 's13' | 'teaching' | 'groups-publishers' | 'doors' | 'activity';
 
 export default function ReportsClient() {
   const params = useParams();
@@ -100,6 +102,7 @@ export default function ReportsClient() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [healthFilter, setHealthFilter] = useState<string>('all');
   const [s13Filter, setS13Filter] = useState<string>('all');
+  const [teachingGroupFilter, setTeachingGroupFilter] = useState<string>('all');
 
   // S-13 Date Adjustment state
   const [editingS13Record, setEditingS13Record] = useState<S13AssignmentRecord | null>(null);
@@ -121,6 +124,10 @@ export default function ReportsClient() {
   const { data: s13Records = [], isLoading: s13Loading } = useS13Report(congregationId, {
     serviceYear: selectedServiceYear,
   });
+  const { data: teachingData, isLoading: teachingLoading } = useTeachingAnalyticsReport(
+    congregationId,
+    { serviceYear: selectedServiceYear }
+  );
   const { data: groupsData = [], isLoading: groupsLoading } = useGroupsReport(congregationId, {
     serviceYear: selectedServiceYear,
   });
@@ -331,6 +338,7 @@ export default function ReportsClient() {
                       s13Records,
                       groupsData,
                       publishersData: publishersData?.publishers,
+                      teachingData,
                       doorData,
                       activityData,
                     })
@@ -346,6 +354,19 @@ export default function ReportsClient() {
                 >
                   <FileSpreadsheet size={14} className="text-blue-600" />
                   <span>Download S-13 Record (PDF)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    exportTeachingAnalyticsToCSV(
+                      teachingData || { totals: {}, byGroup: [], byPublisher: [] },
+                      congregationName,
+                      selectedServiceYear
+                    )
+                  }
+                  className="cursor-pointer gap-2 py-2 font-semibold text-purple-600 dark:text-purple-400"
+                >
+                  <BookOpen size={14} className="text-purple-600" />
+                  <span>Export Teaching Analytics (CSV)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => exportS13ToCSV(s13Records, congregationName, selectedServiceYear)}
@@ -553,6 +574,22 @@ export default function ReportsClient() {
             >
               <FileSpreadsheet size={14} />
               <span>S-13 Territory Record</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab('teaching');
+                setSearchQuery('');
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                tab === 'teaching'
+                  ? 'bg-card text-purple-600 dark:text-purple-400 shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BookOpen size={14} />
+              <span>Teaching & Follow-ups</span>
             </button>
 
             <button
@@ -1342,6 +1379,310 @@ export default function ReportsClient() {
             </div>
           </div>
         </ResponsiveDialog>
+
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        {/* TAB: TEACHING & FOLLOW-UP ANALYTICS */}
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        {tab === 'teaching' && (
+          <div className="space-y-6 w-full min-w-0 max-w-full">
+            {/* Teaching KPI Header Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* KPI 1: Interested Contacts */}
+              <Card className="bg-card border-border shadow-xs">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Interested Contacts
+                    </span>
+                    <Sparkles size={15} className="text-emerald-500" />
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-2xl font-black text-foreground">
+                      {teachingData?.totals.interestedContacts.total ?? 0}
+                    </p>
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      {teachingData?.totals.interestedContacts.studyInterested ?? 0} study interests
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+                    <span>{teachingData?.totals.interestedContacts.receptive ?? 0} receptive</span>
+                    <span>{teachingData?.totals.interestedContacts.returnVisitRequested ?? 0} requested RV</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* KPI 2: Return Visits */}
+              <Card className="bg-card border-border shadow-xs">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Return Visits Made
+                    </span>
+                    <CheckCircle2 size={15} className="text-blue-500" />
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-2xl font-black text-foreground">
+                      {teachingData?.totals.returnVisits.visited ?? 0}
+                    </p>
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">
+                      {teachingData?.totals.returnVisits.missed ?? 0} missed
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+                    <span>{teachingData?.totals.returnVisits.upcoming ?? 0} upcoming</span>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                      {((teachingData?.totals.returnVisits.visited ?? 0) + (teachingData?.totals.returnVisits.missed ?? 0)) > 0
+                        ? Math.round(
+                            ((teachingData?.totals.returnVisits.visited ?? 0) /
+                              ((teachingData?.totals.returnVisits.visited ?? 0) +
+                                (teachingData?.totals.returnVisits.missed ?? 0))) *
+                              100
+                          )
+                        : 100}
+                      % completed
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* KPI 3: Bible Studies Conducted & Offered */}
+              <Card className="bg-card border-border shadow-xs">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Studies Conducted
+                    </span>
+                    <BookOpen size={15} className="text-purple-500" />
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-2xl font-black text-foreground">
+                      {teachingData?.totals.bibleStudies.conducted ?? 0}
+                    </p>
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                      {teachingData?.totals.bibleStudies.offered ?? 0} offered
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+                    <span>{teachingData?.totals.bibleStudies.missed ?? 0} missed</span>
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-purple-300 text-purple-700 dark:text-purple-300">
+                      Active Teaching
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* KPI 4: Active Bible Studies Pipeline */}
+              <Card className="bg-card border-border shadow-xs">
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Active Studies Pipeline
+                    </span>
+                    <Users size={15} className="text-violet-500" />
+                  </div>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-2xl font-black text-violet-600 dark:text-violet-400">
+                      {teachingData?.totals.bibleStudies.activeCount ?? 0}
+                    </p>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      Ongoing studies
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
+                    <span>Across all groups</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Live Pipeline</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-2xs">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="relative flex-1 min-w-0">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search publisher or group name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 h-9 text-xs rounded-xl bg-background"
+                  />
+                </div>
+                <Select value={teachingGroupFilter} onValueChange={setTeachingGroupFilter}>
+                  <SelectTrigger className="h-9 w-40 rounded-xl text-xs bg-background shrink-0">
+                    <SelectValue placeholder="All Groups" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border text-xs">
+                    <SelectItem value="all">All Groups</SelectItem>
+                    {(groupsData || []).map((g) => (
+                      <SelectItem key={g.groupId} value={g.groupId}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  exportTeachingAnalyticsToCSV(
+                    teachingData || { totals: {}, byGroup: [], byPublisher: [] },
+                    congregationName,
+                    selectedServiceYear
+                  )
+                }
+                className="rounded-xl text-xs gap-1.5 h-9 shrink-0 text-purple-600 dark:text-purple-400 hover:text-purple-700"
+              >
+                <Download size={13} />
+                <span>Export Teaching CSV</span>
+              </Button>
+            </div>
+
+            {/* Service Groups Teaching Breakdown */}
+            <div className="space-y-3 w-full min-w-0">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-foreground">Service Groups Teaching &amp; Follow-up Stats</h2>
+                <Badge variant="secondary" className="text-xs">
+                  {teachingData?.byGroup?.length ?? 0} Groups
+                </Badge>
+              </div>
+
+              {(teachingData?.byGroup || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No service groups available.</p>
+              ) : (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
+                  {(teachingData?.byGroup || [])
+                    .filter((g) => teachingGroupFilter === 'all' || g.groupId === teachingGroupFilter)
+                    .map((g) => (
+                      <Card key={g.groupId} className="bg-card border-border shadow-xs overflow-hidden min-w-0">
+                        <CardContent className="p-4 space-y-3 min-w-0">
+                          <div className="flex items-start justify-between gap-2 min-w-0">
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-sm text-foreground truncate">{g.name}</h3>
+                              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                                Overseer: {g.overseerName || 'Unassigned'} • {g.memberCount} members
+                              </p>
+                            </div>
+                            <Badge className="bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20 font-bold shrink-0">
+                              {g.metrics.bibleStudies.activeCount} active {g.metrics.bibleStudies.activeCount === 1 ? 'study' : 'studies'}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/60 text-center">
+                            <div className="p-2 rounded-xl bg-muted/40">
+                              <p className="text-xs font-bold text-foreground">{g.metrics.interestedContacts.total}</p>
+                              <p className="text-[10px] text-muted-foreground">Interested</p>
+                            </div>
+                            <div className="p-2 rounded-xl bg-muted/40">
+                              <p className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                                {g.metrics.returnVisits.visited}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                RVs ({g.metrics.returnVisits.missed} msd)
+                              </p>
+                            </div>
+                            <div className="p-2 rounded-xl bg-muted/40">
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                                {g.metrics.bibleStudies.conducted}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                Studies ({g.metrics.bibleStudies.offered} off)
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Publishers Teaching & Follow-up Breakdown Table */}
+            <div className="space-y-3 w-full min-w-0">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-foreground">Publishers Teaching &amp; Follow-up Activity</h2>
+                <span className="text-xs text-muted-foreground">
+                  {(teachingData?.byPublisher || []).length} Publishers
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-muted/50 text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border">
+                      <tr>
+                        <th className="px-4 py-3">Publisher Name</th>
+                        <th className="px-3 py-3">Service Group</th>
+                        <th className="px-3 py-3 text-center">Interested</th>
+                        <th className="px-3 py-3 text-center">RV Visited</th>
+                        <th className="px-3 py-3 text-center">RV Missed</th>
+                        <th className="px-3 py-3 text-center">Studies Conducted</th>
+                        <th className="px-3 py-3 text-center">Studies Offered</th>
+                        <th className="px-3 py-3 text-center">Studies Missed</th>
+                        <th className="px-4 py-3 text-right">Active Studies</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {(teachingData?.byPublisher || [])
+                        .filter((p) => {
+                          const matchesQuery =
+                            !searchQuery.trim() ||
+                            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            p.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
+                          return matchesQuery;
+                        })
+                        .map((p) => (
+                          <tr key={p.userId} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2.5 font-bold text-foreground">
+                              {p.name}
+                            </td>
+                            <td className="px-3 py-2.5 text-muted-foreground">
+                              {p.groupName || '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-semibold text-foreground">
+                              {p.metrics.interestedContacts.total}
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-bold text-blue-600 dark:text-blue-400">
+                              {p.metrics.returnVisits.visited}
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              {p.metrics.returnVisits.missed > 0 ? (
+                                <span className="font-bold text-amber-600 dark:text-amber-400">
+                                  {p.metrics.returnVisits.missed}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">0</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-bold text-purple-600 dark:text-purple-400">
+                              {p.metrics.bibleStudies.conducted}
+                            </td>
+                            <td className="px-3 py-2.5 text-center font-medium text-foreground">
+                              {p.metrics.bibleStudies.offered}
+                            </td>
+                            <td className="px-3 py-2.5 text-center">
+                              {p.metrics.bibleStudies.missed > 0 ? (
+                                <span className="font-bold text-rose-600 dark:text-rose-400">
+                                  {p.metrics.bibleStudies.missed}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">0</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-black text-emerald-600 dark:text-emerald-400">
+                              {p.metrics.bibleStudies.activeCount}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ───────────────────────────────────────────────────────────────────────── */}
         {/* TAB 3: SERVICE GROUPS & PUBLISHERS PERFORMANCE */}

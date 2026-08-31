@@ -431,25 +431,78 @@ export interface GroupReportStats {
   territoryNumbers: string[];
 }
 
+export interface MinistryTeachingMetrics {
+  interestedContacts: {
+    total: number;
+    receptive: number;
+    studyInterested: number;
+    returnVisitRequested: number;
+  };
+  interestedCount: number;
+  returnVisits: {
+    total: number;
+    visited: number;
+    missed: number;
+    upcoming: number;
+  };
+  bibleStudies: {
+    conducted: number;
+    offered: number;
+    missed: number;
+    activeCount: number;
+  };
+}
+
+export interface GroupTeachingStats {
+  groupId: string;
+  name: string;
+  overseerName: string | null;
+  memberCount: number;
+  metrics: MinistryTeachingMetrics;
+}
+
+export interface PublisherTeachingStats {
+  userId: string;
+  name: string;
+  email: string;
+  role?: string;
+  groupName?: string;
+  metrics: MinistryTeachingMetrics;
+}
+
+export interface TeachingAnalyticsReport {
+  totals: MinistryTeachingMetrics;
+  byGroup: GroupTeachingStats[];
+  byPublisher: PublisherTeachingStats[];
+  serviceYear?: number | 'all';
+}
+
 export interface DoorAnalyticsReport {
   totalDoors: number;
   workedDoors: number;
   unworkedDoors: number;
   doNotCallCount: number;
   returnVisitsCount: number;
+  returnVisitsMissedCount?: number;
+  studyConductedCount?: number;
+  studyOfferedCount?: number;
+  studyMissedCount?: number;
+  interestedCount?: number;
   foreignLanguageCount?: number;
   vacantCount?: number;
   inaccessibleCount?: number;
   busyCount?: number;
-  studyConductedCount?: number;
   outcomeCounts: {
     notHome: number;
     contacted: number;
     placedLiterature: number;
     returnVisit: number;
+    returnVisitMissed?: number;
     busy: number;
     doNotCall: number;
     studyConducted: number;
+    studyOffered?: number;
+    studyMissed?: number;
     minorOnly: number;
     foreignLanguage: number;
     inaccessible: number;
@@ -520,6 +573,54 @@ export interface User {
   updatedAt: string;
 }
 
+// ─── Domain Status & Outcomes ──────────────────────────────────────────────────
+
+export type HouseholdStatus =
+  | 'new'
+  | 'available'
+  | 'return_visit'
+  | 'bible_study'
+  | 'not_home'
+  | 'busy'
+  | 'do_not_visit'
+  | 'foreign_language'
+  | 'inaccessible'
+  | 'vacant'
+  | 'moved'
+  | 'inactive';
+
+export type VisitOutcome =
+  | 'answered'
+  | 'not_home'
+  | 'busy'
+  | 'return_visit_completed'
+  | 'return_visit_missed'
+  | 'study_conducted'
+  | 'study_offered'
+  | 'study_missed'
+  | 'literature_placed'
+  | 'minor_only'
+  | 'foreign_language'
+  | 'inaccessible'
+  | 'vacant'
+  | 'do_not_visit'
+  | 'moved'
+  | 'other';
+
+export type EncounterResponse =
+  | 'receptive'
+  | 'study_accepted'
+  | 'study_offered'
+  | 'return_visit_requested'
+  | 'neutral'
+  | 'busy'
+  | 'not_interested'
+  | 'hostile'
+  | 'do_not_visit_demanded'
+  | 'foreign_speaker'
+  | 'minor'
+  | 'moving_away';
+
 // ─── Visits ────────────────────────────────────────────────────────────────────
 
 export interface Visit {
@@ -529,9 +630,9 @@ export interface Visit {
   publisherName?: string | null;
   householdId: string;
   visitDate: string;
-  outcome: string;
-  householdStatusBefore?: string | null;
-  householdStatusAfter?: string | null;
+  outcome: VisitOutcome | string;
+  householdStatusBefore?: HouseholdStatus | string | null;
+  householdStatusAfter?: HouseholdStatus | string | null;
   duration?: number | null;
   literatureLeft?: string | null;
   literaturePlaced?: string | null;
@@ -540,6 +641,10 @@ export interface Visit {
   nextVisitDate?: string | null;
   nextVisitTime?: string | null;
   nextVisitNotes?: string | null;
+  scheduledAppointmentType?: 'return_visit' | 'bible_study' | null;
+  bibleStudyStatus?: 'conducted' | 'offered' | 'missed' | 'none' | null;
+  studyOffered?: boolean;
+  isAppointmentMissed?: boolean;
   assignmentId?: string | null;
   notes?: string | null;
   createdAt: string;
@@ -571,11 +676,11 @@ export interface Household {
   occupantsCount?: number | null;
   languages?: string | null;
   bestTimeToCall?: string | null;
-  status: string;
+  status: HouseholdStatus | string;
   notes?: string | null;
   lwpNotes?: string | null;
   lastVisitDate?: string | null;
-  lastVisitOutcome?: string | null;
+  lastVisitOutcome?: VisitOutcome | string | null;
   territoryId?: string | null;
   congregationId?: string | null;
   createdById?: string | null;
@@ -650,6 +755,7 @@ export interface CreateContactInput {
   email?: string | null;
   bestTimeToCall?: string | null;
   bibleStudyInterest?: boolean;
+  studyOffered?: boolean;
   bibleStudyPublication?: string | null;
   bibleStudyLesson?: string | null;
   notes?: string | null;
@@ -668,6 +774,7 @@ export interface UpdateContactInput {
   email?: string | null;
   bestTimeToCall?: string | null;
   bibleStudyInterest?: boolean;
+  studyOffered?: boolean;
   bibleStudyPublication?: string | null;
   bibleStudyLesson?: string | null;
   notes?: string | null;
@@ -694,7 +801,7 @@ export interface Encounter {
   gender?: string | null;
   ageGroup?: string | null;
   role?: string | null;
-  response: string;
+  response: EncounterResponse | string;
   language?: string | null;
   languageSpoken?: string | null;
   phoneNumber?: string | null;
@@ -705,6 +812,7 @@ export interface Encounter {
   literatureOffered?: string | null;
   literatureAccepted?: string | null;
   bibleStudyInterest: boolean;
+  studyOffered?: boolean;
   bibleStudyPublication?: string | null;
   bibleStudyLesson?: string | null;
   returnVisitRequested: boolean;

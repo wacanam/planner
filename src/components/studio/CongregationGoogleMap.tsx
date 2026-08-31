@@ -4,6 +4,7 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
 import type {
   Congregation,
   Household,
@@ -325,26 +326,7 @@ function getLandmarkIconConfig(type: string): { bg: string; svg: string } {
 }
 
 function getHouseholdStatusColor(status?: string): string {
-  switch (status) {
-    case 'active':
-      return '#16A34A';
-    case 'not_home':
-      return '#D97706';
-    case 'busy':
-      return '#F97316';
-    case 'return_visit':
-      return '#2563EB';
-    case 'foreign_language':
-      return '#06B6D4';
-    case 'inaccessible':
-      return '#78716C';
-    case 'vacant':
-      return '#64748B';
-    case 'do_not_visit':
-      return '#DC2626';
-    default:
-      return '#64748B';
-  }
+  return getHouseholdStatusMeta(status || 'new').pinColor;
 }
 
 export function CongregationGoogleMap({
@@ -455,7 +437,9 @@ export function CongregationGoogleMap({
     return households.filter((h) => {
       if (h.territoryId && !validTerritoryIds.has(h.territoryId)) return false;
       if (layerSettings.householdFilter && layerSettings.householdFilter !== 'all') {
-        if (h.status !== layerSettings.householdFilter) return false;
+        const normFilter = normalizeHouseholdStatus(layerSettings.householdFilter);
+        const normStatus = normalizeHouseholdStatus(h.status);
+        if (normStatus !== normFilter) return false;
       }
       return true;
     });

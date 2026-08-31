@@ -8,6 +8,10 @@ import {
   getServiceYearRange,
   isDateInServiceYear,
 } from '@/lib/service-year';
+import {
+  calculateMinistryTeachingMetrics,
+  buildTeachingAnalyticsReport,
+} from '@/lib/teaching-metrics';
 import { calculateTerritoryCoverage, type TerritoryCoverageStats } from '@/lib/territory-coverage';
 import type {
   ActivityReport,
@@ -15,12 +19,14 @@ import type {
   CoverageReport,
   CoverageTerritory,
   DoorAnalyticsReport,
+  Encounter,
   Group,
   GroupReportStats,
   Household,
   Member,
   PublishersReport,
   S13AssignmentRecord,
+  TeachingAnalyticsReport,
   Territory,
   TerritoryHealthStatus,
   Visit,
@@ -130,7 +136,44 @@ function visitFromData(id: string, data: Partial<Visit>): Visit {
     literaturePlaced: data.literaturePlaced ?? null,
     bibleTopicDiscussed: data.bibleTopicDiscussed ?? null,
     returnVisitPlanned: Boolean(data.returnVisitPlanned),
+    nextVisitDate: data.nextVisitDate ?? null,
+    nextVisitTime: data.nextVisitTime ?? null,
+    nextVisitNotes: data.nextVisitNotes ?? null,
+    scheduledAppointmentType: data.scheduledAppointmentType ?? null,
+    bibleStudyStatus: data.bibleStudyStatus ?? null,
+    studyOffered: Boolean(data.studyOffered),
+    isAppointmentMissed: Boolean(data.isAppointmentMissed),
     assignmentId: data.assignmentId ?? null,
+    notes: data.notes ?? null,
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? nowIso(),
+  };
+}
+
+function encounterFromData(id: string, data: Partial<Encounter>): Encounter {
+  return {
+    id,
+    visitId: data.visitId ?? null,
+    householdId: data.householdId ?? null,
+    territoryId: data.territoryId ?? null,
+    congregationId: data.congregationId ?? '',
+    userId: data.userId ?? '',
+    publisherName: data.publisherName ?? null,
+    name: data.name ?? null,
+    gender: data.gender ?? null,
+    ageGroup: data.ageGroup ?? null,
+    role: data.role ?? null,
+    response: data.response ?? 'neutral',
+    language: data.language ?? null,
+    languageSpoken: data.languageSpoken ?? null,
+    topicsDiscussed: data.topicsDiscussed ?? data.topicDiscussed ?? null,
+    topicDiscussed: data.topicDiscussed ?? data.topicsDiscussed ?? null,
+    literatureOffered: data.literatureOffered ?? null,
+    literatureAccepted: data.literatureAccepted ?? null,
+    bibleStudyInterest: Boolean(data.bibleStudyInterest),
+    studyOffered: Boolean(data.studyOffered),
+    returnVisitRequested: Boolean(data.returnVisitRequested),
+    nextVisitNotes: data.nextVisitNotes ?? null,
     notes: data.notes ?? null,
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? nowIso(),
@@ -144,6 +187,7 @@ function useReportSources(congregationId: string | null | undefined) {
   const [households, setHouseholds] = useState<Household[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
+  const [encounters, setEncounters] = useState<Encounter[]>([]);
 
   const [territoriesLoading, setTerritoriesLoading] = useState(Boolean(congregationId));
   const [assignmentsLoading, setAssignmentsLoading] = useState(Boolean(congregationId));
@@ -151,6 +195,7 @@ function useReportSources(congregationId: string | null | undefined) {
   const [householdsLoading, setHouseholdsLoading] = useState(Boolean(congregationId));
   const [groupsLoading, setGroupsLoading] = useState(Boolean(congregationId));
   const [visitsLoading, setVisitsLoading] = useState(Boolean(congregationId));
+  const [encountersLoading, setEncountersLoading] = useState(Boolean(congregationId));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -307,6 +352,30 @@ function useReportSources(congregationId: string | null | undefined) {
     );
   }, [congregationId]);
 
+  useEffect(() => {
+    if (!congregationId) {
+      setEncounters([]);
+      setEncountersLoading(false);
+      return;
+    }
+    setEncountersLoading(true);
+    return onSnapshot(
+      query(sourceCollection('encounters'), where('congregationId', '==', congregationId)),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        setEncounters(
+          snapshot.docs.map((document) =>
+            encounterFromData(document.id, document.data() as Partial<Encounter>)
+          )
+        );
+        setEncountersLoading(false);
+      },
+      () => {
+        setEncountersLoading(false);
+      }
+    );
+  }, [congregationId]);
+
   const territoryIds = useMemo(
     () => new Set(territories.map((territory) => territory.id)),
     [territories]
@@ -323,13 +392,15 @@ function useReportSources(congregationId: string | null | undefined) {
     households,
     groups,
     visits,
+    encounters,
     isLoading:
       territoriesLoading ||
       assignmentsLoading ||
       membersLoading ||
       householdsLoading ||
       groupsLoading ||
-      visitsLoading,
+      visitsLoading ||
+      encountersLoading,
     error,
   };
 }
@@ -893,9 +964,12 @@ export function useDoorAnalyticsReport(
       contacted: 0,
       placedLiterature: 0,
       returnVisit: 0,
+      returnVisitMissed: 0,
       busy: 0,
       doNotCall: 0,
       studyConducted: 0,
+      studyOffered: 0,
+      studyMissed: 0,
       minorOnly: 0,
       foreignLanguage: 0,
       inaccessible: 0,
@@ -958,8 +1032,23 @@ export function useDoorAnalyticsReport(
 
     for (const v of relevantVisits) {
       const outcome = (v.outcome || '').toLowerCase();
-      if (outcome === 'study_conducted' || outcome.includes('study')) {
+      const isMissedFlag = Boolean(v.isAppointmentMissed);
+
+      if (outcome === 'study_conducted' || v.bibleStudyStatus === 'conducted') {
         outcomeCounts.studyConducted += 1;
+      } else if (outcome === 'study_offered' || v.studyOffered || v.bibleStudyStatus === 'offered') {
+        outcomeCounts.studyOffered = (outcomeCounts.studyOffered || 0) + 1;
+      } else if (
+        outcome === 'study_missed' ||
+        (isMissedFlag && v.scheduledAppointmentType === 'bible_study') ||
+        v.bibleStudyStatus === 'missed'
+      ) {
+        outcomeCounts.studyMissed = (outcomeCounts.studyMissed || 0) + 1;
+      } else if (
+        outcome === 'return_visit_missed' ||
+        (isMissedFlag && v.scheduledAppointmentType === 'return_visit')
+      ) {
+        outcomeCounts.returnVisitMissed = (outcomeCounts.returnVisitMissed || 0) + 1;
       } else if (outcome.includes('not_home') || outcome.includes('not home')) {
         outcomeCounts.notHome += 1;
       } else if (outcome === 'busy' || outcome.includes('busy')) {
@@ -1020,6 +1109,10 @@ export function useDoorAnalyticsReport(
       unworkedDoors: Math.max(0, totalDoors - workedDoors),
       doNotCallCount,
       returnVisitsCount,
+      returnVisitsMissedCount: outcomeCounts.returnVisitMissed || 0,
+      studyConductedCount: outcomeCounts.studyConducted,
+      studyOfferedCount: outcomeCounts.studyOffered || 0,
+      studyMissedCount: outcomeCounts.studyMissed || 0,
       foreignLanguageCount,
       vacantCount,
       inaccessibleCount,
@@ -1028,6 +1121,24 @@ export function useDoorAnalyticsReport(
       topStreets,
     };
   }, [households, visits, selectedServiceYear]);
+
+  return { data, isLoading, error };
+}
+
+export function useTeachingAnalyticsReport(
+  congregationId: string | null | undefined,
+  options?: ReportFilterOptions
+) {
+  const { households, visits, encounters, groups, members, isLoading, error } =
+    useReportSources(congregationId);
+
+  const selectedServiceYear = options?.serviceYear ?? 'all';
+
+  const data = useMemo<TeachingAnalyticsReport>(() => {
+    return buildTeachingAnalyticsReport(households, visits, encounters, groups, members, {
+      serviceYear: selectedServiceYear,
+    });
+  }, [households, visits, encounters, groups, members, selectedServiceYear]);
 
   return { data, isLoading, error };
 }

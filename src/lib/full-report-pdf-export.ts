@@ -7,6 +7,7 @@ import type {
   GroupReportStats,
   PublisherStats,
   S13AssignmentRecord,
+  TeachingAnalyticsReport,
 } from '@/types/api';
 
 export interface FullReportExportData {
@@ -15,6 +16,7 @@ export interface FullReportExportData {
   s13Records?: S13AssignmentRecord[];
   groupsData?: GroupReportStats[];
   publishersData?: PublisherStats[];
+  teachingData?: TeachingAnalyticsReport | null;
   doorData?: DoorAnalyticsReport | null;
   activityData?: ActivityReport | null;
 }
@@ -30,6 +32,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     s13Records = [],
     groupsData = [],
     publishersData = [],
+    teachingData,
     doorData,
     activityData,
   } = data;
@@ -575,10 +578,275 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     currentY += 5.8;
   });
 
-  drawPageFooter(pageNumber, '3+');
+  drawPageFooter(pageNumber, '4+');
 
   // =========================================================================
-  // PAGE 4: HOUSEHOLD DEMOGRAPHICS & EVENT AUDIT TIMELINE (PAGE BREAK)
+  // PAGE 4: TEACHING & FOLLOW-UP MINISTRY INTELLIGENCE (PAGE BREAK)
+  // =========================================================================
+  doc.addPage();
+  pageNumber++;
+  currentY = marginTop;
+
+  drawSectionHeader(
+    'TEACHING & FOLLOW-UP MINISTRY INTELLIGENCE',
+    `Congregation: ${congregationName}   •   Interested Contacts, Return Visits & Bible Studies`,
+    'MINISTRY EFFECTIVENESS'
+  );
+
+  currentY += 21;
+
+  // 4 Summary KPI Cards for Teaching
+  const teachCardWidth = (contentWidth - 3 * 6) / 4; // ~63mm each
+  const teachCardHeight = 22;
+
+  // Card 1: Interested Contacts
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(marginLeft, currentY, teachCardWidth, teachCardHeight, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('INTERESTED CONTACTS', marginLeft + 4, currentY + 5.5);
+
+  doc.setFontSize(14);
+  doc.setTextColor(16, 185, 129); // Emerald
+  doc.text(`${teachingData?.totals.interestedContacts.total ?? 0}`, marginLeft + 4, currentY + 13);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `${teachingData?.totals.interestedContacts.studyInterested ?? 0} study interests`,
+    marginLeft + 4,
+    currentY + 18
+  );
+
+  // Card 2: Return Visits
+  const rvCardX = marginLeft + teachCardWidth + 6;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(rvCardX, currentY, teachCardWidth, teachCardHeight, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('RETURN VISITS', rvCardX + 4, currentY + 5.5);
+
+  doc.setFontSize(14);
+  doc.setTextColor(37, 99, 235); // Blue
+  doc.text(`${teachingData?.totals.returnVisits.visited ?? 0}`, rvCardX + 4, currentY + 13);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `${teachingData?.totals.returnVisits.missed ?? 0} missed / overdue`,
+    rvCardX + 4,
+    currentY + 18
+  );
+
+  // Card 3: Bible Studies Conducted
+  const bsCardX = rvCardX + teachCardWidth + 6;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(bsCardX, currentY, teachCardWidth, teachCardHeight, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('STUDIES CONDUCTED', bsCardX + 4, currentY + 5.5);
+
+  doc.setFontSize(14);
+  doc.setTextColor(139, 92, 246); // Violet
+  doc.text(`${teachingData?.totals.bibleStudies.conducted ?? 0}`, bsCardX + 4, currentY + 13);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `${teachingData?.totals.bibleStudies.offered ?? 0} studies offered`,
+    bsCardX + 4,
+    currentY + 18
+  );
+
+  // Card 4: Active Studies Pipeline
+  const activeCardX = bsCardX + teachCardWidth + 6;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(activeCardX, currentY, teachCardWidth, teachCardHeight, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text('ACTIVE BIBLE STUDIES', activeCardX + 4, currentY + 5.5);
+
+  doc.setFontSize(14);
+  doc.setTextColor(217, 119, 6); // Amber
+  doc.text(`${teachingData?.totals.bibleStudies.activeCount ?? 0}`, activeCardX + 4, currentY + 13);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text(
+    `${teachingData?.totals.bibleStudies.missed ?? 0} studies missed`,
+    activeCardX + 4,
+    currentY + 18
+  );
+
+  currentY += teachCardHeight + 8;
+
+  // Group Teaching Breakdown Table
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Service Group Teaching & Follow-up Performance', marginLeft, currentY);
+  currentY += 4;
+
+  doc.setFillColor(51, 65, 85);
+  doc.rect(marginLeft, currentY, contentWidth, 6.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Service Group Name', marginLeft + 3, currentY + 4.5);
+  doc.text('Overseer', marginLeft + 65, currentY + 4.5);
+  doc.text('Interested', marginLeft + 120, currentY + 4.5, { align: 'center' });
+  doc.text('RV Visited', marginLeft + 150, currentY + 4.5, { align: 'center' });
+  doc.text('RV Missed', marginLeft + 180, currentY + 4.5, { align: 'center' });
+  doc.text('Studies Done', marginLeft + 210, currentY + 4.5, { align: 'center' });
+  doc.text('Active Studies', marginLeft + contentWidth - 4, currentY + 4.5, { align: 'right' });
+
+  currentY += 6.5;
+
+  const teachGroups = teachingData?.byGroup || [];
+  if (teachGroups.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('No service group teaching records available.', marginLeft + 3, currentY + 5);
+    currentY += 8;
+  } else {
+    teachGroups.forEach((g, i) => {
+      const isEven = i % 2 === 0;
+      doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
+      doc.rect(marginLeft, currentY, contentWidth, 5.8, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.line(marginLeft, currentY + 5.8, marginLeft + contentWidth, currentY + 5.8);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(g.name, marginLeft + 3, currentY + 4);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(g.overseerName || '—', marginLeft + 65, currentY + 4);
+
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${g.metrics.interestedContacts.total}`, marginLeft + 120, currentY + 4, {
+        align: 'center',
+      });
+      doc.text(`${g.metrics.returnVisits.visited}`, marginLeft + 150, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(g.metrics.returnVisits.missed > 0 ? 225 : 100, g.metrics.returnVisits.missed > 0 ? 29 : 116, g.metrics.returnVisits.missed > 0 ? 72 : 139);
+      doc.text(`${g.metrics.returnVisits.missed}`, marginLeft + 180, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(139, 92, 246);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${g.metrics.bibleStudies.conducted}`, marginLeft + 210, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(16, 185, 129);
+      doc.text(`${g.metrics.bibleStudies.activeCount}`, marginLeft + contentWidth - 4, currentY + 4, {
+        align: 'right',
+      });
+
+      currentY += 5.8;
+    });
+  }
+
+  currentY += 8;
+
+  // Publisher Teaching Performance Table
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Publishers Teaching & Follow-up Activity', marginLeft, currentY);
+  currentY += 4;
+
+  doc.setFillColor(51, 65, 85);
+  doc.rect(marginLeft, currentY, contentWidth, 6.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Publisher Name', marginLeft + 3, currentY + 4.5);
+  doc.text('Service Group', marginLeft + 65, currentY + 4.5);
+  doc.text('Interested', marginLeft + 120, currentY + 4.5, { align: 'center' });
+  doc.text('RV Visited', marginLeft + 150, currentY + 4.5, { align: 'center' });
+  doc.text('RV Missed', marginLeft + 180, currentY + 4.5, { align: 'center' });
+  doc.text('Studies Done', marginLeft + 210, currentY + 4.5, { align: 'center' });
+  doc.text('Active Studies', marginLeft + contentWidth - 4, currentY + 4.5, { align: 'right' });
+
+  currentY += 6.5;
+
+  const teachPublishers = (teachingData?.byPublisher || []).slice(0, 10);
+  if (teachPublishers.length === 0) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184);
+    doc.text('No publisher teaching records available.', marginLeft + 3, currentY + 5);
+  } else {
+    teachPublishers.forEach((p, i) => {
+      const isEven = i % 2 === 0;
+      doc.setFillColor(isEven ? 255 : 248, isEven ? 255 : 250, isEven ? 255 : 252);
+      doc.rect(marginLeft, currentY, contentWidth, 5.8, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.line(marginLeft, currentY + 5.8, marginLeft + contentWidth, currentY + 5.8);
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(p.name, marginLeft + 3, currentY + 4);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(p.groupName || '—', marginLeft + 65, currentY + 4);
+
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${p.metrics.interestedContacts.total}`, marginLeft + 120, currentY + 4, {
+        align: 'center',
+      });
+      doc.text(`${p.metrics.returnVisits.visited}`, marginLeft + 150, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(p.metrics.returnVisits.missed > 0 ? 225 : 100, p.metrics.returnVisits.missed > 0 ? 29 : 116, p.metrics.returnVisits.missed > 0 ? 72 : 139);
+      doc.text(`${p.metrics.returnVisits.missed}`, marginLeft + 180, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(139, 92, 246);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${p.metrics.bibleStudies.conducted}`, marginLeft + 210, currentY + 4, {
+        align: 'center',
+      });
+
+      doc.setTextColor(16, 185, 129);
+      doc.text(`${p.metrics.bibleStudies.activeCount}`, marginLeft + contentWidth - 4, currentY + 4, {
+        align: 'right',
+      });
+
+      currentY += 5.8;
+    });
+  }
+
+  drawPageFooter(pageNumber, '5+');
+
+  // =========================================================================
+  // PAGE 5: HOUSEHOLD DEMOGRAPHICS & EVENT AUDIT TIMELINE (PAGE BREAK)
   // =========================================================================
   doc.addPage();
   pageNumber++;

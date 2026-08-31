@@ -39,6 +39,7 @@ import { ContactAutocompleteInput } from './contact-autocomplete-input';
 const responseBadgeColors: Record<string, string> = {
   receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
   study_accepted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
+  study_offered: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
   neutral: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   busy: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
   foreign_language: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
@@ -57,11 +58,17 @@ export const addEncounterSchema = z.object({
     'neutral',
     'busy',
     'study_accepted',
+    'study_offered',
+    'return_visit_requested',
     'not_interested',
     'foreign_language',
+    'foreign_speaker',
     'hostile',
     'do_not_visit',
+    'do_not_visit_demanded',
+    'minor',
     'moved',
+    'moving_away',
   ]),
   role: z
     .enum(['head_of_household', 'spouse', 'resident', 'child', 'guest', 'other', 'unknown'])
@@ -81,6 +88,7 @@ export const addEncounterSchema = z.object({
   nextVisitTime: z.string().optional(),
   nextVisitNotes: z.string().optional(),
   bibleStudyInterest: z.boolean().optional(),
+  studyOffered: z.boolean().optional(),
   bibleStudyPublication: z.string().optional(),
   bibleStudyLesson: z.string().optional(),
 });
@@ -512,13 +520,16 @@ export function AddEncounterForm({
             <SelectContent className="bg-popover border-border">
               <SelectItem value="receptive">Receptive / Interested</SelectItem>
               <SelectItem value="study_accepted">Bible Study Accepted</SelectItem>
-              <SelectItem value="neutral">Neutral</SelectItem>
-              <SelectItem value="busy">Busy / Call Back</SelectItem>
-              <SelectItem value="foreign_language">Foreign Language</SelectItem>
+              <SelectItem value="study_offered">Bible Study Offered / Shown</SelectItem>
+              <SelectItem value="return_visit_requested">Welcomed Return Visit</SelectItem>
+              <SelectItem value="neutral">Neutral / Polite</SelectItem>
+              <SelectItem value="busy">Busy / In a Hurry</SelectItem>
+              <SelectItem value="foreign_speaker">Foreign Language Speaker</SelectItem>
               <SelectItem value="not_interested">Not Interested</SelectItem>
               <SelectItem value="hostile">Hostile / Opposed</SelectItem>
-              <SelectItem value="do_not_visit">Do Not Call / Visit</SelectItem>
-              <SelectItem value="moved">Moved Out</SelectItem>
+              <SelectItem value="do_not_visit_demanded">Demanded Do Not Call</SelectItem>
+              <SelectItem value="minor">Minor / Child</SelectItem>
+              <SelectItem value="moving_away">Moving Away Soon</SelectItem>
             </SelectContent>
           </Select>
         </div>
