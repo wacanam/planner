@@ -114,7 +114,9 @@ export function ServiceYearCountdown({
       >
         <Clock size={12} className="text-primary animate-pulse shrink-0" />
         <span className="truncate">
-          {countdown.daysRemaining === 1 ? `1d left in ${range.shortLabel}` : `${countdown.daysRemaining}d left in ${range.shortLabel}`}
+          {countdown.daysRemaining === 1
+            ? `1d left in ${range.shortLabel}`
+            : `${countdown.daysRemaining}d left in ${range.shortLabel}`}
         </span>
       </Badge>
     );
@@ -129,49 +131,34 @@ export function ServiceYearCountdown({
       <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative z-10 space-y-4">
-        {/* Header Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
+      <div className="relative z-10 space-y-3.5 sm:space-y-4">
+        {/* Header Row: Title on Left, Countdown & Badges on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Title & Description */}
+          <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl bg-primary/15 text-primary shrink-0 shadow-2xs mt-0.5 sm:mt-0">
               <Calendar size={18} className="sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <h3 className="text-sm sm:text-lg font-extrabold text-foreground tracking-tight">
-                  {range.label}
-                </h3>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${phaseBadgeVariant}`}
-                >
-                  {countdown.phaseTitle}
-                </Badge>
-                {pacing && (
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${pacing.bg}`}
-                  >
-                    {pacing.label}
-                  </Badge>
-                )}
-              </div>
+              <h3 className="text-sm sm:text-lg font-extrabold text-foreground tracking-tight">
+                {range.label}
+              </h3>
               <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
                 {countdown.phaseDescription}
               </p>
             </div>
           </div>
 
-          {/* Countdown Highlight Box */}
-          <div className="w-full sm:w-auto shrink-0 self-stretch sm:self-auto">
+          {/* Countdown & Badges Callout Card */}
+          <div className="w-full sm:w-auto shrink-0">
             {countdown.isPastServiceYear ? (
               <div className="px-3.5 py-2 rounded-xl sm:rounded-2xl bg-muted border border-border text-center">
                 <p className="text-xs font-bold text-muted-foreground">Historical Record</p>
                 <p className="text-[10px] text-muted-foreground">Concluded</p>
               </div>
             ) : (
-              <div className="px-4 py-2.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-background/90 border border-primary/25 shadow-2xs flex sm:flex-col items-center justify-between sm:justify-center gap-2">
-                <div className="flex items-baseline gap-1">
+              <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-background/95 border border-primary/25 shadow-2xs flex items-center justify-between sm:justify-center gap-3">
+                <div className="flex items-baseline gap-1 shrink-0">
                   <span className="text-xl sm:text-2xl font-black text-primary">
                     {countdown.daysRemaining}
                   </span>
@@ -179,14 +166,27 @@ export function ServiceYearCountdown({
                     {countdown.daysRemainingUnit}
                   </span>
                 </div>
-                <div className="text-right sm:text-center">
-                  <p className="text-[11px] font-medium text-foreground">
+                <div className="flex flex-col items-end sm:items-center gap-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${phaseBadgeVariant}`}
+                    >
+                      {countdown.phaseTitle}
+                    </Badge>
+                    {pacing && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] sm:text-[11px] font-bold py-0.5 px-2 border shrink-0 ${pacing.bg}`}
+                      >
+                        {pacing.label}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground truncate">
                     {countdown.daysRemaining === 1
-                      ? `Final day in ${range.shortLabel}`
-                      : `Remaining in ${range.shortLabel}`}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Ends {countdown.endDateFormatted}
+                      ? `Final day in ${range.shortLabel} • Ends ${countdown.endDateFormatted}`
+                      : `Remaining in ${range.shortLabel} • Ends ${countdown.endDateFormatted}`}
                   </p>
                 </div>
               </div>
@@ -195,7 +195,7 @@ export function ServiceYearCountdown({
         </div>
 
         {/* Progress & Pacing Metrics */}
-        <div className="space-y-1.5 pt-1">
+        <div className="space-y-1.5 pt-0.5">
           <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 text-[11px] sm:text-xs">
             <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
               <Clock size={13} className="text-primary shrink-0" />
@@ -215,12 +215,15 @@ export function ServiceYearCountdown({
         </div>
 
         {/* Bottom Pacing Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
           <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-background/60 border border-border/80 text-center min-w-0">
             <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">
               Time Left
             </p>
-            <p className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate" title={countdown.timeRemainingFormatted}>
+            <p
+              className="text-xs sm:text-base font-extrabold text-foreground mt-0.5 truncate"
+              title={countdown.timeRemainingFormatted}
+            >
               {countdown.timeRemainingFormatted}
             </p>
           </div>

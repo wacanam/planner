@@ -97,12 +97,14 @@ export function ServiceYearCountdown({
         </View>
 
         <View style={{ flex: 1, marginLeft: spacing.sm, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
             <Text
+              numberOfLines={1}
               style={{
                 color: colors.foreground,
                 fontSize: typography.base,
                 fontWeight: '700',
+                flexShrink: 1,
               }}
             >
               {range.label}
@@ -118,7 +120,7 @@ export function ServiceYearCountdown({
             numberOfLines={1}
             style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}
           >
-            {countdown.daysRemainingFormatted} remaining • Ends {countdown.endDateFormatted}
+            {countdown.phaseDescription}
           </Text>
         </View>
       </View>
