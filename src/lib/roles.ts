@@ -106,6 +106,8 @@ export const NotificationType = {
   ACCOUNT_REQUEST_SUBMITTED: 'account_request_submitted',
   ACCOUNT_REQUEST_RESOLVED: 'account_request_resolved',
   SYSTEM_ANNOUNCEMENT: 'system_announcement',
+  CONGREGATION_ANNOUNCEMENT: 'congregation_announcement',
+  ANNOUNCEMENT_POSTED: 'announcement_posted',
 } as const;
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
 

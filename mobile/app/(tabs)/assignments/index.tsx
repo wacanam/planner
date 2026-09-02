@@ -11,6 +11,7 @@ import {
 import { useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -18,6 +19,7 @@ import { Header } from '@/components/ui/Header';
 import { MyAssignmentsSkeleton } from '@/components/ui/ScreenSkeletons';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useMyAssignments } from '@/hooks/useAssignments';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
@@ -41,6 +43,11 @@ export default function MyAssignmentsScreen() {
   const { groups = [], isLoading: groupsLoading } = useCongregationGroups(activeCongregationId);
   const { members = [] } = useCongregationMembers(activeCongregationId);
   const { households = [] } = useHouseholds({ congregationId: activeCongregationId });
+  const { announcements = [] } = useAnnouncements(activeCongregationId);
+
+  const featuredAnnouncement = useMemo(() => {
+    return announcements[0] || null;
+  }, [announcements]);
 
   const userGroupIds = useMemo(() => getUserGroupIds(user, groups), [user, groups]);
 
@@ -126,6 +133,20 @@ export default function MyAssignmentsScreen() {
     );
   };
 
+  const renderListHeader = () => {
+    return (
+      <View>
+        {featuredAnnouncement && (
+          <AnnouncementBanner
+            announcement={featuredAnnouncement}
+            totalCount={announcements.length}
+          />
+        )}
+        {renderGroupBanner()}
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header title="My Assignments" subtitle="Your assigned territories and active field work" />
@@ -139,7 +160,7 @@ export default function MyAssignmentsScreen() {
             paddingBottom: insets.bottom + spacing.xxl,
           }}
         >
-          {renderGroupBanner()}
+          {renderListHeader()}
 
           <EmptyState
             icon={<Sparkles size={48} color={colors.primary} />}
@@ -157,7 +178,7 @@ export default function MyAssignmentsScreen() {
             padding: spacing.md,
             paddingBottom: insets.bottom + spacing.xxl,
           }}
-          ListHeaderComponent={renderGroupBanner}
+          ListHeaderComponent={renderListHeader}
           renderItem={({ item }) => {
             const territory = territories.find((t) => t.id === item.territoryId);
             const territoryHouseholds = households.filter(

@@ -16,6 +16,7 @@ export const FIRESTORE_COLLECTIONS = {
   mail: 'mail',
   memberLocations: 'memberLocations',
   invitations: 'invitations',
+  announcements: 'announcements',
 } as const;
 
 export type FirestoreCollectionName = keyof typeof FIRESTORE_COLLECTIONS;

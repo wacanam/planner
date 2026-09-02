@@ -6,6 +6,7 @@
 - Service overseers create territories, manage boundaries, assign or return territories, and review territory requests.
 - Records screens read household, visit, and encounter history from Firestore snapshots.
 - Membership, group, report, notification, and onboarding support screens now use Firestore-backed hooks instead of resource API endpoints.
+- Congregation service overseers and secretaries post congregation announcements, supported by intelligent periodic service year milestone suggestions (kickoff, mid-year review, special campaign, year-end closing). System administrators post system-wide notices for feature updates, bug fixes, and scheduled maintenance.
 
 ## Offline-First Behavior
 

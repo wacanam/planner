@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Inbox, LayoutDashboard, Users } from 'lucide-react';
+import { Building2, Inbox, LayoutDashboard, Megaphone, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,12 @@ export function AdminNav() {
       icon: Inbox,
       badge: pendingCount > 0 ? pendingCount : null,
       active: pathname.startsWith('/admin/requests'),
+    },
+    {
+      href: '/admin/announcements',
+      label: 'Announcements',
+      icon: Megaphone,
+      active: pathname.startsWith('/admin/announcements'),
     },
   ];
 

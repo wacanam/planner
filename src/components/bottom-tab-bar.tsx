@@ -12,6 +12,7 @@ import {
   LogOut,
   Map as MapIcon,
   MapPin,
+  Megaphone,
   Menu,
   Shield,
   Users,
@@ -281,6 +282,35 @@ export function BottomTabBar() {
             {/* Account & Global Admin Section */}
             <div className="space-y-1.5 pt-2 border-t border-border">
               <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+                Congregation & Notices
+              </p>
+
+              <button
+                type="button"
+                onClick={() => handleNavigate(`/congregation/${id}/announcements`)}
+                className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                  pathname.includes('/announcements')
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-card border-border hover:bg-muted/60 text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Megaphone size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-semibold text-xs text-foreground block">
+                      Announcements & Notices
+                    </span>
+                    <span className="text-[11px] text-muted-foreground truncate block">
+                      Service year updates & alerts
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+              </button>
+
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1 pt-2">
                 General & Account
               </p>
 

@@ -2,12 +2,14 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { AnnouncementBanner } from '@/components/announcements/AnnouncementBanner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { ProtectedPage } from '@/components/protected-page';
 import {
+  useAnnouncements,
   useCongregation,
   useCongregationGroups,
   useCongregationMembers,
@@ -58,6 +60,7 @@ export default function CongregationDashboardClient() {
   const { groups = [] } = useCongregationGroups(congregationId);
   const { households = [], isLoading: householdsLoading } = useHouseholds({ congregationId });
   const { data: members = [] } = useCongregationMembers(congregationId);
+  const { announcements = [] } = useAnnouncements(congregationId);
 
   // Quick Visit Sheet state
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
@@ -365,6 +368,15 @@ export default function CongregationDashboardClient() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         {/* 1. Welcome Greeting Header */}
         <DashboardHeroDeck {...contextProps} />
+
+        {/* Announcements Highlights Banner */}
+        {announcements.length > 0 && (
+          <AnnouncementBanner
+            announcement={announcements[0]}
+            totalCount={announcements.length}
+            congregationId={congregationId}
+          />
+        )}
 
         {/* 2. Active Territory in Work Spotlight Card */}
         <ActiveTerritoryCard {...contextProps} />

@@ -370,6 +370,30 @@ service cloud.firestore {
       );
     }
 
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.scope == 'system' ||
+        resource.data.congregationId == getUserCongregationId() ||
+        resource.data.authorId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (request.resource.data.scope == 'congregation' && request.resource.data.congregationId == getUserCongregationId())
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.authorId == request.auth.uid ||
+        (resource.data.scope == 'congregation' && resource.data.congregationId == getUserCongregationId())
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.authorId == request.auth.uid ||
+        (resource.data.scope == 'congregation' && resource.data.congregationId == getUserCongregationId())
+      );
+    }
+
     // Mail Queue
     match /mail/{mailId} {
       allow read, write: if isAuthenticated();

@@ -11,6 +11,7 @@ import {
   LogOut,
   Map as MapIcon,
   MapPin,
+  Megaphone,
   Shield,
   User,
   Users,
@@ -98,6 +99,7 @@ export function DashboardHeader() {
         ...(canViewReports(user.role, user.congregationRole)
           ? [{ href: `/congregation/${id}/reports`, label: 'Reports', icon: BarChart2 }]
           : []),
+        { href: `/congregation/${id}/announcements`, label: 'Announcements', icon: Megaphone },
       ]
     : [];
 

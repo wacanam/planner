@@ -8,6 +8,7 @@ import {
   FileText,
   LogOut,
   Mail,
+  Megaphone,
   Moon,
   Settings,
   Share2,
@@ -38,6 +39,7 @@ import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregation } from '@/hooks/useCongregations';
 import { useCreateInvitation } from '@/hooks/useInvitations';
@@ -51,6 +53,7 @@ export default function MoreMenuScreen() {
   const { user, activeCongregationId, logout } = useAuth();
   const { congregation } = useCongregation(activeCongregationId);
   const { groups = [] } = useCongregationGroups(activeCongregationId);
+  const { announcements = [] } = useAnnouncements(activeCongregationId);
   const { colors, typography, spacing, radius, isDark, toggleTheme } = useTheme();
 
   const { createSystemAdminInvitation, isCreating: isCreatingAdminInvite } = useCreateInvitation();
@@ -233,6 +236,17 @@ export default function MoreMenuScreen() {
           CONGREGATION & MINISTRY
         </Text>
         <Card style={[styles.menuGroupCard, { marginBottom: spacing.lg }]}>
+          {renderMenuItem({
+            icon: <Megaphone size={18} color="#8b5cf6" />,
+            title: 'Announcements & Notices',
+            subtitle: 'Service year updates, campaigns & alerts',
+            onPress: () => router.push('/(tabs)/more/announcements'),
+            badge:
+              announcements.length > 0 ? (
+                <Badge label={`${announcements.length}`} variant="primary" size="sm" />
+              ) : undefined,
+          })}
+
           {renderMenuItem({
             icon: <FileText size={18} color={colors.primary} />,
             title: 'Reports & S-13 Record',

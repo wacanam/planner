@@ -14,6 +14,7 @@ The MVP now uses Firestore as the source of truth with web SDK offline persisten
 - `households/{householdId}`: `congregationId`, `territoryId`, address, coordinates, status, visit summary, notes.
 - `visits/{visitId}`: `householdId`, optional `assignmentId`, publisher, outcome, visit notes, return-visit fields.
 - `encounters/{encounterId}`: optional `visitId` and `householdId`, publisher, response, demographic/context notes.
+- `announcements/{announcementId}`: `scope` ('congregation' or 'system'), `congregationId`, `title`, `content`, `category`, `priority`, `isPinned`, `authorId`, `authorName`, `authorRole`, `serviceYear`, `actionUrl`, timestamps.
 
 ## Offline Behavior
 

@@ -1,6 +1,6 @@
 // mobile/src/lib/permissions.ts
 import { UserRole } from '@/lib/roles';
-import type { Assignment, Household, HouseholdShare, Territory } from '@/types/api';
+import type { Announcement, Assignment, Household, HouseholdShare, Territory } from '@/types/api';
 
 /** Role hierarchy — higher index = more permissions */
 const ROLE_HIERARCHY: UserRole[] = [
@@ -812,4 +812,83 @@ export function hasCongregationAccess(
   if (isSystemAdmin(user.role)) return true;
   if (!targetCongregationId || !user.congregationId) return false;
   return user.congregationId === targetCongregationId;
+}
+
+/**
+ * Returns true if the user can post congregation announcements.
+ * Service Overseers, Secretaries, and System Admins have this privilege.
+ */
+export function canPostCongregationAnnouncement(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole)
+  );
+}
+
+/**
+ * Returns true if the user can post service group announcements.
+ * Group Overseers, Assistant Overseers of the group, Service Overseers, Secretaries, and Admins have this privilege.
+ */
+export function canPostServiceGroupAnnouncement(
+  user: {
+    id?: string | null;
+    role?: string | null;
+    congregationRole?: string | null;
+  } | null | undefined,
+  targetGroupId?: string | null,
+  userLedGroupIds: string[] | Set<string> = []
+): boolean {
+  if (!user?.id) return false;
+  if (canPostCongregationAnnouncement(user.role, user.congregationRole)) return true;
+  if (!targetGroupId) return false;
+
+  const ledSet = userLedGroupIds instanceof Set ? userLedGroupIds : new Set(userLedGroupIds);
+  return ledSet.has(targetGroupId);
+}
+
+/**
+ * Returns true if the user can post system-wide announcements.
+ * Super Admins and System Admins have this privilege.
+ */
+export function canPostSystemAnnouncement(role?: string | null): boolean {
+  return isSystemAdmin(role);
+}
+
+/**
+ * Returns true if the user can edit, pin, or delete an existing announcement.
+ */
+export function canManageAnnouncement(
+  user: {
+    id?: string | null;
+    role?: string | null;
+    congregationRole?: string | null;
+  } | null | undefined,
+  announcement: Announcement,
+  userLedGroupIds: string[] | Set<string> = []
+): boolean {
+  if (!user?.id) return false;
+  if (isSystemAdmin(user.role)) return true;
+  if (announcement.authorId === user.id) return true;
+  if (
+    announcement.scope === 'congregation' &&
+    canPostCongregationAnnouncement(user.role, user.congregationRole)
+  ) {
+    return true;
+  }
+  if (
+    announcement.scope === 'service_group' &&
+    announcement.serviceGroupId
+  ) {
+    if (canPostCongregationAnnouncement(user.role, user.congregationRole)) return true;
+    const ledSet = userLedGroupIds instanceof Set ? userLedGroupIds : new Set(userLedGroupIds);
+    if (ledSet.has(announcement.serviceGroupId)) return true;
+  }
+  return false;
 }

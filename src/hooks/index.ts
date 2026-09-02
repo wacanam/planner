@@ -22,4 +22,5 @@ export * from './use-visits';
 export * from './use-basemap-preference';
 export * from './use-keyboard-shortcuts';
 export * from './use-invitations';
+export * from './use-announcements';
 

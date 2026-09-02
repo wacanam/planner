@@ -32,6 +32,7 @@ export const FIRESTORE_COLLECTIONS = {
   notifications: 'notifications',
   accountRequests: 'accountRequests',
   invitations: 'invitations',
+  announcements: 'announcements',
   mail: 'mail',
 } as const;
 

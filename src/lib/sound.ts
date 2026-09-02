@@ -431,3 +431,38 @@ export function playNotificationSound(style?: NotificationSoundStyle, forcePlay 
     }
   }
 }
+
+export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+
+/**
+ * Trigger web vibration haptic feedback if supported by browser.
+ */
+export function playHapticFeedback(type: HapticType = 'light'): void {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+  try {
+    if ('vibrate' in navigator) {
+      switch (type) {
+        case 'light':
+          navigator.vibrate(10);
+          break;
+        case 'medium':
+          navigator.vibrate(20);
+          break;
+        case 'heavy':
+          navigator.vibrate(35);
+          break;
+        case 'success':
+          navigator.vibrate([15, 50, 15]);
+          break;
+        case 'warning':
+          navigator.vibrate([25, 40, 25]);
+          break;
+        case 'error':
+          navigator.vibrate([30, 40, 30, 40, 30]);
+          break;
+      }
+    }
+  } catch {
+    // Unsupported or blocked by browser policy
+  }
+}

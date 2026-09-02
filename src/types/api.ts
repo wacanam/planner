@@ -901,3 +901,54 @@ export interface Invitation {
   acceptedByUserName?: string | null;
 }
 
+// ─── Announcements ───────────────────────────────────────────────────────────
+
+export type AnnouncementScope = 'congregation' | 'system' | 'service_group';
+
+export type AnnouncementCategory =
+  | 'general'
+  | 'service_year'
+  | 'feature_update'
+  | 'maintenance'
+  | 'bug_fix'
+  | 'campaign'
+  | 'urgent';
+
+export type AnnouncementPriority = 'normal' | 'important' | 'urgent';
+
+export interface Announcement {
+  id: string;
+  scope: AnnouncementScope;
+  congregationId?: string | null;
+  congregationName?: string | null;
+  serviceGroupId?: string | null;
+  serviceGroupName?: string | null;
+  title: string;
+  content: string;
+  category: AnnouncementCategory;
+  priority: AnnouncementPriority;
+  isPinned: boolean;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string | null;
+  serviceYear?: number | null;
+  actionUrl?: string | null;
+}
+
+export interface ServiceYearSuggestion {
+  id: string;
+  milestone: 'kickoff' | 'mid_year' | 'campaign' | 'closing';
+  serviceYear: number;
+  title: string;
+  suggestedTitle: string;
+  suggestedCategory: AnnouncementCategory;
+  suggestedPriority: AnnouncementPriority;
+  suggestedContent: string;
+  reason: string;
+  badgeLabel: string;
+}
+
+
