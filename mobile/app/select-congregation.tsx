@@ -9,13 +9,10 @@ import {
   MapPin,
   Plus,
   Search,
-  Ticket,
-  UserPlus,
   X,
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Modal,
   StyleSheet,
