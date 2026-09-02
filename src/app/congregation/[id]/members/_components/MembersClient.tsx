@@ -6,12 +6,18 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Copy,
   Crown,
   FolderOpen,
+  KeyRound,
+  Mail,
   Search,
+  Share2,
   Shield,
+  Trash2,
   UserCheck,
   User as UserIcon,
+  UserPlus,
   UserX,
   Users,
   X,
@@ -41,19 +47,37 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   useApproveAssignment,
   useCongregationGroups,
+  useCongregationInvitations,
   useCongregationJoinRequests,
   useCongregationMembers,
+  useCongregations,
+  useCreateInvitation,
   useCurrentUser,
   usePendingEndorsements,
   useReviewJoinRequest,
+  useRevokeInvitation,
   useUpdateMemberRole,
 } from '@/hooks';
-import { canApproveMembers, isUserInGroup } from '@/lib/permissions';
-import { CongregationRole, MemberStatus, UserRole } from '@/lib/roles';
+import {
+  canApproveMembers,
+  canSendCongregationInvite,
+  getAllowedCongregationRolesForInviter,
+  isUserInGroup,
+} from '@/lib/permissions';
+import { CongregationRole, InvitationStatus, MemberStatus, UserRole } from '@/lib/roles';
 import { timeAgo } from '@/lib/time-ago';
-import type { Assignment } from '@/types/api';
+import type { Assignment, Invitation } from '@/types/api';
 
-type Tab = 'members' | 'my_group' | 'requests' | 'endorsements';
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  publisher: 'Publisher',
+  visiting_publisher: 'Visiting Publisher',
+  territory_servant: 'Territory Servant',
+  secretary: 'Secretary',
+  service_overseer: 'Service Overseer',
+  circuit_overseer: 'Circuit Overseer',
+};
+
+type Tab = 'members' | 'my_group' | 'requests' | 'endorsements' | 'invitations';
 
 export default function MembersClient() {
   const params = useParams();
@@ -61,26 +85,54 @@ export default function MembersClient() {
   const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
   const _canManage = canApproveMembers(user.role, user.congregationRole);
+  const canInvite = canSendCongregationInvite(user.role, user.congregationRole);
+  const allowedRoles = useMemo(
+    () => getAllowedCongregationRolesForInviter(user.role, user.congregationRole),
+    [user.role, user.congregationRole]
+  );
 
   const { data: members = [], isLoading: membersLoading } = useCongregationMembers(congregationId);
+  const { congregations = [] } = useCongregations();
+  const currentCongregation = useMemo(
+    () => congregations.find((c) => c.id === congregationId),
+    [congregations, congregationId]
+  );
   const { groups = [] } = useCongregationGroups(congregationId);
   const { data: allJoinRequests = [], isLoading: requestsLoading } =
     useCongregationJoinRequests(congregationId);
   const { endorsements = [], isLoading: endorsementsLoading } =
     usePendingEndorsements(congregationId);
+  const { data: allInvitations = [], isLoading: invitesLoading } =
+    useCongregationInvitations(congregationId);
+  const { createCongregationInvitation, isCreating: isCreatingInvite } = useCreateInvitation();
+  const { revoke: revokeInvite, isRevoking: isRevokingInvite } = useRevokeInvitation();
+
   const { review: reviewJoin, isPending: reviewingJoin } = useReviewJoinRequest(congregationId);
   const { updateRole, isPending: updatingRole } = useUpdateMemberRole(congregationId);
   const { approve, reject, isApproving } = useApproveAssignment(congregationId);
 
   const initialTab = (searchParams?.get('tab') as Tab) || 'members';
   const [tab, setTab] = useState<Tab>(
-    initialTab === 'endorsements' || initialTab === 'requests' || initialTab === 'my_group'
+    initialTab === 'endorsements' ||
+      initialTab === 'requests' ||
+      initialTab === 'my_group' ||
+      initialTab === 'invitations'
       ? initialTab
       : 'members'
   );
   const [search, setSearch] = useState('');
   const [editMember, setEditMember] = useState<(typeof members)[0] | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('publisher');
+
+  // Invitation dialog state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteCongRole, setInviteCongRole] = useState<string>(CongregationRole.PUBLISHER);
+  const [inviteGroupId, setInviteGroupId] = useState<string>('none');
+  const [inviteGroupRole, setInviteGroupRole] = useState<string>('member');
+  const [inviteExpiryDays, setInviteExpiryDays] = useState<number>(14);
+  const [createdInvite, setCreatedInvite] = useState<Invitation | null>(null);
+  const [hasCopied, setHasCopied] = useState(false);
 
   // Request filter and search state
   type RequestFilter = 'pending' | 'approved' | 'rejected' | 'all';
@@ -94,10 +146,22 @@ export default function MembersClient() {
   const [declineRequestReason, setDeclineRequestReason] = useState('');
   const [isSubmittingRequestDecline, setIsSubmittingRequestDecline] = useState(false);
 
+  // Approve join request dialog state
+  const [approveRequestItem, setApproveRequestItem] = useState<(typeof allJoinRequests)[0] | null>(
+    null
+  );
+  const [approveCongregationRole, setApproveCongregationRole] = useState<string>(
+    CongregationRole.PUBLISHER
+  );
+  const [approveGroupId, setApproveGroupId] = useState<string>('none');
+  const [approveGroupRole, setApproveGroupRole] = useState<string>('member');
+  const [isSubmittingRequestApprove, setIsSubmittingRequestApprove] = useState(false);
+
   // Decline endorsement dialog state
   const [declineEndorsement, setDeclineEndorsement] = useState<Assignment | null>(null);
   const [declineReason, setDeclineReason] = useState('');
   const [isSubmittingDecline, setIsSubmittingDecline] = useState(false);
+
 
   // Current user's group
   const myGroup = useMemo(() => {
@@ -203,21 +267,38 @@ export default function MembersClient() {
     requestSearch,
   ]);
 
-  const handleApproveRequest = async (req: (typeof allJoinRequests)[0]) => {
+  const handleOpenApproveDialog = (req: (typeof allJoinRequests)[0]) => {
+    setApproveRequestItem(req);
+    setApproveCongregationRole(CongregationRole.PUBLISHER);
+    setApproveGroupId('none');
+    setApproveGroupRole('member');
+  };
+
+  const handleConfirmApproveRequest = async () => {
+    if (!approveRequestItem) return;
+    setIsSubmittingRequestApprove(true);
     try {
       const reviewerName = user.name || user.email || 'Service Overseer';
+      const finalGroupId = approveGroupId !== 'none' ? approveGroupId : null;
+      const finalGroupRole = finalGroupId ? approveGroupRole : null;
       await reviewJoin({
-        requestId: req.id,
+        requestId: approveRequestItem.id,
         status: MemberStatus.ACTIVE,
+        congregationRole: approveCongregationRole,
+        groupId: finalGroupId,
+        groupRole: finalGroupRole,
         reviewerId: user.id,
         reviewerName,
         reviewerRole: user.congregationRole || user.role,
       });
       toast.success(
-        `Approved ${req.user?.name || req.user?.email || 'publisher'} into congregation`
+        `Approved ${approveRequestItem.user?.name || approveRequestItem.user?.email || 'publisher'} into congregation`
       );
+      setApproveRequestItem(null);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to approve request');
+    } finally {
+      setIsSubmittingRequestApprove(false);
     }
   };
 
@@ -298,6 +379,78 @@ export default function MembersClient() {
     }
   };
 
+  const pendingInvitations = useMemo(
+    () =>
+      allInvitations.filter(
+        (i) =>
+          i.status === InvitationStatus.PENDING &&
+          new Date(i.expiresAt).getTime() > Date.now()
+      ),
+    [allInvitations]
+  );
+
+  const handleOpenInviteDialog = () => {
+    setInviteEmail('');
+    setInviteCongRole(CongregationRole.PUBLISHER);
+    setInviteGroupId('none');
+    setInviteGroupRole('member');
+    setInviteExpiryDays(14);
+    setCreatedInvite(null);
+    setHasCopied(false);
+    setInviteModalOpen(true);
+  };
+
+  const handleCreateInvite = async () => {
+    if (!canInvite) return;
+    try {
+      const selectedGroup = groups.find((g) => g.id === inviteGroupId);
+      const inv = await createCongregationInvitation({
+        congregationId,
+        congregationName: currentCongregation?.name || 'Congregation',
+        email: inviteEmail.trim() || null,
+        congregationRole: inviteCongRole,
+        groupId: inviteGroupId === 'none' ? null : inviteGroupId,
+        groupName: selectedGroup?.name || null,
+        groupRole: inviteGroupId === 'none' ? null : inviteGroupRole,
+        invitedBy: user.id,
+        invitedByName: user.name || user.email || 'Overseer',
+        invitedByRole: user.congregationRole || user.role,
+        expiresInDays: inviteExpiryDays,
+      });
+      setCreatedInvite(inv);
+      toast.success('Invitation created successfully!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create invitation');
+    }
+  };
+
+  const handleCopyInviteLink = (inv: Invitation) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kanataran.app';
+    const link = `${origin}/invite?code=${inv.id}`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(link);
+      setHasCopied(true);
+      toast.success('Invite link copied to clipboard!');
+      setTimeout(() => setHasCopied(false), 2000);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(code);
+      toast.success(`Invite code ${code} copied!`);
+    }
+  };
+
+  const handleRevokeInvite = async (inv: Invitation) => {
+    try {
+      await revokeInvite(inv.id);
+      toast.success('Invitation revoked');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to revoke invitation');
+    }
+  };
+
   return (
     <ProtectedPage
       congregationId={congregationId}
@@ -310,11 +463,23 @@ export default function MembersClient() {
     >
       <DashboardHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24 lg:pb-8 w-full min-w-0">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Member & Access Management</h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Congregation publisher directory, join requests approval, and territory endorsements
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Member & Access Management</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Congregation publisher directory, join requests approval, and territory endorsements
+            </p>
+          </div>
+          {canInvite && (
+            <Button
+              type="button"
+              onClick={handleOpenInviteDialog}
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0 cursor-pointer shadow-xs"
+            >
+              <UserPlus size={15} />
+              <span>Invite Member</span>
+            </Button>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -371,6 +536,21 @@ export default function MembersClient() {
               <Shield size={14} />
               <span>Endorsements ({endorsements.length})</span>
             </button>
+
+            {canInvite && (
+              <button
+                type="button"
+                onClick={() => setTab('invitations')}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  tab === 'invitations'
+                    ? 'bg-card text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <UserPlus size={14} />
+                <span>Invitations ({pendingInvitations.length})</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -928,7 +1108,7 @@ export default function MembersClient() {
                             <Button
                               size="sm"
                               className="rounded-xl text-xs font-semibold gap-1 cursor-pointer"
-                              onClick={() => handleApproveRequest(req)}
+                              onClick={() => handleOpenApproveDialog(req)}
                               disabled={reviewingJoin}
                             >
                               <Check size={13} />
@@ -1143,6 +1323,303 @@ export default function MembersClient() {
           </div>
         )}
 
+        {/* Invitations Tab */}
+        {tab === 'invitations' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-muted/30 rounded-2xl border border-border">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Pending Invitations</h2>
+                <p className="text-xs text-muted-foreground">
+                  Active invitation links and codes to join this congregation
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleOpenInviteDialog}
+                className="gap-1.5 rounded-xl text-xs font-semibold cursor-pointer shrink-0"
+              >
+                <UserPlus size={14} />
+                <span>New Invite</span>
+              </Button>
+            </div>
+
+            {invitesLoading ? (
+              <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+                <p className="text-xs text-muted-foreground animate-pulse">Loading invitations...</p>
+              </div>
+            ) : pendingInvitations.length === 0 ? (
+              <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+                <UserPlus size={36} className="text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-foreground">No Pending Invitations</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Invite publishers or circuit overseers to join this congregation workspace.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleOpenInviteDialog}
+                  className="mt-4 gap-1.5 rounded-xl text-xs font-semibold cursor-pointer"
+                >
+                  <UserPlus size={14} />
+                  <span>Send First Invite</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {pendingInvitations.map((inv) => (
+                  <Card key={inv.id} className="bg-card border-border shadow-xs hover:border-border/80 transition-all">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono font-bold text-sm bg-primary/10 text-primary px-2.5 py-0.5 rounded-lg border border-primary/20">
+                              {inv.id}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] uppercase font-bold ${
+                                inv.congregationRole === 'circuit_overseer'
+                                  ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                  : 'bg-primary/10 text-primary border-primary/20'
+                              }`}
+                            >
+                              {ROLE_DISPLAY_NAMES[inv.congregationRole || ''] || inv.congregationRole}
+                            </Badge>
+                          </div>
+                          {inv.email && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1 truncate">
+                              <Mail size={12} className="shrink-0" />
+                              <span className="truncate">{inv.email}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 rounded-lg text-xs gap-1 cursor-pointer"
+                            onClick={() => handleCopyInviteLink(inv)}
+                          >
+                            <Copy size={13} />
+                            <span className="hidden sm:inline">Copy Link</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 rounded-lg text-destructive hover:bg-destructive/10 cursor-pointer"
+                            onClick={() => handleRevokeInvite(inv)}
+                            title="Revoke Invitation"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <div>
+                          {inv.groupName && (
+                            <span>Group: <strong className="text-foreground">{inv.groupName}</strong> ({inv.groupRole || 'member'})</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock size={11} />
+                          <span>Expires {new Date(inv.expiresAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Invite Member Dialog */}
+        <ResponsiveDialog
+          open={inviteModalOpen}
+          onOpenChange={(op) => {
+            if (!op) {
+              setInviteModalOpen(false);
+              setCreatedInvite(null);
+            }
+          }}
+          title={createdInvite ? 'Invitation Created!' : 'Invite Member to Congregation'}
+          description={
+            createdInvite
+              ? 'Share this invite link or code with the publisher.'
+              : 'Generate an invitation link or code with pre-assigned congregation roles and service groups.'
+          }
+        >
+          {createdInvite ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Invite Code</span>
+                  <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30 text-[10px] uppercase font-bold">
+                    {ROLE_DISPLAY_NAMES[createdInvite.congregationRole || ''] || createdInvite.congregationRole}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2 bg-card p-3 rounded-xl border border-border">
+                  <span className="font-mono text-2xl font-black text-foreground tracking-widest">{createdInvite.id}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-lg text-xs gap-1.5 cursor-pointer"
+                    onClick={() => handleCopyCode(createdInvite.id)}
+                  >
+                    <Copy size={13} />
+                    <span>Copy Code</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Shareable Invite Link</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://kanataran.app'}/invite?code=${createdInvite.id}`}
+                    className="text-xs font-mono rounded-xl bg-muted/40"
+                  />
+                  <Button
+                    size="sm"
+                    className="rounded-xl text-xs gap-1.5 shrink-0 cursor-pointer"
+                    onClick={() => handleCopyInviteLink(createdInvite)}
+                  >
+                    {hasCopied ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{hasCopied ? 'Copied' : 'Copy Link'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground space-y-1 bg-muted/20 p-3 rounded-xl border border-border/40">
+                <p>• Assigned Role: <strong>{ROLE_DISPLAY_NAMES[createdInvite.congregationRole || ''] || createdInvite.congregationRole}</strong></p>
+                {createdInvite.groupName && (
+                  <p>• Service Group: <strong>{createdInvite.groupName}</strong> ({createdInvite.groupRole || 'member'})</p>
+                )}
+                <p>• Valid until: <strong>{new Date(createdInvite.expiresAt).toLocaleDateString()}</strong></p>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={() => setInviteModalOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="invite-email" className="text-xs font-semibold">
+                  Recipient Email <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="publisher@example.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="text-xs rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  If entered, an email invitation will be queued and sent.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Congregation Role</Label>
+                <Select value={inviteCongRole} onValueChange={setInviteCongRole}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value={CongregationRole.PUBLISHER}>Regular Publisher</SelectItem>
+                    <SelectItem value={CongregationRole.VISITING_PUBLISHER}>Visiting Publisher</SelectItem>
+                    <SelectItem value={CongregationRole.TERRITORY_SERVANT}>Territory Servant</SelectItem>
+                    <SelectItem value={CongregationRole.SECRETARY}>Congregation Secretary</SelectItem>
+                    <SelectItem value={CongregationRole.SERVICE_OVERSEER}>Service Overseer</SelectItem>
+                    <SelectItem value={CongregationRole.CIRCUIT_OVERSEER}>Circuit Overseer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Service Group (Optional)</Label>
+                <Select value={inviteGroupId} onValueChange={setInviteGroupId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select group" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {inviteGroupId !== 'none' && (
+                <div className="space-y-1 animate-in fade-in duration-200">
+                  <Label className="text-xs font-semibold">Role in Service Group</Label>
+                  <Select value={inviteGroupRole} onValueChange={setInviteGroupRole}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Select group role" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border shadow-2xl">
+                      <SelectItem value="member">Group Member</SelectItem>
+                      <SelectItem value="group_overseer">Group Overseer</SelectItem>
+                      <SelectItem value="assistant_overseer">Assistant Overseer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Expiration</Label>
+                <Select
+                  value={String(inviteExpiryDays)}
+                  onValueChange={(v) => setInviteExpiryDays(Number(v))}
+                >
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select expiration" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value="7">7 Days</SelectItem>
+                    <SelectItem value="14">14 Days</SelectItem>
+                    <SelectItem value="30">30 Days</SelectItem>
+                    <SelectItem value="90">90 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => setInviteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold gap-1.5 cursor-pointer"
+                  onClick={handleCreateInvite}
+                  disabled={isCreatingInvite}
+                >
+                  <UserPlus size={14} />
+                  <span>{isCreatingInvite ? 'Creating…' : 'Generate Invite'}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+        </ResponsiveDialog>
+
         {/* Change Role Dialog */}
         <ResponsiveDialog
           open={!!editMember}
@@ -1202,6 +1679,135 @@ export default function MembersClient() {
                 disabled={updatingRole || (!!editMember && isCurrentSelf(editMember))}
               >
                 {updatingRole ? 'Updating…' : 'Save Role'}
+              </Button>
+            </div>
+          </div>
+        </ResponsiveDialog>
+
+        {/* Approve Join Request Dialog */}
+        <ResponsiveDialog
+          open={!!approveRequestItem}
+          onOpenChange={(op) => {
+            if (!op) {
+              setApproveRequestItem(null);
+            }
+          }}
+          title="Approve Congregation Membership"
+          description="Accept this publisher into the congregation and optionally assign a service group and role."
+        >
+          <div className="space-y-4">
+            {approveRequestItem && (
+              <div className="p-3 bg-muted/40 rounded-xl border border-border space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <UserCheck size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">
+                      {approveRequestItem.user?.name || 'Publisher'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {approveRequestItem.user?.email}
+                    </p>
+                  </div>
+                </div>
+                {approveRequestItem.joinMessage && (
+                  <p className="text-muted-foreground italic pt-1 border-t border-border/50 text-[11px]">
+                    &ldquo;{approveRequestItem.joinMessage}&rdquo;
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Congregation Role */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Congregation Role</Label>
+                <Select
+                  value={approveCongregationRole}
+                  onValueChange={setApproveCongregationRole}
+                >
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select congregation role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value={CongregationRole.PUBLISHER}>Regular Publisher</SelectItem>
+                    <SelectItem value={CongregationRole.VISITING_PUBLISHER}>
+                      Visiting Publisher
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.TERRITORY_SERVANT}>
+                      Territory Servant
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.SECRETARY}>
+                      Congregation Secretary
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.SERVICE_OVERSEER}>
+                      Service Overseer
+                    </SelectItem>
+                    <SelectItem value={CongregationRole.CIRCUIT_OVERSEER}>
+                      Circuit Overseer
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Service Group Assignment */}
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Service Group (Optional)</Label>
+                <Select value={approveGroupId} onValueChange={setApproveGroupId}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select a service group (optional)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value="none">None (Unassigned)</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  You can optionally assign this publisher to a service group now.
+                </p>
+              </div>
+
+              {/* Group Role (only shown if a group is selected) */}
+              {approveGroupId !== 'none' && (
+                <div className="space-y-1 animate-in fade-in duration-200">
+                  <Label className="text-xs font-semibold">Role in Service Group</Label>
+                  <Select value={approveGroupRole} onValueChange={setApproveGroupRole}>
+                    <SelectTrigger className="h-9 rounded-xl text-xs">
+                      <SelectValue placeholder="Select group role" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border shadow-2xl">
+                      <SelectItem value="member">Group Member</SelectItem>
+                      <SelectItem value="group_overseer">Group Overseer</SelectItem>
+                      <SelectItem value="assistant_overseer">Assistant Overseer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl text-xs"
+                onClick={() => setApproveRequestItem(null)}
+                disabled={isSubmittingRequestApprove}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl text-xs font-semibold gap-1 cursor-pointer"
+                onClick={handleConfirmApproveRequest}
+                disabled={isSubmittingRequestApprove}
+              >
+                <Check size={13} />
+                <span>{isSubmittingRequestApprove ? 'Approving…' : 'Approve Membership'}</span>
               </Button>
             </div>
           </div>

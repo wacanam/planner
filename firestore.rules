@@ -359,9 +359,21 @@ service cloud.firestore {
       );
     }
 
+    // Invitations
+    match /invitations/{invitationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        resource.data.invitedBy == request.auth.uid
+      );
+    }
+
     // Mail Queue
     match /mail/{mailId} {
       allow read, write: if isAuthenticated();
     }
   }
 }
+

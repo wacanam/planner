@@ -9,6 +9,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
@@ -19,11 +20,12 @@ import { createInAppNotification } from '@/lib/notifications';
 import {
   AssignmentStatus,
   CongregationRole,
+  GroupRole,
   MemberStatus,
   NotificationType,
   UserRole,
 } from '@/lib/roles';
-import type { JoinRequest, Member } from '@/types/api';
+import type { Group, GroupMember, JoinRequest, Member } from '@/types/api';
 
 function memberCollection() {
   return collection(getPlannerFirestore(), FIRESTORE_COLLECTIONS.congregationMembers);
@@ -190,6 +192,9 @@ export function useReviewJoinRequest(congregationId: string) {
       reviewerId?: string;
       reviewerName?: string;
       reviewerRole?: string;
+      congregationRole?: string | null;
+      groupId?: string | null;
+      groupRole?: string | null;
     }) => {
       setIsReviewing(true);
       try {
@@ -239,10 +244,19 @@ export function useReviewJoinRequest(congregationId: string) {
         const reviewerName = arg.reviewerName || null;
         const reviewerRole = arg.reviewerRole || null;
 
+        const finalCongregationRole = isApproved
+          ? arg.congregationRole || memberData?.congregationRole || CongregationRole.PUBLISHER
+          : null;
+        const finalGroupId = isApproved
+          ? arg.groupId !== undefined
+            ? arg.groupId
+            : (memberData?.groupId ?? null)
+          : null;
+
         await updateDoc(memberRef, {
           status: finalStatus,
-          congregationRole:
-            memberData?.congregationRole || (isApproved ? CongregationRole.PUBLISHER : null),
+          congregationRole: finalCongregationRole,
+          groupId: finalGroupId,
           reviewNote: arg.reviewNote ?? null,
           reviewedAt: now,
           reviewedBy: reviewerId,
@@ -267,20 +281,99 @@ export function useReviewJoinRequest(congregationId: string) {
             userRef,
             {
               congregationId,
+              groupId: finalGroupId,
               updatedAt: now,
             },
             { merge: true }
           );
 
+          // If a service group is assigned, synchronize group document membership
+          if (finalGroupId) {
+            try {
+              const groupSnapshot = await getDocs(
+                query(
+                  collection(db, FIRESTORE_COLLECTIONS.groups),
+                  where('congregationId', '==', congregationId)
+                )
+              );
+              const batch = writeBatch(db);
+              const groupRole = arg.groupRole || 'member';
+
+              for (const groupDoc of groupSnapshot.docs) {
+                const gData = groupDoc.data() as Partial<Group>;
+                const isTargetGroup = groupDoc.id === finalGroupId;
+                const existingMembers = (gData.members || []).filter(
+                  (m) => (m.userId || m.id) !== targetUserId
+                );
+
+                if (isTargetGroup) {
+                  const newMemberEntry: GroupMember = {
+                    id: targetUserId,
+                    userId: targetUserId,
+                    role: groupRole,
+                    user: {
+                      name: userName,
+                      email: userEmail,
+                    },
+                  };
+                  const updatedMembers = [...existingMembers, newMemberEntry];
+                  const groupUpdates: Record<string, unknown> = {
+                    members: updatedMembers,
+                    updatedAt: now,
+                  };
+                  if (groupRole === 'group_overseer') {
+                    groupUpdates.overseerId = targetUserId;
+                    groupUpdates.overseerName = userName;
+                  } else if (groupRole === 'assistant_overseer') {
+                    groupUpdates.assistantOverseerId = targetUserId;
+                    groupUpdates.assistantOverseerName = userName;
+                  }
+                  batch.update(groupDoc.ref, groupUpdates);
+                } else if (
+                  (gData.members || []).some((m) => (m.userId || m.id) === targetUserId)
+                ) {
+                  const groupUpdates: Record<string, unknown> = {
+                    members: existingMembers,
+                    updatedAt: now,
+                  };
+                  if (gData.overseerId === targetUserId) {
+                    groupUpdates.overseerId = null;
+                    groupUpdates.overseerName = null;
+                  }
+                  if (gData.assistantOverseerId === targetUserId) {
+                    groupUpdates.assistantOverseerId = null;
+                    groupUpdates.assistantOverseerName = null;
+                  }
+                  batch.update(groupDoc.ref, groupUpdates);
+                }
+              }
+              await batch.commit();
+            } catch (groupErr) {
+              console.warn('[useReviewJoinRequest] Failed to sync group document:', groupErr);
+            }
+          }
+
           // Queue welcome email if user email is available
           if (userEmail) {
             try {
+              const roleDisplayName =
+                finalCongregationRole === CongregationRole.SERVICE_OVERSEER
+                  ? 'Service Overseer'
+                  : finalCongregationRole === CongregationRole.SECRETARY
+                    ? 'Congregation Secretary'
+                    : finalCongregationRole === CongregationRole.TERRITORY_SERVANT
+                      ? 'Territory Servant'
+                      : finalCongregationRole === CongregationRole.CIRCUIT_OVERSEER
+                        ? 'Circuit Overseer'
+                        : finalCongregationRole === CongregationRole.VISITING_PUBLISHER
+                          ? 'Visiting Publisher'
+                          : 'Publisher';
               await queueWelcomeEmail(db, {
                 toEmail: userEmail,
                 userName,
                 congregationName,
                 congregationId,
-                roleName: 'Publisher',
+                roleName: roleDisplayName,
               });
             } catch (emailErr) {
               console.warn('[useReviewJoinRequest] Failed to queue welcome email:', emailErr);

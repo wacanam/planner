@@ -758,3 +758,31 @@ export interface AccountRequest {
   reviewedByName?: string | null;
   reviewNote?: string | null;
 }
+
+// ─── Invitations ─────────────────────────────────────────────────────────────
+
+export type InvitationType = 'congregation' | 'system_admin';
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
+
+export interface Invitation {
+  id: string; // Unique token / invite code
+  type: InvitationType;
+  congregationId?: string | null;
+  congregationName?: string | null;
+  email?: string | null;
+  congregationRole?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  groupRole?: string | null;
+  systemRole?: string | null;
+  invitedBy: string;
+  invitedByName: string;
+  invitedByRole: string;
+  status: InvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+  acceptedAt?: string | null;
+  acceptedByUserId?: string | null;
+  acceptedByUserName?: string | null;
+}
+

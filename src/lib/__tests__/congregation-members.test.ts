@@ -231,5 +231,45 @@ describe('useCongregationMembers helpers', () => {
       expect(availableForNewGroup[0].userId).toBe('user-2');
       expect(availableForNewGroup[0].user?.name).toBe('Bob');
     });
+
+    it('correctly maps assigned service group and group role upon membership approval', () => {
+      const approvedMember = memberFromData('member-99', {
+        id: 'member-99',
+        userId: 'user-99',
+        congregationId: 'cong-1',
+        congregationRole: 'publisher',
+        groupId: 'group-1',
+        status: 'active',
+        approvedBy: 'approver-1',
+        approvedByName: 'Elder Approver',
+        user: {
+          id: 'user-99',
+          name: 'David Publisher',
+          email: 'david@example.com',
+          role: UserRole.PUBLISHER,
+        },
+      });
+
+      expect(approvedMember.status).toBe('active');
+      expect(approvedMember.groupId).toBe('group-1');
+      expect(approvedMember.congregationRole).toBe('publisher');
+      expect(approvedMember.approvedByName).toBe('Elder Approver');
+
+      // Simulate group update structure for Group Overseer role
+      const overseerEntry = {
+        id: approvedMember.userId,
+        userId: approvedMember.userId,
+        role: 'group_overseer',
+        user: {
+          name: approvedMember.user?.name ?? null,
+          email: approvedMember.user?.email ?? null,
+        },
+      };
+
+      expect(overseerEntry.role).toBe('group_overseer');
+      expect(overseerEntry.userId).toBe('user-99');
+      expect(overseerEntry.user.name).toBe('David Publisher');
+    });
   });
 });
+

@@ -114,6 +114,39 @@ export function canApproveMembers(role?: string | null, congregationRole?: strin
   );
 }
 
+export function canSendCongregationInvite(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole)
+  );
+}
+
+export function canSendSystemAdminInvite(role?: string | null): boolean {
+  return isSystemAdmin(role);
+}
+
+export function getAllowedCongregationRolesForInviter(
+  _role?: string | null,
+  _congregationRole?: string | null
+): string[] {
+  // Secretary, Service Overseer, Super Admin, and Admin can invite for any congregation role including circuit overseer
+  return [
+    'publisher',
+    'visiting_publisher',
+    'territory_servant',
+    'secretary',
+    'service_overseer',
+    'circuit_overseer',
+  ];
+}
+
 export function canApproveAssignments(
   role?: string | null,
   congregationRole?: string | null

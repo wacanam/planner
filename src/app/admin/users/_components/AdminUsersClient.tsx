@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   Check,
+  Clock,
   Copy,
   KeyRound,
   LogOut,
@@ -13,9 +14,11 @@ import {
   Search,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   UserCheck,
   UserCog,
+  UserPlus,
   Users,
   UserX,
 } from 'lucide-react';
@@ -45,11 +48,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useAdminUsers, useCongregations, useCurrentUser } from '@/hooks';
+import {
+  useAdminUsers,
+  useCongregations,
+  useCreateInvitation,
+  useCurrentUser,
+  useRevokeInvitation,
+  useSystemAdminInvitations,
+} from '@/hooks';
 import { formatDate } from '@/lib/date-utils';
-import { isSystemAdmin } from '@/lib/permissions';
-import { UserRole } from '@/lib/roles';
-import type { User } from '@/types/api';
+import { canSendSystemAdminInvite, isSystemAdmin } from '@/lib/permissions';
+import { InvitationStatus, UserRole } from '@/lib/roles';
+import type { Invitation, User } from '@/types/api';
 
 export default function AdminUsersClient() {
   const {
@@ -65,10 +75,23 @@ export default function AdminUsersClient() {
 
   const { congregations = [] } = useCongregations();
   const { user: currentUser } = useCurrentUser();
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+
+  const { data: adminInvitations = [], isLoading: invitesLoading } = useSystemAdminInvitations();
+  const { createSystemAdminInvitation, isCreating: isCreatingInvite } = useCreateInvitation();
+  const { revoke: revokeInvite, isRevoking: isRevokingInvite } = useRevokeInvitation();
 
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user' | 'invites'>('all');
   const [statusFilter, _setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // Admin Invite Modal
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSystemRole, setInviteSystemRole] = useState<string>(UserRole.ADMIN);
+  const [inviteExpiryDays, setInviteExpiryDays] = useState<number>(14);
+  const [createdInvite, setCreatedInvite] = useState<Invitation | null>(null);
+  const [hasCopied, setHasCopied] = useState(false);
 
   // Role Edit Modal
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -262,6 +285,70 @@ export default function AdminUsersClient() {
     setTransferRecipientId(candidate || '');
   };
 
+  const pendingAdminInvites = useMemo(
+    () =>
+      adminInvitations.filter(
+        (i) =>
+          i.status === InvitationStatus.PENDING &&
+          new Date(i.expiresAt).getTime() > Date.now()
+      ),
+    [adminInvitations]
+  );
+
+  const handleOpenInviteAdminModal = () => {
+    setInviteEmail('');
+    setInviteSystemRole(UserRole.ADMIN);
+    setInviteExpiryDays(14);
+    setCreatedInvite(null);
+    setHasCopied(false);
+    setInviteModalOpen(true);
+  };
+
+  const handleCreateAdminInvite = async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const inv = await createSystemAdminInvitation({
+        email: inviteEmail.trim() || null,
+        systemRole: inviteSystemRole,
+        invitedBy: currentUser.id,
+        invitedByName: currentUser.name || currentUser.email || 'Super Admin',
+        invitedByRole: currentUser.role || 'SUPER_ADMIN',
+        expiresInDays: inviteExpiryDays,
+      });
+      setCreatedInvite(inv);
+      toast.success('Admin invitation created successfully!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create admin invitation');
+    }
+  };
+
+  const handleCopyInviteLink = (inv: Invitation) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kanataran.app';
+    const link = `${origin}/invite?code=${inv.id}`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(link);
+      setHasCopied(true);
+      toast.success('Invite link copied!');
+      setTimeout(() => setHasCopied(false), 2000);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(code);
+      toast.success(`Invite code ${code} copied!`);
+    }
+  };
+
+  const handleRevokeAdminInvite = async (inv: Invitation) => {
+    try {
+      await revokeInvite(inv.id);
+      toast.success('Admin invitation revoked');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to revoke invitation');
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!deleteTargetUser) return;
     try {
@@ -293,6 +380,16 @@ export default function AdminUsersClient() {
               </p>
             </div>
           </div>
+          {isSuperAdmin && (
+            <Button
+              type="button"
+              onClick={handleOpenInviteAdminModal}
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0 cursor-pointer shadow-xs bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <UserPlus size={15} />
+              <span>Invite App Admin</span>
+            </Button>
+          )}
         </div>
 
         {/* Admin Navigation */}
@@ -349,12 +446,112 @@ export default function AdminUsersClient() {
               >
                 Publishers ({publisherCount})
               </button>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setRoleFilter('invites')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    roleFilter === 'invites'
+                      ? 'bg-card text-purple-600 dark:text-purple-400 shadow-xs border border-border'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Admin Invites ({pendingAdminInvites.length})
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Users List */}
-        {loading ? (
+        {/* Users / Invites List */}
+        {roleFilter === 'invites' ? (
+          invitesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
+              ))}
+            </div>
+          ) : pendingAdminInvites.length === 0 ? (
+            <div className="text-center py-20 bg-card rounded-3xl border border-border p-6">
+              <ShieldCheck size={40} className="text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-foreground">No Pending Admin Invitations</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Invite additional administrators or super administrators to manage Kanataran.
+              </p>
+              <Button
+                size="sm"
+                onClick={handleOpenInviteAdminModal}
+                className="mt-4 gap-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <UserPlus size={14} />
+                <span>Invite First App Admin</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {pendingAdminInvites.map((inv) => (
+                <Card
+                  key={inv.id}
+                  className="bg-card border-border shadow-xs hover:border-purple-500/30 transition-all"
+                >
+                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-2xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-sm bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2.5 py-0.5 rounded-lg border border-purple-500/20">
+                            {inv.id}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30"
+                          >
+                            {inv.systemRole === 'SUPER_ADMIN'
+                              ? 'Super Administrator'
+                              : 'App Administrator'}
+                          </Badge>
+                        </div>
+                        {inv.email && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-0.5 truncate">
+                            <Mail size={12} className="shrink-0" />
+                            <span className="truncate">{inv.email}</span>
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                          Invited by {inv.invitedByName} • Expires{' '}
+                          {new Date(inv.expiresAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 rounded-lg text-xs gap-1 cursor-pointer"
+                        onClick={() => handleCopyInviteLink(inv)}
+                      >
+                        <Copy size={13} />
+                        <span>Copy Link</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 rounded-lg text-destructive hover:bg-destructive/10 cursor-pointer"
+                        onClick={() => handleRevokeAdminInvite(inv)}
+                        title="Revoke Invitation"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )
+        ) : loading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-16 bg-muted animate-pulse rounded-2xl" />
@@ -975,6 +1172,179 @@ export default function AdminUsersClient() {
               </Button>
             </div>
           </div>
+        </ResponsiveDialog>
+
+        {/* Invite App Admin Dialog */}
+        <ResponsiveDialog
+          open={inviteModalOpen}
+          onOpenChange={(op) => {
+            if (!op) {
+              setInviteModalOpen(false);
+              setCreatedInvite(null);
+            }
+          }}
+          title={createdInvite ? 'Admin Invitation Created!' : 'Invite System Administrator'}
+          description={
+            createdInvite
+              ? 'Share this invitation link or code with the administrator.'
+              : 'Generate an invitation link or code to grant administrative privileges.'
+          }
+        >
+          {createdInvite ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Invite Code
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30 text-[10px] uppercase font-bold"
+                  >
+                    {createdInvite.systemRole === 'SUPER_ADMIN'
+                      ? 'Super Administrator'
+                      : 'App Administrator'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2 bg-card p-3 rounded-xl border border-border">
+                  <span className="font-mono text-2xl font-black text-foreground tracking-widest">
+                    {createdInvite.id}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-lg text-xs gap-1.5 cursor-pointer"
+                    onClick={() => handleCopyCode(createdInvite.id)}
+                  >
+                    <Copy size={13} />
+                    <span>Copy Code</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Shareable Invite Link
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://kanataran.app'}/invite?code=${createdInvite.id}`}
+                    className="text-xs font-mono rounded-xl bg-muted/40"
+                  />
+                  <Button
+                    size="sm"
+                    className="rounded-xl text-xs gap-1.5 shrink-0 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white"
+                    onClick={() => handleCopyInviteLink(createdInvite)}
+                  >
+                    {hasCopied ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{hasCopied ? 'Copied' : 'Copy Link'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-muted-foreground space-y-1 bg-muted/20 p-3 rounded-xl border border-border/40">
+                <p>
+                  • System Role:{' '}
+                  <strong>
+                    {createdInvite.systemRole === 'SUPER_ADMIN'
+                      ? 'Super Administrator'
+                      : 'App Administrator'}
+                  </strong>
+                </p>
+                <p>
+                  • Valid until:{' '}
+                  <strong>{new Date(createdInvite.expiresAt).toLocaleDateString()}</strong>
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold"
+                  onClick={() => setInviteModalOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="admin-invite-email" className="text-xs font-semibold">
+                  Recipient Email <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <Input
+                  id="admin-invite-email"
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="text-xs rounded-xl"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  If entered, an administrative email invitation will be queued and sent.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">System Administrator Role</Label>
+                <Select value={inviteSystemRole} onValueChange={setInviteSystemRole}>
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select admin role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value={UserRole.ADMIN}>App Administrator (ADMIN)</SelectItem>
+                    <SelectItem value={UserRole.SUPER_ADMIN}>
+                      Super Administrator (SUPER_ADMIN)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Admins can manage congregations, users, and account requests. Super Admins have
+                  full system-wide authority.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold">Expiration</Label>
+                <Select
+                  value={String(inviteExpiryDays)}
+                  onValueChange={(v) => setInviteExpiryDays(Number(v))}
+                >
+                  <SelectTrigger className="h-9 rounded-xl text-xs">
+                    <SelectValue placeholder="Select expiration" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border shadow-2xl">
+                    <SelectItem value="7">7 Days</SelectItem>
+                    <SelectItem value="14">14 Days</SelectItem>
+                    <SelectItem value="30">30 Days</SelectItem>
+                    <SelectItem value="90">90 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl text-xs"
+                  onClick={() => setInviteModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-xl text-xs font-semibold gap-1.5 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white"
+                  onClick={handleCreateAdminInvite}
+                  disabled={isCreatingInvite}
+                >
+                  <UserPlus size={14} />
+                  <span>{isCreatingInvite ? 'Creating…' : 'Generate Admin Invite'}</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </ResponsiveDialog>
       </div>
     </ProtectedPage>

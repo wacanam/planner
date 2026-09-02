@@ -31,6 +31,8 @@ export const FIRESTORE_COLLECTIONS = {
   householdShares: 'householdShares',
   notifications: 'notifications',
   accountRequests: 'accountRequests',
+  invitations: 'invitations',
+  mail: 'mail',
 } as const;
 
 export function createClientId(): string {

@@ -1,12 +1,14 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { commitChunkedBatch, type BatchOperation } from '@/lib/batch-utils';
@@ -156,7 +158,13 @@ export function useApproveMember() {
     async (
       memberId: string,
       status: 'active' | 'rejected',
-      reviewer?: { id?: string | null; name?: string | null; role?: string | null }
+      reviewer?: { id?: string | null; name?: string | null; role?: string | null },
+      options?: {
+        congregationRole?: string;
+        groupId?: string | null;
+        groupRole?: string | null;
+        reviewNote?: string;
+      }
     ) => {
       setIsApproving(true);
       try {
@@ -165,9 +173,28 @@ export function useApproveMember() {
         const reviewerName = reviewer?.name || null;
         const reviewerRole = reviewer?.role || null;
         const isApproved = status === 'active';
+        const db = getPlannerFirestore();
 
-        await updateDoc(memberDocument(memberId), {
+        const memberRef = memberDocument(memberId);
+        const memberSnap = await getDoc(memberRef);
+        const memberData = memberSnap.exists() ? (memberSnap.data() as Partial<Member>) : undefined;
+        const targetUserId = memberData?.userId || memberId;
+        const congregationId = memberData?.congregationId;
+
+        const finalCongregationRole = isApproved
+          ? options?.congregationRole || memberData?.congregationRole || 'publisher'
+          : null;
+        const finalGroupId = isApproved
+          ? options?.groupId !== undefined
+            ? options?.groupId
+            : (memberData?.groupId ?? null)
+          : null;
+
+        await updateDoc(memberRef, {
           status,
+          congregationRole: finalCongregationRole,
+          groupId: finalGroupId,
+          reviewNote: options?.reviewNote ?? null,
           reviewedAt: now,
           reviewedBy: reviewerId,
           reviewedByName: reviewerName,
@@ -178,6 +205,95 @@ export function useApproveMember() {
           declinedByName: !isApproved ? reviewerName : null,
           updatedAt: now,
         });
+
+        const userRef = doc(db, FIRESTORE_COLLECTIONS.users, targetUserId);
+        if (isApproved) {
+          await setDoc(
+            userRef,
+            {
+              congregationId,
+              groupId: finalGroupId,
+              updatedAt: now,
+            },
+            { merge: true }
+          );
+
+          if (congregationId && finalGroupId) {
+            try {
+              const groupSnapshot = await getDocs(
+                query(
+                  collection(db, FIRESTORE_COLLECTIONS.groups),
+                  where('congregationId', '==', congregationId)
+                )
+              );
+              const batch = writeBatch(db);
+              const groupRole = options?.groupRole || 'member';
+              const userName = memberData?.user?.name || reviewerName || 'Publisher';
+              const userEmail = memberData?.user?.email || null;
+
+              for (const groupDoc of groupSnapshot.docs) {
+                const gData = groupDoc.data() as Partial<any>;
+                const isTargetGroup = groupDoc.id === finalGroupId;
+                const existingMembers = (gData.members || []).filter(
+                  (m: any) => (m.userId || m.id) !== targetUserId
+                );
+
+                if (isTargetGroup) {
+                  const newMemberEntry = {
+                    id: targetUserId,
+                    userId: targetUserId,
+                    role: groupRole,
+                    user: {
+                      name: userName,
+                      email: userEmail,
+                    },
+                  };
+                  const updatedMembers = [...existingMembers, newMemberEntry];
+                  const groupUpdates: Record<string, unknown> = {
+                    members: updatedMembers,
+                    updatedAt: now,
+                  };
+                  if (groupRole === 'group_overseer') {
+                    groupUpdates.overseerId = targetUserId;
+                    groupUpdates.overseerName = userName;
+                  } else if (groupRole === 'assistant_overseer') {
+                    groupUpdates.assistantOverseerId = targetUserId;
+                    groupUpdates.assistantOverseerName = userName;
+                  }
+                  batch.update(groupDoc.ref, groupUpdates);
+                } else if (
+                  (gData.members || []).some((m: any) => (m.userId || m.id) === targetUserId)
+                ) {
+                  const groupUpdates: Record<string, unknown> = {
+                    members: existingMembers,
+                    updatedAt: now,
+                  };
+                  if (gData.overseerId === targetUserId) {
+                    groupUpdates.overseerId = null;
+                    groupUpdates.overseerName = null;
+                  }
+                  if (gData.assistantOverseerId === targetUserId) {
+                    groupUpdates.assistantOverseerId = null;
+                    groupUpdates.assistantOverseerName = null;
+                  }
+                  batch.update(groupDoc.ref, groupUpdates);
+                }
+              }
+              await batch.commit();
+            } catch (groupErr) {
+              console.warn('[useApproveMember] Failed to sync group document:', groupErr);
+            }
+          }
+        } else {
+          await setDoc(
+            userRef,
+            {
+              congregationId: null,
+              updatedAt: now,
+            },
+            { merge: true }
+          );
+        }
       } finally {
         setIsApproving(false);
       }

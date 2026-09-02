@@ -20,6 +20,7 @@ function RootContent() {
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="select-congregation" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="invite" options={{ presentation: 'modal' }} />
         <Stack.Screen name="(tabs)" />
       </Stack>
     </View>

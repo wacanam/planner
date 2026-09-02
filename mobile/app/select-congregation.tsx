@@ -1,9 +1,28 @@
 // mobile/app/select-congregation.tsx
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { Building2, Check, MapPin, Plus, Search } from 'lucide-react-native';
+import {
+  AlertCircle,
+  Building2,
+  Check,
+  KeyRound,
+  MapPin,
+  Plus,
+  Search,
+  Ticket,
+  UserPlus,
+  X,
+} from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -16,9 +35,19 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useJoinCongregation } from '@/hooks/useCongregationMembers';
 import { useCongregations, useCreateCongregation } from '@/hooks/useCongregations';
+import { fetchInvitationByCode, useAcceptInvitation } from '@/hooks/useInvitations';
 import { FIRESTORE_COLLECTIONS, getPlannerFirestore } from '@/lib/firebase';
 import { triggerHaptic } from '@/lib/sound';
-import type { Congregation } from '@/types/api';
+import type { Congregation, Invitation } from '@/types/api';
+
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  publisher: 'Publisher',
+  visiting_publisher: 'Visiting Publisher',
+  territory_servant: 'Territory Servant',
+  secretary: 'Secretary',
+  service_overseer: 'Service Overseer',
+  circuit_overseer: 'Circuit Overseer',
+};
 
 export default function SelectCongregationScreen() {
   const router = useRouter();
@@ -29,12 +58,21 @@ export default function SelectCongregationScreen() {
   const { congregations, isLoading } = useCongregations();
   const { join, isJoining } = useJoinCongregation();
   const { create: createCong, isCreating } = useCreateCongregation();
+  const { accept: acceptInvite, isAccepting } = useAcceptInvitation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCong, setSelectedCong] = useState<Congregation | null>(null);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
   const [joinMessage, setJoinMessage] = useState('');
   const [joinSuccess, setJoinSuccess] = useState(false);
+
+  // Invite Code Modal
+  const [codeModalVisible, setCodeModalVisible] = useState(false);
+  const [inputCode, setInputCode] = useState('');
+  const [isCheckingCode, setIsCheckingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [foundInvitation, setFoundInvitation] = useState<Invitation | null>(null);
+  const [acceptSuccess, setAcceptSuccess] = useState(false);
 
   // Track memberships for current user: congregationId -> status
   const [memberships, setMemberships] = useState<Map<string, string>>(new Map());
@@ -132,6 +170,73 @@ export default function SelectCongregationScreen() {
     }
   };
 
+  const handleOpenCodeModal = () => {
+    setInputCode('');
+    setCodeError(null);
+    setFoundInvitation(null);
+    setAcceptSuccess(false);
+    setCodeModalVisible(true);
+  };
+
+  const handleCheckCode = async () => {
+    const clean = inputCode.trim().toUpperCase();
+    if (!clean) {
+      setCodeError('Please enter a valid invite code.');
+      return;
+    }
+
+    setIsCheckingCode(true);
+    setCodeError(null);
+    try {
+      const inv = await fetchInvitationByCode(clean);
+      if (!inv) {
+        setCodeError('Invitation code not found or invalid.');
+        setFoundInvitation(null);
+      } else if (inv.status !== 'pending') {
+        setCodeError(`This invitation has already been ${inv.status}.`);
+        setFoundInvitation(null);
+      } else if (new Date(inv.expiresAt).getTime() < Date.now()) {
+        setCodeError('This invitation has expired.');
+        setFoundInvitation(null);
+      } else {
+        setFoundInvitation(inv);
+        await triggerHaptic('medium');
+      }
+    } catch (e: any) {
+      setCodeError(e.message || 'Error looking up invitation.');
+      setFoundInvitation(null);
+    } finally {
+      setIsCheckingCode(false);
+    }
+  };
+
+  const handleAcceptInvite = async () => {
+    if (!foundInvitation || !user?.id) return;
+    try {
+      await acceptInvite(foundInvitation, {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      });
+      await triggerHaptic('success');
+      setAcceptSuccess(true);
+
+      setTimeout(async () => {
+        setCodeModalVisible(false);
+        if (foundInvitation.congregationId) {
+          await setActiveCongregationId(foundInvitation.congregationId);
+          router.replace('/(tabs)/assignments');
+        } else {
+          router.replace('/(tabs)/more');
+        }
+      }, 1500);
+    } catch (e: any) {
+      triggerHaptic('error');
+      setCodeError(e.message || 'Failed to accept invitation.');
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
@@ -151,7 +256,38 @@ export default function SelectCongregationScreen() {
           onChangeText={setSearchQuery}
           icon={<Search size={18} color={colors.mutedForeground} />}
         />
+
+        {/* Enter Code Banner */}
+        <TouchableOpacity
+          onPress={() => {
+            triggerHaptic('light');
+            handleOpenCodeModal();
+          }}
+          style={[
+            styles.inviteBanner,
+            {
+              backgroundColor: `${colors.primary}12`,
+              borderColor: `${colors.primary}30`,
+              marginTop: spacing.sm,
+            },
+          ]}
+        >
+          <KeyRound size={18} color={colors.primary} />
+          <Text
+            style={{
+              color: colors.primary,
+              fontWeight: '700',
+              fontSize: typography.sm,
+              marginLeft: 8,
+              flex: 1,
+            }}
+          >
+            Have an Invite Code?
+          </Text>
+          <Badge label="Enter Code" variant="primary" size="sm" />
+        </TouchableOpacity>
       </View>
+
 
       {isLoading ? (
         <SelectCongregationSkeleton />
@@ -328,6 +464,180 @@ export default function SelectCongregationScreen() {
         </View>
       </Modal>
 
+      {/* Enter Invite Code Modal */}
+      <Modal visible={codeModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <Card style={[styles.modalCard, { width: '90%' }]}>
+            {acceptSuccess ? (
+              <View style={styles.successBox}>
+                <Check size={40} color={colors.success} />
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    { color: colors.foreground, fontSize: typography.lg, marginTop: spacing.md },
+                  ]}
+                >
+                  Invitation Accepted!
+                </Text>
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    textAlign: 'center',
+                    marginTop: 6,
+                    fontSize: typography.xs,
+                  }}
+                >
+                  You are now enrolled. Loading your workspace...
+                </Text>
+              </View>
+            ) : (
+              <View>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: spacing.xs,
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalTitle,
+                      { color: colors.foreground, fontSize: typography.lg },
+                    ]}
+                  >
+                    Enter Invite Code
+                  </Text>
+                  <TouchableOpacity onPress={() => setCodeModalVisible(false)}>
+                    <X size={20} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                </View>
+
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontSize: typography.xs,
+                    marginBottom: spacing.md,
+                  }}
+                >
+                  Enter the 6-character code provided by your congregation overseer.
+                </Text>
+
+                <Input
+                  placeholder="e.g. 7X9K2P"
+                  autoCapitalize="characters"
+                  maxLength={10}
+                  value={inputCode}
+                  onChangeText={(val) => {
+                    setInputCode(val.toUpperCase());
+                    setCodeError(null);
+                    setFoundInvitation(null);
+                  }}
+                  icon={<KeyRound size={16} color={colors.mutedForeground} />}
+                />
+
+                {codeError && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: `${colors.destructive}15`,
+                      padding: 8,
+                      borderRadius: 8,
+                      marginBottom: spacing.sm,
+                    }}
+                  >
+                    <AlertCircle size={14} color={colors.destructive} />
+                    <Text
+                      style={{
+                        color: colors.destructive,
+                        fontSize: typography.xs,
+                        marginLeft: 6,
+                        flex: 1,
+                      }}
+                    >
+                      {codeError}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Found Invitation Preview Card */}
+                {foundInvitation && (
+                  <Card
+                    style={{
+                      padding: 12,
+                      backgroundColor: `${colors.primary}10`,
+                      borderColor: `${colors.primary}30`,
+                      marginBottom: spacing.md,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: '800',
+                        color: colors.foreground,
+                        fontSize: typography.base,
+                      }}
+                    >
+                      {foundInvitation.congregationName || 'System Admin Invite'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                      <Badge
+                        label={
+                          ROLE_DISPLAY_NAMES[foundInvitation.congregationRole || ''] ||
+                          foundInvitation.systemRole ||
+                          foundInvitation.congregationRole ||
+                          'Member'
+                        }
+                        variant="primary"
+                        size="sm"
+                      />
+                      {foundInvitation.groupName && (
+                        <Badge label={foundInvitation.groupName} variant="outline" size="sm" />
+                      )}
+                    </View>
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontSize: 10,
+                        marginTop: 6,
+                      }}
+                    >
+                      Invited by {foundInvitation.invitedByName} ({foundInvitation.invitedByRole})
+                    </Text>
+                  </Card>
+                )}
+
+                <View style={styles.modalButtonRow}>
+                  <Button
+                    title="Cancel"
+                    variant="ghost"
+                    onPress={() => setCodeModalVisible(false)}
+                    style={{ flex: 1, marginRight: spacing.sm }}
+                  />
+                  {foundInvitation ? (
+                    <Button
+                      title="Accept & Join"
+                      variant="primary"
+                      onPress={handleAcceptInvite}
+                      loading={isAccepting}
+                      style={{ flex: 1 }}
+                    />
+                  ) : (
+                    <Button
+                      title="Lookup Code"
+                      variant="primary"
+                      onPress={handleCheckCode}
+                      loading={isCheckingCode}
+                      style={{ flex: 1 }}
+                    />
+                  )}
+                </View>
+              </View>
+            )}
+          </Card>
+        </View>
+      </Modal>
+
       {/* Create Congregation Modal */}
       <Modal visible={createModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -389,6 +699,13 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingBottom: 0,
   },
+  inviteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
@@ -440,3 +757,4 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
 });
+

@@ -93,6 +93,8 @@ export const NotificationType = {
   JOIN_REQUEST: 'join_request',
   JOIN_APPROVED: 'join_approved',
   JOIN_REJECTED: 'join_rejected',
+  INVITATION_SENT: 'invitation_sent',
+  INVITATION_ACCEPTED: 'invitation_accepted',
   TERRITORY_ENDORSED: 'territory_endorsed',
   TERRITORY_APPROVED: 'territory_approved',
   TERRITORY_REJECTED: 'territory_rejected',
@@ -106,3 +108,18 @@ export const NotificationType = {
   SYSTEM_ANNOUNCEMENT: 'system_announcement',
 } as const;
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
+
+export const InvitationStatus = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  EXPIRED: 'expired',
+  REVOKED: 'revoked',
+} as const;
+export type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus];
+
+export const InvitationType = {
+  CONGREGATION: 'congregation',
+  SYSTEM_ADMIN: 'system_admin',
+} as const;
+export type InvitationType = (typeof InvitationType)[keyof typeof InvitationType];
+
