@@ -1,6 +1,6 @@
 // mobile/src/lib/households.ts
 import { collection, type Firestore, getDocs, query, where } from 'firebase/firestore';
-import { FIRESTORE_COLLECTIONS } from '@/lib/firebase';
+import { FIRESTORE_COLLECTIONS } from './schema';
 import type { Household } from '@/types/api';
 
 /**
@@ -24,6 +24,7 @@ export function toCanonicalHouseNumber(number: string): string {
 
 export interface HouseholdNumberLike {
   id?: string;
+  serverId?: string | null;
   houseNumber?: string | null;
   congregationId?: string | null;
 }
@@ -35,13 +36,22 @@ export interface HouseholdNumberLike {
 export function findDuplicateHouseholdByNumber<T extends HouseholdNumberLike>(
   number: string,
   existingList: T[],
-  excludeId?: string
+  excludeId?: string | string[] | null
 ): T | null {
   const canonical = toCanonicalHouseNumber(number);
   if (!canonical) return null;
 
+  const excludeSet = new Set(
+    Array.isArray(excludeId)
+      ? (excludeId.filter(Boolean) as string[])
+      : excludeId
+        ? [excludeId]
+        : []
+  );
+
   for (const item of existingList) {
-    if (excludeId && item.id === excludeId) continue;
+    if (item.id && excludeSet.has(item.id)) continue;
+    if (item.serverId && excludeSet.has(item.serverId)) continue;
     const itemCanonical = toCanonicalHouseNumber(item.houseNumber || '');
     if (itemCanonical === canonical) {
       return item;
@@ -118,4 +128,59 @@ export async function checkHouseholdNumberDuplicateInFirestore(
   }
 
   return { isDuplicate: false, duplicate: null };
+}
+
+/**
+ * Formats a concise, informative map label for a pinned household (e.g. "#104 Smith", "#104 Maple St", or full address).
+ * Displays house number + name / street name primarily, falling back to full address if null or undefined.
+ */
+export function getHouseholdMapLabel(
+  h?: {
+    houseNumber?: string | null;
+    name?: string | null;
+    streetName?: string | null;
+    address?: string | null;
+    householdAddress?: string | null;
+  } | null
+): string {
+  if (!h) return 'House';
+
+  const rawNum = (h.houseNumber || '').trim();
+  const rawName = (h.name || '').trim();
+  const rawStreet = (h.streetName || '').trim();
+  const fullAddress = (h.address || h.householdAddress || '').trim();
+
+  // If name is identical to the address (e.g. from legacy default values), prefer distinct streetName
+  const isNameSameAsAddress = Boolean(
+    rawName && fullAddress && rawName.toLowerCase() === fullAddress.toLowerCase()
+  );
+  const isStreetSameAsAddress = Boolean(
+    rawStreet && fullAddress && rawStreet.toLowerCase() === fullAddress.toLowerCase()
+  );
+
+  let primaryNameOrStreet = '';
+  if (rawName && !isNameSameAsAddress) {
+    primaryNameOrStreet = rawName;
+  } else if (rawStreet && !isStreetSameAsAddress) {
+    primaryNameOrStreet = rawStreet;
+  } else if (rawName) {
+    primaryNameOrStreet = rawName;
+  } else if (rawStreet) {
+    primaryNameOrStreet = rawStreet;
+  }
+
+  const primaryText = primaryNameOrStreet || fullAddress;
+  const num = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
+
+  if (num && primaryText) {
+    const cleanNum = rawNum.replace(/^#/, '').trim();
+    const cleanPrimary = primaryText.replace(/^#/, '').trim();
+    if (cleanPrimary.toLowerCase().startsWith(cleanNum.toLowerCase())) {
+      return primaryText.startsWith('#') ? primaryText : `#${primaryText}`;
+    }
+    return `${num} ${primaryText}`;
+  }
+
+  if (num) return num;
+  return primaryText || 'House';
 }

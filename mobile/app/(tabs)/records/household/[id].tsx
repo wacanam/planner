@@ -20,7 +20,7 @@ import {
   useUpdateHousehold,
 } from '@/hooks/useHouseholds';
 import { useCreateVisit, useVisits } from '@/hooks/useVisits';
-import { findDuplicateHouseholdByNumber } from '@/lib/households';
+import { findDuplicateHouseholdByNumber, toCanonicalHouseNumber } from '@/lib/households';
 import {
   canDeleteHousehold,
   canEditHousehold,
@@ -97,7 +97,8 @@ export default function HouseholdDetailScreen() {
     if (!household || !user) return;
     try {
       const isRV = outcome === 'return_visit' || outcome === 'return_visit_missed';
-      const isStudy = outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
+      const isStudy =
+        outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
 
       await createVisit({
         householdId: household.id,
@@ -110,7 +111,14 @@ export default function HouseholdDetailScreen() {
         literatureLeft: literatureLeft || null,
         returnVisitPlanned: returnVisitPlanned || isRV || isStudy,
         scheduledAppointmentType: isStudy ? 'bible_study' : isRV ? 'return_visit' : null,
-        bibleStudyStatus: outcome === 'study_conducted' ? 'conducted' : outcome === 'study_offered' ? 'offered' : outcome === 'study_missed' ? 'missed' : null,
+        bibleStudyStatus:
+          outcome === 'study_conducted'
+            ? 'conducted'
+            : outcome === 'study_offered'
+              ? 'offered'
+              : outcome === 'study_missed'
+                ? 'missed'
+                : null,
         studyOffered: outcome === 'study_offered',
         isAppointmentMissed: outcome === 'return_visit_missed' || outcome === 'study_missed',
       });
@@ -142,17 +150,25 @@ export default function HouseholdDetailScreen() {
       return;
     }
 
-    const duplicate = findDuplicateHouseholdByNumber(
-      editHouseNumber.trim(),
-      congregationHouseholds,
-      household.id
-    );
-    if (duplicate) {
-      Alert.alert(
-        'Duplicate House Number',
-        `House #${editHouseNumber.trim()} already exists in this congregation.`
+    const isUnchangedNumber =
+      Boolean(household.houseNumber) &&
+      toCanonicalHouseNumber(editHouseNumber.trim()) ===
+        toCanonicalHouseNumber(household.houseNumber || '');
+
+    if (!isUnchangedNumber) {
+      const excludeIds = [household.id, (household as any).serverId].filter(Boolean) as string[];
+      const duplicate = findDuplicateHouseholdByNumber(
+        editHouseNumber.trim(),
+        congregationHouseholds,
+        excludeIds
       );
-      return;
+      if (duplicate) {
+        Alert.alert(
+          'Duplicate House Number',
+          `House #${editHouseNumber.trim()} already exists in this congregation.`
+        );
+        return;
+      }
     }
 
     try {

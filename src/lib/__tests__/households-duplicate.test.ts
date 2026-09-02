@@ -80,6 +80,17 @@ describe('Household Number & Duplicate Prevention Utilities', () => {
 
       const duplicateOther = findDuplicateHouseholdByNumber('1', existingList, 'h-2');
       expect(duplicateOther?.id).toBe('h-1');
+
+      // Exclude by array of IDs
+      expect(findDuplicateHouseholdByNumber('104', existingList, ['h-2', 'srv-2'])).toBeNull();
+
+      // Exclude by serverId
+      const listWithServerId = [
+        { id: 'client-1', serverId: 'server-1', houseNumber: '30' },
+        { id: 'client-2', serverId: 'server-2', houseNumber: '31' },
+      ];
+      expect(findDuplicateHouseholdByNumber('30', listWithServerId, 'server-1')).toBeNull();
+      expect(findDuplicateHouseholdByNumber('30', listWithServerId, ['server-1'])).toBeNull();
     });
 
     it('returns null for unique house numbers', () => {

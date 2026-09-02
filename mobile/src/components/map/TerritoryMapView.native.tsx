@@ -41,7 +41,7 @@ export const TerritoryMapView = forwardRef<TerritoryMapViewRef, TerritoryMapView
       onMapReady,
       onRegionChangeComplete,
       enableClustering = true,
-      clusterRadius = 45,
+      clusterRadius = 35,
       clusterMaxZoom = 16,
       clusterMinPoints = 2,
       clusterColor,

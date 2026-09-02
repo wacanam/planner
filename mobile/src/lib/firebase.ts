@@ -16,36 +16,12 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore';
 import { Platform } from 'react-native';
-
-export const FIRESTORE_COLLECTIONS = {
-  users: 'users',
-  congregations: 'congregations',
-  congregationMembers: 'congregationMembers',
-  groups: 'groups',
-  territories: 'territories',
-  territoryRequests: 'territoryRequests',
-  assignments: 'assignments',
-  households: 'households',
-  visits: 'visits',
-  encounters: 'encounters',
-  householdShares: 'householdShares',
-  notifications: 'notifications',
-  accountRequests: 'accountRequests',
-  invitations: 'invitations',
-  announcements: 'announcements',
-  mail: 'mail',
-} as const;
-
-export function createClientId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 11)}`;
-}
-
-export function nowIso(): string {
-  return new Date().toISOString();
-}
+export {
+  FIRESTORE_COLLECTIONS,
+  createClientId,
+  nowIso,
+  type FirestoreCollectionName,
+} from './schema';
 
 // Mobile Firebase Configuration
 const firebaseConfig = {

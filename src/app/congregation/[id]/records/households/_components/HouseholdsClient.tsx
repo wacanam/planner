@@ -36,7 +36,7 @@ import {
   useKeyboardShortcuts,
   useMyVisits,
 } from '@/hooks';
-import { findDuplicateHouseholdByNumber } from '@/lib/households';
+import { findDuplicateHouseholdByNumber, toCanonicalHouseNumber } from '@/lib/households';
 import {
   canDeleteHousehold,
   canEditHousehold,
@@ -71,13 +71,11 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   new: 'text-muted-foreground border-border bg-muted/30',
-  available:
-    'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
+  available: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   active: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   bible_study:
     'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
-  return_visit:
-    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  return_visit: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
   foreign_language:
@@ -350,6 +348,7 @@ export default function HouseholdsClient() {
     await saveHouseholdRecord({
       congregationId,
       territoryId: values.territoryId || undefined,
+      name: values.streetName,
       address: values.address,
       houseNumber: values.houseNumber || undefined,
       streetName: values.streetName,
@@ -372,15 +371,22 @@ export default function HouseholdsClient() {
 
   const handleUpdateHousehold = async (values: HouseholdFormValues) => {
     if (!editHousehold) return;
-    const duplicate = findDuplicateHouseholdByNumber(
-      values.houseNumber,
-      households,
-      editHousehold.id
-    );
-    if (duplicate) return;
+    const isUnchangedNumber =
+      Boolean(editHousehold.houseNumber) &&
+      toCanonicalHouseNumber(values.houseNumber) ===
+        toCanonicalHouseNumber(editHousehold.houseNumber || '');
+
+    if (!isUnchangedNumber) {
+      const excludeIds = [editHousehold.id, (editHousehold as any).serverId].filter(
+        Boolean
+      ) as string[];
+      const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, households, excludeIds);
+      if (duplicate) return;
+    }
 
     await updateHouseholdRecord(editHousehold.id, {
       ...values,
+      name: values.streetName,
       territoryId: values.territoryId || null,
       updatedById: user?.id || null,
     });

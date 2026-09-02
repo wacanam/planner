@@ -75,14 +75,17 @@ export function createClusterBadgeElement(
 ): HTMLDivElement {
   const { color = '#2563EB', textColor = '#FFFFFF', onClick } = options;
 
-  let size = 26;
-  let fontSize = 11;
+  let size = 18;
+  let fontSize = 9.5;
+  let borderWidth = 1.5;
   if (pointCount >= 100) {
-    size = 34;
-    fontSize = 12.5;
+    size = 24;
+    fontSize = 10.5;
+    borderWidth = 2;
   } else if (pointCount >= 10) {
-    size = 30;
-    fontSize = 11.5;
+    size = 21;
+    fontSize = 10;
+    borderWidth = 1.5;
   }
 
   const displayCount = pointCount > 999 ? `${(pointCount / 1000).toFixed(1)}k` : `${pointCount}`;
@@ -94,7 +97,7 @@ export function createClusterBadgeElement(
   container.style.borderRadius = '50%';
   container.style.backgroundColor = color;
   container.style.color = textColor;
-  container.style.border = '2px solid #FFFFFF';
+  container.style.border = `${borderWidth}px solid #FFFFFF`;
 
   container.style.boxShadow =
     '0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2)';

@@ -220,13 +220,56 @@ describe('getHouseholdMapLabel', () => {
     ).toBe('Pine Ave');
   });
 
-  it('falls back to address first part or House if all else missing', () => {
+  it('falls back to full address or House if name and street name are missing', () => {
     expect(
       getHouseholdMapLabel({
+        address: 'Block 2 Lot 5, Zone 3, Barangay San Jose',
+      })
+    ).toBe('Block 2 Lot 5, Zone 3, Barangay San Jose');
+
+    expect(
+      getHouseholdMapLabel({
+        householdAddress: '742 Evergreen Terrace, Springfield, OR',
+      })
+    ).toBe('742 Evergreen Terrace, Springfield, OR');
+
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '104',
+        address: '104 Maple Street, Springfield',
+      })
+    ).toBe('#104 Maple Street, Springfield');
+
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '5',
         address: 'Block 2 Lot 5, Zone 3',
       })
-    ).toBe('Block 2 Lot 5');
+    ).toBe('#5 Block 2 Lot 5, Zone 3');
 
     expect(getHouseholdMapLabel({})).toBe('House');
+    expect(getHouseholdMapLabel(null)).toBe('House');
+    expect(getHouseholdMapLabel(undefined)).toBe('House');
+  });
+
+  it('prioritizes name over street name and full address', () => {
+    expect(
+      getHouseholdMapLabel({
+        name: 'Garcia Family',
+        streetName: 'Oak Street',
+        address: '123 Oak Street, City',
+      })
+    ).toBe('Garcia Family');
+  });
+
+  it('prioritizes street name over name when name is merely identical to the address', () => {
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: '30',
+        name: 'Lower Calanawan',
+        streetName: 'Iza bungcal family',
+        address: 'Lower Calanawan',
+      })
+    ).toBe('#30 Iza bungcal family');
   });
 });

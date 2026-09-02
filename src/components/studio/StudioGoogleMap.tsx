@@ -921,7 +921,10 @@ export function StudioGoogleMap({
   const householdsKey = useMemo(
     () =>
       households
-        .map((h) => `${h.id}:${h.latitude}:${h.longitude}:${h.status}:${h.address}`)
+        .map(
+          (h) =>
+            `${h.id}:${h.latitude}:${h.longitude}:${h.status}:${h.houseNumber}:${h.name}:${h.streetName}:${h.address}`
+        )
         .join('|'),
     [households]
   );
@@ -1974,7 +1977,10 @@ export function StudioGoogleMap({
 
     const filteredHouseholds = households.filter((h) => {
       if (!layerSettings.householdFilter || layerSettings.householdFilter === 'all') return true;
-      return normalizeHouseholdStatus(h.status) === normalizeHouseholdStatus(layerSettings.householdFilter);
+      return (
+        normalizeHouseholdStatus(h.status) ===
+        normalizeHouseholdStatus(layerSettings.householdFilter)
+      );
     });
 
     const shouldCluster = layerSettings.clusterHouseholds !== false && currentZoom < 17;
@@ -2018,7 +2024,8 @@ export function StudioGoogleMap({
             ? 'default'
             : 'pointer';
       wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
-      wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
+      const label = getHouseholdMapLabel(h);
+      wrapper.title = `${label} (${h.status.replace(/_/g, ' ')})`;
 
       const pinCircle = document.createElement('div');
       pinCircle.style.backgroundColor = pinColor;
@@ -2081,7 +2088,7 @@ export function StudioGoogleMap({
         labelEl.style.lineHeight = '1.15';
         labelEl.style.letterSpacing = '-0.01em';
         labelEl.style.transition = 'color 0.15s ease-out';
-        labelEl.textContent = getHouseholdMapLabel(h);
+        labelEl.textContent = label;
 
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);
@@ -2090,7 +2097,7 @@ export function StudioGoogleMap({
       const marker = new AdvancedMarkerElement({
         map,
         position: { lat, lng },
-        title: h.address,
+        title: label,
         content: wrapper,
         gmpDraggable: false,
         zIndex: isSelected ? 50 : 35,
@@ -2124,7 +2131,7 @@ export function StudioGoogleMap({
 
     if (shouldCluster) {
       const sc = new Supercluster<{ id: string; household: Household }, ClusterProperties>({
-        radius: 45,
+        radius: 35,
         maxZoom: 16,
         minPoints: 2,
       });

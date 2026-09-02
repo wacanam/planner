@@ -35,7 +35,11 @@ import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useLocation } from '@/hooks/useLocation';
 import { useTerritoryDetail } from '@/hooks/useTerritories';
 import { useCreateVisit } from '@/hooks/useVisits';
-import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
+import {
+  findDuplicateHouseholdByNumber,
+  getHouseholdMapLabel,
+  getNextCongregationHouseNumber,
+} from '@/lib/households';
 import { formatDate } from '@/lib/date-utils';
 import { canAdjustAssignmentDates } from '@/lib/permissions';
 import { triggerHaptic } from '@/lib/sound';
@@ -207,7 +211,8 @@ export default function AssignmentDetailScreen() {
     if (!selectedHousehold || !user) return;
     try {
       const isRV = outcome === 'return_visit' || outcome === 'return_visit_missed';
-      const isStudy = outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
+      const isStudy =
+        outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
 
       await createVisit({
         householdId: selectedHousehold.id,
@@ -338,7 +343,7 @@ export default function AssignmentDetailScreen() {
       .map((h) => ({
         id: h.id,
         coordinate: { latitude: Number(h.latitude), longitude: Number(h.longitude) },
-        title: h.address,
+        title: getHouseholdMapLabel(h),
         description: h.status,
         color: getMarkerColor(h),
         onPress: () => setSelectedHousehold(h),
@@ -442,8 +447,20 @@ export default function AssignmentDetailScreen() {
                       { color: colors.foreground, fontSize: typography.base },
                     ]}
                   >
-                    {selectedHousehold.address}
+                    {getHouseholdMapLabel(selectedHousehold)}
                   </Text>
+                  {selectedHousehold.address &&
+                    getHouseholdMapLabel(selectedHousehold) !== selectedHousehold.address && (
+                      <Text
+                        style={{
+                          color: colors.mutedForeground,
+                          fontSize: typography.xs,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {selectedHousehold.address}
+                      </Text>
+                    )}
                   <Text
                     style={[
                       styles.selectedStatus,

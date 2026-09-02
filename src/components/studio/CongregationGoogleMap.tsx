@@ -952,7 +952,8 @@ export function CongregationGoogleMap({
       wrapper.style.width = '0px';
       wrapper.style.height = '0px';
       wrapper.style.cursor = 'pointer';
-      wrapper.title = `${h.address} (${h.status.replace(/_/g, ' ')})`;
+      const label = getHouseholdMapLabel(h);
+      wrapper.title = `${label} (${h.status.replace(/_/g, ' ')})`;
 
       const pinContainer = document.createElement('div');
       pinContainer.style.position = 'absolute';
@@ -1022,7 +1023,7 @@ export function CongregationGoogleMap({
         labelEl.style.paintOrder = 'stroke fill';
         labelEl.style.webkitTextStroke = '1.75px #FFFFFF';
         labelEl.style.textShadow = '0 1px 2px rgba(0,0,0,0.2)';
-        labelEl.textContent = getHouseholdMapLabel(h);
+        labelEl.textContent = label;
 
         labelWrapper.appendChild(labelEl);
         wrapper.appendChild(labelWrapper);
@@ -1036,7 +1037,7 @@ export function CongregationGoogleMap({
       const marker = new AdvancedMarkerElement({
         map,
         position: { lat, lng },
-        title: h.address,
+        title: label,
         content: wrapper,
         zIndex: isSelected ? 60 : 35,
       });
@@ -1046,7 +1047,7 @@ export function CongregationGoogleMap({
 
     if (shouldCluster) {
       const sc = new Supercluster<{ id: string; household: Household }, ClusterProperties>({
-        radius: 45,
+        radius: 35,
         maxZoom: 16,
         minPoints: 2,
       });

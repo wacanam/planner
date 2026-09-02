@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useKeyboardShortcuts } from '@/hooks';
-import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
+import {
+  findDuplicateHouseholdByNumber,
+  getNextCongregationHouseNumber,
+  toCanonicalHouseNumber,
+} from '@/lib/households';
 import type { Household } from '@/types/api';
 
 export const householdFormSchema = z.object({
@@ -75,7 +79,7 @@ export function HouseholdForm({
     defaultValues: {
       address: initialValues?.address ?? '',
       houseNumber: defaultHouseNumber,
-      streetName: initialValues?.streetName ?? '',
+      streetName: initialValues?.streetName || initialValues?.name || '',
       unit: initialValues?.unit ?? '',
       city: initialValues?.city ?? '',
       postalCode: initialValues?.postalCode ?? '',
@@ -90,17 +94,30 @@ export function HouseholdForm({
 
   const handleFormSubmit = async (values: HouseholdFormValues) => {
     if (existingHouseholds) {
-      const duplicate = findDuplicateHouseholdByNumber(
-        values.houseNumber,
-        existingHouseholds,
-        excludeHouseholdId || initialValues?.id
-      );
-      if (duplicate) {
-        form.setError('houseNumber', {
-          type: 'manual',
-          message: `House #${values.houseNumber} already exists in this congregation.`,
-        });
-        return;
+      const isUnchangedNumber =
+        Boolean(initialValues?.houseNumber) &&
+        toCanonicalHouseNumber(values.houseNumber) ===
+          toCanonicalHouseNumber(initialValues?.houseNumber || '');
+
+      if (!isUnchangedNumber) {
+        const excludeIds = [
+          excludeHouseholdId,
+          initialValues?.id,
+          (initialValues as any)?.serverId,
+        ].filter(Boolean) as string[];
+
+        const duplicate = findDuplicateHouseholdByNumber(
+          values.houseNumber,
+          existingHouseholds,
+          excludeIds
+        );
+        if (duplicate) {
+          form.setError('houseNumber', {
+            type: 'manual',
+            message: `House #${values.houseNumber} already exists in this congregation.`,
+          });
+          return;
+        }
       }
     }
     await onSubmit(values);

@@ -43,7 +43,7 @@ import {
 } from '@/hooks';
 import { createClientId } from '@/lib/firebase/schema';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
-import { findDuplicateHouseholdByNumber } from '@/lib/households';
+import { findDuplicateHouseholdByNumber, toCanonicalHouseNumber } from '@/lib/households';
 import { insertJunctionVertexIntoRoad } from '@/lib/map-geometry';
 import { useBasemapPreference } from '@/lib/map-preferences';
 import {
@@ -622,6 +622,7 @@ export function StudioLayout({
       await saveHouseholdRecord({
         congregationId,
         territoryId: territory?.id ?? values.territoryId ?? undefined,
+        name: values.streetName,
         address: values.address,
         houseNumber: values.houseNumber || undefined,
         streetName: values.streetName,
@@ -653,18 +654,25 @@ export function StudioLayout({
   const handleUpdateHousehold = async (values: HouseholdFormValues) => {
     if (!editingHousehold) return;
     const allList = allCongregationHouseholds ?? households;
-    const duplicate = findDuplicateHouseholdByNumber(
-      values.houseNumber,
-      allList,
-      editingHousehold.id
-    );
-    if (duplicate) {
-      toast.error(`House #${values.houseNumber} already exists in this congregation.`);
-      return;
+    const isUnchangedNumber =
+      Boolean(editingHousehold.houseNumber) &&
+      toCanonicalHouseNumber(values.houseNumber) ===
+        toCanonicalHouseNumber(editingHousehold.houseNumber || '');
+
+    if (!isUnchangedNumber) {
+      const excludeIds = [editingHousehold.id, (editingHousehold as any).serverId].filter(
+        Boolean
+      ) as string[];
+      const duplicate = findDuplicateHouseholdByNumber(values.houseNumber, allList, excludeIds);
+      if (duplicate) {
+        toast.error(`House #${values.houseNumber} already exists in this congregation.`);
+        return;
+      }
     }
 
     try {
       await updateHouseholdRecord(editingHousehold.id, {
+        name: values.streetName,
         address: values.address,
         houseNumber: values.houseNumber || undefined,
         streetName: values.streetName,

@@ -24,6 +24,7 @@ export function toCanonicalHouseNumber(number: string): string {
 
 export interface HouseholdNumberLike {
   id?: string;
+  serverId?: string | null;
   houseNumber?: string | null;
   congregationId?: string | null;
 }
@@ -35,13 +36,22 @@ export interface HouseholdNumberLike {
 export function findDuplicateHouseholdByNumber<T extends HouseholdNumberLike>(
   number: string,
   existingList: T[],
-  excludeId?: string
+  excludeId?: string | string[] | null
 ): T | null {
   const canonical = toCanonicalHouseNumber(number);
   if (!canonical) return null;
 
+  const excludeSet = new Set(
+    Array.isArray(excludeId)
+      ? (excludeId.filter(Boolean) as string[])
+      : excludeId
+        ? [excludeId]
+        : []
+  );
+
   for (const item of existingList) {
-    if (excludeId && item.id === excludeId) continue;
+    if (item.id && excludeSet.has(item.id)) continue;
+    if (item.serverId && excludeSet.has(item.serverId)) continue;
     const itemCanonical = toCanonicalHouseNumber(item.houseNumber || '');
     if (itemCanonical === canonical) {
       return item;
@@ -119,3 +129,5 @@ export async function checkHouseholdNumberDuplicateInFirestore(
 
   return { isDuplicate: false, duplicate: null };
 }
+
+export { getHouseholdMapLabel } from './household-contacts';
