@@ -22,6 +22,13 @@ import {
 } from '@/lib/map-clustering';
 import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
 import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
+import {
+  getSavedViewportPreference,
+  getViewportFromUrl,
+  type MapViewportPreference,
+  saveViewportPreference,
+  syncViewportToUrl,
+} from '@/lib/map-preferences';
 import Supercluster from 'supercluster';
 
 import type {
@@ -1069,9 +1076,23 @@ export function StudioGoogleMap({
 
         const boundaries = getTerritoryBoundaries(territory);
         const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';
+
+        const storageKey = territory?.id ? `territory_${territory.id}` : null;
+        const urlViewport = getViewportFromUrl();
+        const savedViewport = storageKey ? getSavedViewportPreference(storageKey) : null;
+        const initialViewport = urlViewport || savedViewport;
+
+        const centerLat = initialViewport?.lat ?? resolvedCenter.lat;
+        const centerLng = initialViewport?.lng ?? resolvedCenter.lng;
+        const initialZoom =
+          initialViewport?.zoom ??
+          (boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16);
+        const initialHeading = initialViewport?.heading ?? 0;
+        const initialTilt = initialViewport?.tilt ?? 0;
+
         const map = new GoogleMap(mapContainerRef.current, {
-          center: resolvedCenter,
-          zoom: boundaries.length > 0 && boundaries[0].points.length >= 3 ? 17 : 16,
+          center: { lat: centerLat, lng: centerLng },
+          zoom: initialZoom,
           minZoom: 5,
           maxZoom: 22,
           mapId,
@@ -1079,8 +1100,8 @@ export function StudioGoogleMap({
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
-          heading: 0,
-          tilt: 0,
+          heading: initialHeading,
+          tilt: initialTilt,
           disableDefaultUI: true,
           rotateControl: false,
           fullscreenControl: false,
@@ -1323,22 +1344,38 @@ export function StudioGoogleMap({
           }
         };
 
-        let zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-        const syncZoomState = () => {
-          if (zoomDebounceTimer) clearTimeout(zoomDebounceTimer);
-          zoomDebounceTimer = setTimeout(() => {
+        let viewportDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncViewportState = () => {
+          if (viewportDebounceTimer) clearTimeout(viewportDebounceTimer);
+          viewportDebounceTimer = setTimeout(() => {
+            const center = map.getCenter();
             const z = map.getZoom();
-            if (typeof z === 'number' && !Number.isNaN(z) && z > 0) {
+            const h = map.getHeading();
+            const t = map.getTilt();
+            if (center && typeof z === 'number' && !Number.isNaN(z) && z > 0) {
               const roundedZoom = Math.max(1, Math.min(20, Math.round(z)));
               if (currentZoomRef.current !== roundedZoom) {
                 currentZoomRef.current = roundedZoom;
                 setCurrentZoom(roundedZoom);
               }
+              const vp: MapViewportPreference = {
+                lat: center.lat(),
+                lng: center.lng(),
+                zoom: z,
+                heading: typeof h === 'number' && !Number.isNaN(h) ? ((h % 360) + 360) % 360 : 0,
+                tilt: typeof t === 'number' && !Number.isNaN(t) ? t : 0,
+              };
+              if (storageKey) {
+                saveViewportPreference(storageKey, vp);
+              }
+              syncViewportToUrl(vp);
             }
-          }, 120);
+          }, 150);
         };
 
-        map.addListener('idle', syncZoomState);
+        map.addListener('idle', syncViewportState);
+        map.addListener('dragend', syncViewportState);
+        map.addListener('zoom_changed', syncViewportState);
 
         // Attach OverlayView for accurate Container Pixel <-> LatLng coordinate projection calculations
         const overlay = new google.maps.OverlayView();
@@ -1385,11 +1422,20 @@ export function StudioGoogleMap({
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
-  // 2. Center / Bounds effect: ONLY on initial load of this territory
+  // 2. Center / Bounds effect: ONLY on initial load of this territory if no saved viewport exists
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined' || !territory?.id) return;
     if (initialBoundsFittedRef.current === territory.id) return;
+
+    // Do NOT override if viewport was restored from URL or localStorage
+    const storageKey = territory?.id ? `territory_${territory.id}` : null;
+    const urlViewport = getViewportFromUrl();
+    const savedViewport = storageKey ? getSavedViewportPreference(storageKey) : null;
+    if (urlViewport || savedViewport) {
+      initialBoundsFittedRef.current = territory.id;
+      return;
+    }
 
     const boundaries = getTerritoryBoundaries(territory);
     let hasValidPoints = false;
@@ -1410,7 +1456,7 @@ export function StudioGoogleMap({
       map.setZoom(16);
       initialBoundsFittedRef.current = territory.id;
     }
-  }, [mapReady, territory?.id]);
+  }, [mapReady, territory?.id, resolvedCenter]);
 
   // Fit territory or households inside print viewport framing or on manual fit bounds shortcut
   useEffect(() => {

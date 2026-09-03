@@ -22,6 +22,13 @@ import {
   createClusterBadgeElement,
   getBoundingBoxFromGoogleBounds,
 } from '@/lib/map-clustering';
+import {
+  getSavedViewportPreference,
+  getViewportFromUrl,
+  type MapViewportPreference,
+  saveViewportPreference,
+  syncViewportToUrl,
+} from '@/lib/map-preferences';
 import Supercluster from 'supercluster';
 import {
   type BasemapMode,
@@ -518,9 +525,21 @@ export function CongregationGoogleMap({
         if (mapInstanceRef.current) return;
 
         const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID';
+
+        const storageKey = congregation?.id ? `congregation_overview_${congregation.id}` : null;
+        const urlViewport = getViewportFromUrl();
+        const savedViewport = storageKey ? getSavedViewportPreference(storageKey) : null;
+        const initialViewport = urlViewport || savedViewport;
+
+        const centerLat = initialViewport?.lat ?? defaultCenter.lat;
+        const centerLng = initialViewport?.lng ?? defaultCenter.lng;
+        const initialZoom = initialViewport?.zoom ?? 14;
+        const initialHeading = initialViewport?.heading ?? 0;
+        const initialTilt = initialViewport?.tilt ?? 0;
+
         const map = new GoogleMap(mapContainerRef.current, {
-          center: defaultCenter,
-          zoom: 14,
+          center: { lat: centerLat, lng: centerLng },
+          zoom: initialZoom,
           minZoom: 5,
           maxZoom: 22,
           mapId,
@@ -528,8 +547,8 @@ export function CongregationGoogleMap({
           mapTypeId: (basemapModeRef.current ?? basemapMode) === 'satellite' ? 'hybrid' : 'roadmap',
           renderingType: RenderingType?.VECTOR ?? 'VECTOR',
           isFractionalZoomEnabled: true,
-          heading: 0,
-          tilt: 0,
+          heading: initialHeading,
+          tilt: initialTilt,
           disableDefaultUI: true,
           rotateControl: false,
           fullscreenControl: false,
@@ -557,22 +576,38 @@ export function CongregationGoogleMap({
           }
         };
 
-        let zoomDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-        const syncZoomState = () => {
-          if (zoomDebounceTimer) clearTimeout(zoomDebounceTimer);
-          zoomDebounceTimer = setTimeout(() => {
+        let viewportDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+        const syncViewportState = () => {
+          if (viewportDebounceTimer) clearTimeout(viewportDebounceTimer);
+          viewportDebounceTimer = setTimeout(() => {
+            const center = map.getCenter();
             const z = map.getZoom();
-            if (typeof z === 'number' && !Number.isNaN(z) && z > 0) {
+            const h = map.getHeading();
+            const t = map.getTilt();
+            if (center && typeof z === 'number' && !Number.isNaN(z) && z > 0) {
               const roundedZoom = Math.max(1, Math.min(20, Math.round(z)));
               if (currentZoomRef.current !== roundedZoom) {
                 currentZoomRef.current = roundedZoom;
                 setCurrentZoom(roundedZoom);
               }
+              const vp: MapViewportPreference = {
+                lat: center.lat(),
+                lng: center.lng(),
+                zoom: z,
+                heading: typeof h === 'number' && !Number.isNaN(h) ? ((h % 360) + 360) % 360 : 0,
+                tilt: typeof t === 'number' && !Number.isNaN(t) ? t : 0,
+              };
+              if (storageKey) {
+                saveViewportPreference(storageKey, vp);
+              }
+              syncViewportToUrl(vp);
             }
-          }, 120);
+          }, 150);
         };
 
-        map.addListener('idle', syncZoomState);
+        map.addListener('idle', syncViewportState);
+        map.addListener('dragend', syncViewportState);
+        map.addListener('zoom_changed', syncViewportState);
 
         mapInstanceRef.current = map;
         setMapReady(true);
@@ -604,11 +639,21 @@ export function CongregationGoogleMap({
     };
   }, [apiKey, defaultCenter]);
 
-  // 2. Initial Fit Bounds across all Congregation Territories
+  // 2. Initial Fit Bounds across all Congregation Territories (only if no saved/URL viewport)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || typeof google === 'undefined' || initialBoundsFittedRef.current)
       return;
+
+    // Do NOT override if viewport was restored from URL or localStorage
+    const storageKey = congregation?.id ? `congregation_overview_${congregation.id}` : null;
+    const urlViewport = getViewportFromUrl();
+    const savedViewport = storageKey ? getSavedViewportPreference(storageKey) : null;
+    if (urlViewport || savedViewport) {
+      initialBoundsFittedRef.current = true;
+      return;
+    }
+
     if (territories.length === 0) return;
 
     let hasValidPoints = false;
@@ -632,7 +677,7 @@ export function CongregationGoogleMap({
       map.setZoom(14);
       initialBoundsFittedRef.current = true;
     }
-  }, [mapReady, territories, defaultCenter]);
+  }, [mapReady, territories, defaultCenter, congregation?.id]);
 
   // 3. Basemap Mode (Street / Satellite Hybrid)
   useEffect(() => {

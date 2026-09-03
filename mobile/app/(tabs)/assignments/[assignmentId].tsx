@@ -22,7 +22,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type MapMarkerItem, TerritoryMapView, type TerritoryMapViewRef } from '@/components/map';
+import {
+  type MapMarkerItem,
+  TerritoryMapView,
+  type TerritoryMapViewRef,
+  useMapViewport,
+} from '@/components/map';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Header } from '@/components/ui/Header';
@@ -129,41 +134,28 @@ export default function AssignmentDetailScreen() {
     return [];
   }, [territory?.boundaryCoordinates]);
 
-  // Initial map region
-  const initialRegion = useMemo(() => {
-    if (boundaryCoords.length > 0) {
-      const lats = boundaryCoords.map((c) => c.latitude);
-      const lngs = boundaryCoords.map((c) => c.longitude);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-      return {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: Math.max(0.01, (maxLat - minLat) * 1.5),
-        longitudeDelta: Math.max(0.01, (maxLng - minLng) * 1.5),
-      };
-    }
-    if (location) {
-      return {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
-    }
-    return {
-      latitude: 14.5995,
-      longitude: 120.9842,
-      latitudeDelta: 0.02,
-      longitudeDelta: 0.02,
-    };
-  }, [boundaryCoords, location]);
+  // Persistent map viewport management (survives refresh and navigation)
+  const {
+    initialRegion,
+    handleRegionChangeComplete,
+    hasSavedState,
+    isRestored,
+  } = useMapViewport({
+    storageKey: territoryId ? `assignment_${territoryId}` : null,
+    boundaryCoordinates: boundaryCoords,
+    defaultRegion: location
+      ? {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }
+      : undefined,
+  });
 
-  // Auto-fit to territory boundary when coordinates load
+  // Auto-fit to territory boundary only on initial load if no saved viewport exists
   React.useEffect(() => {
-    if (boundaryCoords.length > 0 && mapRef.current) {
+    if (isRestored && !hasSavedState && boundaryCoords.length > 0 && mapRef.current) {
       const timer = setTimeout(() => {
         mapRef.current?.fitToCoordinates(boundaryCoords, {
           edgePadding: { top: 60, right: 60, bottom: 60, left: 60 },
@@ -172,7 +164,7 @@ export default function AssignmentDetailScreen() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [boundaryCoords]);
+  }, [isRestored, hasSavedState, boundaryCoords]);
 
   const handleCenterOnMe = async () => {
     await triggerHaptic('light');
@@ -402,6 +394,7 @@ export default function AssignmentDetailScreen() {
             boundaryCoordinates={boundaryCoords}
             markers={mapMarkers}
             showsUserLocation
+            onRegionChangeComplete={handleRegionChangeComplete}
           />
 
           {/* Floating Action Controls on Map */}
