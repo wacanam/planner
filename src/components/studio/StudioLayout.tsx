@@ -1907,6 +1907,7 @@ export function StudioLayout({
         onOpenChange={(op) => !op && setLogVisitHousehold(null)}
         household={logVisitHousehold}
         assignmentId={activeAssignmentId}
+        territoryId={territory?.id || logVisitHousehold?.territoryId}
         onSaved={onHouseholdSaved}
       />
 

@@ -24,7 +24,7 @@ import {
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks';
 import { getPlannerFirestore } from '@/lib/firebase/client';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import {
   importPersonalCallsFromCloud,
@@ -91,8 +91,37 @@ export function ExportPersonalNotesBanner() {
         return;
       }
 
-      // 3. Import directly into IndexedDB
-      const count = await importPersonalCallsFromCloud(user.id, encounters, contacts);
+      // 3. Fetch households associated with encounters/contacts to enrich territoryId
+      const householdIds = Array.from(
+        new Set(
+          [
+            ...encounters.map((e: any) => e.householdId),
+            ...contacts.map((c: any) => c.householdId),
+          ].filter((id): id is string => Boolean(id))
+        )
+      );
+
+      const cloudHouseholds: any[] = [];
+      await Promise.all(
+        householdIds.map(async (hhId) => {
+          try {
+            const hSnap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.households, hhId));
+            if (hSnap.exists()) {
+              cloudHouseholds.push({ id: hSnap.id, ...hSnap.data() });
+            }
+          } catch {
+            // Ignore individual fetch errors
+          }
+        })
+      );
+
+      // 4. Import directly into IndexedDB with full territoryId and address resolution
+      const count = await importPersonalCallsFromCloud(
+        user.id,
+        encounters,
+        contacts,
+        cloudHouseholds
+      );
       setTransferredCount(count);
       toast.success(
         `Safely saved ${count} personal return visit${count === 1 ? '' : 's'} to this device!`

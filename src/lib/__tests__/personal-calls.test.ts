@@ -45,6 +45,7 @@ describe('Personal Calls Service & Formatting', () => {
       escapeCsv(mockCall.address),
       escapeCsv(mockCall.houseNumber),
       escapeCsv(mockCall.unitNumber),
+      escapeCsv(mockCall.territoryId),
       escapeCsv(mockCall.personName),
       escapeCsv(mockCall.phoneNumber),
       escapeCsv(mockCall.email),
@@ -58,6 +59,7 @@ describe('Personal Calls Service & Formatting', () => {
     ].join(',');
 
     expect(row).toContain('"123 Maple St"');
+    expect(row).toContain('"t-1"');
     expect(row).toContain('"John Doe"');
     expect(row).toContain('"555-0199"');
     expect(row).toContain('"2 Timothy 3:1-5"');

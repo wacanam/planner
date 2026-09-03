@@ -927,6 +927,7 @@ export default function AssignmentVisitsClient() {
           }}
           household={logVisitHousehold}
           assignmentId={activeAssignment?.id}
+          territoryId={activeAssignment?.territoryId || logVisitHousehold?.territoryId}
           onSaved={() => {
             toast.success('Visit logged successfully');
           }}

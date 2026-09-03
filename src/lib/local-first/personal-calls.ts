@@ -1,4 +1,5 @@
 // src/lib/local-first/personal-calls.ts
+import { getHouseholdById } from './households';
 
 /**
  * Local-First Personal Ministry Notebook
@@ -123,6 +124,30 @@ export async function getPersonalCallByHousehold(
 }
 
 export async function savePersonalCall(call: PersonalCallRecord): Promise<void> {
+  // If territoryId or address is missing but householdId is present, auto-resolve from household
+  if (call.householdId && !call.territoryId) {
+    try {
+      const hh = await getHouseholdById(call.householdId);
+      if (hh?.territoryId) {
+        call.territoryId = hh.territoryId;
+      }
+      if (hh?.address && (!call.address || call.address === 'Address not listed')) {
+        call.address = hh.address;
+      }
+      if (hh?.streetName && !call.streetName) {
+        call.streetName = hh.streetName;
+      }
+      if (hh?.houseNumber && !call.houseNumber) {
+        call.houseNumber = hh.houseNumber;
+      }
+      if (hh?.unitNumber && !call.unitNumber) {
+        call.unitNumber = hh.unitNumber;
+      }
+    } catch {
+      // Offline fallback
+    }
+  }
+
   const db = await openPersonalCallsDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -147,12 +172,14 @@ export async function deletePersonalCall(id: string): Promise<void> {
 }
 
 /**
- * Migrates existing cloud encounters & contacts authored by the user into local IndexedDB
+ * Migrates existing cloud encounters & contacts authored by the user into local IndexedDB,
+ * resolving territoryId and complete address from associated households.
  */
 export async function importPersonalCallsFromCloud(
   userId: string,
   cloudEncounters: any[],
-  cloudContacts: any[] = []
+  cloudContacts: any[] = [],
+  cloudHouseholds: any[] = []
 ): Promise<number> {
   const db = await openPersonalCallsDb();
   let count = 0;
@@ -164,18 +191,36 @@ export async function importPersonalCallsFromCloud(
     if (c.id) contactMap.set(c.id, c);
   }
 
+  // Build a map of households by id
+  const householdMap = new Map<string, any>();
+  for (const h of cloudHouseholds) {
+    if (h.id) householdMap.set(h.id, h);
+  }
+
+  // Group encounters by householdId to consolidate notes per call
+  const encountersByHousehold = new Map<string, any[]>();
+  for (const enc of cloudEncounters) {
+    const key = enc.householdId || enc.id;
+    const list = encountersByHousehold.get(key) || [];
+    list.push(enc);
+    encountersByHousehold.set(key, list);
+  }
+
+  // Auto-fetch missing households if not provided in cloudHouseholds
+  for (const hhId of encountersByHousehold.keys()) {
+    if (hhId && !householdMap.has(hhId)) {
+      try {
+        const hh = await getHouseholdById(hhId);
+        if (hh) householdMap.set(hhId, hh);
+      } catch {
+        // Fallback if offline
+      }
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-
-    // Group encounters by householdId to consolidate notes per call
-    const encountersByHousehold = new Map<string, any[]>();
-    for (const enc of cloudEncounters) {
-      const key = enc.householdId || enc.id;
-      const list = encountersByHousehold.get(key) || [];
-      list.push(enc);
-      encountersByHousehold.set(key, list);
-    }
 
     for (const [hhId, encList] of encountersByHousehold.entries()) {
       // Pick latest encounter
@@ -183,22 +228,55 @@ export async function importPersonalCallsFromCloud(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       );
       const latest = sorted[0];
-      const associatedContact = contactMap.get(hhId) || (latest.contactId ? contactMap.get(latest.contactId) : null);
+      const associatedHousehold = householdMap.get(hhId);
+      const associatedContact =
+        contactMap.get(hhId) || (latest.contactId ? contactMap.get(latest.contactId) : null);
+
+      const resolvedTerritoryId =
+        associatedHousehold?.territoryId ||
+        latest.territoryId ||
+        associatedContact?.territoryId ||
+        null;
+
+      const resolvedAddress =
+        associatedHousehold?.address ||
+        latest.householdAddress ||
+        associatedContact?.householdAddress ||
+        'Address not listed';
+
+      const resolvedStreetName =
+        associatedHousehold?.streetName ||
+        latest.streetName ||
+        null;
+
+      const resolvedHouseNumber =
+        associatedHousehold?.houseNumber ||
+        latest.houseNumber ||
+        null;
+
+      const resolvedUnitNumber =
+        associatedHousehold?.unitNumber ||
+        latest.unitNumber ||
+        null;
 
       const record: PersonalCallRecord = {
         id: `personal-${hhId}`,
         userId,
-        householdId: latest.householdId || null,
-        territoryId: latest.territoryId || null,
-        address: latest.householdAddress || associatedContact?.householdAddress || 'Address not listed',
-        houseNumber: latest.houseNumber || null,
-        unitNumber: latest.unitNumber || null,
-        streetName: latest.streetName || null,
+        householdId: latest.householdId || (hhId.startsWith('personal-') ? null : hhId) || null,
+        territoryId: resolvedTerritoryId,
+        address: resolvedAddress,
+        houseNumber: resolvedHouseNumber,
+        unitNumber: resolvedUnitNumber,
+        streetName: resolvedStreetName,
         personName: latest.name || associatedContact?.name || null,
         phoneNumber: latest.phoneNumber || associatedContact?.phoneNumber || null,
         email: latest.email || associatedContact?.email || null,
         language: latest.language || latest.languageSpoken || associatedContact?.language || null,
-        status: latest.bibleStudyInterest ? 'bible_study' : latest.returnVisitRequested ? 'return_visit' : 'interested',
+        status: latest.bibleStudyInterest
+          ? 'bible_study'
+          : latest.returnVisitRequested
+            ? 'return_visit'
+            : 'interested',
         notes: latest.notes || latest.nextVisitNotes || associatedContact?.notes || null,
         scripturesDiscussed: latest.topicsDiscussed || latest.topicDiscussed || null,
         literaturePlaced: latest.literatureOffered || latest.literatureAccepted || null,
@@ -219,10 +297,53 @@ export async function importPersonalCallsFromCloud(
 }
 
 /**
+ * Hydrates any call that has a householdId but missing territoryId or address details
+ */
+async function hydrateCallsWithTerritory(calls: PersonalCallRecord[]): Promise<PersonalCallRecord[]> {
+  for (const call of calls) {
+    if (call.householdId && !call.territoryId) {
+      try {
+        const hh = await getHouseholdById(call.householdId);
+        if (hh) {
+          let changed = false;
+          if (hh.territoryId && !call.territoryId) {
+            call.territoryId = hh.territoryId;
+            changed = true;
+          }
+          if (hh.address && (!call.address || call.address === 'Address not listed')) {
+            call.address = hh.address;
+            changed = true;
+          }
+          if (hh.streetName && !call.streetName) {
+            call.streetName = hh.streetName;
+            changed = true;
+          }
+          if (hh.houseNumber && !call.houseNumber) {
+            call.houseNumber = hh.houseNumber;
+            changed = true;
+          }
+          if (hh.unitNumber && !call.unitNumber) {
+            call.unitNumber = hh.unitNumber;
+            changed = true;
+          }
+          if (changed) {
+            await savePersonalCall(call);
+          }
+        }
+      } catch {
+        // Continue if offline or lookup fails
+      }
+    }
+  }
+  return calls;
+}
+
+/**
  * Export personal calls to a JSON string
  */
 export async function exportPersonalCallsAsJson(userId: string): Promise<string> {
   const calls = await getPersonalCalls(userId);
+  await hydrateCallsWithTerritory(calls);
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
@@ -240,10 +361,12 @@ export async function exportPersonalCallsAsJson(userId: string): Promise<string>
  */
 export async function exportPersonalCallsAsCsv(userId: string): Promise<string> {
   const calls = await getPersonalCalls(userId);
+  await hydrateCallsWithTerritory(calls);
   const headers = [
     'Address',
     'House Number',
     'Unit',
+    'Territory ID',
     'Person Name',
     'Phone',
     'Email',
@@ -265,6 +388,7 @@ export async function exportPersonalCallsAsCsv(userId: string): Promise<string> 
     escapeCsv(c.address),
     escapeCsv(c.houseNumber),
     escapeCsv(c.unitNumber),
+    escapeCsv(c.territoryId),
     escapeCsv(c.personName),
     escapeCsv(c.phoneNumber),
     escapeCsv(c.email),

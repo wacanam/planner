@@ -27,13 +27,7 @@ import {
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { savePersonalCall } from '@/lib/local-first/personal-calls';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
-import {
-  getHouseholdStatusMeta,
-  normalizeEncounterResponse,
-  normalizeHouseholdStatus,
-  normalizeVisitOutcome,
-  resolveHouseholdStatusAfter,
-} from '@/lib/status-rules';
+import { resolveHouseholdStatusAfter } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
@@ -63,6 +57,7 @@ interface LogVisitSheetProps {
   onOpenChange: (open: boolean) => void;
   household: Household | null;
   assignmentId?: string | null;
+  territoryId?: string | null;
   initialOutcome?: LogVisitFormData['outcome'];
   initialContact?: Partial<Encounter> | null;
   onSaved?: () => void;
@@ -73,6 +68,7 @@ export function HouseholdLogVisitSheet({
   onOpenChange,
   household,
   assignmentId,
+  territoryId,
   initialOutcome,
   initialContact,
   onSaved,
@@ -423,7 +419,7 @@ export function HouseholdLogVisitSheet({
               id: `personal-${household.id}`,
               userId: user.id,
               householdId: household.id,
-              territoryId: household.territoryId || null,
+              territoryId: household.territoryId || territoryId || null,
               address: household.address,
               houseNumber: household.houseNumber || null,
               unitNumber: household.unitNumber || null,
