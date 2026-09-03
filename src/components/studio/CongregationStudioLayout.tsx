@@ -136,8 +136,9 @@ export function CongregationStudioLayout({
   });
 
   const canViewMembers = useMemo(() => {
-    return canViewMemberLocations(user, groups);
-  }, [user, groups]);
+    // Disabled for strict Data Privacy Compliance (no central live tracking)
+    return false;
+  }, []);
 
   const {
     isTracking: isTrackingLocation,

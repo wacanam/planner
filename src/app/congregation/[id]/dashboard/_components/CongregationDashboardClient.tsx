@@ -3,6 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { AnnouncementBanner } from '@/components/announcements/AnnouncementBanner';
+import { ExportPersonalNotesBanner } from '@/components/privacy/ExportPersonalNotesBanner';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { DashboardTourGuide } from '@/components/dashboard-tour-guide';
@@ -368,6 +369,9 @@ export default function CongregationDashboardClient() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-5 sm:space-y-6 pb-24 lg:pb-8 w-full min-w-0">
         {/* 1. Welcome Greeting Header */}
         <DashboardHeroDeck {...contextProps} />
+
+        {/* Data Privacy & Local Notes Migration Notice */}
+        <ExportPersonalNotesBanner />
 
         {/* Announcements Highlights Banner */}
         {announcements.length > 0 && (

@@ -153,7 +153,7 @@ export function HouseholdForm({
         </div>
         <div className="space-y-1 col-span-2">
           <Label htmlFor="streetName" className="text-xs font-semibold">
-            Name *
+            Street / Building Name *
           </Label>
           <Input
             id="streetName"
@@ -301,6 +301,9 @@ export function HouseholdForm({
           className="rounded-xl text-xs resize-none h-20"
           {...form.register('notes')}
         />
+        <p className="text-[10px] text-muted-foreground">
+          Physical access notes only (gate code, hazards). Do not enter resident names, phone numbers, or personal information.
+        </p>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

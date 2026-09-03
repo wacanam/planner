@@ -743,22 +743,6 @@ export function StudioMapToolbar({
                   className="h-4 w-4 rounded accent-primary cursor-pointer"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="layer-member-locations"
-                  className="text-xs cursor-pointer flex items-center gap-2"
-                >
-                  <Users size={14} className="text-emerald-500" />
-                  <span>Member Shared Locations</span>
-                </Label>
-                <input
-                  id="layer-member-locations"
-                  type="checkbox"
-                  checked={layers.showMemberLocations}
-                  onChange={() => toggleLayer('showMemberLocations')}
-                  className="h-4 w-4 rounded accent-primary cursor-pointer"
-                />
-              </div>
             </div>
           </div>
 

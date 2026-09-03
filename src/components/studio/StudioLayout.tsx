@@ -281,8 +281,9 @@ export function StudioLayout({
   });
 
   const canViewMembers = useMemo(() => {
-    return canViewMemberLocations(user, groups);
-  }, [user, groups]);
+    // Disabled for strict Data Privacy Compliance (no central live tracking)
+    return false;
+  }, []);
 
   const [selectedMemberLocation, setSelectedMemberLocation] = useState<SharedMemberLocation | null>(
     null

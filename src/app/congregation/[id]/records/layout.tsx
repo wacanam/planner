@@ -6,6 +6,7 @@ import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { ExportPersonalNotesBanner } from '@/components/privacy/ExportPersonalNotesBanner';
 import { ProtectedPage } from '@/components/protected-page';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { useKeyboardShortcuts, usePendingSharesCount } from '@/hooks';
@@ -124,6 +125,10 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <ExportPersonalNotesBanner />
       </div>
 
       <div className="pb-24 lg:pb-8">{children}</div>

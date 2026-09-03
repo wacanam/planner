@@ -25,6 +25,7 @@ import {
   useMyEncounters,
 } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
+import { savePersonalCall } from '@/lib/local-first/personal-calls';
 import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import {
   getHouseholdStatusMeta,
@@ -411,38 +412,73 @@ export function HouseholdLogVisitSheet({
         isAppointmentMissed: Boolean(data.isAppointmentMissed || data.outcome === 'return_visit_missed' || data.outcome === 'study_missed'),
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
+        publisherName: user?.name || null,
       });
 
-      // 2. Optionally Save Linked Encounter Record
+      // 2. Save to Local-First Personal Device Notebook & optionally cloud encounter
       if (recordEncounter && encounterName.trim()) {
-        await saveEncounterRecord({
-          householdId: household.id,
-          congregationId: household.congregationId ?? user?.congregationId ?? undefined,
-          visitId,
-          name: encounterName.trim(),
-          response: encounterResponse,
-          gender: encounterGender,
-          ageGroup: encounterAgeGroup,
-          role: encounterRole,
-          phoneNumber: encounterPhone || undefined,
-          email: encounterEmail || undefined,
-          bestTimeToCall: encounterBestTimeToCall || undefined,
-          languageSpoken: encounterLanguage || undefined,
-          topicDiscussed: encounterTopic || undefined,
-          literatureAccepted: encounterLiterature || data.literaturePlaced || undefined,
-          returnVisitRequested: Boolean(encounterReturnVisitRequested || followUpDate),
-          nextVisitDate: followUpDate,
-          nextVisitTime: encounterNextVisitTime || undefined,
-          nextVisitNotes: encounterNextVisitNotes || undefined,
-          bibleStudyInterest: encounterBibleStudyInterest,
-          studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered' || encounterResponse === 'study_offered'),
-          bibleStudyPublication: encounterPublication || undefined,
-          bibleStudyLesson: encounterLesson || undefined,
-          notes: data.notes || undefined,
-          visitDate: new Date().toISOString(),
-          userId: user?.id || null,
-          publisherName: user?.name || null,
-        });
+        if (user?.id) {
+          try {
+            await savePersonalCall({
+              id: `personal-${household.id}`,
+              userId: user.id,
+              householdId: household.id,
+              territoryId: household.territoryId || null,
+              address: household.address,
+              houseNumber: household.houseNumber || null,
+              unitNumber: household.unitNumber || null,
+              streetName: household.streetName || null,
+              personName: encounterName.trim(),
+              phoneNumber: encounterPhone || null,
+              email: encounterEmail || null,
+              language: encounterLanguage || null,
+              status: encounterBibleStudyInterest ? 'bible_study' : 'return_visit',
+              notes: data.notes || null,
+              scripturesDiscussed: encounterTopic || null,
+              literaturePlaced: encounterLiterature || data.literaturePlaced || null,
+              nextVisitDate: followUpDate || null,
+              nextVisitTime: encounterNextVisitTime || null,
+              nextVisitNotes: encounterNextVisitNotes || null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (pcErr) {
+            console.warn('[PersonalCalls] Failed to save locally in IndexedDB:', pcErr);
+          }
+        }
+
+        try {
+          await saveEncounterRecord({
+            householdId: household.id,
+            congregationId: household.congregationId ?? user?.congregationId ?? undefined,
+            visitId,
+            name: encounterName.trim(),
+            response: encounterResponse,
+            gender: encounterGender,
+            ageGroup: encounterAgeGroup,
+            role: encounterRole,
+            phoneNumber: encounterPhone || undefined,
+            email: encounterEmail || undefined,
+            bestTimeToCall: encounterBestTimeToCall || undefined,
+            languageSpoken: encounterLanguage || undefined,
+            topicDiscussed: encounterTopic || undefined,
+            literatureAccepted: encounterLiterature || data.literaturePlaced || undefined,
+            returnVisitRequested: Boolean(encounterReturnVisitRequested || followUpDate),
+            nextVisitDate: followUpDate,
+            nextVisitTime: encounterNextVisitTime || undefined,
+            nextVisitNotes: encounterNextVisitNotes || undefined,
+            bibleStudyInterest: encounterBibleStudyInterest,
+            studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered' || encounterResponse === 'study_offered'),
+            bibleStudyPublication: encounterPublication || undefined,
+            bibleStudyLesson: encounterLesson || undefined,
+            notes: data.notes || undefined,
+            visitDate: new Date().toISOString(),
+            userId: user?.id || null,
+            publisherName: user?.name || null,
+          });
+        } catch {
+          // Cloud encounter write fallback during transition
+        }
       }
 
       // 3. Update household status if changed
