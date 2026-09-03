@@ -27,10 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
-import {
-  getPersonalCallByHousehold,
-  type PersonalCallRecord,
-} from '@/lib/local-first/personal-calls';
+import { formatDate } from '@/lib/date-utils';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
   getContactsByHousehold,
@@ -41,6 +38,10 @@ import {
   toHouseholdView,
   toVisitView,
 } from '@/lib/local-first';
+import {
+  getPersonalCallByHousehold,
+  type PersonalCallRecord,
+} from '@/lib/local-first/personal-calls';
 import type {
   LocalContact,
   LocalEncounter,
@@ -48,7 +49,6 @@ import type {
   LocalVisit,
 } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household, Visit } from '@/types/api';
 
@@ -228,7 +228,7 @@ export default function HouseholdDetailPage() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-8">
+    <main className="mx-auto w-full max-w-6xl min-w-0 space-y-6 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <Button asChild variant="ghost" size="sm" className="w-fit text-xs gap-1 rounded-xl">
           <Link href={`/congregation/${congregationId}/records/households`}>
@@ -354,7 +354,10 @@ export default function HouseholdDetailPage() {
                 <BookOpen size={16} className="text-primary" />
                 <span>My Personal Follow-up</span>
               </h2>
-              <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+              <Badge
+                variant="outline"
+                className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+              >
                 <Lock size={10} />
                 Private to You (On-Device)
               </Badge>
@@ -403,27 +406,34 @@ export default function HouseholdDetailPage() {
                     {personalCall.scripturesDiscussed && (
                       <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70">
                         <span className="font-semibold text-foreground">Scriptures / Topic:</span>
-                        <p className="text-muted-foreground mt-0.5">{personalCall.scripturesDiscussed}</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          {personalCall.scripturesDiscussed}
+                        </p>
                       </div>
                     )}
                     {personalCall.literaturePlaced && (
                       <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70">
                         <span className="font-semibold text-foreground">Literature:</span>
-                        <p className="text-muted-foreground mt-0.5">{personalCall.literaturePlaced}</p>
+                        <p className="text-muted-foreground mt-0.5">
+                          {personalCall.literaturePlaced}
+                        </p>
                       </div>
                     )}
                     {personalCall.nextVisitDate && (
                       <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20">
                         <span className="font-semibold text-primary">Next Agreed Visit:</span>
                         <p className="text-foreground font-medium mt-0.5">
-                          {personalCall.nextVisitDate} {personalCall.nextVisitTime ? `at ${personalCall.nextVisitTime}` : ''}
+                          {personalCall.nextVisitDate}{' '}
+                          {personalCall.nextVisitTime ? `at ${personalCall.nextVisitTime}` : ''}
                         </p>
                       </div>
                     )}
                     {personalCall.notes && (
                       <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 sm:col-span-2">
                         <span className="font-semibold text-foreground">Personal Notes:</span>
-                        <p className="text-muted-foreground mt-0.5 italic">&ldquo;{personalCall.notes}&rdquo;</p>
+                        <p className="text-muted-foreground mt-0.5 italic">
+                          &ldquo;{personalCall.notes}&rdquo;
+                        </p>
                       </div>
                     )}
                   </div>
@@ -436,7 +446,8 @@ export default function HouseholdDetailPage() {
                   No personal follow-up saved for this household.
                 </p>
                 <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
-                  Are you cultivating interest here? Save return visit notes, scriptures, and callback times securely on your device.
+                  Are you cultivating interest here? Save return visit notes, scriptures, and
+                  callback times securely on your device.
                 </p>
                 {canLog && (
                   <Button

@@ -181,7 +181,7 @@ export default function PersonalNotebookClient() {
   }, [calls, statusFilter, searchQuery, sortBy]);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header & Privacy Notice */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -323,7 +323,9 @@ export default function PersonalNotebookClient() {
 
           {/* Sort Dropdown */}
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Sort:</span>
+            <span className="text-xs text-muted-foreground font-medium hidden sm:inline">
+              Sort:
+            </span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -410,16 +412,17 @@ export default function PersonalNotebookClient() {
                         <span className="font-bold text-sm sm:text-base text-foreground truncate">
                           {call.personName || 'Unnamed Person'}
                         </span>
-                        <Badge variant="outline" className={`text-[10px] px-2 py-0.5 ${statusConfig.bg}`}>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-2 py-0.5 ${statusConfig.bg}`}
+                        >
                           {statusConfig.label}
                         </Badge>
                       </div>
 
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3 shrink-0 text-primary/70" />
-                        <span className="truncate">
-                          {call.address || 'Address not listed'}
-                        </span>
+                        <span className="truncate">{call.address || 'Address not listed'}</span>
                       </p>
                     </div>
 

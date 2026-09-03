@@ -145,9 +145,7 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        <ExportPersonalNotesBanner />
-      </div>
+      <ExportPersonalNotesBanner />
 
       <div className="pb-24 lg:pb-8">{children}</div>
       <BottomTabBar />

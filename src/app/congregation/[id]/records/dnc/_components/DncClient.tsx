@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  MapPin,
-  Plus,
-  Search,
-  ShieldAlert,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, MapPin, Plus, Search, ShieldAlert } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -32,8 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCongregationTerritories, useCurrentUser, useHouseholds } from '@/hooks';
-import { updateHouseholdRecord } from '@/lib/record-writes';
 import { canManageDoNotCallList } from '@/lib/permissions';
+import { updateHouseholdRecord } from '@/lib/record-writes';
 import type { Household } from '@/types/api';
 
 export default function DncClient() {
@@ -134,7 +127,7 @@ export default function DncClient() {
   }, [households]);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -151,7 +144,8 @@ export default function DncClient() {
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Mandatory skip list. Field service groups must never knock on or contact these addresses.
+            Mandatory skip list. Field service groups must never knock on or contact these
+            addresses.
           </p>
         </div>
 
@@ -174,9 +168,7 @@ export default function DncClient() {
           <AlertTriangle className="h-4 w-4" />
         </div>
         <div className="text-xs space-y-1">
-          <p className="font-semibold text-foreground">
-            Strict Legal & Congregational Compliance
-          </p>
+          <p className="font-semibold text-foreground">Strict Legal & Congregational Compliance</p>
           <p className="text-muted-foreground leading-relaxed">
             When a householder requests not to be visited, the address must be recorded here and
             respected by all publishers. In compliance with data privacy regulations, this registry
@@ -249,9 +241,7 @@ export default function DncClient() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground">
-                        {h.address}
-                      </span>
+                      <span className="font-bold text-sm text-foreground">{h.address}</span>
                       <Badge variant="destructive" className="text-[10px] px-2 py-0">
                         DO NOT CALL
                       </Badge>
@@ -288,8 +278,7 @@ export default function DncClient() {
 
                 <div className="text-[10px] text-muted-foreground pt-1 border-t border-destructive/10 flex items-center justify-between">
                   <span>
-                    Last verified:{' '}
-                    {new Date(h.updatedAt || h.createdAt).toLocaleDateString()}
+                    Last verified: {new Date(h.updatedAt || h.createdAt).toLocaleDateString()}
                   </span>
                   <span className="text-destructive font-medium">Skip this door</span>
                 </div>
@@ -308,18 +297,15 @@ export default function DncClient() {
               Register Do Not Call (DNC) Address
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Select an address from the congregation directory to mark as Do Not Call. Field service
-              groups will be instructed to skip this door.
+              Select an address from the congregation directory to mark as Do Not Call. Field
+              service groups will be instructed to skip this door.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-xs">
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Select Door / Address *</Label>
-              <Select
-                value={selectedHouseholdId}
-                onValueChange={setSelectedHouseholdId}
-              >
+              <Select value={selectedHouseholdId} onValueChange={setSelectedHouseholdId}>
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Choose an address..." />
                 </SelectTrigger>

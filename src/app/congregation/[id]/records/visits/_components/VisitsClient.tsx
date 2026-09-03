@@ -32,13 +32,13 @@ import {
   useMyEncounters,
   useMyVisits,
 } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import {
   canDeleteVisit,
   canEditVisit,
   canLogVisitOrEncounter,
   canViewAllCongregationRecords,
 } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
 import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
 import { normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
@@ -48,8 +48,7 @@ const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
   not_home: 'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
   busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
-  return_visit:
-    'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
+  return_visit: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   return_visit_completed:
     'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
   return_visit_missed:
@@ -58,8 +57,7 @@ const outcomeColors: Record<string, string> = {
     'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
   study_offered:
     'text-purple-700 border-purple-200 bg-purple-50 dark:bg-purple-950/40 dark:text-purple-400',
-  study_missed:
-    'text-pink-700 border-pink-200 bg-pink-50 dark:bg-pink-950/40 dark:text-pink-400',
+  study_missed: 'text-pink-700 border-pink-200 bg-pink-50 dark:bg-pink-950/40 dark:text-pink-400',
   literature_placed:
     'text-teal-700 border-teal-200 bg-teal-50 dark:bg-teal-950/40 dark:text-teal-400',
   minor_only:
@@ -392,7 +390,7 @@ export default function VisitsClient() {
   ]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">
