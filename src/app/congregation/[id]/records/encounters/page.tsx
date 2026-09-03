@@ -1,8 +1,6 @@
-import type { Metadata } from 'next';
-import EncountersClient from './_components/EncountersClient';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'My Encounters | Kanataran' };
-
-export default function EncountersPage() {
-  return <EncountersClient />;
+export default async function EncountersPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  redirect(`/congregation/${id}/records/notebook`);
 }

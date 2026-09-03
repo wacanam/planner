@@ -503,17 +503,17 @@ export default function HouseholdsClient() {
         <div>
           <h1 className="text-xl font-bold text-foreground">
             {recordScope === 'mine'
-              ? 'My Household Directory'
+              ? 'My Door Directory'
               : recordScope === 'group'
-                ? 'Group Household Directory'
-                : 'Congregation Household Directory'}
+                ? 'Group Door Directory'
+                : 'Congregation Door Directory'}
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {recordScope === 'mine'
-              ? 'Your personal door records, contact notes, and offline-first follow-ups'
+              ? 'Physical door addresses, access notes, and coverage status'
               : recordScope === 'group'
-                ? 'Door records and follow-ups across your service group'
-                : 'All door records across the entire congregation'}
+                ? 'Door listings and access notes across your service group'
+                : 'All physical door listings across the congregation (no personal data)'}
           </p>
         </div>
         <Button
@@ -522,7 +522,7 @@ export default function HouseholdsClient() {
           className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
         >
           <Plus size={14} />
-          <span>Add Household</span>
+          <span>Add Door</span>
         </Button>
       </div>
 
@@ -563,12 +563,13 @@ export default function HouseholdsClient() {
                 My Active Return Visits & Studies ({myActiveFollowups.length})
               </h2>
             </div>
-            <Badge
-              variant="outline"
-              className="border-primary/40 text-primary text-[10px] py-0 font-bold"
+            <Link
+              href={`/congregation/${congregationId}/records/notebook`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
-              Personal Follow-ups
-            </Badge>
+              <span>Open My Notebook</span>
+              <ChevronRight size={12} />
+            </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
             {myActiveFollowups.map((item) => (

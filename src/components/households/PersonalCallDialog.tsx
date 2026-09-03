@@ -30,12 +30,12 @@ import {
   type PersonalCallRecord,
 } from '@/lib/local-first/personal-calls';
 
-interface PersonalCallDialogProps {
+export interface PersonalCallDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
-  householdId: string;
-  address: string;
+  householdId?: string | null;
+  address?: string | null;
   houseNumber?: string | null;
   streetName?: string | null;
   territoryId?: string | null;
@@ -56,6 +56,7 @@ export function PersonalCallDialog({
   onSaved,
 }: PersonalCallDialogProps) {
   const [personName, setPersonName] = useState(initialCall?.personName || '');
+  const [customAddress, setCustomAddress] = useState(initialCall?.address || '');
   const [status, setStatus] = useState<PersonalCallRecord['status']>(
     initialCall?.status || 'return_visit'
   );
@@ -75,6 +76,7 @@ export function PersonalCallDialog({
   React.useEffect(() => {
     if (initialCall) {
       setPersonName(initialCall.personName || '');
+      setCustomAddress(initialCall.address || '');
       setStatus(initialCall.status || 'return_visit');
       setPhoneNumber(initialCall.phoneNumber || '');
       setEmail(initialCall.email || '');
@@ -86,6 +88,7 @@ export function PersonalCallDialog({
       setNotes(initialCall.notes || '');
     } else {
       setPersonName('');
+      setCustomAddress('');
       setStatus('return_visit');
       setPhoneNumber('');
       setEmail('');
@@ -106,14 +109,21 @@ export function PersonalCallDialog({
 
     setSaving(true);
     try {
+      const finalAddress =
+        address || customAddress.trim() || initialCall?.address || 'Personal Call';
+      const finalHouseholdId = householdId || initialCall?.householdId || null;
+      const callId =
+        initialCall?.id ||
+        (finalHouseholdId ? `personal-${finalHouseholdId}` : `personal-call-${Date.now()}`);
+
       const record: PersonalCallRecord = {
-        id: initialCall?.id || `personal-${householdId}`,
+        id: callId,
         userId,
-        householdId,
-        territoryId: territoryId || null,
-        address,
-        houseNumber: houseNumber || null,
-        streetName: streetName || null,
+        householdId: finalHouseholdId,
+        territoryId: territoryId || initialCall?.territoryId || null,
+        address: finalAddress,
+        houseNumber: houseNumber || initialCall?.houseNumber || null,
+        streetName: streetName || initialCall?.streetName || null,
         personName: personName.trim(),
         phoneNumber: phoneNumber.trim() || null,
         email: email.trim() || null,
@@ -172,11 +182,26 @@ export function PersonalCallDialog({
             </Badge>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            {address} • Stored exclusively on this device (never shared with the congregation cloud).
+            {address || customAddress || 'Personal Call'} • Stored exclusively on this device (never shared with the congregation cloud).
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2 text-xs">
+          {!address && !householdId && (
+            <div className="space-y-1">
+              <Label htmlFor="pv-custom-address" className="text-xs font-semibold">
+                Address / Location Reference (Optional)
+              </Label>
+              <Input
+                id="pv-custom-address"
+                value={customAddress}
+                onChange={(e) => setCustomAddress(e.target.value)}
+                placeholder="e.g. 124 Maple St / Apt 2B"
+                className="h-8 text-xs"
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="pv-name" className="text-xs font-semibold">

@@ -280,6 +280,28 @@ export function canViewAllCongregationRecords(
 }
 
 /**
+ * Checks if the user is authorized to manage the congregation-level Do Not Call (DNC) registry.
+ * DNC records are strictly address-only (House #, Street, Request Date) with ZERO personal data.
+ */
+export function canManageDoNotCallList(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole) ||
+    isCongregationSecretary(role) ||
+    isCongregationSecretary(congregationRole) ||
+    isTerritoryServant(role) ||
+    isTerritoryServant(congregationRole) ||
+    isCircuitOverseer(role) ||
+    isCircuitOverseer(congregationRole)
+  );
+}
+
+/**
  * Checks if the current user is the Group Overseer of a given group.
  */
 export function isGroupOverseer(
@@ -1046,7 +1068,7 @@ export function canModifyMapAnnotation(
 ): boolean {
   if (!user?.id) return false;
   if (canEditTerritory(user.role, user.congregationRole)) return true;
-  if (!annotation || !annotation.createdById) return false;
+  if (!annotation?.createdById) return false;
   if (annotation.createdById === user.id) return true;
   if (
     groups &&

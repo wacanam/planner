@@ -3,6 +3,7 @@
 import {
   BarChart2,
   Bell,
+  BookOpen,
   ChevronRight,
   Compass,
   FileText,
@@ -11,10 +12,10 @@ import {
   Layers,
   LogOut,
   Map as MapIcon,
-  MapPin,
   Megaphone,
   Menu,
   Shield,
+  ShieldAlert,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -75,18 +76,18 @@ export function BottomTabBar() {
       icon: Layers,
     },
     {
-      href: `/congregation/${id}/territories`,
-      label: 'Territories',
-      icon: MapPin,
-    },
-    {
       href: `/congregation/${id}/my-assignments`,
-      label: 'Mine',
+      label: 'Territory',
       icon: Compass,
     },
     {
+      href: `/congregation/${id}/records/notebook`,
+      label: 'Notebook',
+      icon: BookOpen,
+    },
+    {
       href: `/congregation/${id}/records/households`,
-      label: 'Records',
+      label: 'Doors',
       icon: FileText,
       badgeCount: pendingSharesCount,
     },
@@ -110,6 +111,12 @@ export function BottomTabBar() {
           },
         ]
       : []),
+    {
+      href: `/congregation/${id}/records/dnc`,
+      label: 'Do Not Call Registry',
+      description: 'Official address-only skip list',
+      icon: ShieldAlert,
+    },
     ...(canReports
       ? [
           {
@@ -125,7 +132,7 @@ export function BottomTabBar() {
           {
             href: `/congregation/${id}/territories/overview`,
             label: 'Congregation Map',
-            description: 'All territories, boundaries & live publishers',
+            description: 'All territories, boundaries & coverage',
             icon: MapIcon,
           },
         ]

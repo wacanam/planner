@@ -10,6 +10,7 @@ import {
   canEditHousehold,
   canEditTerritory,
   canEditTerritoryInStudio,
+  canManageDoNotCallList,
   canManageGroups,
   canModifyBoundary,
   canModifyMapAnnotation,
@@ -22,8 +23,6 @@ import {
   hasRole,
   isCircuitOverseer,
   isCongregationSecretary,
-  isGroupLeader,
-  isGroupLeaderOfUser,
   isGroupOverseer,
   isGroupOverseerAssistant,
   isPublisher,
@@ -159,6 +158,17 @@ describe('Action Capability Checks', () => {
     expect(canManageGroups(UserRole.SECRETARY)).toBe(true);
     expect(canManageGroups(UserRole.TERRITORY_SERVANT)).toBe(false);
     expect(canManageGroups(UserRole.USER)).toBe(false);
+  });
+
+  it('allows Do Not Call list management to admins, service overseers, secretaries, territory servants, and circuit overseers', () => {
+    expect(canManageDoNotCallList(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.ADMIN)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.SECRETARY)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.TERRITORY_SERVANT)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.CIRCUIT_OVERSEER)).toBe(true);
+    expect(canManageDoNotCallList(UserRole.USER)).toBe(false);
+    expect(canManageDoNotCallList(UserRole.VISITING_PUBLISHER)).toBe(false);
   });
 
   it('allows territory creation, editing, and deletion to admins, service overseers, and territory servants', () => {
