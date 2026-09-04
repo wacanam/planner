@@ -31,9 +31,9 @@ const highlights = [
   },
   {
     icon: EyeOff,
-    title: 'Ministry Confidentiality',
+    title: 'Zero Cloud Resident PII',
     description:
-      'Addresses, revisit notes, and householder records remain confidential to your congregation.',
+      'No resident names, phone numbers, occupant counts, or demographic profiling are stored in cloud databases.',
   },
 ];
 
@@ -64,13 +64,13 @@ const sections = [
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>
           We collect only the minimum necessary information required to provide territory management
-          services:
+          services in accordance with strict data minimization principles:
         </p>
         <ul className="list-disc pl-5 space-y-2">
           <li>
             <strong className="text-foreground">Account Information:</strong> When you register or
             sign in (via email or Google OAuth), we collect your name, email address, profile
-            avatar, and your assigned congregation affiliation.
+            avatar, and your assigned congregation affiliation and role.
           </li>
           <li>
             <strong className="text-foreground">Congregation & Territory Data:</strong> Territory
@@ -78,16 +78,22 @@ const sections = [
             histories configured by congregation administrators.
           </li>
           <li>
-            <strong className="text-foreground">Anonymous Door & Territory Coverage:</strong> Door
-            status markers (e.g., Not at Home, Visited, Do Not Call), visit timestamps, and physical
-            access notes (e.g. gate codes, dogs). Kanataran never collects or stores resident names,
-            phone numbers, or personal profiling in central cloud databases.
+            <strong className="text-foreground">Anonymous Household & Territory Coverage:</strong>{' '}
+            Physical household address coordinates, dwelling type, physical property access notes
+            (e.g., gate codes, cautions), visit timestamps, topics/scriptures discussed, literature
+            placed, and visit outcomes (such as Answered, Not Home, Study Conducted, or Return Visit
+            Completed). Kanataran strictly enforces data minimization: we never collect, solicit, or
+            store resident names, phone numbers, email addresses, occupant counts, age groups,
+            gender, or personal demographic profiling in central cloud databases.
           </li>
           <li>
-            <strong className="text-foreground">Personal Ministry Notebook (On-Device Only):</strong>
-            Personal return visit notes, scriptures discussed, and follow-up reminders are stored
-            strictly on your local device (in IndexedDB) and are never transmitted to or accessible by the
-            congregation cloud.
+            <strong className="text-foreground">
+              Personal Ministry Notebook (100% On-Device Only):
+            </strong>
+            Personal return visit notes, contact references, phone numbers, and follow-up reminders
+            are stored strictly and exclusively on your local device (in browser IndexedDB). They
+            are never transmitted to, backed up by, or accessible through the congregation cloud or
+            overseers.
           </li>
           <li>
             <strong className="text-foreground">Device & Offline Cache:</strong> Local cache records
@@ -107,12 +113,12 @@ const sections = [
         <ul className="list-disc pl-5 space-y-2">
           <li>Facilitating the assignment and check-in/return of congregation territory cards.</li>
           <li>
-            Enabling publishers and service groups to track street and door-to-door coverage
+            Enabling publishers and service groups to track street and household territory coverage
             accurately.
           </li>
           <li>
             Generating official congregation reports, S-13 assignment registers, and coverage
-            analytics for Service Overseers and Territory Servants.
+            analytics for Service Overseers and Territory Servants without demographic profiling.
           </li>
           <li>
             Enabling seamless offline data entry and automatic background synchronization when
@@ -120,7 +126,7 @@ const sections = [
           </li>
           <li>
             Enforcing role-based access permissions so only authorized congregation overseers and
-            servants can view sensitive congregation data.
+            servants can view sensitive congregation management data.
           </li>
         </ul>
       </div>
@@ -151,6 +157,12 @@ const sections = [
             visits and territory notes are stored in your browser&apos;s isolated IndexedDB storage,
             protected by standard browser sandboxing mechanisms.
           </li>
+          <li>
+            <strong className="text-foreground">Client-Side Notebook Sandboxing:</strong> Personal
+            ministry notes remain sandboxed inside your local device&apos;s browser storage
+            (IndexedDB). They cannot be accessed by cloud database queries, security rules, or
+            congregation overseers.
+          </li>
         </ul>
       </div>
     ),
@@ -169,9 +181,10 @@ const sections = [
         <ul className="list-disc pl-5 space-y-2">
           <li>
             <strong className="text-foreground">Within Your Congregation:</strong> Relevant
-            territory data and visit updates are visible to authorized roles (Service Overseers,
-            Territory Servants, your Group Overseer, and active collaboration partners) within your
-            congregation.
+            territory boundaries, physical household listings, and anonymous visit updates are
+            visible to authorized congregation roles. Congregation activity streams (such as Recent
+            Ministry Activity and shared visits) are anonymized—individual publisher identities are
+            not broadcast to fellow publishers on congregation dashboards.
           </li>
           <li>
             <strong className="text-foreground">Core Service Providers:</strong> We use reputable
@@ -188,15 +201,18 @@ const sections = [
   },
   {
     id: 'ministry-records',
-    title: '6. Field Service Notes & Do-Not-Call Requests',
+    title: '6. Household Service Notes & Do-Not-Call Requests',
     content: (
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>We recognize the critical importance of handling householder preferences with care:</p>
         <p>
-          Addresses designated as &ldquo;Do Not Call&rdquo; or sensitive locations are clearly
-          flagged across the system to ensure congregation members respect householders&apos;
-          requests. Notes logged on territories are intended solely for ministry follow-up and must
-          comply with your congregation&apos;s local guidelines.
+          Addresses designated as &ldquo;Do Not Call&rdquo; (DNC) or sensitive locations are
+          strictly flagged across the system to ensure congregation members respect
+          householders&apos; requests. In compliance with data minimization, DNC records are
+          restricted solely to the physical address, request date, and physical access cautions—no
+          resident names or personal data are recorded on DNC registers. Visit notes logged on
+          households are intended strictly for physical property access and general non-personal
+          ministry topics.
         </p>
       </div>
     ),
@@ -224,6 +240,12 @@ const sections = [
           <li>
             <strong className="text-foreground">Local Cache Clearing:</strong> You can clear locally
             cached offline data at any time via your browser settings or device storage management.
+          </li>
+          <li>
+            <strong className="text-foreground">Personal Notebook Sovereignty:</strong> You maintain
+            full ownership and control over your on-device Personal Notebook. You can export all
+            your notes at any time as CSV or JSON, or permanently delete individual notes or your
+            entire local notebook without needing administrator permission.
           </li>
         </ul>
       </div>
@@ -298,7 +320,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Last updated: August 18, 2026. Learn how Kanataran safeguards personal information and
+            Last updated: September 4, 2026. Learn how Kanataran safeguards personal information and
             congregation territory records.
           </p>
         </div>

@@ -25,15 +25,15 @@ const keyPrinciples = [
   },
   {
     icon: FileCheck,
-    title: 'Householder Respect',
+    title: 'Strict Data Minimization & Privacy',
     description:
-      'Strict adherence to householder preferences, privacy, and Do Not Call designations.',
+      'Users agree to maintain personal return visit notes on-device only and never record resident personal data in shared congregation records.',
   },
   {
     icon: Scale,
     title: 'Data Ownership',
     description:
-      'Congregations retain full ownership and discretion over their congregation data and territory maps.',
+      'Congregations retain full ownership of territory maps; publishers retain sovereignty over their on-device notes.',
   },
 ];
 
@@ -63,9 +63,9 @@ const termSections = [
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>
           Kanataran is provided as an organizational and workflow tool for Christian congregations
-          to manage field ministry territories, coordinate publisher assignments, record
-          door-to-door visits offline, and generate standard ministry records (such as S-13
-          registers and coverage reports).
+          to manage field ministry territories, coordinate publisher assignments, record household
+          ministry visits offline, and generate standard ministry records (such as S-13 registers
+          and coverage reports).
         </p>
         <p>
           The Service must be used solely for legitimate congregation ministry activities and in
@@ -122,8 +122,9 @@ const termSections = [
           </li>
           <li>
             <strong className="text-foreground">Publishers:</strong> Work assigned territory cards
-            diligently, record visits accurately, and return completed assignments in a timely
-            manner.
+            diligently, record factual visit outcomes, uphold data minimization by never inputting
+            resident demographic information into shared records, and maintain personal return visit
+            follow-ups strictly inside their private on-device Personal Notebook.
           </li>
         </ul>
       </div>
@@ -131,23 +132,36 @@ const termSections = [
   },
   {
     id: 'territory-integrity',
-    title: '5. Territory Records & Householder Privacy',
+    title: '5. Household Records, Data Minimization & Privacy',
     content: (
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>Maintaining the sanctity and privacy of field service records is vital:</p>
         <ul className="list-disc pl-5 space-y-2">
           <li>
             <strong className="text-foreground">Do Not Call Requests:</strong> Users must promptly
-            mark and strictly honor all requests by householders who ask not to be called upon.
+            mark and strictly honor all requests by householders who ask not to be called upon. In
+            accordance with data minimization, Do Not Call records are limited to the physical
+            address, request date, and access directions—never resident personal names or profiling.
           </li>
           <li>
-            <strong className="text-foreground">Visit Notes:</strong> Notes recorded in the app must
-            be factual, respectful, and limited to relevant ministry follow-up information.
+            <strong className="text-foreground">
+              Prohibition of Personal Identifiable Information:
+            </strong>{' '}
+            Users must not enter resident names, contact numbers, occupant counts, or demographic
+            profiling into shared congregation visit notes or household listings. All personal
+            contact references, telephone numbers, and conversational follow-ups must be kept
+            exclusively within the publisher&apos;s on-device Personal Notebook.
+          </li>
+          <li>
+            <strong className="text-foreground">Visit Notes:</strong> Notes recorded in
+            congregation-shared visit records must be strictly factual, respectful, and limited to
+            physical access cautions (e.g. gates, dogs) or general non-personal ministry topic
+            summaries.
           </li>
           <li>
             <strong className="text-foreground">Prohibition of Commercial Exploitation:</strong> You
-            may not scrape, export, or use addresses or contact data for commercial marketing, spam,
-            or any purpose outside authorized congregation activities.
+            may not scrape, export, or use addresses or territory data for commercial marketing,
+            spam, or any purpose outside authorized congregation activities.
           </li>
         </ul>
       </div>
@@ -172,13 +186,19 @@ const termSections = [
   },
   {
     id: 'ownership',
-    title: '7. Data Ownership & Intellectual Property',
+    title: '7. Data Ownership, Intellectual Property & Personal Notebook',
     content: (
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>
           <strong className="text-foreground">Congregation Data:</strong> All congregation records,
-          territory boundary definitions, assignment histories, and visit records remain the sole
-          property and responsibility of your local congregation.
+          territory boundary definitions, assignment histories, and physical household coverage
+          registries remain the property and responsibility of your local congregation.
+        </p>
+        <p>
+          <strong className="text-foreground">Personal Notebook Sovereignty:</strong> All personal
+          return visit records, follow-up notes, and contact references created by publishers within
+          their on-device Personal Notebook belong exclusively to the publisher, are stored locally
+          on their personal device, and may be exported or purged at their sole discretion.
         </p>
         <p>
           <strong className="text-foreground">Platform Property:</strong> The Kanataran software,
@@ -280,8 +300,8 @@ export default function TermsOfServicePage() {
             Terms of Service
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Last updated: August 18, 2026. Please read these terms carefully before using Kanataran
-            for your congregation ministry.
+            Last updated: September 4, 2026. Please read these terms carefully before using
+            Kanataran for your congregation ministry.
           </p>
         </div>
 
