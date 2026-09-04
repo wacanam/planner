@@ -31,10 +31,15 @@ import {
   exportPersonalCallsAsJson,
   importPersonalCallsFromCloud,
 } from '@/lib/local-first/personal-calls';
+import { cn } from '@/lib/utils';
 
 const DISMISS_KEY = 'kanataran_privacy_banner_dismissed_v1';
 
-export function ExportPersonalNotesBanner() {
+export interface ExportPersonalNotesBannerProps {
+  className?: string;
+}
+
+export function ExportPersonalNotesBanner({ className }: ExportPersonalNotesBannerProps = {}) {
   const { user } = useCurrentUser();
   const [isDismissed, setIsDismissed] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -177,92 +182,99 @@ export function ExportPersonalNotesBanner() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-      <Card className="mb-4 p-4 border-amber-500/50 bg-amber-500/10 dark:bg-amber-500/15 relative">
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground p-1 rounded-md"
-          title="Dismiss banner"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <Card
+      className={cn(
+        'rounded-3xl border-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15 p-4 sm:p-5 relative shadow-xs overflow-hidden w-full',
+        className
+      )}
+    >
+      <button
+        type="button"
+        onClick={handleDismiss}
+        className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 text-muted-foreground hover:text-foreground p-1.5 rounded-full hover:bg-amber-500/10 transition-colors"
+        title="Dismiss banner"
+      >
+        <X className="h-4 w-4" />
+      </button>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pr-6">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-semibold text-sm text-foreground">
-                  Data Privacy & Personal Notes Protection
-                </h4>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] uppercase tracking-wider py-0 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300"
-                >
-                  1-Week Notice
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-                In accordance with branch privacy guidelines, congregation territory records are
-                transitioning to strict data minimization. Personal return visit notes and
-                scriptures will now be stored{' '}
-                <strong>securely on your local device (IndexedDB)</strong> with zero cloud sharing.
-              </p>
-              {transferredCount !== null && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {transferredCount} personal call{transferredCount === 1 ? '' : 's'} successfully
-                  preserved on this device.
-                </p>
-              )}
-            </div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pr-6 sm:pr-8">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0">
+            <ShieldCheck className="h-5 w-5" />
           </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            <Button
-              size="sm"
-              onClick={handleTransferToDevice}
-              disabled={loading}
-              className="h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
-            >
-              {loading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <HardDriveDownload className="h-3.5 w-3.5" />
-              )}
-              Transfer to My Device
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-8 gap-1 border-amber-500/40">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={handleDownloadCsv}
-                  className="gap-2 cursor-pointer text-xs"
-                >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                  Download CSV Spreadsheet
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDownloadJson}
-                  className="gap-2 cursor-pointer text-xs"
-                >
-                  <FileJson className="h-3.5 w-3.5" />
-                  Download JSON File
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-semibold text-sm text-foreground">
+                Data Privacy & Personal Notes Protection
+              </h4>
+              <Badge
+                variant="outline"
+                className="text-[10px] uppercase tracking-wider py-0 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300"
+              >
+                1-Week Notice
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+              In accordance with branch privacy guidelines, congregation territory records are
+              transitioning to strict data minimization. Personal return visit notes and scriptures
+              will now be stored <strong>securely on your local device (IndexedDB)</strong> with
+              zero cloud sharing.
+            </p>
+            {transferredCount !== null && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {transferredCount} personal call{transferredCount === 1 ? '' : 's'} successfully
+                preserved on this device.
+              </p>
+            )}
           </div>
         </div>
-      </Card>
-    </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-center shrink-0 flex-wrap">
+          <Button
+            size="sm"
+            onClick={handleTransferToDevice}
+            disabled={loading}
+            className="h-8.5 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 rounded-xl font-semibold shadow-2xs"
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <HardDriveDownload className="h-3.5 w-3.5" />
+            )}
+            Transfer to My Device
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8.5 gap-1 border-amber-500/40 hover:bg-amber-500/10 text-amber-900 dark:text-amber-200 rounded-xl font-semibold"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuItem
+                onClick={handleDownloadCsv}
+                className="gap-2 cursor-pointer text-xs"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Download CSV Spreadsheet
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleDownloadJson}
+                className="gap-2 cursor-pointer text-xs"
+              >
+                <FileJson className="h-3.5 w-3.5" />
+                Download JSON File
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </Card>
   );
 }
