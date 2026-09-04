@@ -503,7 +503,7 @@ export default function HouseholdDetailScreen() {
 
               <Input
                 label="Visit Notes"
-                placeholder="Details of conversation, family members, etc."
+                placeholder="Summary of visit attempt, topics discussed (no personal names)…"
                 value={visitNotes}
                 onChangeText={setVisitNotes}
                 multiline

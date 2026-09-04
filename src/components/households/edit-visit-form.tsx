@@ -96,7 +96,9 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
           <SelectContent className="bg-popover border-border">
             <SelectItem value="answered">Answered (Conversation)</SelectItem>
             <SelectItem value="return_visit">Return Visit (Visited / Completed)</SelectItem>
-            <SelectItem value="return_visit_missed">Return Visit Missed (Resident Absent / Reschedule)</SelectItem>
+            <SelectItem value="return_visit_missed">
+              Return Visit Missed (Resident Absent / Reschedule)
+            </SelectItem>
             <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
             <SelectItem value="study_offered">Bible Study Offered</SelectItem>
             <SelectItem value="study_missed">Bible Study Missed / Cancelled</SelectItem>
@@ -143,7 +145,7 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
         </Label>
         <Textarea
           id="notes"
-          placeholder="Summary of visit, householder questions…"
+          placeholder="Summary of visit attempt, topics discussed (no personal names or contact details)…"
           className="rounded-xl text-xs resize-none h-20"
           {...form.register('notes')}
         />
