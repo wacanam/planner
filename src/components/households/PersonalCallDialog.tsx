@@ -4,6 +4,7 @@
 import { BookOpen, Calendar, Clock, Lock, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -92,6 +93,7 @@ export function PersonalCallDialog({
   const [nextVisitTime, setNextVisitTime] = useState(initialCall?.nextVisitTime || '');
   const [notes, setNotes] = useState(initialCall?.notes || '');
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   // Sync when initialCall changes
   useEffect(() => {
@@ -199,14 +201,14 @@ export function PersonalCallDialog({
     }
   };
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
     if (!initialCall?.id) return;
-    if (!confirm('Remove this note from your personal notebook?')) return;
 
     setSaving(true);
     try {
       await deletePersonalCall(initialCall.id);
       toast.info('Removed from personal notebook.');
+      setConfirmDeleteOpen(false);
       onOpenChange(false);
       onSaved?.();
     } catch (err: any) {
@@ -424,7 +426,7 @@ export function PersonalCallDialog({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={saving}
               className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 h-9 w-full sm:w-auto justify-center rounded-xl order-2 sm:order-1"
             >
@@ -458,6 +460,19 @@ export function PersonalCallDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete Personal Note"
+        description={`Are you sure you want to remove the note for "${
+          personName || 'this contact'
+        }" from your personal notebook? This action cannot be undone.`}
+        confirmLabel="Delete Note"
+        variant="destructive"
+        loading={saving}
+        onConfirm={handleConfirmDelete}
+      />
     </Dialog>
   );
 }

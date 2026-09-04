@@ -3,13 +3,13 @@
 import {
   BookOpen,
   Calendar,
-  Clock,
   Download,
   FileSpreadsheet,
   FileText,
   Lock,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Plus,
   Search,
@@ -22,6 +22,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -65,6 +66,8 @@ export default function PersonalNotebookClient() {
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCall, setEditingCall] = useState<PersonalCallRecord | null>(null);
+  const [deleteConfirmCall, setDeleteConfirmCall] = useState<PersonalCallRecord | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCalls = useCallback(async () => {
     if (!user?.id) {
@@ -97,14 +100,17 @@ export default function PersonalNotebookClient() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string, name?: string | null) => {
-    if (!confirm(`Delete "${name || 'this note'}" from your personal device notebook?`)) return;
+  const handleDelete = async (call: PersonalCallRecord) => {
+    setDeletingId(call.id);
     try {
-      await deletePersonalCall(id);
-      toast.info('Removed from personal notebook');
+      await deletePersonalCall(call.id);
+      toast.info('Note deleted from your device');
+      setDeleteConfirmCall(null);
       void loadCalls();
     } catch (err: any) {
       toast.error(`Failed to delete: ${err.message}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -463,15 +469,17 @@ export default function PersonalNotebookClient() {
                         onClick={() => handleOpenEdit(call)}
                         className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
                         title="Edit note"
+                        aria-label="Edit note"
                       >
-                        <Clock className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(call.id, call.personName)}
+                        onClick={() => setDeleteConfirmCall(call)}
                         className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
                         title="Delete note"
+                        aria-label="Delete note"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -554,7 +562,7 @@ export default function PersonalNotebookClient() {
                       onClick={() => handleOpenEdit(call)}
                       className="text-primary font-semibold hover:underline"
                     >
-                      Update notes →
+                      Edit note →
                     </button>
                   </div>
                 </CardContent>
@@ -583,6 +591,22 @@ export default function PersonalNotebookClient() {
           }}
         />
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={Boolean(deleteConfirmCall)}
+        onOpenChange={(op) => !op && setDeleteConfirmCall(null)}
+        title="Delete Personal Note"
+        description={`Are you sure you want to delete the note for "${
+          deleteConfirmCall?.personName || 'this contact'
+        }" from this device? This action cannot be undone.`}
+        confirmLabel="Delete Note"
+        variant="destructive"
+        loading={Boolean(deletingId)}
+        onConfirm={() => {
+          if (deleteConfirmCall) void handleDelete(deleteConfirmCall);
+        }}
+      />
     </div>
   );
 }
