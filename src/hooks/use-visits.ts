@@ -35,6 +35,7 @@ export function useVisitRecords(filters?: {
   const [visits, setVisits] = useState<LocalVisit[]>([]);
   const [households, setHouseholds] = useState<LocalHousehold[]>([]);
   const [memberUserIds, setMemberUserIds] = useState<Set<string>>(new Set());
+  const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +44,7 @@ export function useVisitRecords(filters?: {
       setVisits([]);
       setHouseholds([]);
       setMemberUserIds(new Set());
+      setMemberNames(new Map());
       setIsLoading(false);
       return;
     }
@@ -101,17 +103,26 @@ export function useVisitRecords(filters?: {
         q,
         (snapshot) => {
           const ids = new Set<string>();
+          const names = new Map<string, string>();
           for (const d of snapshot.docs) {
             const data = d.data();
-            if (data.userId) ids.add(String(data.userId));
+            const uid = data.userId ? String(data.userId) : d.id;
+            ids.add(uid);
             ids.add(d.id);
+            const mName = data.user?.name || data.name || null;
+            if (mName) {
+              names.set(uid, mName);
+              names.set(d.id, mName);
+            }
           }
           setMemberUserIds(ids);
+          setMemberNames(names);
         },
         () => {}
       );
     } else {
       setMemberUserIds(new Set());
+      setMemberNames(new Map());
     }
 
     return () => {
@@ -172,21 +183,26 @@ export function useVisitRecords(filters?: {
       );
     }
     return sortVisits(
-      filteredVisits.map((visit) =>
-        toVisitView(
+      filteredVisits.map((visit) => {
+        const view = toVisitView(
           visit,
           householdMap.get(visit.householdId),
           congregationId && (memberUserIds.has(visit.userId ?? '') || visit.userId === userId)
             ? congregationId
             : null
-        )
-      )
+        );
+        if (!view.publisherName && visit.userId) {
+          view.publisherName = memberNames.get(visit.userId) || null;
+        }
+        return view;
+      })
     );
   }, [
     congregationId,
     congregationRole,
     groupMateSet,
     householdMap,
+    memberNames,
     memberUserIds,
     userId,
     userRole,

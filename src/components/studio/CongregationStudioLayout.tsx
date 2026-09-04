@@ -136,8 +136,9 @@ export function CongregationStudioLayout({
   });
 
   const canViewMembers = useMemo(() => {
-    return canViewMemberLocations(user, groups);
-  }, [user, groups]);
+    // Disabled for strict Data Privacy Compliance (no central live tracking)
+    return false;
+  }, []);
 
   const {
     isTracking: isTrackingLocation,
@@ -497,7 +498,7 @@ export function CongregationStudioLayout({
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/50">
-                        <span>{t.householdsCount || 0} doors</span>
+                        <span>{t.householdsCount || 0} households</span>
                         <span>{Math.round(parseFloat(t.coveragePercent || '0'))}% coverage</span>
                       </div>
 
@@ -580,7 +581,7 @@ export function CongregationStudioLayout({
                 </Badge>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase">Doors</p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase">Households</p>
                 <p className="font-bold text-foreground mt-0.5">
                   {selectedTerritory.householdsCount || 0}
                 </p>

@@ -274,7 +274,7 @@ export function CongregationTopBar({
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               }`}
-              title="Filter visible territories and doors"
+              title="Filter visible territories and households"
             >
               <Filter size={14} />
               <span className="hidden sm:inline">Filters</span>
@@ -546,7 +546,7 @@ export function CongregationTopBar({
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search territory #, street, door…"
+              placeholder="Search territory #, street, household…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 w-full pl-7 pr-6 text-xs bg-background border border-input rounded-xl focus:outline-none focus:ring-1 focus:ring-primary shadow-inner"

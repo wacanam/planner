@@ -789,7 +789,7 @@ export function StudioTopBar({
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search door, landmark, road…"
+              placeholder="Search household, landmark, road…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}

@@ -98,7 +98,7 @@ export default function SharedRecordsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       <div>
         <h1 className="text-xl font-bold text-foreground">Shared & Transferred Records</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -148,7 +148,7 @@ export default function SharedRecordsPage() {
             <Share2 size={36} className="text-muted-foreground/30 mx-auto mb-2" />
             <p className="text-sm font-semibold text-foreground">No incoming shared records</p>
             <p className="text-xs text-muted-foreground mt-1">
-              When a publisher shares a door record with you, it will appear here.
+              When a publisher shares a household record with you, it will appear here.
             </p>
           </div>
         ) : (

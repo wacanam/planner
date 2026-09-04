@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useShares } from '@/hooks/use-shares';
 import { useVisitRecords } from '@/hooks/use-visits';
+import { formatHouseholdDisplay } from '@/lib/households';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household } from '@/types/api';
 import type { DashboardContextProps } from './types';
@@ -32,9 +33,22 @@ export function RecentActivityFeed({
   onLogVisit,
   households,
   territoryMap,
+  members = [],
 }: DashboardContextProps) {
   const { visits = [], isLoading: visitsLoading } = useVisitRecords({ congregationId });
   const { incomingShares = [], outgoingShares = [], loading: sharesLoading } = useShares();
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of members) {
+      const name = m.user?.name || (m as any).name;
+      if (name) {
+        if (m.userId) map.set(m.userId, name);
+        if (m.id) map.set(m.id, name);
+      }
+    }
+    return map;
+  }, [members]);
 
   // Combine and sort all activity types chronologically
   const fusedActivities = useMemo(() => {
@@ -46,30 +60,23 @@ export function RecentActivityFeed({
       const isMine =
         (v.userId && v.userId === user.id) || Boolean(user.name && v.publisherName === user.name);
 
-      const addressFallback =
-        v.householdAddress ||
-        (h
-          ? `${h.houseNumber ? '#' + h.houseNumber + ' ' : ''}${h.streetName || h.address}`
-          : 'Household');
-
-      // Primary display is the Name (if present), else the address
-      const primaryName = h?.name ? h.name : addressFallback;
-      const subtitle = h?.name
-        ? addressFallback
-        : h?.territoryId
-          ? territoryMap.get(h.territoryId)?.name
-          : undefined;
+      const territoryName = h?.territoryId ? territoryMap.get(h.territoryId)?.name : undefined;
+      const { title, subtitle } = formatHouseholdDisplay(h, territoryName, v.householdAddress);
       const outcomeName = v.outcome?.replace(/_/g, ' ') || 'Visited';
+
+      const contributorName = isMine
+        ? 'You'
+        : v.publisherName || (v.userId ? memberMap.get(v.userId) : null) || 'Publisher';
 
       items.push({
         id: `visit-${v.id}`,
         type: 'visit',
-        title: primaryName,
-        subtitle: subtitle || undefined,
+        title,
+        subtitle,
         badgeLabel: outcomeName,
         badgeVariant: 'visit',
         date: v.visitDate || v.createdAt,
-        contributorName: isMine ? 'You' : v.publisherName || 'Publisher',
+        contributorName,
         isMine,
         household: h || null,
         householdId: v.householdId || null,
@@ -83,23 +90,22 @@ export function RecentActivityFeed({
         (h.createdById && h.createdById === user.id) ||
         Boolean(h.creatorName && user.name && h.creatorName === user.name);
 
-      const addressStr = `${h.houseNumber ? '#' + h.houseNumber + ' ' : ''}${h.streetName || h.address || ''}`;
-      const primaryName = h.name ? h.name : addressStr || 'Household';
-      const subtitle = h.name
-        ? addressStr
-        : h.territoryId
-          ? territoryMap.get(h.territoryId)?.name
-          : h.city;
+      const territoryName = h.territoryId ? territoryMap.get(h.territoryId)?.name : undefined;
+      const { title, subtitle } = formatHouseholdDisplay(h, territoryName);
+
+      const contributorName = isMine
+        ? 'You'
+        : h.creatorName || (h.createdById ? memberMap.get(h.createdById) : null) || 'Publisher';
 
       items.push({
         id: `house-${h.id}`,
         type: 'pinned_house',
-        title: primaryName,
-        subtitle: subtitle || undefined,
+        title,
+        subtitle,
         badgeLabel: 'Pinned House',
         badgeVariant: 'pinned',
         date: h.createdAt,
-        contributorName: isMine ? 'You' : h.creatorName || 'Publisher',
+        contributorName,
         isMine,
         household: h,
         householdId: h.id,
@@ -113,15 +119,30 @@ export function RecentActivityFeed({
       const isMine = s.fromUserId === user.id;
       const h = households.find((item) => item.id === s.householdId);
 
+      const territoryName = h?.territoryId ? territoryMap.get(h.territoryId)?.name : undefined;
+      const { title, subtitle: householdSub } = formatHouseholdDisplay(
+        h,
+        territoryName,
+        s.householdAddress
+      );
+      const shareDirection = isMine
+        ? `Shared with ${s.toUserName}`
+        : `Received from ${s.fromUserName}`;
+      const subtitle = householdSub ? `${householdSub} • ${shareDirection}` : shareDirection;
+
+      const contributorName = isMine
+        ? 'You'
+        : s.fromUserName || (s.fromUserId ? memberMap.get(s.fromUserId) : null) || 'Publisher';
+
       items.push({
         id: `share-${s.id}`,
         type: 'share',
-        title: h?.name || s.householdAddress || 'Shared Household',
-        subtitle: isMine ? `Shared with ${s.toUserName}` : `Received from ${s.fromUserName}`,
+        title,
+        subtitle,
         badgeLabel: 'Shared',
         badgeVariant: 'share',
         date: s.createdAt,
-        contributorName: isMine ? 'You' : s.fromUserName || 'Publisher',
+        contributorName,
         isMine,
         household: h || null,
         householdId: s.householdId || null,
@@ -130,7 +151,16 @@ export function RecentActivityFeed({
 
     // Sort by newest date first and take top 6
     return items.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
-  }, [visits, households, incomingShares, outgoingShares, user.id, user.name, territoryMap]);
+  }, [
+    visits,
+    households,
+    incomingShares,
+    outgoingShares,
+    user.id,
+    user.name,
+    territoryMap,
+    memberMap,
+  ]);
 
   const isLoading = visitsLoading && sharesLoading;
 
@@ -250,7 +280,7 @@ export function RecentActivityFeed({
                     variant="outline"
                     onClick={() => onLogVisit(act.household!)}
                     className="rounded-xl text-xs gap-1 h-8 px-2.5 shrink-0 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40"
-                    title="Log visit on this door"
+                    title="Log visit on this household"
                   >
                     <Plus size={12} />
                     <span>Log</span>

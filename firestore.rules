@@ -275,25 +275,9 @@ service cloud.firestore {
       );
     }
 
-    // Member Locations
+    // Member Locations (Disabled for strict Data Privacy compliance)
     match /memberLocations/{locationId} {
-      allow read: if isAuthenticated() && (
-        isSuperAdmin() ||
-        resource.data.userId == request.auth.uid ||
-        resource.data.congregationId == getUserCongregationId()
-      );
-      allow create: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.resource.data.userId == request.auth.uid
-      );
-      allow update: if isAuthenticated() && (
-        isSuperAdmin() ||
-        resource.data.userId == request.auth.uid
-      );
-      allow delete: if isAuthenticated() && (
-        isSuperAdmin() ||
-        resource.data.userId == request.auth.uid
-      );
+      allow read, write: if false;
     }
 
     // Notifications

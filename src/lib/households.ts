@@ -130,4 +130,73 @@ export async function checkHouseholdNumberDuplicateInFirestore(
   return { isDuplicate: false, duplicate: null };
 }
 
+/**
+ * Formats a household's primary title and subtitle for activity feeds and cards.
+ * Prioritizes specific door identifiers (e.g. "#32 Mario Dolor") as the primary title
+ * and territory / area names (e.g. "Zone-2 diclum") as the subtitle.
+ */
+export function formatHouseholdDisplay(
+  h: Partial<Household> | null | undefined,
+  territoryName?: string | null,
+  fallbackAddress?: string | null
+): { title: string; subtitle?: string } {
+  if (!h) {
+    return {
+      title: fallbackAddress?.trim() || 'Household',
+    };
+  }
+
+  const rawHouseNo = (h.houseNumber || '').trim();
+  const formattedHouseNo = rawHouseNo
+    ? rawHouseNo.startsWith('#')
+      ? `${rawHouseNo} `
+      : `#${rawHouseNo} `
+    : '';
+
+  const streetPart = (h.streetName || h.address || '').trim();
+  const addressLine = streetPart
+    ? formattedHouseNo && streetPart.startsWith(formattedHouseNo.trim())
+      ? streetPart
+      : `${formattedHouseNo}${streetPart}`.trim()
+    : formattedHouseNo.trim();
+
+  const cleanTerritory = (territoryName || h.city || '').trim();
+
+  const cleanName = (h.name || '').trim();
+  const isNameJustTerritory = Boolean(
+    cleanName && cleanTerritory && cleanName.toLowerCase() === cleanTerritory.toLowerCase()
+  );
+  const isNameJustStreet = Boolean(
+    cleanName && streetPart && cleanName.toLowerCase() === streetPart.toLowerCase()
+  );
+  const isNameJustAddress = Boolean(
+    cleanName && h.address && cleanName.toLowerCase() === h.address.trim().toLowerCase()
+  );
+  const isDistinctCustomName = Boolean(
+    cleanName && !isNameJustTerritory && !isNameJustStreet && !isNameJustAddress
+  );
+
+  if (isDistinctCustomName) {
+    const customTitle = `${formattedHouseNo}${cleanName}`.trim();
+    return {
+      title: customTitle,
+      subtitle:
+        addressLine && addressLine.toLowerCase() !== customTitle.toLowerCase()
+          ? addressLine
+          : cleanTerritory || undefined,
+    };
+  }
+
+  const primaryTitle = addressLine || fallbackAddress?.trim() || 'Household';
+  const subtitle =
+    cleanTerritory && cleanTerritory.toLowerCase() !== primaryTitle.toLowerCase()
+      ? cleanTerritory
+      : undefined;
+
+  return {
+    title: primaryTitle,
+    subtitle,
+  };
+}
+
 export { getHouseholdMapLabel } from './household-contacts';

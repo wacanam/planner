@@ -1392,7 +1392,7 @@ export default function ReportsClient() {
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Interested Contacts
+                      Interested Calls / Responses
                     </span>
                     <Sparkles size={15} className="text-emerald-500" />
                   </div>

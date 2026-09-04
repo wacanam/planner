@@ -3,18 +3,22 @@
 import {
   BarChart2,
   Bell,
+  BookOpen,
   ChevronRight,
+  Clock,
   Compass,
-  FileText,
   FolderOpen,
   Globe,
+  Home,
   Layers,
   LogOut,
   Map as MapIcon,
   MapPin,
   Megaphone,
   Menu,
+  Share2,
   Shield,
+  ShieldAlert,
   Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -47,6 +51,17 @@ import {
   isSystemAdmin,
 } from '@/lib/permissions';
 
+interface DrawerItem {
+  href?: string;
+  label: string;
+  description: string;
+  icon?: React.ComponentType<{ size: number; className?: string }>;
+  customIcon?: React.ReactNode;
+  badgeCount?: number;
+  badgeLabel?: string;
+  onClick?: () => void;
+}
+
 export function BottomTabBar() {
   const pathname = usePathname();
   const params = useParams();
@@ -68,6 +83,26 @@ export function BottomTabBar() {
   const canReports = canViewReports(user.role, user.congregationRole);
   const canViewMapOverview = canCreateTerritory(user.role) || isCircuitOverseer(user.role);
 
+  const displayRole = (() => {
+    const r = (user.congregationRole || user.role || '').toUpperCase().replace(/\s+/g, '_');
+    if (r === 'SUPER_ADMIN') return 'Super Admin';
+    if (r === 'ADMIN') return 'Admin';
+    if (r === 'CIRCUIT_OVERSEER') return 'Circuit Overseer';
+    if (r === 'SERVICE_OVERSEER') return 'Service Overseer';
+    if (r === 'SECRETARY' || r === 'CONGREGATION_SECRETARY') return 'Secretary';
+    if (r === 'TERRITORY_SERVANT') return 'Territory Servant';
+    if (r === 'VISITING_PUBLISHER') return 'Visiting Publisher';
+    return 'Publisher';
+  })();
+
+  const userInitials = (user.name || user.email || 'P')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  // Option A (Ministry-First): Home | My Territory | Notebook | Territories | More
   const mainTabs = [
     {
       href: `/congregation/${id}/dashboard`,
@@ -75,24 +110,74 @@ export function BottomTabBar() {
       icon: Layers,
     },
     {
+      href: `/congregation/${id}/my-assignments`,
+      label: 'My Territory',
+      icon: Compass,
+    },
+    {
+      href: `/congregation/${id}/records/notebook`,
+      label: 'Notebook',
+      icon: BookOpen,
+    },
+    {
       href: `/congregation/${id}/territories`,
       label: 'Territories',
       icon: MapPin,
     },
+  ];
+
+  // More Drawer Sections
+  const ministryRecordsLinks: DrawerItem[] = [
     {
-      href: `/congregation/${id}/my-assignments`,
-      label: 'Mine',
-      icon: Compass,
+      href: `/congregation/${id}/records/dnc`,
+      label: 'Do Not Call Registry',
+      description: 'Official address-only skip list',
+      icon: ShieldAlert,
     },
     {
       href: `/congregation/${id}/records/households`,
-      label: 'Records',
-      icon: FileText,
+      label: 'Household Directory',
+      description: 'Address directory & territory households',
+      icon: Home,
       badgeCount: pendingSharesCount,
+      badgeLabel: 'New',
+    },
+    {
+      href: `/congregation/${id}/records/visits`,
+      label: 'Visits History',
+      description: 'Territory coverage & activity logs',
+      icon: Clock,
+    },
+    {
+      href: `/congregation/${id}/records/shared`,
+      label: 'Shared Households',
+      description: 'Collaborative records & peer shares',
+      icon: Share2,
+      badgeCount: pendingSharesCount,
+      badgeLabel: 'Pending',
+    },
+    ...(canViewMapOverview
+      ? [
+          {
+            href: `/congregation/${id}/territories/overview`,
+            label: 'Congregation Map',
+            description: 'All territories, boundaries & coverage',
+            icon: MapIcon,
+          },
+        ]
+      : []),
+  ];
+
+  const serviceGroupLinks: DrawerItem[] = [
+    {
+      href: `/congregation/${id}/groups`,
+      label: 'Service Groups',
+      description: 'Field ministry groups, overseers & members',
+      icon: FolderOpen,
     },
   ];
 
-  const adminLinks = [
+  const administrationLinks: DrawerItem[] = [
     ...(canManageMembersAndGroups
       ? [
           {
@@ -101,12 +186,7 @@ export function BottomTabBar() {
             description: 'Directory, join approvals & endorsements',
             icon: Users,
             badgeCount: pendingEndorsementsCount,
-          },
-          {
-            href: `/congregation/${id}/groups`,
-            label: 'Service Groups',
-            description: 'Field ministry groups & overseers',
-            icon: FolderOpen,
+            badgeLabel: 'Pending',
           },
         ]
       : []),
@@ -120,30 +200,137 @@ export function BottomTabBar() {
           },
         ]
       : []),
-    ...(canViewMapOverview
+  ];
+
+  const noticesLinks: DrawerItem[] = [
+    {
+      href: `/congregation/${id}/announcements`,
+      label: 'Announcements & Notices',
+      description: 'Service year updates & alerts',
+      icon: Megaphone,
+    },
+    {
+      href: `/congregation/${id}/notifications`,
+      label: 'Notifications',
+      description: 'Assignment & ministry updates',
+      icon: Bell,
+      badgeCount: unreadNotificationsCount,
+      badgeLabel: 'New',
+    },
+  ];
+
+  const accountLinks: DrawerItem[] = [
+    {
+      href: '/',
+      label: 'Landing Page',
+      description: 'Public features & home page',
+      icon: Globe,
+    },
+    {
+      href: '/profile',
+      label: 'Profile & Settings',
+      description: 'Account credentials & preferences',
+      customIcon: (
+        <Avatar className="w-8 h-8 rounded-lg border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
+          {user.avatarUrl && (
+            <AvatarImage
+              src={user.avatarUrl}
+              alt={user.name || 'Profile'}
+              className="object-cover w-full h-full rounded-lg"
+            />
+          )}
+          <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold text-xs">
+            {userInitials}
+          </AvatarFallback>
+        </Avatar>
+      ),
+    },
+    ...(isAdminRole
       ? [
           {
-            href: `/congregation/${id}/territories/overview`,
-            label: 'Congregation Map',
-            description: 'All territories, boundaries & live publishers',
-            icon: MapIcon,
+            href: '/admin/dashboard',
+            label: 'Admin Dashboard',
+            description: 'Global platform administration',
+            icon: Shield,
           },
         ]
       : []),
   ];
 
-  const isOverseeActive =
-    pathname.includes('/members') ||
+  const isMoreActive =
+    pathname.includes('/records/households') ||
+    pathname.includes('/records/visits') ||
+    pathname.includes('/records/dnc') ||
+    pathname.includes('/records/shared') ||
+    pathname.includes('/territories/overview') ||
     pathname.includes('/groups') ||
+    pathname.includes('/members') ||
     pathname.includes('/reports') ||
+    pathname.includes('/announcements') ||
     pathname.includes('/notifications') ||
-    pathname.includes('/profile');
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/admin');
 
-  const drawerBadgeCount = (pendingEndorsementsCount || 0) + (unreadNotificationsCount || 0);
+  const drawerBadgeCount =
+    (canManageMembersAndGroups ? pendingEndorsementsCount || 0 : 0) +
+    (unreadNotificationsCount || 0) +
+    (pendingSharesCount || 0);
 
   const handleNavigate = (href: string) => {
     setSheetOpen(false);
     router.push(href);
+  };
+
+  const renderDrawerItem = ({
+    href,
+    label,
+    description,
+    icon: Icon,
+    customIcon,
+    badgeCount,
+    badgeLabel,
+    onClick,
+  }: DrawerItem) => {
+    const isActive = href ? (href === '/' ? pathname === '/' : pathname.startsWith(href)) : false;
+
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={onClick || (() => href && handleNavigate(href))}
+        className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all text-left cursor-pointer ${
+          isActive
+            ? 'bg-primary/10 border-primary/30 text-primary shadow-xs'
+            : 'bg-card border-border hover:bg-muted/60 text-foreground'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {customIcon ? (
+            customIcon
+          ) : Icon ? (
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                isActive ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary'
+              }`}
+            >
+              <Icon size={16} />
+            </div>
+          ) : null}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs tracking-tight block">{label}</span>
+              {Boolean(badgeCount) && (
+                <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
+                  {badgeCount} {badgeLabel || 'New'}
+                </Badge>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground truncate">{description}</p>
+          </div>
+        </div>
+        <ChevronRight size={14} className="text-muted-foreground shrink-0 ml-2" />
+      </button>
+    );
   };
 
   return (
@@ -151,41 +338,50 @@ export function BottomTabBar() {
       className="flex lg:hidden fixed bottom-0 inset-x-0 bg-background/95 backdrop-blur-md border-t border-border shadow-lg"
       style={{ zIndex: 900, paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      {mainTabs.map(({ href, label, icon: Icon, badgeCount }) => {
-        const isActive =
-          pathname === href ||
-          (href.includes('/records/') && pathname.includes('/records/')) ||
-          (href.includes('/territories') && pathname.includes('/territories')) ||
-          (href.includes('/my-assignments') && pathname.includes('/my-assignments'));
+      {mainTabs.map(({ href, label, icon: Icon }) => {
+        const isActive = (() => {
+          if (href === `/congregation/${id}/dashboard`) {
+            return pathname === href || pathname === `/congregation/${id}`;
+          }
+          if (href === `/congregation/${id}/my-assignments`) {
+            return pathname.startsWith(`/congregation/${id}/my-assignments`);
+          }
+          if (href === `/congregation/${id}/records/notebook`) {
+            return pathname.startsWith(`/congregation/${id}/records/notebook`);
+          }
+          if (href === `/congregation/${id}/territories`) {
+            return (
+              (pathname === `/congregation/${id}/territories` ||
+                pathname.startsWith(`/congregation/${id}/territories/`)) &&
+              !pathname.includes('/overview')
+            );
+          }
+          return pathname === href;
+        })();
 
         return (
           <Link
             key={href}
             href={href}
             className={`flex-1 flex flex-col items-center justify-center py-2 px-1 text-[11px] font-semibold transition-colors duration-150 relative ${
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              isActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <div className="relative mb-0.5">
               <Icon size={18} />
-              {Boolean(badgeCount) && (
-                <span className="absolute -top-1 -right-2 inline-flex items-center justify-center h-3.5 min-w-3.5 px-1 rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
-                  {badgeCount}
-                </span>
-              )}
             </div>
-            <span className="truncate max-w-[64px]">{label}</span>
+            <span className="truncate max-w-[68px] text-center">{label}</span>
           </Link>
         );
       })}
 
-      {/* 5th Tab: Oversee Drawer Trigger */}
+      {/* 5th Tab: More Options Drawer Trigger */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetTrigger asChild>
           <button
             type="button"
             className={`flex-1 flex flex-col items-center justify-center py-2 px-1 text-[11px] font-semibold transition-colors duration-150 relative cursor-pointer ${
-              isOverseeActive
+              isMoreActive
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
@@ -198,15 +394,7 @@ export function BottomTabBar() {
                 </span>
               )}
             </div>
-            <span className="truncate max-w-[64px]">
-              {isCircuitRole
-                ? 'Circuit'
-                : isOverseerRole
-                  ? 'Oversee'
-                  : isSecretaryRole
-                    ? 'Secretary'
-                    : 'More'}
-            </span>
+            <span className="truncate max-w-[68px]">More</span>
           </button>
         </SheetTrigger>
 
@@ -214,20 +402,39 @@ export function BottomTabBar() {
           side="bottom"
           className="rounded-t-3xl max-h-[85vh] overflow-y-auto px-4 pb-6 pt-3 border-border bg-background"
         >
-          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-4" />
+          <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3" />
           <SheetHeader className="text-left pb-2">
-            <SheetTitle className="text-base font-bold text-foreground">
-              Menu & Navigation
-            </SheetTitle>
+            <div className="flex items-center justify-between gap-2">
+              <SheetTitle className="text-base font-bold text-foreground">More Options</SheetTitle>
+              <Badge variant="secondary" className="text-[10px] font-semibold shrink-0">
+                {displayRole}
+              </Badge>
+            </div>
             <SheetDescription className="text-xs text-muted-foreground">
-              Manage congregation territories, members, reports, and your account.
+              Ministry records, service groups, congregation tools, and account settings.
             </SheetDescription>
           </SheetHeader>
 
           <div className="space-y-4 mt-2">
-            {/* Administration Section */}
-            {adminLinks.length > 0 && (
-              <div className="space-y-2">
+            {/* 1. Field Ministry & Records */}
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
+                Field Ministry & Records
+              </p>
+              {ministryRecordsLinks.map(renderDrawerItem)}
+            </div>
+
+            {/* 2. Service Groups */}
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
+                Service Groups
+              </p>
+              {serviceGroupLinks.map(renderDrawerItem)}
+            </div>
+
+            {/* 3. Congregation Administration */}
+            {administrationLinks.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-border">
                 <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
                   {isCircuitRole
                     ? 'Circuit Overseer Review'
@@ -235,208 +442,28 @@ export function BottomTabBar() {
                       ? 'Congregation Administration'
                       : isSecretaryRole
                         ? 'Secretary Administration'
-                        : 'Servant Management'}
+                        : 'Congregation Administration'}
                 </p>
-                {adminLinks.map(({ href, label, description, icon: Icon, badgeCount }) => {
-                  const isActive = pathname.startsWith(href);
-                  return (
-                    <button
-                      key={href}
-                      type="button"
-                      onClick={() => handleNavigate(href)}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl border transition-all text-left cursor-pointer ${
-                        isActive
-                          ? 'bg-primary/10 border-primary/30 text-primary shadow-xs'
-                          : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-primary/15 text-primary'
-                          }`}
-                        >
-                          <Icon size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm tracking-tight">{label}</span>
-                            {Boolean(badgeCount) && (
-                              <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
-                                {badgeCount} Pending
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">{description}</p>
-                        </div>
-                      </div>
-                      <ChevronRight size={16} className="text-muted-foreground shrink-0 ml-2" />
-                    </button>
-                  );
-                })}
+                {administrationLinks.map(renderDrawerItem)}
               </div>
             )}
 
-            {/* Account & Global Admin Section */}
+            {/* 4. Congregation & Notices */}
             <div className="space-y-1.5 pt-2 border-t border-border">
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
                 Congregation & Notices
               </p>
+              {noticesLinks.map(renderDrawerItem)}
+            </div>
 
-              <button
-                type="button"
-                onClick={() => handleNavigate(`/congregation/${id}/announcements`)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-                  pathname.includes('/announcements')
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                    <Megaphone size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-xs text-foreground block">
-                      Announcements & Notices
-                    </span>
-                    <span className="text-[11px] text-muted-foreground truncate block">
-                      Service year updates & alerts
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </button>
-
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1 mb-1 pt-2">
-                General & Account
+            {/* 5. Account & Settings */}
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground px-1">
+                Account & Settings
               </p>
+              {accountLinks.map(renderDrawerItem)}
 
-              <button
-                type="button"
-                onClick={() => handleNavigate(`/congregation/${id}/notifications`)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-                  pathname.includes('/notifications')
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                    <Bell size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs text-foreground block">
-                        Notifications
-                      </span>
-                      {Boolean(unreadNotificationsCount) && (
-                        <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary text-primary-foreground font-bold">
-                          {unreadNotificationsCount} New
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-muted-foreground truncate block">
-                      Assignment & ministry updates
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavigate('/')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-                  pathname === '/'
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                    <Globe size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-xs text-foreground block">
-                      Landing Page
-                    </span>
-                    <span className="text-[11px] text-muted-foreground truncate block">
-                      Public features & home page
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleNavigate('/profile')}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-                  pathname === '/profile'
-                    ? 'bg-primary/10 border-primary/30 text-primary'
-                    : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Avatar className="w-8 h-8 rounded-lg border border-primary/20 bg-primary/10 overflow-hidden shrink-0">
-                    {user.avatarUrl && (
-                      <AvatarImage
-                        src={user.avatarUrl}
-                        alt={user.name || 'Profile'}
-                        className="object-cover w-full h-full rounded-lg"
-                      />
-                    )}
-                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-bold text-xs">
-                      {(user.name || user.email || 'P')
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-xs text-foreground block">
-                      Profile & Settings
-                    </span>
-                    <span className="text-[11px] text-muted-foreground truncate block">
-                      Account credentials & preferences
-                    </span>
-                  </div>
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </button>
-
-              {isAdminRole && (
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('/admin/dashboard')}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border transition-all text-left cursor-pointer ${
-                    pathname.startsWith('/admin')
-                      ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'bg-card border-border hover:bg-muted/60 text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center shrink-0">
-                      <Shield size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="font-semibold text-xs text-primary font-bold block">
-                        Admin Dashboard
-                      </span>
-                      <span className="text-[11px] text-muted-foreground truncate block">
-                        Global platform administration
-                      </span>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                </button>
-              )}
-
+              {/* Sign Out Button */}
               <button
                 type="button"
                 onClick={async () => {
@@ -445,9 +472,9 @@ export function BottomTabBar() {
                   router.push('/');
                   router.refresh();
                 }}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl border border-destructive/20 bg-destructive/5 hover:bg-destructive/10 text-destructive transition-all text-left cursor-pointer"
+                className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-destructive/20 bg-destructive/5 hover:bg-destructive/10 text-destructive transition-all text-left cursor-pointer mt-2"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
                     <LogOut size={16} />
                   </div>
@@ -458,7 +485,7 @@ export function BottomTabBar() {
                     </span>
                   </div>
                 </div>
-                <ChevronRight size={14} className="text-destructive/60 shrink-0" />
+                <ChevronRight size={14} className="text-destructive/60 shrink-0 ml-2" />
               </button>
             </div>
           </div>

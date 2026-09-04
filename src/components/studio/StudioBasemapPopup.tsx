@@ -107,7 +107,7 @@ const STATUS_FILTER_OPTIONS: Array<{
   { id: 'all', label: 'All Households', dotColor: 'bg-primary' },
   { id: 'bible_study', label: 'Active Bible Studies', dotColor: 'bg-purple-600' },
   { id: 'return_visit', label: 'Return Visits & Interested', dotColor: 'bg-blue-600' },
-  { id: 'available', label: 'Available Doors', dotColor: 'bg-emerald-600' },
+  { id: 'available', label: 'Available Households', dotColor: 'bg-emerald-600' },
   { id: 'not_home', label: 'Not Home', dotColor: 'bg-amber-600' },
   { id: 'busy', label: 'Busy / Call Back', dotColor: 'bg-orange-500' },
   { id: 'foreign_language', label: 'Foreign Language', dotColor: 'bg-cyan-500' },
@@ -485,22 +485,6 @@ export function StudioBasemapPopup({
                   type="checkbox"
                   checked={layers.showUserLocation}
                   onChange={() => toggleLayer('showUserLocation')}
-                  className="h-4 w-4 rounded accent-primary cursor-pointer"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label
-                  htmlFor="layer-member-locations"
-                  className="text-xs cursor-pointer flex items-center gap-2"
-                >
-                  <Users size={14} className="text-emerald-500" />
-                  <span>Member Shared Locations</span>
-                </Label>
-                <input
-                  id="layer-member-locations"
-                  type="checkbox"
-                  checked={layers.showMemberLocations}
-                  onChange={() => toggleLayer('showMemberLocations')}
                   className="h-4 w-4 rounded accent-primary cursor-pointer"
                 />
               </div>

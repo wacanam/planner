@@ -23,6 +23,7 @@ export async function saveVisitRecord(data: Record<string, unknown>): Promise<st
     householdId: String(data.householdId ?? ''),
     congregationId: (data.congregationId as string | null | undefined) ?? null,
     userId: (data.userId as string | null | undefined) ?? null,
+    publisherName: (data.publisherName as string | null | undefined) ?? null,
     assignmentId: (data.assignmentId as string | null | undefined) ?? null,
     outcome: String(data.outcome ?? 'other'),
     householdStatusAfter: (data.householdStatusAfter as string | null | undefined) ?? null,

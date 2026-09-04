@@ -24,6 +24,7 @@ export interface CreateVisitInput {
   householdId: string;
   congregationId?: string | null;
   userId?: string | null;
+  publisherName?: string | null;
   assignmentId?: string | null;
   outcome: string;
   householdStatusAfter?: string | null;
@@ -142,6 +143,7 @@ export function toVisitView(
     userId: record.userId ?? '',
     congregationId:
       record.congregationId ?? household?.congregationId ?? userCongregationId ?? null,
+    publisherName: record.publisherName ?? null,
     householdId: record.householdId,
     assignmentId: record.assignmentId,
     visitDate: record.visitDate,
@@ -177,6 +179,7 @@ export function localVisitFromApi(visit: Visit, existingId?: string): LocalVisit
     serverId: visit.id,
     congregationId: (visit as any).congregationId ?? null,
     userId: visit.userId ?? null,
+    publisherName: visit.publisherName ?? null,
     householdId: visit.householdId,
     householdServerId: visit.householdId,
     assignmentId: visit.assignmentId ?? null,
@@ -221,6 +224,7 @@ export async function createVisit(input: CreateVisitInput): Promise<LocalVisit> 
     serverId: null,
     congregationId,
     userId: nullableString(input.userId),
+    publisherName: nullableString(input.publisherName),
     householdId: input.householdId,
     householdServerId: household?.serverId ?? input.householdId,
     assignmentId: nullableString(input.assignmentId),

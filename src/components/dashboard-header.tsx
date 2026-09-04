@@ -1,6 +1,7 @@
 import {
   BarChart2,
   Bell,
+  BookOpen,
   Building2,
   ChevronDown,
   Compass,
@@ -77,11 +78,12 @@ export function DashboardHeader() {
   const navLinks = id
     ? [
         { href: `/congregation/${id}/dashboard`, label: 'Dashboard', icon: Layers },
+        { href: `/congregation/${id}/my-assignments`, label: 'My Territory', icon: Compass },
+        { href: `/congregation/${id}/records/notebook`, label: 'My Notebook', icon: BookOpen },
         { href: `/congregation/${id}/territories`, label: 'Territories', icon: MapPin },
-        { href: `/congregation/${id}/my-assignments`, label: 'My Assignments', icon: Compass },
         {
           href: `/congregation/${id}/records/households`,
-          label: 'Records',
+          label: 'Households',
           icon: FileText,
           badgeCount: pendingSharesCount,
         },

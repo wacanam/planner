@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  BookOpen,
   Clock,
   Edit,
   Flag,
@@ -18,11 +19,9 @@ import {
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  HouseholdEncounterSheet,
-  HouseholdLogVisitSheet,
-} from '@/components/households/household-action-sheets';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
+import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -52,7 +51,6 @@ import {
   canLogVisitOrEncounter,
   canModifyBoundary,
   canModifyMapAnnotation,
-  canViewMemberLocations,
 } from '@/lib/permissions';
 import {
   deleteHouseholdRecord,
@@ -194,7 +192,7 @@ export function StudioLayout({
   );
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
-  const [encounterHousehold, setEncounterHousehold] = useState<Household | null>(null);
+  const [notebookHousehold, setNotebookHousehold] = useState<Household | null>(null);
 
   // Landmark state
   const [landmarkDialogOpen, setLandmarkDialogOpen] = useState(false);
@@ -281,8 +279,9 @@ export function StudioLayout({
   });
 
   const canViewMembers = useMemo(() => {
-    return canViewMemberLocations(user, groups);
-  }, [user, groups]);
+    // Disabled for strict Data Privacy Compliance (no central live tracking)
+    return false;
+  }, []);
 
   const [selectedMemberLocation, setSelectedMemberLocation] = useState<SharedMemberLocation | null>(
     null
@@ -1245,7 +1244,7 @@ export function StudioLayout({
           if (!op) setTempPinCoordinates(null);
         }}
         title="Add Household to Territory"
-        description="Record door details, structure, and initial status"
+        description="Record household details, structure, and initial status"
       >
         <HouseholdForm
           initialValues={{
@@ -1266,7 +1265,7 @@ export function StudioLayout({
         open={!!editingHousehold}
         onOpenChange={(op) => !op && setEditingHousehold(null)}
         title="Edit Household Details"
-        description="Update door number, address, status, or notes"
+        description="Update household number, address, status, or notes"
       >
         {editingHousehold && (
           <HouseholdForm
@@ -1372,13 +1371,14 @@ export function StudioLayout({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 rounded-xl text-xs font-semibold"
+                        className="flex-1 rounded-xl text-xs font-semibold gap-1.5 text-primary border-primary/25 hover:bg-primary/10 hover:border-primary/40 transition-colors shadow-2xs"
                         onClick={() => {
-                          setEncounterHousehold(selectedHousehold);
+                          setNotebookHousehold(selectedHousehold);
                           setSelectedHousehold(null);
                         }}
                       >
-                        Encounter
+                        <BookOpen className="h-3.5 w-3.5 text-primary" />
+                        <span>Notebook</span>
                       </Button>
                     </>
                   )}
@@ -1401,7 +1401,7 @@ export function StudioLayout({
                       size="sm"
                       variant="ghost"
                       className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                      title="Delete Household door"
+                      title="Delete Household"
                       onClick={() => {
                         if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
                           void handleDeleteHousehold(selectedHousehold.id);
@@ -1900,21 +1900,31 @@ export function StudioLayout({
         </div>
       )}
 
-      {/* Sheets: Log Visit & Encounter */}
+      {/* Sheets: Log Visit & Personal Notebook */}
       <HouseholdLogVisitSheet
         open={!!logVisitHousehold}
         onOpenChange={(op) => !op && setLogVisitHousehold(null)}
         household={logVisitHousehold}
         assignmentId={activeAssignmentId}
+        territoryId={territory?.id || logVisitHousehold?.territoryId}
         onSaved={onHouseholdSaved}
       />
 
-      <HouseholdEncounterSheet
-        open={!!encounterHousehold}
-        onOpenChange={(op) => !op && setEncounterHousehold(null)}
-        household={encounterHousehold}
-        onSaved={onHouseholdSaved}
-      />
+      {user?.id && (
+        <PersonalCallDialog
+          open={!!notebookHousehold}
+          onOpenChange={(op) => !op && setNotebookHousehold(null)}
+          userId={user.id}
+          congregationId={territory?.congregationId}
+          householdId={notebookHousehold?.id}
+          territoryId={notebookHousehold?.territoryId || territory?.id}
+          houseNumber={notebookHousehold?.houseNumber}
+          streetName={notebookHousehold?.streetName}
+          address={notebookHousehold?.address}
+          households={households}
+          onSaved={onHouseholdSaved}
+        />
+      )}
 
       {/* Dialog: Add or Edit Landmark */}
       <StudioLandmarkDialog

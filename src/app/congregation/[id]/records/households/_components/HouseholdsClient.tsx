@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BookOpen,
   ChevronRight,
   Home,
   MapPin,
@@ -14,11 +15,9 @@ import {
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
-import {
-  HouseholdEncounterSheet,
-  HouseholdLogVisitSheet,
-} from '@/components/households/household-action-sheets';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
+import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
@@ -55,8 +54,8 @@ import type { Household } from '@/types/api';
 
 const statusLabels: Record<string, string> = {
   new: 'New Record',
-  available: 'Available Door',
-  active: 'Available Door',
+  available: 'Available Household',
+  active: 'Available Household',
   bible_study: 'Bible Study',
   return_visit: 'Return Visit',
   not_home: 'Not Home',
@@ -138,7 +137,7 @@ export default function HouseholdsClient() {
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter);
   const [_selectedHousehold, _setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
-  const [encounterHousehold, setEncounterHousehold] = useState<Household | null>(null);
+  const [notebookHousehold, setNotebookHousehold] = useState<Household | null>(null);
   const [editHousehold, setEditHousehold] = useState<Household | null>(null);
   const [shareHousehold, setShareHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
@@ -497,31 +496,31 @@ export default function HouseholdsClient() {
   ]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 min-w-0 w-full">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="space-y-0.5 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground">
             {recordScope === 'mine'
               ? 'My Household Directory'
               : recordScope === 'group'
                 ? 'Group Household Directory'
                 : 'Congregation Household Directory'}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             {recordScope === 'mine'
-              ? 'Your personal door records, contact notes, and offline-first follow-ups'
+              ? 'Physical household addresses, access notes, and coverage status'
               : recordScope === 'group'
-                ? 'Door records and follow-ups across your service group'
-                : 'All door records across the entire congregation'}
+                ? 'Household listings and access notes across your service group'
+                : 'All physical household listings across the congregation (no personal data)'}
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setAddHouseholdOpen(true)}
-          className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
+          className="rounded-2xl text-xs font-semibold gap-1.5 h-9 w-full sm:w-auto justify-center shrink-0 whitespace-nowrap"
         >
-          <Plus size={14} />
+          <Plus size={14} className="shrink-0" />
           <span>Add Household</span>
         </Button>
       </div>
@@ -563,12 +562,13 @@ export default function HouseholdsClient() {
                 My Active Return Visits & Studies ({myActiveFollowups.length})
               </h2>
             </div>
-            <Badge
-              variant="outline"
-              className="border-primary/40 text-primary text-[10px] py-0 font-bold"
+            <Link
+              href={`/congregation/${congregationId}/records/notebook`}
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
             >
-              Personal Follow-ups
-            </Badge>
+              <span>Open My Notebook</span>
+              <ChevronRight size={12} />
+            </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
             {myActiveFollowups.map((item) => (
@@ -679,7 +679,7 @@ export default function HouseholdsClient() {
           <Home size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm font-semibold text-foreground">No households found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Add a new door record to get started.
+            Add a new household record to get started.
           </p>
         </div>
       ) : (
@@ -875,7 +875,7 @@ export default function HouseholdsClient() {
                       )}
                     </div>
 
-                    {/* Primary actions: View and Log Visit */}
+                    {/* Primary actions: View, Personal Note, and Log Visit */}
                     <div className="flex items-center gap-2 ml-auto">
                       <Button
                         asChild
@@ -887,6 +887,19 @@ export default function HouseholdsClient() {
                           View
                         </Link>
                       </Button>
+
+                      {user?.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs h-8 font-semibold gap-1.5 text-primary border-primary/25 hover:bg-primary/10 hover:border-primary/40 transition-colors shadow-2xs"
+                          onClick={() => setNotebookHousehold(h)}
+                          title="Add private note to Personal Notebook"
+                        >
+                          <BookOpen size={13} className="text-primary" />
+                          <span>Personal Note</span>
+                        </Button>
+                      )}
 
                       {canLog && (
                         <Button
@@ -913,7 +926,7 @@ export default function HouseholdsClient() {
         open={addHouseholdOpen}
         onOpenChange={setAddHouseholdOpen}
         title="Add Household Record"
-        description="Save door details offline (can be pinned on map later)"
+        description="Save household details offline (can be pinned on map later)"
       >
         <HouseholdForm
           territories={territories}
@@ -928,7 +941,7 @@ export default function HouseholdsClient() {
         open={!!editHousehold}
         onOpenChange={(op) => !op && setEditHousehold(null)}
         title="Edit Household Record"
-        description="Update door details and address"
+        description="Update household details and address"
       >
         {editHousehold && (
           <HouseholdForm
@@ -949,12 +962,21 @@ export default function HouseholdsClient() {
         household={logVisitHousehold}
       />
 
-      {/* Encounter Sheet */}
-      <HouseholdEncounterSheet
-        open={!!encounterHousehold}
-        onOpenChange={(op) => !op && setEncounterHousehold(null)}
-        household={encounterHousehold}
-      />
+      {/* Personal Note Dialog */}
+      {user?.id && (
+        <PersonalCallDialog
+          open={!!notebookHousehold}
+          onOpenChange={(op) => !op && setNotebookHousehold(null)}
+          userId={user.id}
+          congregationId={congregationId}
+          householdId={notebookHousehold?.id}
+          territoryId={notebookHousehold?.territoryId}
+          houseNumber={notebookHousehold?.houseNumber}
+          streetName={notebookHousehold?.streetName}
+          address={notebookHousehold?.address}
+          households={households}
+        />
+      )}
 
       {/* Share Household Dialog */}
       <ShareHouseholdDialog

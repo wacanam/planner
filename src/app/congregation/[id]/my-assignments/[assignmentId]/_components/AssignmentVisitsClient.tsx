@@ -45,12 +45,12 @@ import {
   useTerritoryEncounters,
   useTerritoryVisits,
 } from '@/hooks';
+import { formatDate } from '@/lib/date-utils';
 import {
   canAdjustAssignmentDates,
   canLogVisitOrEncounter,
   canReturnAssignment,
 } from '@/lib/permissions';
-import { formatDate } from '@/lib/date-utils';
 import {
   normalizeEncounterResponse,
   normalizeHouseholdStatus,
@@ -78,11 +78,9 @@ const statusBadgeColors: Record<string, string> = {
 
 const outcomeBadgeColors: Record<string, string> = {
   answered: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  return_visit_completed:
-    'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+  return_visit_completed: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   return_visit: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-  return_visit_missed:
-    'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+  return_visit_missed: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
   study_conducted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
   study_offered: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
   study_missed: 'bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/20',
@@ -384,10 +382,7 @@ export default function AssignmentVisitsClient() {
       const normFilter = normalizeHouseholdStatus(statusFilter);
       const normStatus = normalizeHouseholdStatus(h.status);
       const normOutcome = normalizeVisitOutcome(h.lastVisitOutcome);
-      return (
-        normStatus === normFilter ||
-        normOutcome === normalizeVisitOutcome(statusFilter)
-      );
+      return normStatus === normFilter || normOutcome === normalizeVisitOutcome(statusFilter);
     });
   }, [households, doorSearch, statusFilter]);
 
@@ -491,7 +486,7 @@ export default function AssignmentVisitsClient() {
                   {coverageStats.coveragePercent}%
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  ({coverageStats.workedDoors} of {coverageStats.totalDoors} doors worked)
+                  ({coverageStats.workedDoors} of {coverageStats.totalDoors} households worked)
                 </span>
               </div>
             </div>
@@ -520,7 +515,7 @@ export default function AssignmentVisitsClient() {
                   <span>Remaining ({coverageStats.unworkedDoors})</span>
                 </span>
               </div>
-              <span>{coverageStats.totalDoors} total doors mapped</span>
+              <span>{coverageStats.totalDoors} total households mapped</span>
             </div>
           </CardContent>
         </Card>
@@ -532,10 +527,12 @@ export default function AssignmentVisitsClient() {
             <span>Territory Statistics & Demographics</span>
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* KPI 1: Total Doors */}
+            {/* KPI 1: Total Households */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Total Doors</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Total Households
+                </span>
                 <Home size={15} className="text-primary" />
               </div>
               <p className="text-2xl sm:text-3xl font-black text-foreground">
@@ -544,10 +541,12 @@ export default function AssignmentVisitsClient() {
               <p className="text-xs text-muted-foreground">Mapped in territory</p>
             </div>
 
-            {/* KPI 2: Worked Doors */}
+            {/* KPI 2: Worked Households */}
             <div className="rounded-2xl border border-border bg-card p-4 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Worked Doors</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">
+                  Worked Households
+                </span>
                 <CheckCircle2 size={15} className="text-emerald-500" />
               </div>
               <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
@@ -705,7 +704,7 @@ export default function AssignmentVisitsClient() {
             <div className="flex items-center gap-2">
               <Home size={16} className="text-primary" />
               <h2 className="text-sm font-bold text-foreground">
-                Territory Doors & Addresses ({households.length})
+                Territory Households & Addresses ({households.length})
               </h2>
             </div>
             <div className="relative w-full sm:w-64">
@@ -714,7 +713,7 @@ export default function AssignmentVisitsClient() {
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <Input
-                placeholder="Search door address…"
+                placeholder="Search household address…"
                 value={doorSearch}
                 onChange={(e) => setDoorSearch(e.target.value)}
                 className="pl-8 h-8 rounded-xl text-xs"
@@ -762,7 +761,9 @@ export default function AssignmentVisitsClient() {
             <Card className="bg-card border-border">
               <CardContent className="p-8 text-center space-y-2">
                 <Home size={28} className="mx-auto text-muted-foreground/50" />
-                <p className="text-sm font-semibold text-foreground">No doors match your filter</p>
+                <p className="text-sm font-semibold text-foreground">
+                  No households match your filter
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Try selecting another filter or searching a different address.
                 </p>
@@ -848,7 +849,7 @@ export default function AssignmentVisitsClient() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-xs text-foreground">
                         {v.houseNumber ? `#${v.houseNumber} ` : ''}
-                        {v.streetName || v.householdAddress || 'Mapped Door'}
+                        {v.streetName || v.householdAddress || 'Mapped Household'}
                       </span>
                       <Badge
                         variant="outline"
@@ -927,6 +928,7 @@ export default function AssignmentVisitsClient() {
           }}
           household={logVisitHousehold}
           assignmentId={activeAssignment?.id}
+          territoryId={activeAssignment?.territoryId || logVisitHousehold?.territoryId}
           onSaved={() => {
             toast.success('Visit logged successfully');
           }}

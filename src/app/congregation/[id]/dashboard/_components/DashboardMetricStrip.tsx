@@ -42,7 +42,7 @@ export function DashboardMetricStrip({
             </p>
             <p className="text-xl font-extrabold text-foreground">{congregationCoveragePercent}%</p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {workedDoorsCount}/{totalDoorsCount} doors worked
+              {workedDoorsCount}/{totalDoorsCount} households worked
             </p>
           </div>
           <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
@@ -92,7 +92,7 @@ export function DashboardMetricStrip({
         >
           <div className="space-y-0.5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Door Records
+              Household Records
             </p>
             <p className="text-xl font-extrabold text-foreground">{households.length}</p>
             <p className="text-[10px] text-muted-foreground truncate">
@@ -230,7 +230,7 @@ export function DashboardMetricStrip({
         >
           <div className="space-y-0.5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Group Doors
+              Group Households
             </p>
             <p className="text-xl font-extrabold text-foreground">{groupHouseholds.length}</p>
             <p className="text-[10px] text-muted-foreground truncate">
@@ -302,7 +302,7 @@ export function DashboardMetricStrip({
       >
         <div className="space-y-0.5">
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Pin Doors
+            Pin Households
           </p>
           <p className="text-xl font-extrabold text-foreground">
             {myUnpinnedDoorsCount > 0 ? myUnpinnedDoorsCount : '0'}

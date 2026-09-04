@@ -1,11 +1,12 @@
 'use client';
 
-import { Clock, Home, Keyboard, Share2, Users } from 'lucide-react';
+import { BookOpen, Clock, Home, Keyboard, Share2, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { BottomTabBar } from '@/components/bottom-tab-bar';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { ExportPersonalNotesBanner } from '@/components/privacy/ExportPersonalNotesBanner';
 import { ProtectedPage } from '@/components/protected-page';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { useKeyboardShortcuts, usePendingSharesCount } from '@/hooks';
@@ -20,47 +21,58 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
 
   const tabs = [
     {
+      href: `/congregation/${id}/records/notebook`,
+      label: 'My Notebook',
+      icon: BookOpen,
+      shortcut: '1',
+      isPrivate: true,
+    },
+    {
       href: `/congregation/${id}/records/households`,
       label: 'Households',
       icon: Home,
-      shortcut: '1',
+      shortcut: '2',
     },
     {
       href: `/congregation/${id}/records/visits`,
       label: 'Visits',
       icon: Clock,
-      shortcut: '2',
+      shortcut: '3',
     },
     {
-      href: `/congregation/${id}/records/encounters`,
-      label: 'Encounters',
-      icon: Users,
-      shortcut: '3',
+      href: `/congregation/${id}/records/dnc`,
+      label: 'Do Not Call',
+      icon: ShieldAlert,
+      shortcut: '4',
     },
     {
       href: `/congregation/${id}/records/shared`,
       label: 'Shared',
       icon: Share2,
       badgeCount: pendingSharesCount,
-      shortcut: '4',
+      shortcut: '5',
     },
   ];
 
   useKeyboardShortcuts([
     {
       key: ['1', 'Alt+1'],
-      handler: () => router.push(`/congregation/${id}/records/households`),
+      handler: () => router.push(`/congregation/${id}/records/notebook`),
     },
     {
       key: ['2', 'Alt+2'],
-      handler: () => router.push(`/congregation/${id}/records/visits`),
+      handler: () => router.push(`/congregation/${id}/records/households`),
     },
     {
       key: ['3', 'Alt+3'],
-      handler: () => router.push(`/congregation/${id}/records/encounters`),
+      handler: () => router.push(`/congregation/${id}/records/visits`),
     },
     {
       key: ['4', 'Alt+4'],
+      handler: () => router.push(`/congregation/${id}/records/dnc`),
+    },
+    {
+      key: ['5', 'Alt+5'],
       handler: () => router.push(`/congregation/${id}/records/shared`),
     },
     {
@@ -75,24 +87,34 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
       <div className="border-b border-border bg-background sticky top-16 z-30 shadow-2xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <nav className="flex space-x-2 py-2 overflow-x-auto" aria-label="Records navigation">
-              {tabs.map(({ href, label, icon: Icon, badgeCount, shortcut }) => {
+            <nav
+              className="flex space-x-2 py-2 overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Records navigation"
+            >
+              {tabs.map(({ href, label, icon: Icon, badgeCount, shortcut, isPrivate }) => {
                 const isActive =
                   pathname === href ||
-                  (href.endsWith('households') && pathname.includes('households'));
+                  (href.endsWith('notebook') && pathname.includes('notebook')) ||
+                  (href.endsWith('households') && pathname.includes('households')) ||
+                  (href.endsWith('dnc') && pathname.includes('dnc'));
                 return (
                   <Link
                     key={href}
                     href={href}
                     title={`${label} (Press ${shortcut})`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                       isActive
                         ? 'bg-primary/15 text-primary font-bold'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    <Icon size={14} />
+                    <Icon size={14} className="shrink-0" />
                     <span>{label}</span>
+                    {isPrivate && (
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium shrink-0 whitespace-nowrap">
+                        Device Only
+                      </span>
+                    )}
                     <kbd
                       className={`hidden md:inline-flex items-center justify-center min-w-4 h-4 px-1 rounded text-[9px] font-mono font-bold leading-none ${
                         isActive ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
@@ -125,6 +147,8 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </div>
+
+      <ExportPersonalNotesBanner />
 
       <div className="pb-24 lg:pb-8">{children}</div>
       <BottomTabBar />

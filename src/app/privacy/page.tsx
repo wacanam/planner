@@ -78,9 +78,16 @@ const sections = [
             histories configured by congregation administrators.
           </li>
           <li>
-            <strong className="text-foreground">Ministry & Visit Records:</strong> Visit logs,
-            householder contact status (e.g., Not at Home, Interested, Do Not Call), language
-            preferences, and revisit notes recorded by assigned publishers during field service.
+            <strong className="text-foreground">Anonymous Door & Territory Coverage:</strong> Door
+            status markers (e.g., Not at Home, Visited, Do Not Call), visit timestamps, and physical
+            access notes (e.g. gate codes, dogs). Kanataran never collects or stores resident names,
+            phone numbers, or personal profiling in central cloud databases.
+          </li>
+          <li>
+            <strong className="text-foreground">Personal Ministry Notebook (On-Device Only):</strong>
+            Personal return visit notes, scriptures discussed, and follow-up reminders are stored
+            strictly on your local device (in IndexedDB) and are never transmitted to or accessible by the
+            congregation cloud.
           </li>
           <li>
             <strong className="text-foreground">Device & Offline Cache:</strong> Local cache records

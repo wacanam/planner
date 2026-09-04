@@ -758,7 +758,7 @@ export function StudioPrintViewport({
                   </button>
                 </div>
                 <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
-                  {coverageStats.totalDoors} Doors ({coverageStats.coveragePercent}% worked)
+                  {coverageStats.totalDoors} Households ({coverageStats.coveragePercent}% worked)
                 </p>
               </div>
             </div>
@@ -958,7 +958,7 @@ export function StudioPrintViewport({
                 {territory?.city || congregation?.city || 'Local Area'}
               </Badge>
               <p className="text-[9px] font-bold text-slate-600 mt-0.5 whitespace-nowrap">
-                {coverageStats.totalDoors} Doors ({coverageStats.coveragePercent}% worked)
+                {coverageStats.totalDoors} Households ({coverageStats.coveragePercent}% worked)
               </p>
             </div>
           </div>
