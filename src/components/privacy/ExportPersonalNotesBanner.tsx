@@ -198,36 +198,34 @@ export function ExportPersonalNotesBanner({ className }: ExportPersonalNotesBann
       </button>
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pr-6 sm:pr-8">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-semibold text-sm text-foreground">
-                Data Privacy & Personal Notes Protection
-              </h4>
-              <Badge
-                variant="outline"
-                className="text-[10px] uppercase tracking-wider py-0 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300"
-              >
-                1-Week Notice
-              </Badge>
+        <div className="space-y-1.5 min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+              <ShieldCheck className="h-4 w-4" />
             </div>
-            <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-              In accordance with branch privacy guidelines, congregation territory records are
-              transitioning to strict data minimization. Personal return visit notes and scriptures
-              will now be stored <strong>securely on your local device (IndexedDB)</strong> with
-              zero cloud sharing.
-            </p>
-            {transferredCount !== null && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {transferredCount} personal call{transferredCount === 1 ? '' : 's'} successfully
-                preserved on this device.
-              </p>
-            )}
+            <h4 className="font-semibold text-sm text-foreground">
+              Data Privacy & Personal Notes Protection
+            </h4>
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase tracking-wider py-0 px-1.5 border-amber-500/40 text-amber-700 dark:text-amber-300"
+            >
+              1-Week Notice
+            </Badge>
           </div>
+          <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+            In accordance with branch privacy guidelines, congregation territory records are
+            transitioning to strict data minimization. Personal return visit notes and scriptures
+            will now be stored <strong>securely on your local device (IndexedDB)</strong> with zero
+            cloud sharing.
+          </p>
+          {transferredCount !== null && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 pt-0.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {transferredCount} personal call{transferredCount === 1 ? '' : 's'} successfully
+              preserved on this device.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-center shrink-0 flex-wrap">
