@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, BookOpen, Clock, Edit3, Lock, Plus, Share2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Plus, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -215,9 +215,6 @@ export default function HouseholdDetailPage() {
               </div>
 
               <div className="flex gap-2 flex-wrap text-xs pt-1">
-                <Badge variant="outline" className="bg-muted/30">
-                  👥 Occupants: {householdView.occupantsCount ?? 1}
-                </Badge>
                 <Badge variant="outline" className="capitalize bg-muted/30">
                   🏠 {householdView.type}
                 </Badge>
@@ -247,130 +244,13 @@ export default function HouseholdDetailPage() {
               {householdView.notes && (
                 <div className="p-3 bg-muted/30 rounded-xl border border-border text-xs text-muted-foreground">
                   <p className="font-semibold text-foreground mb-1">
-                    Household Notes & Instructions:
+                    Physical Access Notes & Directions:
                   </p>
                   <p>{householdView.notes}</p>
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Section: Personal Ministry Follow-up (Device Only) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <BookOpen size={16} className="text-primary" />
-                <span>My Personal Follow-up</span>
-              </h2>
-              <Badge
-                variant="outline"
-                className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-              >
-                <Lock size={10} />
-                Private to You (On-Device)
-              </Badge>
-            </div>
-
-            {personalCall ? (
-              <Card className="bg-card border-border shadow-xs rounded-2xl">
-                <CardContent className="p-4 sm:p-5 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
-                        {personalCall.personName?.charAt(0).toUpperCase() || 'P'}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-foreground">
-                            {personalCall.personName}
-                          </h3>
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] font-bold capitalize py-0 h-4 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                          >
-                            {personalCall.status.replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                        {personalCall.phoneNumber && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            📞 {personalCall.phoneNumber}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPersonalCallDialogOpen(true)}
-                      className="h-8 text-xs rounded-xl gap-1.5 self-end sm:self-auto"
-                    >
-                      <Edit3 size={12} />
-                      <span>Edit Note</span>
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                    {personalCall.scripturesDiscussed && (
-                      <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70">
-                        <span className="font-semibold text-foreground">Scriptures / Topic:</span>
-                        <p className="text-muted-foreground mt-0.5">
-                          {personalCall.scripturesDiscussed}
-                        </p>
-                      </div>
-                    )}
-                    {personalCall.literaturePlaced && (
-                      <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70">
-                        <span className="font-semibold text-foreground">Literature:</span>
-                        <p className="text-muted-foreground mt-0.5">
-                          {personalCall.literaturePlaced}
-                        </p>
-                      </div>
-                    )}
-                    {personalCall.nextVisitDate && (
-                      <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20">
-                        <span className="font-semibold text-primary">Next Agreed Visit:</span>
-                        <p className="text-foreground font-medium mt-0.5">
-                          {personalCall.nextVisitDate}{' '}
-                          {personalCall.nextVisitTime ? `at ${personalCall.nextVisitTime}` : ''}
-                        </p>
-                      </div>
-                    )}
-                    {personalCall.notes && (
-                      <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 sm:col-span-2">
-                        <span className="font-semibold text-foreground">Personal Notes:</span>
-                        <p className="text-muted-foreground mt-0.5 italic">
-                          &ldquo;{personalCall.notes}&rdquo;
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="p-5 text-center bg-card border-border rounded-2xl space-y-2">
-                <BookOpen size={28} className="mx-auto text-muted-foreground/40" />
-                <p className="text-xs font-semibold text-foreground">
-                  No personal follow-up saved for this household.
-                </p>
-                <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
-                  Are you cultivating interest here? Save return visit notes, scriptures, and
-                  callback times securely on your device.
-                </p>
-                {canLog && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPersonalCallDialogOpen(true)}
-                    className="text-xs rounded-xl font-semibold gap-1.5 mt-1"
-                  >
-                    <Plus size={12} />
-                    <span>Add to Personal Notebook</span>
-                  </Button>
-                )}
-              </Card>
-            )}
-          </div>
 
           {/* Section: Door Visit Records */}
           <div className="space-y-3">
