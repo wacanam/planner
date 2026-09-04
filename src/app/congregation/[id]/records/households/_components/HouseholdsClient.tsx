@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BookOpen,
   ChevronRight,
   Home,
   MapPin,
@@ -14,11 +15,9 @@ import {
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
-import {
-  HouseholdEncounterSheet,
-  HouseholdLogVisitSheet,
-} from '@/components/households/household-action-sheets';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
+import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
@@ -138,7 +137,7 @@ export default function HouseholdsClient() {
   const [statusFilter, setStatusFilter] = useState<string>(initialFilter);
   const [_selectedHousehold, _setSelectedHousehold] = useState<Household | null>(null);
   const [logVisitHousehold, setLogVisitHousehold] = useState<Household | null>(null);
-  const [encounterHousehold, setEncounterHousehold] = useState<Household | null>(null);
+  const [notebookHousehold, setNotebookHousehold] = useState<Household | null>(null);
   const [editHousehold, setEditHousehold] = useState<Household | null>(null);
   const [shareHousehold, setShareHousehold] = useState<Household | null>(null);
   const [addHouseholdOpen, setAddHouseholdOpen] = useState(false);
@@ -876,7 +875,7 @@ export default function HouseholdsClient() {
                       )}
                     </div>
 
-                    {/* Primary actions: View and Log Visit */}
+                    {/* Primary actions: View, Personal Note, and Log Visit */}
                     <div className="flex items-center gap-2 ml-auto">
                       <Button
                         asChild
@@ -888,6 +887,19 @@ export default function HouseholdsClient() {
                           View
                         </Link>
                       </Button>
+
+                      {user?.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-xl text-xs h-8 font-semibold gap-1.5 text-primary border-primary/25 hover:bg-primary/10 hover:border-primary/40 transition-colors shadow-2xs"
+                          onClick={() => setNotebookHousehold(h)}
+                          title="Add private note to Personal Notebook"
+                        >
+                          <BookOpen size={13} className="text-primary" />
+                          <span>Personal Note</span>
+                        </Button>
+                      )}
 
                       {canLog && (
                         <Button
@@ -950,12 +962,21 @@ export default function HouseholdsClient() {
         household={logVisitHousehold}
       />
 
-      {/* Encounter Sheet */}
-      <HouseholdEncounterSheet
-        open={!!encounterHousehold}
-        onOpenChange={(op) => !op && setEncounterHousehold(null)}
-        household={encounterHousehold}
-      />
+      {/* Personal Note Dialog */}
+      {user?.id && (
+        <PersonalCallDialog
+          open={!!notebookHousehold}
+          onOpenChange={(op) => !op && setNotebookHousehold(null)}
+          userId={user.id}
+          congregationId={congregationId}
+          householdId={notebookHousehold?.id}
+          territoryId={notebookHousehold?.territoryId}
+          houseNumber={notebookHousehold?.houseNumber}
+          streetName={notebookHousehold?.streetName}
+          address={notebookHousehold?.address}
+          households={households}
+        />
+      )}
 
       {/* Share Household Dialog */}
       <ShareHouseholdDialog

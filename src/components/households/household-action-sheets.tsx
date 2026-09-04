@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BookOpen, Clock, Mail, Phone, Plus, Sparkles, User, Users } from 'lucide-react';
+import { BookOpen, Clock, Lock, Mail, Phone, Plus, Sparkles, User } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
@@ -26,13 +26,13 @@ import {
 } from '@/hooks';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import { savePersonalCall } from '@/lib/local-first/personal-calls';
-import { saveEncounterRecord, saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
+import { saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { resolveHouseholdStatusAfter } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
 import type { Encounter, Household } from '@/types/api';
-import { AddEncounterForm, type AddEncounterFormValues } from './add-encounter-form';
 import { ContactAutocompleteInput } from './contact-autocomplete-input';
+import { PersonalCallDialog } from './PersonalCallDialog';
 
 const responseBadgeColors: Record<string, string> = {
   receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
@@ -457,43 +457,6 @@ export function HouseholdLogVisitSheet({
             console.warn('[PersonalCalls] Failed to save locally in IndexedDB:', pcErr);
           }
         }
-
-        try {
-          await saveEncounterRecord({
-            householdId: household.id,
-            congregationId: household.congregationId ?? user?.congregationId ?? undefined,
-            visitId,
-            name: encounterName.trim(),
-            response: encounterResponse,
-            gender: encounterGender,
-            ageGroup: encounterAgeGroup,
-            role: encounterRole,
-            phoneNumber: encounterPhone || undefined,
-            email: encounterEmail || undefined,
-            bestTimeToCall: encounterBestTimeToCall || undefined,
-            languageSpoken: encounterLanguage || undefined,
-            topicDiscussed: encounterTopic || undefined,
-            literatureAccepted: encounterLiterature || data.literaturePlaced || undefined,
-            returnVisitRequested: Boolean(encounterReturnVisitRequested || followUpDate),
-            nextVisitDate: followUpDate,
-            nextVisitTime: encounterNextVisitTime || undefined,
-            nextVisitNotes: encounterNextVisitNotes || undefined,
-            bibleStudyInterest: encounterBibleStudyInterest,
-            studyOffered: Boolean(
-              data.studyOffered ||
-                data.outcome === 'study_offered' ||
-                encounterResponse === 'study_offered'
-            ),
-            bibleStudyPublication: encounterPublication || undefined,
-            bibleStudyLesson: encounterLesson || undefined,
-            notes: data.notes || undefined,
-            visitDate: new Date().toISOString(),
-            userId: user?.id || null,
-            publisherName: user?.name || null,
-          });
-        } catch {
-          // Cloud encounter write fallback during transition
-        }
       }
 
       // 3. Update household status if changed
@@ -624,7 +587,7 @@ export function HouseholdLogVisitSheet({
           />
         </div>
 
-        {/* Optional Person Encounter Integration */}
+        {/* Optional Personal Notebook Integration */}
         <div className="pt-2 border-t border-border/60">
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border">
             <div className="flex items-center gap-2">
@@ -637,19 +600,33 @@ export function HouseholdLogVisitSheet({
                 htmlFor="recordEncounterToggle"
                 className="text-xs font-semibold cursor-pointer flex items-center gap-1.5 text-foreground"
               >
-                <Users size={14} className="text-primary" />
-                <span>Record conversation with a person at the door</span>
+                <BookOpen size={14} className="text-primary" />
+                <span>Save note to Personal Notebook</span>
               </Label>
             </div>
-            {householdContacts.length > 0 && !recordEncounter && (
-              <Badge variant="outline" className="text-[10px] text-primary border-primary/30">
-                {householdContacts.length} {householdContacts.length === 1 ? 'contact' : 'contacts'}
-              </Badge>
-            )}
+            <Badge
+              variant="outline"
+              className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 font-medium shrink-0"
+            >
+              <Lock size={10} />
+              <span>On-Device Only</span>
+            </Badge>
           </div>
 
           {recordEncounter && (
             <div className="mt-3 p-3.5 rounded-2xl bg-muted/30 border border-border space-y-3 animate-in fade-in-50">
+              <div className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-2">
+                <Lock
+                  size={12}
+                  className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5"
+                />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <strong className="text-foreground">100% On-Device Privacy:</strong> Person
+                  details, contact info, and notes are stored strictly in this browser and never
+                  uploaded to the central congregation database.
+                </p>
+              </div>
+
               {/* Quick-Picker: Known Contacts at this Address */}
               {householdContacts.length > 0 && (
                 <div className="space-y-1.5">
@@ -1098,7 +1075,7 @@ export function HouseholdLogVisitSheet({
             {submitting
               ? 'Saving…'
               : recordEncounter && encounterName.trim()
-                ? `Save Visit & Encounter (${encounterName.trim()})`
+                ? `Save Visit & Note (${encounterName.trim()})`
                 : 'Save Visit Record'}
           </Button>
         </div>
@@ -1119,68 +1096,24 @@ export function HouseholdEncounterSheet({
   open,
   onOpenChange,
   household,
-  initialValues,
   onSaved,
 }: EncounterSheetProps) {
   const { user } = useCurrentUser();
-  const [submitting, setSubmitting] = useState(false);
 
-  const handleSaveEncounter = async (values: AddEncounterFormValues) => {
-    setSubmitting(true);
-    try {
-      await saveEncounterRecord({
-        householdId: values.householdId,
-        congregationId: household?.congregationId ?? user?.congregationId ?? undefined,
-        name: values.name,
-        response: values.response,
-        role: values.role,
-        gender: values.gender,
-        ageGroup: values.ageGroup,
-        language: values.language,
-        phoneNumber: values.phoneNumber || undefined,
-        email: values.email || undefined,
-        bestTimeToCall: values.bestTimeToCall || undefined,
-        locationDescription: values.locationDescription || undefined,
-        notes: values.notes || undefined,
-        topicsDiscussed: values.topicsDiscussed || undefined,
-        literatureOffered: values.literatureOffered || undefined,
-        returnVisitRequested: values.returnVisitRequested,
-        nextVisitDate: values.nextVisitDate || undefined,
-        nextVisitTime: values.nextVisitTime || undefined,
-        nextVisitNotes: values.nextVisitNotes || undefined,
-        bibleStudyInterest: values.bibleStudyInterest,
-        bibleStudyPublication: values.bibleStudyPublication || undefined,
-        bibleStudyLesson: values.bibleStudyLesson || undefined,
-        visitDate: new Date().toISOString(),
-        userId: user?.id || null,
-        publisherName: user?.name || null,
-      });
-      onSaved?.();
-      onOpenChange(false);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  if (!user?.id || !household) return null;
 
   return (
-    <ResponsiveDialog
+    <PersonalCallDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Record Person Encounter"
-      description={
-        household
-          ? `${household.streetName ? `${household.streetName} · ` : ''}${household.address} (${household.city})`
-          : 'Conversation details'
-      }
-    >
-      <AddEncounterForm
-        household={household}
-        defaultHouseholdId={household?.id}
-        initialValues={initialValues}
-        onSubmit={handleSaveEncounter}
-        loading={submitting}
-        onCancel={() => onOpenChange(false)}
-      />
-    </ResponsiveDialog>
+      userId={user.id}
+      congregationId={household.congregationId}
+      householdId={household.id}
+      territoryId={household.territoryId}
+      houseNumber={household.houseNumber}
+      streetName={household.streetName}
+      address={household.address}
+      onSaved={onSaved}
+    />
   );
 }

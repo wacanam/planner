@@ -1,22 +1,12 @@
 'use client';
 
-import {
-  BookOpen,
-  Calendar,
-  Clock,
-  Home,
-  Pencil,
-  Search,
-  Trash2,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { BookOpen, Calendar, Clock, Home, Pencil, Search, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { AddEncounterForm } from '@/components/households/add-encounter-form';
 import { EditVisitForm } from '@/components/households/edit-visit-form';
+import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -33,13 +23,8 @@ import {
   useMyVisits,
 } from '@/hooks';
 import { formatDate } from '@/lib/date-utils';
-import {
-  canDeleteVisit,
-  canEditVisit,
-  canLogVisitOrEncounter,
-  canViewAllCongregationRecords,
-} from '@/lib/permissions';
-import { deleteVisitRecord, saveEncounterRecord, updateVisitRecord } from '@/lib/record-writes';
+import { canDeleteVisit, canEditVisit, canViewAllCongregationRecords } from '@/lib/permissions';
+import { deleteVisitRecord, updateVisitRecord } from '@/lib/record-writes';
 import { normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Visit } from '@/types/api';
@@ -108,8 +93,7 @@ export default function VisitsClient() {
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [addEncounterVisit, setAddEncounterVisit] = useState<Visit | null>(null);
-  const [savingEncounter, setSavingEncounter] = useState(false);
+  const [notebookVisit, setNotebookVisit] = useState<Visit | null>(null);
   const [editVisit, setEditVisit] = useState<Visit | null>(null);
   const [editingVisit, setEditingVisit] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
@@ -279,26 +263,6 @@ export default function VisitsClient() {
     }
   };
 
-  const handleCreateEncounter = async (values: any) => {
-    if (!addEncounterVisit) return;
-    setSavingEncounter(true);
-    try {
-      await saveEncounterRecord({
-        ...values,
-        congregationId,
-        visitId: addEncounterVisit.id,
-        householdId: addEncounterVisit.householdId,
-        userId: user?.id || null,
-      });
-      setAddEncounterVisit(null);
-      toast.success('Encounter logged');
-    } catch (_err) {
-      toast.error('Failed to log encounter');
-    } finally {
-      setSavingEncounter(false);
-    }
-  };
-
   const selectedVisit =
     selectedIndex >= 0 && selectedIndex < filtered.length ? filtered[selectedIndex] : null;
 
@@ -360,11 +324,8 @@ export default function VisitsClient() {
     {
       key: ['n', 'N', '+'],
       handler: () => {
-        if (selectedVisit) {
-          const household = households.find((h) => h.id === selectedVisit.householdId);
-          if (canLogVisitOrEncounter(user, household)) {
-            setAddEncounterVisit(selectedVisit);
-          }
+        if (selectedVisit && user?.id) {
+          setNotebookVisit(selectedVisit);
         }
       },
     },
@@ -698,18 +659,18 @@ export default function VisitsClient() {
                       )}
                     </div>
 
-                    {/* Primary actions: Add Person Met */}
+                    {/* Primary actions: Personal Note in Notebook */}
                     <div className="flex items-center gap-2 ml-auto">
-                      {(canLogVisitOrEncounter(user, household) || v.userId === user?.id) && (
+                      {user?.id && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="rounded-xl text-xs gap-1.5 h-8 font-semibold hover:text-primary hover:border-primary/50"
-                          onClick={() => setAddEncounterVisit(v)}
-                          title="Record person met during this visit"
+                          className="rounded-xl text-xs gap-1.5 h-8 font-semibold text-primary border-primary/25 hover:bg-primary/10 hover:border-primary/40 transition-colors shadow-2xs"
+                          onClick={() => setNotebookVisit(v)}
+                          title="Add private note to your Personal Notebook"
                         >
-                          <UserPlus size={13} />
-                          <span>+ Person Met</span>
+                          <BookOpen size={13} className="text-primary" />
+                          <span>Personal Note</span>
                         </Button>
                       )}
                     </div>
@@ -742,30 +703,27 @@ export default function VisitsClient() {
         )}
       </ResponsiveDialog>
 
-      {/* Add Encounter to Visit Modal */}
-      <ResponsiveDialog
-        open={!!addEncounterVisit}
-        onOpenChange={(op) => !op && setAddEncounterVisit(null)}
-        title="Record Person Encounter"
-        description={
-          addEncounterVisit
-            ? `Person met during visit to ${addEncounterVisit.householdAddress || 'household'}`
-            : 'Conversation details'
-        }
-      >
-        {addEncounterVisit && (
-          <AddEncounterForm
-            defaultHouseholdId={addEncounterVisit.householdId}
-            initialValues={{
-              visitId: addEncounterVisit.id,
-              householdId: addEncounterVisit.householdId,
-            }}
-            onSubmit={handleCreateEncounter}
-            loading={savingEncounter}
-            onCancel={() => setAddEncounterVisit(null)}
-          />
-        )}
-      </ResponsiveDialog>
+      {/* Personal Call / Notebook Dialog */}
+      {user?.id && notebookVisit && (
+        <PersonalCallDialog
+          open={!!notebookVisit}
+          onOpenChange={(op) => !op && setNotebookVisit(null)}
+          userId={user.id}
+          congregationId={congregationId}
+          householdId={notebookVisit.householdId}
+          territoryId={
+            households.find((h) => h.id === notebookVisit.householdId)?.territoryId || null
+          }
+          houseNumber={
+            households.find((h) => h.id === notebookVisit.householdId)?.houseNumber || null
+          }
+          streetName={
+            households.find((h) => h.id === notebookVisit.householdId)?.streetName || null
+          }
+          address={notebookVisit.householdAddress}
+          households={households}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

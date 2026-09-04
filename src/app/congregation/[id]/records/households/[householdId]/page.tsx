@@ -1,33 +1,16 @@
 'use client';
 
-import {
-  ArrowLeft,
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Edit3,
-  Lock,
-  Plus,
-  Share2,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Edit3, Lock, Plus, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  HouseholdEncounterSheet,
-  HouseholdLogVisitSheet,
-} from '@/components/households/household-action-sheets';
+import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
-import { formatDate } from '@/lib/date-utils';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
   getContactsByHousehold,
@@ -49,7 +32,6 @@ import type {
   LocalVisit,
 } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
-import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household, Visit } from '@/types/api';
 
 const responseBadgeColors: Record<string, string> = {
@@ -95,11 +77,7 @@ export default function HouseholdDetailPage() {
   // Dialog states
   const [logVisitOpen, setLogVisitOpen] = useState(false);
   const [initialLogVisitOutcome, setInitialLogVisitOutcome] = useState<string | undefined>();
-  const [encounterOpen, setEncounterOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [initialEncounterValues, setInitialEncounterValues] = useState<
-    Partial<Encounter> | undefined
-  >();
   const [personalCall, setPersonalCall] = useState<PersonalCallRecord | null>(null);
   const [personalCallDialogOpen, setPersonalCallDialogOpen] = useState(false);
 
@@ -188,13 +166,7 @@ export default function HouseholdDetailPage() {
 
   const handleOpenGeneralLogVisit = () => {
     setInitialLogVisitOutcome(undefined);
-    setInitialEncounterValues(undefined);
     setLogVisitOpen(true);
-  };
-
-  const handleOpenGeneralEncounter = () => {
-    setInitialEncounterValues(undefined);
-    setEncounterOpen(true);
   };
 
   useKeyboardShortcuts([
@@ -205,9 +177,9 @@ export default function HouseholdDetailPage() {
       },
     },
     {
-      key: ['e', 'E'],
+      key: ['n', 'N'],
       handler: () => {
-        if (canLog) handleOpenGeneralEncounter();
+        if (canLog) setPersonalCallDialogOpen(true);
       },
     },
     {
@@ -220,7 +192,7 @@ export default function HouseholdDetailPage() {
       key: 'Escape',
       handler: () => {
         if (logVisitOpen) setLogVisitOpen(false);
-        else if (encounterOpen) setEncounterOpen(false);
+        else if (personalCallDialogOpen) setPersonalCallDialogOpen(false);
         else if (shareOpen) setShareOpen(false);
         else router.push(`/congregation/${congregationId}/records/households`);
       },
@@ -255,11 +227,11 @@ export default function HouseholdDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleOpenGeneralEncounter}
-                  className="h-8 rounded-xl text-xs font-semibold gap-1.5"
+                  onClick={() => setPersonalCallDialogOpen(true)}
+                  className="h-8 rounded-xl text-xs font-semibold gap-1.5 text-primary border-primary/25 hover:bg-primary/10 hover:border-primary/40 transition-colors shadow-2xs"
                 >
-                  <Users size={13} />
-                  <span>Record Person Encounter</span>
+                  <BookOpen size={13} className="text-primary" />
+                  <span>Personal Note</span>
                 </Button>
                 <Button
                   size="sm"
@@ -543,15 +515,6 @@ export default function HouseholdDetailPage() {
             onOpenChange={setLogVisitOpen}
             household={householdView}
             initialOutcome={initialLogVisitOutcome as any}
-            initialContact={initialEncounterValues}
-            onSaved={reload}
-          />
-
-          <HouseholdEncounterSheet
-            open={encounterOpen}
-            onOpenChange={setEncounterOpen}
-            household={householdView}
-            initialValues={initialEncounterValues}
             onSaved={reload}
           />
 
