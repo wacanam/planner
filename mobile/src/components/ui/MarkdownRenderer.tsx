@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
-import React, { type ReactNode } from 'react';
-import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
+import { Text, type TextStyle, View, type ViewStyle } from 'react-native';
 import { useTheme } from '@/context/ThemeContext';
 import { triggerHaptic } from '@/lib/sound';
 
@@ -24,7 +24,7 @@ function renderInlineText(
     /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|~~([^~]+)~~|`([^`]+)`|\*([^*]+)\*|_([^_]+)_)/g;
 
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
+  let match = inlineRegex.exec(text);
   let key = 0;
 
   const handlePressLink = async (url: string) => {
@@ -37,7 +37,7 @@ function renderInlineText(
     } catch {}
   };
 
-  while ((match = inlineRegex.exec(text)) !== null) {
+  while (match !== null) {
     if (match.index > lastIndex) {
       elements.push(
         <Text key={`t-${key++}`} style={baseStyle}>
@@ -130,6 +130,7 @@ function renderInlineText(
     }
 
     lastIndex = match.index + fullMatch.length;
+    match = inlineRegex.exec(text);
   }
 
   if (lastIndex < text.length) {
@@ -146,7 +147,7 @@ function renderInlineText(
 export function MarkdownRenderer({ content, style, baseTextStyle }: MarkdownRendererProps) {
   const { colors, typography, spacing, radius } = useTheme();
 
-  if (!content || !content.trim()) return null;
+  if (!content?.trim()) return null;
 
   const lines = content.split('\n');
   const blocks: ReactNode[] = [];
@@ -330,7 +331,12 @@ export function MarkdownRenderer({ content, style, baseTextStyle }: MarkdownRend
             paddingLeft: 4,
           }}
         >
-          <Text style={[defaultTextStyle, { fontWeight: 'bold', color: colors.primary, marginRight: 6 }]}>
+          <Text
+            style={[
+              defaultTextStyle,
+              { fontWeight: 'bold', color: colors.primary, marginRight: 6 },
+            ]}
+          >
             •
           </Text>
           <Text style={[defaultTextStyle, { flex: 1 }]}>
@@ -355,7 +361,9 @@ export function MarkdownRenderer({ content, style, baseTextStyle }: MarkdownRend
             paddingLeft: 4,
           }}
         >
-          <Text style={[defaultTextStyle, { fontWeight: '700', color: colors.primary, marginRight: 6 }]}>
+          <Text
+            style={[defaultTextStyle, { fontWeight: '700', color: colors.primary, marginRight: 6 }]}
+          >
             {num}.
           </Text>
           <Text style={[defaultTextStyle, { flex: 1 }]}>
