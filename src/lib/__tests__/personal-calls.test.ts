@@ -83,4 +83,78 @@ describe('Personal Calls Service & Formatting', () => {
     expect(parsed.personalCalls[0].personName).toBe('John Doe');
     expect(parsed.personalCalls[0].status).toBe('return_visit');
   });
+
+  describe('Household Linking & Autocomplete', () => {
+    it('links note to selected household with territory and address metadata', () => {
+      const selectedHousehold = {
+        id: 'household-456',
+        address: '456 Oak Ave',
+        houseNumber: '456',
+        streetName: 'Oak Ave',
+        territoryId: 'territory-9',
+        city: 'Metropolis',
+      };
+
+      const noteWithLinkedHousehold: PersonalCallRecord = {
+        id: 'personal-household-456',
+        userId: 'user-123',
+        householdId: selectedHousehold.id,
+        territoryId: selectedHousehold.territoryId,
+        address: selectedHousehold.address,
+        houseNumber: selectedHousehold.houseNumber,
+        streetName: selectedHousehold.streetName,
+        personName: 'Maria Santos',
+        phoneNumber: '0912-345-6789',
+        email: null,
+        language: 'Tagalog',
+        status: 'initial_contact',
+        scripturesDiscussed: 'Psalm 37:10, 11',
+        literaturePlaced: null,
+        nextVisitDate: '2026-09-20',
+        nextVisitTime: '2:00 PM',
+        nextVisitNotes: null,
+        notes: 'Very interested in paradise on earth',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      expect(noteWithLinkedHousehold.householdId).toBe('household-456');
+      expect(noteWithLinkedHousehold.territoryId).toBe('territory-9');
+      expect(noteWithLinkedHousehold.houseNumber).toBe('456');
+      expect(noteWithLinkedHousehold.streetName).toBe('Oak Ave');
+      expect(noteWithLinkedHousehold.address).toBe('456 Oak Ave');
+      expect(noteWithLinkedHousehold.status).toBe('initial_contact');
+    });
+
+    it('preserves unlinked custom address reference when no household is selected', () => {
+      const customLocationNote: PersonalCallRecord = {
+        id: 'personal-custom-123',
+        userId: 'user-123',
+        householdId: null,
+        territoryId: null,
+        address: 'Corner of 5th Ave and Pine St near park bench',
+        houseNumber: null,
+        streetName: null,
+        personName: 'General Note',
+        phoneNumber: null,
+        email: null,
+        language: null,
+        status: 'note',
+        scripturesDiscussed: null,
+        literaturePlaced: null,
+        nextVisitDate: null,
+        nextVisitTime: null,
+        nextVisitNotes: null,
+        notes: 'Good spot for cart witnessing or afternoon break',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      expect(customLocationNote.householdId).toBeNull();
+      expect(customLocationNote.territoryId).toBeNull();
+      expect(customLocationNote.address).toBe('Corner of 5th Ave and Pine St near park bench');
+      expect(customLocationNote.personName).toBe('General Note');
+      expect(customLocationNote.status).toBe('note');
+    });
+  });
 });

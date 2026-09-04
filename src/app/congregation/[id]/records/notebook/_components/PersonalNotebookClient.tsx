@@ -18,6 +18,7 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
@@ -31,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { useCurrentUser } from '@/hooks';
+import { useCurrentUser, useHouseholds } from '@/hooks';
 import {
   deletePersonalCall,
   exportPersonalCallsAsCsv,
@@ -51,7 +52,10 @@ type StatusFilter =
 type SortOption = 'next_visit' | 'updated' | 'name';
 
 export default function PersonalNotebookClient() {
+  const params = useParams();
+  const congregationId = (params?.id as string) || '';
   const { user } = useCurrentUser();
+  const { households = [] } = useHouseholds({ congregationId });
   const [calls, setCalls] = useState<PersonalCallRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -566,6 +570,8 @@ export default function PersonalNotebookClient() {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           userId={user.id}
+          congregationId={congregationId}
+          households={households}
           initialCall={editingCall}
           address={editingCall?.address}
           householdId={editingCall?.householdId}

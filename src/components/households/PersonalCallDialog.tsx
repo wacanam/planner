@@ -2,7 +2,7 @@
 'use client';
 
 import { BookOpen, Calendar, Clock, Lock, ShieldCheck, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,16 +24,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useHouseholds } from '@/hooks';
 import {
   deletePersonalCall,
   type PersonalCallRecord,
   savePersonalCall,
 } from '@/lib/local-first/personal-calls';
+import { HouseholdAutocompleteInput, type HouseholdLike } from './HouseholdAutocompleteInput';
 
 export interface PersonalCallDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  congregationId?: string | null;
   householdId?: string | null;
   address?: string | null;
   houseNumber?: string | null;
@@ -41,12 +44,14 @@ export interface PersonalCallDialogProps {
   territoryId?: string | null;
   initialCall?: PersonalCallRecord | null;
   onSaved?: () => void;
+  households?: HouseholdLike[];
 }
 
 export function PersonalCallDialog({
   open,
   onOpenChange,
   userId,
+  congregationId,
   householdId,
   address,
   houseNumber,
@@ -54,9 +59,27 @@ export function PersonalCallDialog({
   territoryId,
   initialCall,
   onSaved,
+  households: propHouseholds,
 }: PersonalCallDialogProps) {
+  const { households: hookHouseholds = [] } = useHouseholds(
+    !propHouseholds && congregationId ? { congregationId } : undefined
+  );
+  const availableHouseholds = propHouseholds || (hookHouseholds as HouseholdLike[]);
+
   const [personName, setPersonName] = useState(initialCall?.personName || '');
   const [customAddress, setCustomAddress] = useState(initialCall?.address || '');
+  const [selectedHouseholdId, setSelectedHouseholdId] = useState<string | null>(
+    initialCall?.householdId || householdId || null
+  );
+  const [selectedTerritoryId, setSelectedTerritoryId] = useState<string | null>(
+    initialCall?.territoryId || territoryId || null
+  );
+  const [selectedHouseNumber, setSelectedHouseNumber] = useState<string | null>(
+    initialCall?.houseNumber || houseNumber || null
+  );
+  const [selectedStreetName, setSelectedStreetName] = useState<string | null>(
+    initialCall?.streetName || streetName || null
+  );
   const [status, setStatus] = useState<PersonalCallRecord['status']>(initialCall?.status || 'note');
   const [phoneNumber, setPhoneNumber] = useState(initialCall?.phoneNumber || '');
   const [email, setEmail] = useState(initialCall?.email || '');
@@ -71,10 +94,14 @@ export function PersonalCallDialog({
   const [saving, setSaving] = useState(false);
 
   // Sync when initialCall changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialCall) {
       setPersonName(initialCall.personName || '');
       setCustomAddress(initialCall.address || '');
+      setSelectedHouseholdId(initialCall.householdId || householdId || null);
+      setSelectedTerritoryId(initialCall.territoryId || territoryId || null);
+      setSelectedHouseNumber(initialCall.houseNumber || houseNumber || null);
+      setSelectedStreetName(initialCall.streetName || streetName || null);
       setStatus(initialCall.status || 'note');
       setPhoneNumber(initialCall.phoneNumber || '');
       setEmail(initialCall.email || '');
@@ -87,6 +114,10 @@ export function PersonalCallDialog({
     } else {
       setPersonName('');
       setCustomAddress('');
+      setSelectedHouseholdId(householdId || null);
+      setSelectedTerritoryId(territoryId || null);
+      setSelectedHouseNumber(houseNumber || null);
+      setSelectedStreetName(streetName || null);
       setStatus('note');
       setPhoneNumber('');
       setEmail('');
@@ -97,7 +128,21 @@ export function PersonalCallDialog({
       setNextVisitTime('');
       setNotes('');
     }
-  }, [initialCall]);
+  }, [initialCall, householdId, territoryId, houseNumber, streetName]);
+
+  const handleSelectHousehold = (h: HouseholdLike) => {
+    setSelectedHouseholdId(h.id);
+    setSelectedTerritoryId(h.territoryId || null);
+    setSelectedHouseNumber(h.houseNumber || null);
+    setSelectedStreetName(h.streetName || null);
+  };
+
+  const handleClearHouseholdSelection = () => {
+    setSelectedHouseholdId(null);
+    setSelectedTerritoryId(null);
+    setSelectedHouseNumber(null);
+    setSelectedStreetName(null);
+  };
 
   const handleSave = async () => {
     if (!personName.trim() && !notes.trim()) {
@@ -109,7 +154,13 @@ export function PersonalCallDialog({
     try {
       const finalAddress =
         address || customAddress.trim() || initialCall?.address || 'Personal Note';
-      const finalHouseholdId = householdId || initialCall?.householdId || null;
+      const finalHouseholdId =
+        selectedHouseholdId || householdId || initialCall?.householdId || null;
+      const finalTerritoryId =
+        selectedTerritoryId || territoryId || initialCall?.territoryId || null;
+      const finalHouseNumber =
+        selectedHouseNumber || houseNumber || initialCall?.houseNumber || null;
+      const finalStreetName = selectedStreetName || streetName || initialCall?.streetName || null;
       const callId =
         initialCall?.id ||
         (finalHouseholdId ? `personal-${finalHouseholdId}` : `personal-call-${Date.now()}`);
@@ -118,10 +169,10 @@ export function PersonalCallDialog({
         id: callId,
         userId,
         householdId: finalHouseholdId,
-        territoryId: territoryId || initialCall?.territoryId || null,
+        territoryId: finalTerritoryId,
         address: finalAddress,
-        houseNumber: houseNumber || initialCall?.houseNumber || null,
-        streetName: streetName || initialCall?.streetName || null,
+        houseNumber: finalHouseNumber,
+        streetName: finalStreetName,
         personName: personName.trim() || (status === 'note' ? 'General Note' : 'Unnamed Contact'),
         phoneNumber: phoneNumber.trim() || null,
         email: email.trim() || null,
@@ -200,12 +251,15 @@ export function PersonalCallDialog({
               <Label htmlFor="pv-custom-address" className="text-xs font-semibold block">
                 Address / Location Reference (Optional)
               </Label>
-              <Input
+              <HouseholdAutocompleteInput
                 id="pv-custom-address"
                 value={customAddress}
-                onChange={(e) => setCustomAddress(e.target.value)}
-                placeholder="e.g. 124 Maple St / Apt 2B"
-                className="h-9 text-xs rounded-xl"
+                onChange={setCustomAddress}
+                onSelectHousehold={handleSelectHousehold}
+                onClearSelection={handleClearHouseholdSelection}
+                selectedHouseholdId={selectedHouseholdId}
+                households={availableHouseholds}
+                placeholder="Search household (e.g. 124 Maple) or type custom address..."
               />
             </div>
           )}
