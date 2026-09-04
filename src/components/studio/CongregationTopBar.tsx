@@ -1,9 +1,8 @@
 'use client';
 
-import { ArrowLeft, Eye, Filter, Home, MapPin, Menu, Radio, Search, Users, X } from 'lucide-react';
+import { ArrowLeft, Eye, Filter, Home, MapPin, Menu, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,16 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentUser } from '@/hooks';
-import { timeAgo } from '@/lib/time-ago';
-import type {
-  Congregation,
-  Group,
-  Household,
-  MapLandmark,
-  MapRoad,
-  SharedMemberLocation,
-  Territory,
-} from '@/types/api';
+import type { Congregation, Group, Household, MapLandmark, MapRoad, Territory } from '@/types/api';
 
 export interface CongregationTopBarProps {
   congregationId: string;
@@ -43,17 +33,6 @@ export interface CongregationTopBarProps {
   onSelectRoad: (road: MapRoad, territory: Territory) => void;
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
-  isSharingLocation?: boolean;
-  onToggleShareLocation?: (durationMinutes?: number) => void;
-  onStartShareLocation?: (durationMinutes: number) => void;
-  onStopShareLocation?: () => void;
-  onExtendShareLocation?: (additionalMinutes: number) => void;
-  isSharingPending?: boolean;
-  sharingDurationMinutes?: number;
-  sharingExpiresAt?: string | null;
-  visibleMemberLocations?: SharedMemberLocation[];
-  onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
-  canViewMembers?: boolean;
 }
 
 export function CongregationTopBar({
@@ -73,54 +52,14 @@ export function CongregationTopBar({
   onSelectRoad,
   onToggleSidebar,
   sidebarOpen,
-  isSharingLocation = false,
-  onToggleShareLocation,
-  onStartShareLocation,
-  onStopShareLocation,
-  onExtendShareLocation,
-  isSharingPending = false,
-  sharingDurationMinutes = 120,
-  sharingExpiresAt,
-  visibleMemberLocations = [],
-  onSelectMemberLocation,
-  canViewMembers = false,
 }: CongregationTopBarProps) {
   const { user } = useCurrentUser();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [shareMenuOpen, setShareMenuOpen] = useState(false);
-  const [membersMenuOpen, setMembersMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedDurationPreset, setSelectedDurationPreset] = useState<number>(120);
-  const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isSharingLocation) return;
-    const interval = setInterval(() => {
-      setNowTick(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isSharingLocation]);
-
-  const remainingTimeStr = useMemo(() => {
-    if (!isSharingLocation || !sharingExpiresAt) return '';
-    const diffMs = new Date(sharingExpiresAt).getTime() - nowTick;
-    if (diffMs <= 0) return 'Expiring…';
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
-  }, [isSharingLocation, sharingExpiresAt, nowTick]);
-
-  const activeSharingMembersCount = useMemo(() => {
-    return visibleMemberLocations.filter((m) => m.isSharing && m.userId !== user?.id).length;
-  }, [visibleMemberLocations, user?.id]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -344,195 +283,6 @@ export function CongregationTopBar({
             </div>
           </PopoverContent>
         </Popover>
-
-        {/* Member Location Sharing Popover */}
-        {(onToggleShareLocation || onStartShareLocation) && (
-          <Popover open={shareMenuOpen} onOpenChange={setShareMenuOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={isSharingPending}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-200 cursor-pointer ${
-                  isSharingLocation
-                    ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-                title="Share your live location"
-              >
-                <Radio size={14} className={isSharingLocation ? 'animate-pulse text-white' : ''} />
-                <span className="hidden md:inline">
-                  {isSharingLocation ? 'Sharing Live' : 'Share GPS'}
-                </span>
-                {isSharingLocation && remainingTimeStr && (
-                  <span className="text-[10px] font-mono bg-emerald-800/80 text-emerald-100 px-1.5 py-0.5 rounded-md">
-                    {remainingTimeStr}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="center"
-              side="bottom"
-              sideOffset={8}
-              className="w-76 p-3.5 rounded-2xl bg-card border border-border shadow-2xl space-y-3 pointer-events-auto"
-            >
-              {isSharingLocation ? (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                    <Radio size={14} className="animate-pulse" />
-                    <span>Live GPS Active ({remainingTimeStr})</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {[15, 30, 60].map((mins) => (
-                      <Button
-                        key={mins}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs rounded-lg font-semibold"
-                        onClick={() => onExtendShareLocation?.(mins)}
-                      >
-                        +{mins}m
-                      </Button>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="w-full rounded-xl text-xs font-bold h-8"
-                    onClick={() => {
-                      onStopShareLocation?.();
-                      setShareMenuOpen(false);
-                    }}
-                  >
-                    Stop Sharing
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  <div className="text-xs font-bold text-foreground">Share Live GPS</div>
-                  <div className="grid grid-cols-3 gap-1">
-                    {[30, 60, 120, 240].map((mins) => (
-                      <button
-                        key={mins}
-                        type="button"
-                        onClick={() => setSelectedDurationPreset(mins)}
-                        className={`py-1.5 rounded-lg text-xs font-semibold border ${
-                          selectedDurationPreset === mins
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-muted border-border'
-                        }`}
-                      >
-                        {mins < 60 ? `${mins}m` : `${mins / 60}h`}
-                      </button>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="w-full rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-8"
-                    onClick={() => {
-                      onStartShareLocation?.(selectedDurationPreset);
-                      setShareMenuOpen(false);
-                    }}
-                  >
-                    Start Sharing
-                  </Button>
-                </div>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-
-        {/* Live Publishers in Field Ministry */}
-        {canViewMembers && (
-          <Popover open={membersMenuOpen} onOpenChange={setMembersMenuOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
-                  activeSharingMembersCount > 0
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }`}
-                title="View publishers currently in field ministry"
-              >
-                <Users size={14} />
-                <span className="hidden lg:inline">Publishers</span>
-                {visibleMemberLocations.length > 0 && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      activeSharingMembersCount > 0
-                        ? 'bg-emerald-600 text-white animate-pulse'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
-                  >
-                    {activeSharingMembersCount > 0
-                      ? `${activeSharingMembersCount} live`
-                      : visibleMemberLocations.length}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="center"
-              side="bottom"
-              sideOffset={8}
-              className="w-80 max-h-96 overflow-y-auto p-2 rounded-2xl bg-card border border-border shadow-2xl space-y-1 pointer-events-auto"
-            >
-              <div className="flex items-center justify-between px-2 py-1 border-b border-border">
-                <span className="text-xs font-bold text-foreground">Publisher Locations</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {visibleMemberLocations.length} registered
-                </span>
-              </div>
-              {visibleMemberLocations.length === 0 ? (
-                <div className="p-4 text-center text-xs text-muted-foreground">
-                  No publishers currently sharing location.
-                </div>
-              ) : (
-                visibleMemberLocations.map((loc) => (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    onClick={() => {
-                      onSelectMemberLocation?.(loc);
-                      setMembersMenuOpen(false);
-                    }}
-                    className="w-full flex items-center justify-between p-2 rounded-xl text-left hover:bg-muted/70 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Avatar className="h-7 w-7 rounded-lg border border-border">
-                        {loc.avatarUrl && <AvatarImage src={loc.avatarUrl} alt={loc.userName} />}
-                        <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">
-                          {(loc.userName || 'P').slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-foreground truncate">
-                          {loc.userName}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {loc.groupName || 'Service Group'}
-                        </p>
-                      </div>
-                    </div>
-                    {loc.isSharing ? (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-600">
-                        Live
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground">
-                        {timeAgo(loc.lastSeenAt || loc.updatedAt)}
-                      </span>
-                    )}
-                  </button>
-                ))
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
 
         <div className="h-5 w-px bg-border mx-1 shrink-0" />
 

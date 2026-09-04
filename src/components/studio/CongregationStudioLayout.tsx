@@ -8,8 +8,6 @@ import {
   Home,
   MapPin,
   Milestone,
-  Navigation,
-  Radio,
   Search,
   User,
   Users,
@@ -20,7 +18,6 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,22 +25,11 @@ import {
   useCongregationGroups,
   useCurrentUser,
   useKeyboardShortcuts,
-  useLocationSharing,
-  useMemberLocations,
   useUserLocation,
 } from '@/hooks';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { useBasemapPreference } from '@/lib/map-preferences';
-import { canViewMemberLocations } from '@/lib/permissions';
-import { timeAgo } from '@/lib/time-ago';
-import type {
-  Congregation,
-  Household,
-  MapLandmark,
-  MapRoad,
-  SharedMemberLocation,
-  Territory,
-} from '@/types/api';
+import type { Congregation, Household, MapLandmark, MapRoad, Territory } from '@/types/api';
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
 import type { BasemapMode } from './StudioBasemapPopup';
@@ -97,10 +83,6 @@ export function CongregationStudioLayout({
   const [selectedStartFlagTerritory, setSelectedStartFlagTerritory] = useState<Territory | null>(
     null
   );
-  const [selectedMemberLocation, setSelectedMemberLocation] = useState<SharedMemberLocation | null>(
-    null
-  );
-
   // Camera & GPS navigation states
   const [camera, setCamera] = useState<{ heading: number; tilt: number }>({ heading: 0, tilt: 0 });
   const [targetCamera, setTargetCamera] = useState<{
@@ -117,28 +99,8 @@ export function CongregationStudioLayout({
     timestamp: number;
   } | null>(null);
 
-  // Service groups & Location Sharing
+  // Service groups
   const { groups = [] } = useCongregationGroups(congregationId);
-  const { memberLocations } = useMemberLocations(congregationId, user, groups);
-  const {
-    isSharing: isSharingLocation,
-    isLocating: isSharingLocating,
-    durationMinutes: sharingDurationMinutes,
-    expiresAt: sharingExpiresAt,
-    startSharing: startLocationSharing,
-    stopSharing: stopLocationSharing,
-    extendDuration: extendLocationDuration,
-    toggleShareLocation,
-  } = useLocationSharing({
-    congregationId,
-    user,
-    groups,
-  });
-
-  const canViewMembers = useMemo(() => {
-    // Disabled for strict Data Privacy Compliance (no central live tracking)
-    return false;
-  }, []);
 
   const {
     isTracking: isTrackingLocation,
@@ -155,7 +117,6 @@ export function CongregationStudioLayout({
     setSelectedLandmark(null);
     setSelectedRoad(null);
     setSelectedStartFlagTerritory(null);
-    setSelectedMemberLocation(null);
   };
 
   const cycleBasemap = () => {
@@ -332,26 +293,6 @@ export function CongregationStudioLayout({
         }}
         onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         sidebarOpen={sidebarOpen}
-        isSharingLocation={isSharingLocation}
-        onToggleShareLocation={toggleShareLocation}
-        onStartShareLocation={startLocationSharing}
-        onStopShareLocation={stopLocationSharing}
-        onExtendShareLocation={extendLocationDuration}
-        isSharingPending={isSharingLocating}
-        sharingDurationMinutes={sharingDurationMinutes}
-        sharingExpiresAt={sharingExpiresAt}
-        visibleMemberLocations={memberLocations}
-        onSelectMemberLocation={(loc) => {
-          dismissAllFloatingCards();
-          setSelectedMemberLocation(loc);
-          setSearchedLocation({
-            lat: loc.latitude,
-            lng: loc.longitude,
-            zoom: 19,
-            timestamp: Date.now(),
-          });
-        }}
-        canViewMembers={canViewMembers}
       />
 
       {/* Google Maps Base Canvas */}
@@ -360,13 +301,11 @@ export function CongregationStudioLayout({
           territories={territories}
           congregation={congregation}
           households={households}
-          memberLocations={memberLocations}
           selectedTerritoryId={selectedTerritory?.id}
           selectedHouseholdId={selectedHousehold?.id}
           selectedLandmarkId={selectedLandmark?.landmark.id}
           selectedRoadId={selectedRoad?.road.id}
           selectedStartFlagTerritoryId={selectedStartFlagTerritory?.id}
-          selectedMemberLocationId={selectedMemberLocation?.id}
           onSelectTerritory={(t) => {
             dismissAllFloatingCards();
             setSelectedTerritory(t);
@@ -386,10 +325,6 @@ export function CongregationStudioLayout({
           onSelectStartFlag={(t) => {
             dismissAllFloatingCards();
             setSelectedStartFlagTerritory(t);
-          }}
-          onSelectMemberLocation={(loc) => {
-            dismissAllFloatingCards();
-            setSelectedMemberLocation(loc);
           }}
           onDeselectAll={dismissAllFloatingCards}
           basemapMode={basemapMode}
@@ -896,84 +831,6 @@ export function CongregationStudioLayout({
                 <span>Open Territory #{selectedStartFlagTerritory.number} Studio</span>
                 <ExternalLink size={12} />
               </Link>
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Card: Selected Member Location Quick Info */}
-      {selectedMemberLocation && (
-        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
-            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2.5 min-w-0">
-                <Avatar className="h-10 w-10 rounded-2xl border border-border shrink-0">
-                  {selectedMemberLocation.avatarUrl && (
-                    <AvatarImage
-                      src={selectedMemberLocation.avatarUrl}
-                      alt={selectedMemberLocation.userName}
-                    />
-                  )}
-                  <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
-                    {(selectedMemberLocation.userName || 'P').slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <p className="font-bold text-sm text-foreground leading-snug truncate">
-                    {selectedMemberLocation.userName}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {selectedMemberLocation.groupName || 'Service Group'}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
-                onClick={() => setSelectedMemberLocation(null)}
-              >
-                <X size={14} />
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 border-t border-border text-xs">
-              <div className="flex items-center gap-1.5">
-                {selectedMemberLocation.isSharing ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600">
-                    <Radio size={11} className="animate-pulse" />
-                    <span>Live in Field Service</span>
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-muted-foreground">
-                    Last seen{' '}
-                    {timeAgo(selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt)}
-                  </span>
-                )}
-              </div>
-              {selectedMemberLocation.accuracy && (
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  ±{Math.round(selectedMemberLocation.accuracy)}m GPS
-                </span>
-              )}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs font-semibold gap-1.5 rounded-2xl h-8"
-              onClick={() => {
-                setSearchedLocation({
-                  lat: selectedMemberLocation.latitude,
-                  lng: selectedMemberLocation.longitude,
-                  zoom: 19,
-                  timestamp: Date.now(),
-                });
-              }}
-            >
-              <Navigation size={13} className="text-primary" />
-              <span>Center on Map</span>
             </Button>
           </div>
         </div>

@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
   Square,
   Tag,
-  Users,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,6 @@ export interface StudioLayerSettings {
   showStartFlag: boolean;
   showBoundaries: boolean;
   showUserLocation: boolean;
-  showMemberLocations: boolean;
   householdFilter: HouseholdStatusFilter;
 }
 
@@ -66,7 +64,6 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showStartFlag: true,
   showBoundaries: true,
   showUserLocation: true,
-  showMemberLocations: true,
   householdFilter: 'all',
 };
 
@@ -206,7 +203,6 @@ export function StudioMapToolbar({
       showStartFlag: true,
       showBoundaries: true,
       showUserLocation: true,
-      showMemberLocations: true,
       householdFilter: 'all',
     });
   };
@@ -221,7 +217,6 @@ export function StudioMapToolbar({
       showStartFlag: false,
       showBoundaries: false,
       showUserLocation: false,
-      showMemberLocations: false,
       householdFilter: 'all',
     });
   };

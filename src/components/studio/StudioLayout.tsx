@@ -3,28 +3,24 @@
 import {
   AlertCircle,
   BookOpen,
-  Clock,
   Edit,
   Flag,
   Hexagon,
   Home,
   MapPin,
   Milestone,
-  Navigation,
-  Radio,
   Trash2,
   User,
   X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,8 +29,6 @@ import {
   useCongregationGroups,
   useCurrentUser,
   useKeyboardShortcuts,
-  useLocationSharing,
-  useMemberLocations,
   useSaveAnnotations,
   useSaveBoundary,
   useUpdateTerritory,
@@ -58,7 +52,6 @@ import {
   updateHouseholdRecord,
 } from '@/lib/record-writes';
 import { findDuplicateTerritory } from '@/lib/territories';
-import { timeAgo } from '@/lib/time-ago';
 import type {
   Congregation,
   Household,
@@ -67,7 +60,6 @@ import type {
   MapPoint,
   MapRoad,
   MapStartFlag,
-  SharedMemberLocation,
   Territory,
   TerritoryAnnotations,
 } from '@/types/api';
@@ -260,33 +252,6 @@ export function StudioLayout({
   // Service Groups for permission scoping & location tracking
   const { groups = [] } = useCongregationGroups(congregationId);
 
-  // Member Locations & Real-Time Sharing
-  const { memberLocations } = useMemberLocations(congregationId, user, groups);
-  const {
-    isSharing: isSharingLocation,
-    isLocating: isSharingLocating,
-    currentCoords: sharedLocationCoords,
-    durationMinutes: sharingDurationMinutes,
-    expiresAt: sharingExpiresAt,
-    startSharing: startLocationSharing,
-    stopSharing: stopLocationSharing,
-    extendDuration: extendLocationDuration,
-    toggleShareLocation,
-  } = useLocationSharing({
-    congregationId,
-    user,
-    groups,
-  });
-
-  const canViewMembers = useMemo(() => {
-    // Disabled for strict Data Privacy Compliance (no central live tracking)
-    return false;
-  }, []);
-
-  const [selectedMemberLocation, setSelectedMemberLocation] = useState<SharedMemberLocation | null>(
-    null
-  );
-
   // User GPS Location & Live Compass Heading Flashlight Beam
   const {
     isTracking: isTrackingLocation,
@@ -331,7 +296,6 @@ export function StudioLayout({
     setSelectedLandmark(null);
     setSelectedRoad(null);
     setSelectedStartFlag(null);
-    setSelectedMemberLocation(null);
     setBoundaryDialogOpen(false);
     setLandmarkDialogOpen(false);
     setRoadDialogOpen(false);
@@ -911,27 +875,6 @@ export function StudioLayout({
           households={households}
           landmarks={territory?.annotations?.landmarks}
           roads={territory?.annotations?.roads}
-          isSharingLocation={isSharingLocation}
-          onToggleShareLocation={toggleShareLocation}
-          onStartShareLocation={startLocationSharing}
-          onStopShareLocation={stopLocationSharing}
-          onExtendShareLocation={extendLocationDuration}
-          isSharingPending={isSharingLocating}
-          sharingDurationMinutes={sharingDurationMinutes}
-          sharingExpiresAt={sharingExpiresAt}
-          visibleMemberLocations={memberLocations}
-          onSelectMemberLocation={(loc) => {
-            dismissAllFloatingCards();
-            setSelectedMemberLocation(loc);
-            setSearchedLocation({
-              lat: loc.latitude,
-              lng: loc.longitude,
-              zoom: 19,
-              timestamp: Date.now(),
-            });
-            toast.success(`Found publisher: ${loc.userName}`);
-          }}
-          canViewMembers={canViewMembers}
           onSelectHousehold={(h) => {
             dismissAllFloatingCards();
             setSelectedHousehold(h);
@@ -1142,12 +1085,6 @@ export function StudioLayout({
           selectedRoadId={selectedRoad?.id}
           userLocation={userLocation}
           userHeading={userHeading}
-          memberLocations={memberLocations}
-          selectedMemberLocationId={selectedMemberLocation?.id}
-          onSelectMemberLocation={(loc) => {
-            dismissAllFloatingCards();
-            setSelectedMemberLocation(loc);
-          }}
           currentUserId={user.id}
           currentUser={user}
           groups={groups}
@@ -1787,115 +1724,6 @@ export function StudioLayout({
                 </Button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Selected Member Location Quick Info Card / Mobile Popup */}
-      {selectedMemberLocation && (
-        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:w-full z-40 pointer-events-auto animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="p-4 pb-7 sm:pb-4 rounded-t-3xl rounded-b-none sm:rounded-3xl bg-card/95 backdrop-blur-md border-t sm:border border-border shadow-[0_-8px_30px_rgba(0,0,0,0.18)] sm:shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
-            <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto -mt-1 mb-1 sm:hidden" />
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2.5 min-w-0">
-                <div className="relative shrink-0 mt-0.5">
-                  <Avatar className="h-10 w-10 rounded-xl border border-border">
-                    {selectedMemberLocation.avatarUrl && (
-                      <AvatarImage
-                        src={selectedMemberLocation.avatarUrl}
-                        alt={selectedMemberLocation.userName}
-                      />
-                    )}
-                    <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
-                      {(selectedMemberLocation.userName || 'P')
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {selectedMemberLocation.isSharing && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border border-white dark:border-slate-900" />
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-sm text-foreground leading-snug truncate">
-                    {selectedMemberLocation.userName}
-                    {selectedMemberLocation.userId === user?.id && (
-                      <span className="ml-1.5 text-xs text-muted-foreground font-normal">
-                        (You)
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {selectedMemberLocation.groupName || 'Service Group'}
-                  </p>
-                  {selectedMemberLocation.userEmail && (
-                    <p className="text-[11px] text-muted-foreground/80 truncate">
-                      {selectedMemberLocation.userEmail}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground shrink-0"
-                onClick={() => setSelectedMemberLocation(null)}
-              >
-                <X size={14} />
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
-              <div className="flex items-center gap-1.5">
-                {selectedMemberLocation.isSharing ? (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <Radio size={11} className="animate-pulse" />
-                    <span>Live in Field Service</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Clock size={12} />
-                    <span>
-                      Last seen{' '}
-                      {timeAgo(
-                        selectedMemberLocation.lastSeenAt || selectedMemberLocation.updatedAt
-                      )}
-                    </span>
-                  </span>
-                )}
-              </div>
-              {selectedMemberLocation.accuracy && (
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  ±{Math.round(selectedMemberLocation.accuracy)}m GPS
-                </span>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="pt-1 flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs font-semibold gap-1.5 rounded-xl h-8"
-                onClick={() => {
-                  setSearchedLocation({
-                    lat: selectedMemberLocation.latitude,
-                    lng: selectedMemberLocation.longitude,
-                    zoom: 19,
-                    timestamp: Date.now(),
-                  });
-                }}
-              >
-                <Navigation size={13} className="text-primary" />
-                <span>Center on Map</span>
-              </Button>
-            </div>
           </div>
         </div>
       )}

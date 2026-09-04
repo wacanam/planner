@@ -15,7 +15,6 @@ import {
   Palette,
   Satellite,
   Tag,
-  Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -49,7 +48,6 @@ export interface StudioLayerSettings {
   showStartFlag: boolean;
   showBoundaries: boolean;
   showUserLocation: boolean;
-  showMemberLocations: boolean;
   householdFilter: HouseholdStatusFilter;
 }
 
@@ -62,7 +60,6 @@ export const DEFAULT_STUDIO_LAYERS: StudioLayerSettings = {
   showStartFlag: true,
   showBoundaries: true,
   showUserLocation: true,
-  showMemberLocations: true,
   householdFilter: 'all',
 };
 
@@ -160,7 +157,6 @@ export function StudioBasemapPopup({
       showStartFlag: true,
       showBoundaries: true,
       showUserLocation: true,
-      showMemberLocations: true,
       householdFilter: 'all',
     });
   };
@@ -175,7 +171,6 @@ export function StudioBasemapPopup({
       showStartFlag: false,
       showBoundaries: false,
       showUserLocation: false,
-      showMemberLocations: false,
       householdFilter: 'all',
     });
   };

@@ -7,6 +7,14 @@ import { ensureWebGLDrawingBufferPreserved } from '@/lib/webgl-preserve';
 
 // Ensure WebGL drawing buffers are preserved before Google Maps loads
 ensureWebGLDrawingBufferPreserved();
+
+import Supercluster from 'supercluster';
+import { getHouseholdMapLabel } from '@/lib/household-contacts';
+import {
+  type ClusterProperties,
+  createClusterBadgeElement,
+  getBoundingBoxFromGoogleBounds,
+} from '@/lib/map-clustering';
 import {
   computeDistanceMeters,
   findClosestVertexIndex,
@@ -14,14 +22,6 @@ import {
   type LatLng,
   type RoadSnapResult,
 } from '@/lib/map-geometry';
-import { getHouseholdMapLabel } from '@/lib/household-contacts';
-import {
-  type ClusterProperties,
-  createClusterBadgeElement,
-  getBoundingBoxFromGoogleBounds,
-} from '@/lib/map-clustering';
-import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
-import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
 import {
   getSavedViewportPreference,
   getViewportFromUrl,
@@ -29,7 +29,8 @@ import {
   saveViewportPreference,
   syncViewportToUrl,
 } from '@/lib/map-preferences';
-import Supercluster from 'supercluster';
+import { canEditHousehold, canModifyBoundary, canModifyMapAnnotation } from '@/lib/permissions';
+import { getHouseholdStatusMeta, normalizeHouseholdStatus } from '@/lib/status-rules';
 
 import type {
   Congregation,
@@ -37,7 +38,6 @@ import type {
   MapBoundaryPolygon,
   MapLandmark,
   MapRoad,
-  SharedMemberLocation,
   Territory,
 } from '@/types/api';
 import {
@@ -96,9 +96,6 @@ interface StudioGoogleMapProps {
   selectedRoadId?: string | null;
   userLocation?: { lat: number; lng: number; accuracy?: number } | null;
   userHeading?: number | null;
-  memberLocations?: SharedMemberLocation[];
-  selectedMemberLocationId?: string | null;
-  onSelectMemberLocation?: (loc: SharedMemberLocation) => void;
   currentUserId?: string | null;
   fitBoundsPadding?: {
     top: number;
@@ -778,9 +775,6 @@ export function StudioGoogleMap({
   selectedRoadId,
   userLocation,
   userHeading,
-  memberLocations = [],
-  selectedMemberLocationId,
-  onSelectMemberLocation,
   currentUserId,
   fitBoundsPadding,
   fitPrintViewportPadding,
@@ -816,20 +810,6 @@ export function StudioGoogleMap({
   const roadLabelMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const landmarkMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const startFlagMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
-
-  // Member Shared Locations ref
-  const memberMarkersDataRef = useRef<
-    Map<
-      string,
-      {
-        id: string;
-        marker: google.maps.marker.AdvancedMarkerElement;
-        accuracyCircle?: google.maps.Circle | null;
-        pinContainer: HTMLDivElement;
-        labelEl?: HTMLDivElement | null;
-      }
-    >
-  >(new Map());
 
   const isPrintViewportActiveRef = useRef(isPrintViewportActive);
   isPrintViewportActiveRef.current = isPrintViewportActive;
@@ -1414,11 +1394,6 @@ export function StudioGoogleMap({
         userLocationAccuracyCircleRef.current = null;
       }
       userLocationBeamRef.current = null;
-      memberMarkersDataRef.current.forEach((entry) => {
-        entry.marker.map = null;
-        entry.accuracyCircle?.setMap(null);
-      });
-      memberMarkersDataRef.current.clear();
     };
   }, [apiKey]); // ONLY on initial mount / API key change
 
@@ -3278,199 +3253,6 @@ export function StudioGoogleMap({
       }
     };
   }, []);
-
-  // 9c. Render Shared Member Locations (Group Overseers & Servants Visibility)
-  const onSelectMemberLocationRef = useRef(onSelectMemberLocation);
-  onSelectMemberLocationRef.current = onSelectMemberLocation;
-
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapReady || typeof google === 'undefined' || !google.maps.marker) return;
-
-    const { AdvancedMarkerElement } = google.maps.marker;
-    const currentMarkersMap = memberMarkersDataRef.current;
-
-    if (layerSettings.showMemberLocations === false) {
-      // Clear all member markers if layer is hidden
-      currentMarkersMap.forEach((entry) => {
-        entry.marker.map = null;
-        entry.accuracyCircle?.setMap(null);
-      });
-      currentMarkersMap.clear();
-      return;
-    }
-
-    const nextIds = new Set<string>();
-
-    for (const loc of memberLocations) {
-      const locId = loc.id || `${loc.congregationId}_${loc.userId}`;
-      nextIds.add(locId);
-
-      const lat = Number(loc.latitude);
-      const lng = Number(loc.longitude);
-      if (Number.isNaN(lat) || Number.isNaN(lng)) continue;
-
-      const isLive = Boolean(loc.isSharing);
-      const isSelected =
-        selectedMemberLocationId === loc.id || selectedMemberLocationId === loc.userId;
-      const accuracy = loc.accuracy ?? null;
-      const _isCurrentUser = Boolean(currentUserId && loc.userId === currentUserId);
-
-      if (currentMarkersMap.has(locId)) {
-        // Update existing marker in place
-        const entry = currentMarkersMap.get(locId)!;
-        entry.marker.position = { lat, lng };
-        if (entry.marker.map !== map) entry.marker.map = map;
-        entry.marker.zIndex = isSelected ? 80 : isLive ? 60 : 35;
-
-        if (entry.accuracyCircle) {
-          if (isLive && accuracy && accuracy > 5 && accuracy < 1000) {
-            entry.accuracyCircle.setCenter({ lat, lng });
-            entry.accuracyCircle.setRadius(accuracy);
-            if (entry.accuracyCircle.getMap() !== map) entry.accuracyCircle.setMap(map);
-          } else {
-            entry.accuracyCircle.setMap(null);
-          }
-        }
-
-        entry.pinContainer.style.transform = isSelected ? 'scale(1.18)' : 'scale(1)';
-        entry.pinContainer.style.filter = isSelected
-          ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.5))'
-          : isLive
-            ? 'drop-shadow(0 2px 6px rgba(16,185,129,0.5))'
-            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))';
-      } else {
-        // Create new member marker
-        const container = document.createElement('div');
-        container.style.position = 'relative';
-        container.style.width = '36px';
-        container.style.height = '36px';
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.justifyContent = 'center';
-        container.style.cursor = 'pointer';
-
-        // Pulsing Live Halo
-        const haloDiv = document.createElement('div');
-        haloDiv.style.position = 'absolute';
-        haloDiv.style.width = '44px';
-        haloDiv.style.height = '44px';
-        haloDiv.style.borderRadius = '50%';
-        haloDiv.style.backgroundColor = isLive ? 'rgba(16, 185, 129, 0.22)' : 'transparent';
-        haloDiv.style.border = isLive ? '1.5px solid rgba(16, 185, 129, 0.55)' : 'none';
-        haloDiv.style.pointerEvents = 'none';
-        haloDiv.style.zIndex = '2';
-
-        // Pin Container (Avatar or Initials)
-        const pinContainer = document.createElement('div');
-        pinContainer.style.position = 'relative';
-        pinContainer.style.width = '32px';
-        pinContainer.style.height = '32px';
-        pinContainer.style.borderRadius = '50%';
-        pinContainer.style.backgroundColor = isLive ? '#10B981' : '#64748B';
-        pinContainer.style.border = isLive ? '2.5px solid #FFFFFF' : '2px solid #FFFFFF';
-        pinContainer.style.display = 'flex';
-        pinContainer.style.alignItems = 'center';
-        pinContainer.style.justifyContent = 'center';
-        pinContainer.style.boxShadow = '0 2px 6px rgba(0,0,0,0.35)';
-        pinContainer.style.overflow = 'hidden';
-        pinContainer.style.flexShrink = '0';
-        pinContainer.style.transition = 'transform 0.15s ease-out';
-        pinContainer.style.zIndex = '3';
-
-        const initials = (loc.userName || 'P')
-          .split(' ')
-          .map((n) => n[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2);
-
-        if (loc.avatarUrl) {
-          pinContainer.innerHTML = `
-            <img src="${loc.avatarUrl}" alt="${loc.userName}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; display: block;" onerror="this.style.display='none'; if (this.nextElementSibling) this.nextElementSibling.style.display='flex';" />
-            <span style="display: none; color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; align-items: center; justify-content: center;">${initials}</span>
-          `;
-        } else {
-          pinContainer.innerHTML = `<span style="color: #FFFFFF; font-size: 11px; font-weight: 800; font-family: sans-serif; letter-spacing: -0.02em; pointer-events: none; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">${initials}</span>`;
-        }
-
-        // Live dot badge
-        if (isLive) {
-          const liveBadge = document.createElement('div');
-          liveBadge.style.position = 'absolute';
-          liveBadge.style.top = '-2px';
-          liveBadge.style.right = '-2px';
-          liveBadge.style.width = '9px';
-          liveBadge.style.height = '9px';
-          liveBadge.style.borderRadius = '50%';
-          liveBadge.style.backgroundColor = '#10B981';
-          liveBadge.style.border = '1.5px solid #FFFFFF';
-          liveBadge.style.boxShadow = '0 0 4px #10B981';
-          liveBadge.style.pointerEvents = 'none';
-          pinContainer.appendChild(liveBadge);
-        }
-
-        container.appendChild(haloDiv);
-        container.appendChild(pinContainer);
-
-        container.addEventListener('click', (e) => {
-          e.stopPropagation();
-          onSelectMemberLocationRef.current?.(loc);
-        });
-
-        // Accuracy Circle
-        let accuracyCircle: google.maps.Circle | null = null;
-        if (isLive && accuracy && accuracy > 5 && accuracy < 1000) {
-          accuracyCircle = new google.maps.Circle({
-            center: { lat, lng },
-            radius: accuracy,
-            strokeColor: '#10B981',
-            strokeOpacity: 0.3,
-            strokeWeight: 1,
-            fillColor: '#10B981',
-            fillOpacity: 0.07,
-            clickable: false,
-            zIndex: 2,
-            map,
-          });
-        }
-
-        const marker = new AdvancedMarkerElement({
-          map,
-          position: { lat, lng },
-          title: `${loc.userName} (${isLive ? 'Live sharing' : 'Last seen'})`,
-          content: container,
-          zIndex: isSelected ? 80 : isLive ? 60 : 35,
-        });
-
-        marker.addListener('gmp-click', () => {
-          onSelectMemberLocationRef.current?.(loc);
-        });
-
-        currentMarkersMap.set(locId, {
-          id: locId,
-          marker,
-          accuracyCircle,
-          pinContainer,
-        });
-      }
-    }
-
-    // Remove deleted / expired member markers
-    currentMarkersMap.forEach((entry, id) => {
-      if (!nextIds.has(id)) {
-        entry.marker.map = null;
-        entry.accuracyCircle?.setMap(null);
-        currentMarkersMap.delete(id);
-      }
-    });
-  }, [
-    mapReady,
-    memberLocations,
-    layerSettings.showMemberLocations,
-    selectedMemberLocationId,
-    currentUserId,
-  ]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">
