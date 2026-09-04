@@ -265,7 +265,8 @@ export function HouseholdLogVisitSheet({
   const handleOutcomeChange = (val: LogVisitFormData['outcome']) => {
     form.setValue('outcome', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
 
-    const isRV = val === 'return_visit' || val === 'return_visit_completed' || val === 'return_visit_missed';
+    const isRV =
+      val === 'return_visit' || val === 'return_visit_completed' || val === 'return_visit_missed';
     const isStudy = val === 'study_conducted' || val === 'study_offered' || val === 'study_missed';
     const isMissed = val === 'return_visit_missed' || val === 'study_missed';
 
@@ -402,10 +403,24 @@ export function HouseholdLogVisitSheet({
         returnVisitDate: followUpDate,
         nextVisitDate: followUpDate,
         returnVisitPlanned: Boolean(followUpDate || encounterReturnVisitRequested),
-        scheduledAppointmentType: data.scheduledAppointmentType ?? (data.outcome.includes('study') ? 'bible_study' : 'return_visit'),
-        bibleStudyStatus: data.bibleStudyStatus ?? (data.outcome === 'study_conducted' ? 'conducted' : data.outcome === 'study_offered' ? 'offered' : data.outcome === 'study_missed' ? 'missed' : undefined),
+        scheduledAppointmentType:
+          data.scheduledAppointmentType ??
+          (data.outcome.includes('study') ? 'bible_study' : 'return_visit'),
+        bibleStudyStatus:
+          data.bibleStudyStatus ??
+          (data.outcome === 'study_conducted'
+            ? 'conducted'
+            : data.outcome === 'study_offered'
+              ? 'offered'
+              : data.outcome === 'study_missed'
+                ? 'missed'
+                : undefined),
         studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered'),
-        isAppointmentMissed: Boolean(data.isAppointmentMissed || data.outcome === 'return_visit_missed' || data.outcome === 'study_missed'),
+        isAppointmentMissed: Boolean(
+          data.isAppointmentMissed ||
+            data.outcome === 'return_visit_missed' ||
+            data.outcome === 'study_missed'
+        ),
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
         publisherName: user?.name || null,
@@ -464,7 +479,11 @@ export function HouseholdLogVisitSheet({
             nextVisitTime: encounterNextVisitTime || undefined,
             nextVisitNotes: encounterNextVisitNotes || undefined,
             bibleStudyInterest: encounterBibleStudyInterest,
-            studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered' || encounterResponse === 'study_offered'),
+            studyOffered: Boolean(
+              data.studyOffered ||
+                data.outcome === 'study_offered' ||
+                encounterResponse === 'study_offered'
+            ),
             bibleStudyPublication: encounterPublication || undefined,
             bibleStudyLesson: encounterLesson || undefined,
             notes: data.notes || undefined,
@@ -531,8 +550,12 @@ export function HouseholdLogVisitSheet({
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
               <SelectItem value="answered">Answered / Conversation</SelectItem>
-              <SelectItem value="return_visit_completed">Return Visit (Visited / Completed)</SelectItem>
-              <SelectItem value="return_visit_missed">Return Visit Missed (Resident Absent / Reschedule)</SelectItem>
+              <SelectItem value="return_visit_completed">
+                Return Visit (Visited / Completed)
+              </SelectItem>
+              <SelectItem value="return_visit_missed">
+                Return Visit Missed (Resident Absent / Reschedule)
+              </SelectItem>
               <SelectItem value="study_conducted">Bible Study Conducted</SelectItem>
               <SelectItem value="study_offered">Bible Study Offered</SelectItem>
               <SelectItem value="study_missed">Bible Study Missed / Cancelled</SelectItem>
@@ -561,7 +584,7 @@ export function HouseholdLogVisitSheet({
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                <SelectItem value="available">Available / Active Door</SelectItem>
+                <SelectItem value="available">Available / Active Household</SelectItem>
                 <SelectItem value="return_visit">Return Visit (Interested Contact)</SelectItem>
                 <SelectItem value="bible_study">Bible Study (Ongoing Study)</SelectItem>
                 <SelectItem value="not_home">Not Home (Pending Callback)</SelectItem>

@@ -1,7 +1,11 @@
 // src/components/households/PersonalCallDialog.tsx
 'use client';
 
+import { BookOpen, Calendar, Clock, Lock, ShieldCheck, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
+import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -10,10 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -21,13 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { ShieldCheck, Lock, Trash2, Calendar, BookOpen, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
 import {
-  savePersonalCall,
   deletePersonalCall,
   type PersonalCallRecord,
+  savePersonalCall,
 } from '@/lib/local-first/personal-calls';
 
 export interface PersonalCallDialogProps {
@@ -57,9 +57,7 @@ export function PersonalCallDialog({
 }: PersonalCallDialogProps) {
   const [personName, setPersonName] = useState(initialCall?.personName || '');
   const [customAddress, setCustomAddress] = useState(initialCall?.address || '');
-  const [status, setStatus] = useState<PersonalCallRecord['status']>(
-    initialCall?.status || 'return_visit'
-  );
+  const [status, setStatus] = useState<PersonalCallRecord['status']>(initialCall?.status || 'note');
   const [phoneNumber, setPhoneNumber] = useState(initialCall?.phoneNumber || '');
   const [email, setEmail] = useState(initialCall?.email || '');
   const [language, setLanguage] = useState(initialCall?.language || '');
@@ -77,7 +75,7 @@ export function PersonalCallDialog({
     if (initialCall) {
       setPersonName(initialCall.personName || '');
       setCustomAddress(initialCall.address || '');
-      setStatus(initialCall.status || 'return_visit');
+      setStatus(initialCall.status || 'note');
       setPhoneNumber(initialCall.phoneNumber || '');
       setEmail(initialCall.email || '');
       setLanguage(initialCall.language || '');
@@ -89,7 +87,7 @@ export function PersonalCallDialog({
     } else {
       setPersonName('');
       setCustomAddress('');
-      setStatus('return_visit');
+      setStatus('note');
       setPhoneNumber('');
       setEmail('');
       setLanguage('');
@@ -102,15 +100,15 @@ export function PersonalCallDialog({
   }, [initialCall]);
 
   const handleSave = async () => {
-    if (!personName.trim()) {
-      toast.error('Please enter a name or contact reference for your return visit.');
+    if (!personName.trim() && !notes.trim()) {
+      toast.error('Please enter a person/reference name or note details.');
       return;
     }
 
     setSaving(true);
     try {
       const finalAddress =
-        address || customAddress.trim() || initialCall?.address || 'Personal Call';
+        address || customAddress.trim() || initialCall?.address || 'Personal Note';
       const finalHouseholdId = householdId || initialCall?.householdId || null;
       const callId =
         initialCall?.id ||
@@ -124,7 +122,7 @@ export function PersonalCallDialog({
         address: finalAddress,
         houseNumber: houseNumber || initialCall?.houseNumber || null,
         streetName: streetName || initialCall?.streetName || null,
-        personName: personName.trim(),
+        personName: personName.trim() || (status === 'note' ? 'General Note' : 'Unnamed Contact'),
         phoneNumber: phoneNumber.trim() || null,
         email: email.trim() || null,
         language: language.trim() || null,
@@ -144,7 +142,7 @@ export function PersonalCallDialog({
       onOpenChange(false);
       onSaved?.();
     } catch (err: any) {
-      toast.error(`Failed to save personal call: ${err.message}`);
+      toast.error(`Failed to save note: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -152,7 +150,7 @@ export function PersonalCallDialog({
 
   const handleDelete = async () => {
     if (!initialCall?.id) return;
-    if (!confirm('Remove this return visit from your personal notebook?')) return;
+    if (!confirm('Remove this note from your personal notebook?')) return;
 
     setSaving(true);
     try {
@@ -174,15 +172,19 @@ export function PersonalCallDialog({
           <div className="flex items-center justify-between gap-2">
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
-              {initialCall ? 'Edit Personal Return Visit' : 'Add to Personal Notebook'}
+              {initialCall ? 'Edit Note' : 'Add Note'}
             </DialogTitle>
-            <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+            <Badge
+              variant="outline"
+              className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+            >
               <Lock className="h-2.5 w-2.5" />
               Private to You
             </Badge>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            {address || customAddress || 'Personal Call'} • Stored exclusively on this device (never shared with the congregation cloud).
+            {address || customAddress || 'Personal Call'} • Stored exclusively on this device (never
+            shared with the congregation cloud).
           </DialogDescription>
         </DialogHeader>
 
@@ -205,13 +207,19 @@ export function PersonalCallDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="pv-name" className="text-xs font-semibold">
-                Person Name / Reference *
+                {status === 'note'
+                  ? 'Topic / Person Reference (Optional)'
+                  : 'Person Name / Reference *'}
               </Label>
               <Input
                 id="pv-name"
                 value={personName}
                 onChange={(e) => setPersonName(e.target.value)}
-                placeholder="e.g. Maria / 2nd floor tenant"
+                placeholder={
+                  status === 'note'
+                    ? 'e.g. Territory notes, parking info, or Maria'
+                    : 'e.g. Maria / 2nd floor tenant'
+                }
                 className="h-8 text-xs"
               />
             </div>
@@ -225,6 +233,8 @@ export function PersonalCallDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="note">General Note</SelectItem>
+                  <SelectItem value="initial_contact">Initial Contact</SelectItem>
                   <SelectItem value="return_visit">Return Visit</SelectItem>
                   <SelectItem value="bible_study">Bible Study</SelectItem>
                   <SelectItem value="interested">Interested</SelectItem>
@@ -332,7 +342,8 @@ export function PersonalCallDialog({
           <div className="p-2.5 rounded-xl bg-muted/40 border border-border/80 flex items-start gap-2">
             <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              <strong>100% On-Device Privacy:</strong> This note is stored only in this browser's IndexedDB. Other publishers, servants, and overseers cannot see this information.
+              <strong>100% On-Device Privacy:</strong> This note is stored only in this browser's
+              IndexedDB. Other publishers, servants, and overseers cannot see this information.
             </p>
           </div>
         </div>

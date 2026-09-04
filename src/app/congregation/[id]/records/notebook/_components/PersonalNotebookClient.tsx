@@ -40,7 +40,14 @@ import {
   type PersonalCallRecord,
 } from '@/lib/local-first/personal-calls';
 
-type StatusFilter = 'all' | 'return_visit' | 'bible_study' | 'interested' | 'scheduled';
+type StatusFilter =
+  | 'all'
+  | 'note'
+  | 'initial_contact'
+  | 'return_visit'
+  | 'bible_study'
+  | 'interested'
+  | 'scheduled';
 type SortOption = 'next_visit' | 'updated' | 'name';
 
 export default function PersonalNotebookClient() {
@@ -87,7 +94,7 @@ export default function PersonalNotebookClient() {
   };
 
   const handleDelete = async (id: string, name?: string | null) => {
-    if (!confirm(`Delete "${name || 'this record'}" from your personal device notebook?`)) return;
+    if (!confirm(`Delete "${name || 'this note'}" from your personal device notebook?`)) return;
     try {
       await deletePersonalCall(id);
       toast.info('Removed from personal notebook');
@@ -134,10 +141,11 @@ export default function PersonalNotebookClient() {
   // Metrics
   const stats = useMemo(() => {
     const total = calls.length;
+    const initialContacts = calls.filter((c) => c.status === 'initial_contact').length;
     const returnVisits = calls.filter((c) => c.status === 'return_visit').length;
     const bibleStudies = calls.filter((c) => c.status === 'bible_study').length;
     const scheduled = calls.filter((c) => Boolean(c.nextVisitDate)).length;
-    return { total, returnVisits, bibleStudies, scheduled };
+    return { total, initialContacts, returnVisits, bibleStudies, scheduled };
   }, [calls]);
 
   // Filter & Search
@@ -199,8 +207,8 @@ export default function PersonalNotebookClient() {
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Your private return visits, Bible studies, and scheduled callbacks stored strictly in
-            this browser.
+            Your private ministry notes, initial contacts, return visits, and Bible studies stored
+            strictly in this browser.
           </p>
         </div>
 
@@ -226,7 +234,7 @@ export default function PersonalNotebookClient() {
 
           <Button onClick={handleOpenNew} size="sm" className="h-9 gap-1.5 text-xs shadow-xs">
             <Plus className="h-4 w-4" />
-            <span>Add Return Visit</span>
+            <span>Add Note</span>
           </Button>
         </div>
       </div>
@@ -254,7 +262,7 @@ export default function PersonalNotebookClient() {
         <Card className="rounded-2xl border border-border shadow-2xs">
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Total Calls</span>
+              <span className="text-xs font-medium">Total Notes</span>
               <BookOpen className="h-4 w-4 text-primary" />
             </div>
             <p className="text-2xl font-bold mt-1 text-foreground">{stats.total}</p>
@@ -300,6 +308,8 @@ export default function PersonalNotebookClient() {
             {(
               [
                 { id: 'all', label: 'All' },
+                { id: 'note', label: 'Notes' },
+                { id: 'initial_contact', label: 'Initial Contacts' },
                 { id: 'return_visit', label: 'Return Visits' },
                 { id: 'bible_study', label: 'Bible Studies' },
                 { id: 'interested', label: 'Interested' },
@@ -361,17 +371,17 @@ export default function PersonalNotebookClient() {
             <BookOpen className="h-6 w-6" />
           </div>
           <div className="space-y-1 max-w-sm mx-auto">
-            <h3 className="text-sm font-bold text-foreground">No return visits found</h3>
+            <h3 className="text-sm font-bold text-foreground">No notes found</h3>
             <p className="text-xs text-muted-foreground">
               {searchQuery || statusFilter !== 'all'
-                ? 'No calls match your active search or filter.'
-                : 'Your personal notebook is empty on this browser. Add return visits or transfer your cloud notes to get started.'}
+                ? 'No notes match your active search or filter.'
+                : 'Your personal notebook is empty on this browser. Add notes or transfer your cloud notes to get started.'}
             </p>
           </div>
           <div className="pt-2">
             <Button onClick={handleOpenNew} size="sm" className="h-8 text-xs gap-1.5">
               <Plus className="h-3.5 w-3.5" />
-              <span>Add First Return Visit</span>
+              <span>Add First Note</span>
             </Button>
           </div>
         </div>
@@ -379,6 +389,14 @@ export default function PersonalNotebookClient() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredCalls.map((call) => {
             const statusConfig = {
+              note: {
+                label: 'Note',
+                bg: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30',
+              },
+              initial_contact: {
+                label: 'Initial Contact',
+                bg: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30',
+              },
               bible_study: {
                 label: 'Bible Study',
                 bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -410,7 +428,7 @@ export default function PersonalNotebookClient() {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm sm:text-base text-foreground truncate">
-                          {call.personName || 'Unnamed Person'}
+                          {call.personName || 'Personal Note'}
                         </span>
                         <Badge
                           variant="outline"
@@ -432,7 +450,7 @@ export default function PersonalNotebookClient() {
                         size="icon"
                         onClick={() => handleOpenEdit(call)}
                         className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
-                        title="Edit call"
+                        title="Edit note"
                       >
                         <Clock className="h-4 w-4" />
                       </Button>
@@ -441,7 +459,7 @@ export default function PersonalNotebookClient() {
                         size="icon"
                         onClick={() => handleDelete(call.id, call.personName)}
                         className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
-                        title="Delete call"
+                        title="Delete note"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

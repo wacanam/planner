@@ -18,10 +18,11 @@ function renderInline(text: string): ReactNode[] {
     /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|__([^_]+)__|~~([^~]+)~~|`([^`]+)`|\*([^*]+)\*|_([^_]+)_)/g;
 
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
   let key = 0;
 
-  while ((match = inlineRegex.exec(text)) !== null) {
+  while (true) {
+    const match = inlineRegex.exec(text);
+    if (match === null) break;
     if (match.index > lastIndex) {
       elements.push(text.substring(lastIndex, match.index));
     }
@@ -109,13 +110,19 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
     if (!currentListType || currentListItems.length === 0) return;
     if (currentListType === 'ul') {
       blocks.push(
-        <ul key={`ul-${blockKey++}`} className="my-2 ml-4 list-disc space-y-1 text-sm text-foreground/90">
+        <ul
+          key={`ul-${blockKey++}`}
+          className="my-2 ml-4 list-disc space-y-1 text-sm text-foreground/90"
+        >
           {currentListItems}
         </ul>
       );
     } else {
       blocks.push(
-        <ol key={`ol-${blockKey++}`} className="my-2 ml-4 list-decimal space-y-1 text-sm text-foreground/90">
+        <ol
+          key={`ol-${blockKey++}`}
+          className="my-2 ml-4 list-decimal space-y-1 text-sm text-foreground/90"
+        >
           {currentListItems}
         </ol>
       );
@@ -137,7 +144,10 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       } else {
         inCodeBlock = false;
         blocks.push(
-          <div key={`codeblock-${blockKey++}`} className="my-3 overflow-x-auto rounded-lg bg-muted/90 p-3 border border-border">
+          <div
+            key={`codeblock-${blockKey++}`}
+            className="my-3 overflow-x-auto rounded-lg bg-muted/90 p-3 border border-border"
+          >
             {codeBlockLang && (
               <div className="mb-1 text-[10px] font-mono font-bold uppercase text-muted-foreground">
                 {codeBlockLang}
@@ -169,7 +179,10 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       flushList();
       if (line.startsWith('#### ')) {
         blocks.push(
-          <h5 key={`h4-${blockKey++}`} className="mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-foreground">
+          <h5
+            key={`h4-${blockKey++}`}
+            className="mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-foreground"
+          >
             {renderInline(line.slice(5))}
           </h5>
         );

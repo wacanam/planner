@@ -29,13 +29,13 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
     },
     {
       href: `/congregation/${id}/records/households`,
-      label: 'Doors',
+      label: 'Households',
       icon: Home,
       shortcut: '2',
     },
     {
       href: `/congregation/${id}/records/visits`,
-      label: 'Door Visits',
+      label: 'Visits',
       icon: Clock,
       shortcut: '3',
     },

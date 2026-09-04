@@ -41,7 +41,7 @@ export function DashboardProgressGauge({
                   Congregation Territory Campaign Progress
                 </h2>
                 <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
-                  {workedDoorsCount} of {totalDoorsCount} door records worked in field service
+                  {workedDoorsCount} of {totalDoorsCount} household records worked in field service
                 </p>
               </div>
             </div>
@@ -120,8 +120,8 @@ export function DashboardProgressGauge({
                   {ledGroup?.name || 'Service Group'} Territory Progress
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  {groupCoverage.workedDoors} of {groupCoverage.totalDoors} doors completed in group
-                  zones
+                  {groupCoverage.workedDoors} of {groupCoverage.totalDoors} households completed in
+                  group zones
                 </p>
               </div>
             </div>
@@ -163,7 +163,7 @@ export function DashboardProgressGauge({
               <p className="text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
                 {groupHouseholds.length}
               </p>
-              <p className="text-[10px] text-muted-foreground">Group Doors</p>
+              <p className="text-[10px] text-muted-foreground">Group Households</p>
             </Link>
             <Link
               href={`/congregation/${congregationId}/records/households?filter=return_visit`}

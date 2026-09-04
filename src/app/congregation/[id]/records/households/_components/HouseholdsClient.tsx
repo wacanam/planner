@@ -55,8 +55,8 @@ import type { Household } from '@/types/api';
 
 const statusLabels: Record<string, string> = {
   new: 'New Record',
-  available: 'Available Door',
-  active: 'Available Door',
+  available: 'Available Household',
+  active: 'Available Household',
   bible_study: 'Bible Study',
   return_visit: 'Return Visit',
   not_home: 'Not Home',
@@ -503,17 +503,17 @@ export default function HouseholdsClient() {
         <div>
           <h1 className="text-xl font-bold text-foreground">
             {recordScope === 'mine'
-              ? 'My Door Directory'
+              ? 'My Household Directory'
               : recordScope === 'group'
-                ? 'Group Door Directory'
-                : 'Congregation Door Directory'}
+                ? 'Group Household Directory'
+                : 'Congregation Household Directory'}
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {recordScope === 'mine'
-              ? 'Physical door addresses, access notes, and coverage status'
+              ? 'Physical household addresses, access notes, and coverage status'
               : recordScope === 'group'
-                ? 'Door listings and access notes across your service group'
-                : 'All physical door listings across the congregation (no personal data)'}
+                ? 'Household listings and access notes across your service group'
+                : 'All physical household listings across the congregation (no personal data)'}
           </p>
         </div>
         <Button
@@ -522,7 +522,7 @@ export default function HouseholdsClient() {
           className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
         >
           <Plus size={14} />
-          <span>Add Door</span>
+          <span>Add Household</span>
         </Button>
       </div>
 
@@ -680,7 +680,7 @@ export default function HouseholdsClient() {
           <Home size={40} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm font-semibold text-foreground">No households found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Add a new door record to get started.
+            Add a new household record to get started.
           </p>
         </div>
       ) : (
@@ -914,7 +914,7 @@ export default function HouseholdsClient() {
         open={addHouseholdOpen}
         onOpenChange={setAddHouseholdOpen}
         title="Add Household Record"
-        description="Save door details offline (can be pinned on map later)"
+        description="Save household details offline (can be pinned on map later)"
       >
         <HouseholdForm
           territories={territories}
@@ -929,7 +929,7 @@ export default function HouseholdsClient() {
         open={!!editHousehold}
         onOpenChange={(op) => !op && setEditHousehold(null)}
         title="Edit Household Record"
-        description="Update door details and address"
+        description="Update household details and address"
       >
         {editHousehold && (
           <HouseholdForm

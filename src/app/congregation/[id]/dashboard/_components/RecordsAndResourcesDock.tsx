@@ -137,7 +137,7 @@ export function RecordsAndResourcesDock({
                     Coordinate Cleanup
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {totalCongregationUnpinnedCount} unpinned doors
+                    {totalCongregationUnpinnedCount} unpinned households
                   </p>
                 </div>
               </div>
@@ -162,7 +162,7 @@ export function RecordsAndResourcesDock({
                     Household Directory
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {households.length} door records
+                    {households.length} household records
                   </p>
                 </div>
               </div>
@@ -184,7 +184,7 @@ export function RecordsAndResourcesDock({
                   <p className="font-semibold text-xs text-foreground group-hover:text-emerald-600 transition-colors truncate">
                     Visit History
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate">Door-to-door logs</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Household visit logs</p>
                 </div>
               </div>
               <ArrowRight

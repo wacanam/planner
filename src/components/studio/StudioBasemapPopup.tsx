@@ -107,7 +107,7 @@ const STATUS_FILTER_OPTIONS: Array<{
   { id: 'all', label: 'All Households', dotColor: 'bg-primary' },
   { id: 'bible_study', label: 'Active Bible Studies', dotColor: 'bg-purple-600' },
   { id: 'return_visit', label: 'Return Visits & Interested', dotColor: 'bg-blue-600' },
-  { id: 'available', label: 'Available Doors', dotColor: 'bg-emerald-600' },
+  { id: 'available', label: 'Available Households', dotColor: 'bg-emerald-600' },
   { id: 'not_home', label: 'Not Home', dotColor: 'bg-amber-600' },
   { id: 'busy', label: 'Busy / Call Back', dotColor: 'bg-orange-500' },
   { id: 'foreign_language', label: 'Foreign Language', dotColor: 'bg-cyan-500' },

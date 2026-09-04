@@ -168,7 +168,7 @@ export function ActiveTerritoryCard({
               <span className="text-muted-foreground font-medium">
                 <span className="font-bold text-foreground">{primaryCoverage.workedDoors}</span> of{' '}
                 <span className="font-bold text-foreground">{primaryCoverage.totalDoors}</span>{' '}
-                doors visited
+                households visited
               </span>
               <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
                 {primaryCoverage.coveragePercent}%

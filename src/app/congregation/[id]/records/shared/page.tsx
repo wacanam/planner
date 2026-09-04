@@ -148,7 +148,7 @@ export default function SharedRecordsPage() {
             <Share2 size={36} className="text-muted-foreground/30 mx-auto mb-2" />
             <p className="text-sm font-semibold text-foreground">No incoming shared records</p>
             <p className="text-xs text-muted-foreground mt-1">
-              When a publisher shares a door record with you, it will appear here.
+              When a publisher shares a household record with you, it will appear here.
             </p>
           </div>
         ) : (

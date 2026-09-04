@@ -42,6 +42,7 @@ import {
   useMyAssignments,
   useReturnAssignment,
 } from '@/hooks';
+import { formatAssignmentDuration, formatDate, getDueStatus } from '@/lib/date-utils';
 import {
   canAdjustAssignmentDates,
   canReturnAssignment,
@@ -50,7 +51,6 @@ import {
   isUserInGroup,
   resolveUserAssignments,
 } from '@/lib/permissions';
-import { formatAssignmentDuration, formatDate, getDueStatus } from '@/lib/date-utils';
 import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import type { Assignment, Household } from '@/types/api';
 
@@ -387,7 +387,7 @@ export default function MyAssignmentsClient() {
                             <span className="text-muted-foreground font-medium flex items-center gap-1.5 whitespace-nowrap">
                               <Home size={13} className="text-muted-foreground/70" />
                               <span>
-                                {workedDoors} of {totalDoors} doors worked
+                                {workedDoors} of {totalDoors} households worked
                               </span>
                             </span>
                             <span className="font-bold text-foreground shrink-0">{coverage}%</span>

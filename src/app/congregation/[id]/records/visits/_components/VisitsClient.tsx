@@ -405,7 +405,7 @@ export default function VisitsClient() {
             ? 'Your personal conversation logs and field ministry visits'
             : recordScope === 'group'
               ? 'Visits logged across your service group'
-              : 'Chronological door-to-door conversation logs and returns'}
+              : 'Chronological household visit logs and territory activity'}
         </p>
       </div>
 

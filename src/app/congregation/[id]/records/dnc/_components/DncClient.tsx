@@ -84,7 +84,7 @@ export default function DncClient() {
     }
     if (
       !confirm(
-        `Are you sure you want to remove the Do Not Call status for "${household.address}"? This door will return to regular field service.`
+        `Are you sure you want to remove the Do Not Call status for "${household.address}"? This household will return to regular field service.`
       )
     ) {
       return;
@@ -140,7 +140,7 @@ export default function DncClient() {
               variant="outline"
               className="text-[11px] gap-1 border-destructive/40 text-destructive bg-destructive/10 font-medium"
             >
-              {dncHouseholds.length} Registered Door{dncHouseholds.length === 1 ? '' : 's'}
+              {dncHouseholds.length} Registered Household{dncHouseholds.length === 1 ? '' : 's'}
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -280,7 +280,7 @@ export default function DncClient() {
                   <span>
                     Last verified: {new Date(h.updatedAt || h.createdAt).toLocaleDateString()}
                   </span>
-                  <span className="text-destructive font-medium">Skip this door</span>
+                  <span className="text-destructive font-medium">Skip this household</span>
                 </div>
               </CardContent>
             </Card>
@@ -298,13 +298,13 @@ export default function DncClient() {
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               Select an address from the congregation directory to mark as Do Not Call. Field
-              service groups will be instructed to skip this door.
+              service groups will be instructed to skip this household.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-xs">
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Select Door / Address *</Label>
+              <Label className="text-xs font-semibold">Select Household / Address *</Label>
               <Select value={selectedHouseholdId} onValueChange={setSelectedHouseholdId}>
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Choose an address..." />

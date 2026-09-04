@@ -1246,7 +1246,7 @@ export function StudioLayout({
           if (!op) setTempPinCoordinates(null);
         }}
         title="Add Household to Territory"
-        description="Record door details, structure, and initial status"
+        description="Record household details, structure, and initial status"
       >
         <HouseholdForm
           initialValues={{
@@ -1267,7 +1267,7 @@ export function StudioLayout({
         open={!!editingHousehold}
         onOpenChange={(op) => !op && setEditingHousehold(null)}
         title="Edit Household Details"
-        description="Update door number, address, status, or notes"
+        description="Update household number, address, status, or notes"
       >
         {editingHousehold && (
           <HouseholdForm
@@ -1402,7 +1402,7 @@ export function StudioLayout({
                       size="sm"
                       variant="ghost"
                       className="h-8 w-8 p-0 rounded-xl text-destructive hover:bg-destructive/10 shrink-0"
-                      title="Delete Household door"
+                      title="Delete Household"
                       onClick={() => {
                         if (window.confirm(`Delete ${selectedHousehold.address} from territory?`)) {
                           void handleDeleteHousehold(selectedHousehold.id);

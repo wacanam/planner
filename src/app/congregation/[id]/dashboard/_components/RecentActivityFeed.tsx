@@ -280,7 +280,7 @@ export function RecentActivityFeed({
                     variant="outline"
                     onClick={() => onLogVisit(act.household!)}
                     className="rounded-xl text-xs gap-1 h-8 px-2.5 shrink-0 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40"
-                    title="Log visit on this door"
+                    title="Log visit on this household"
                   >
                     <Plus size={12} />
                     <span>Log</span>

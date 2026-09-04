@@ -83,7 +83,7 @@ export function DashboardHeader() {
         { href: `/congregation/${id}/territories`, label: 'Territories', icon: MapPin },
         {
           href: `/congregation/${id}/records/households`,
-          label: 'Doors',
+          label: 'Households',
           icon: FileText,
           badgeCount: pendingSharesCount,
         },

@@ -25,7 +25,7 @@ export interface PersonalCallRecord {
   phoneNumber?: string | null;
   email?: string | null;
   language?: string | null;
-  status: 'return_visit' | 'bible_study' | 'interested' | 'inactive';
+  status: 'note' | 'initial_contact' | 'return_visit' | 'bible_study' | 'interested' | 'inactive';
   notes?: string | null;
   scripturesDiscussed?: string | null;
   literaturePlaced?: string | null;
@@ -72,7 +72,8 @@ export function openPersonalCallsDb(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('Failed to open Personal Calls IndexedDB'));
+    request.onerror = () =>
+      reject(request.error || new Error('Failed to open Personal Calls IndexedDB'));
   });
 }
 
@@ -244,20 +245,11 @@ export async function importPersonalCallsFromCloud(
         associatedContact?.householdAddress ||
         'Address not listed';
 
-      const resolvedStreetName =
-        associatedHousehold?.streetName ||
-        latest.streetName ||
-        null;
+      const resolvedStreetName = associatedHousehold?.streetName || latest.streetName || null;
 
-      const resolvedHouseNumber =
-        associatedHousehold?.houseNumber ||
-        latest.houseNumber ||
-        null;
+      const resolvedHouseNumber = associatedHousehold?.houseNumber || latest.houseNumber || null;
 
-      const resolvedUnitNumber =
-        associatedHousehold?.unitNumber ||
-        latest.unitNumber ||
-        null;
+      const resolvedUnitNumber = associatedHousehold?.unitNumber || latest.unitNumber || null;
 
       const record: PersonalCallRecord = {
         id: `personal-${hhId}`,
@@ -299,7 +291,9 @@ export async function importPersonalCallsFromCloud(
 /**
  * Hydrates any call that has a householdId but missing territoryId or address details
  */
-async function hydrateCallsWithTerritory(calls: PersonalCallRecord[]): Promise<PersonalCallRecord[]> {
+async function hydrateCallsWithTerritory(
+  calls: PersonalCallRecord[]
+): Promise<PersonalCallRecord[]> {
   for (const call of calls) {
     if (call.householdId && !call.territoryId) {
       try {

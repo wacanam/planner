@@ -157,7 +157,9 @@ export function StudioSidebar({
             {/* Quick Metrics */}
             <div className="grid grid-cols-2 gap-2 shrink-0">
               <div className="p-3 rounded-xl border border-border bg-background">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Doors</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">
+                  Total Households
+                </p>
                 <p className="text-xl font-bold text-foreground mt-0.5">
                   {coverageStats.totalDoors}
                 </p>

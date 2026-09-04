@@ -469,7 +469,7 @@ export default function HouseholdDetailPage() {
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
                 <Clock size={16} className="text-primary" />
-                <span>Door Visit History ({visitsView.length})</span>
+                <span>Visit History ({visitsView.length})</span>
               </h2>
               {canLog && (
                 <Button

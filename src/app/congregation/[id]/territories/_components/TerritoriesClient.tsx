@@ -71,6 +71,7 @@ import {
   useUpdateCongregation,
   useUpdateTerritory,
 } from '@/hooks';
+import { formatDate, formatDaysAgo } from '@/lib/date-utils';
 import {
   canAdjustAssignmentDates,
   canApproveAssignments,
@@ -79,9 +80,8 @@ import {
   canDeleteTerritory,
   canEditTerritory,
 } from '@/lib/permissions';
-import { formatDate, formatDaysAgo } from '@/lib/date-utils';
-import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import { findDuplicateTerritory, getNextCongregationTerritoryNumber } from '@/lib/territories';
+import { calculateTerritoryCoverage } from '@/lib/territory-coverage';
 import {
   type CreateTerritoryFormData,
   createTerritorySchema,
@@ -572,7 +572,7 @@ export default function TerritoriesClient() {
                 {stats.total}
               </p>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
-                {stats.totalDoors} doors
+                {stats.totalDoors} households
               </p>
             </button>
 
@@ -636,7 +636,7 @@ export default function TerritoriesClient() {
           <div className="space-y-1 pt-1 border-t border-border/50">
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-muted-foreground font-medium flex items-center gap-1">
-                <span>Congregation Door Coverage:</span>
+                <span>Congregation Household Coverage:</span>
                 <strong className="text-foreground font-semibold">
                   {stats.workedDoors}/{stats.totalDoors} worked
                 </strong>
@@ -883,7 +883,7 @@ export default function TerritoriesClient() {
                       <div className="pt-2 border-t border-border/60 space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground text-[11px] font-medium">
-                            Doors:{' '}
+                            Households:{' '}
                             <strong className="text-foreground font-semibold">
                               {workedDoors}/{totalDoors} worked
                             </strong>
@@ -961,7 +961,7 @@ export default function TerritoriesClient() {
                             title={
                               lastActivityDate
                                 ? `Last Activity: ${formatDate(lastActivityDate)} (${formatDaysAgo(lastActivityDate)})`
-                                : 'No door activity recorded yet'
+                                : 'No household activity recorded yet'
                             }
                           >
                             {lastActivityDate ? (
