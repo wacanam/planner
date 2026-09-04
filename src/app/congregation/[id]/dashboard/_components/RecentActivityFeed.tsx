@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CheckCircle2, Clock, MapPin, Plus, Share2, User } from 'lucide-react';
+import { Activity, Clock, MapPin, Plus, Share2, User } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -33,22 +33,9 @@ export function RecentActivityFeed({
   onLogVisit,
   households,
   territoryMap,
-  members = [],
 }: DashboardContextProps) {
   const { visits = [], isLoading: visitsLoading } = useVisitRecords({ congregationId });
   const { incomingShares = [], outgoingShares = [], loading: sharesLoading } = useShares();
-
-  const memberMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const m of members) {
-      const name = m.user?.name || (m as any).name;
-      if (name) {
-        if (m.userId) map.set(m.userId, name);
-        if (m.id) map.set(m.id, name);
-      }
-    }
-    return map;
-  }, [members]);
 
   // Combine and sort all activity types chronologically
   const fusedActivities = useMemo(() => {
@@ -64,9 +51,7 @@ export function RecentActivityFeed({
       const { title, subtitle } = formatHouseholdDisplay(h, territoryName, v.householdAddress);
       const outcomeName = v.outcome?.replace(/_/g, ' ') || 'Visited';
 
-      const contributorName = isMine
-        ? 'You'
-        : v.publisherName || (v.userId ? memberMap.get(v.userId) : null) || 'Publisher';
+      const contributorName = isMine ? 'You' : 'Publisher';
 
       items.push({
         id: `visit-${v.id}`,
@@ -93,9 +78,7 @@ export function RecentActivityFeed({
       const territoryName = h.territoryId ? territoryMap.get(h.territoryId)?.name : undefined;
       const { title, subtitle } = formatHouseholdDisplay(h, territoryName);
 
-      const contributorName = isMine
-        ? 'You'
-        : h.creatorName || (h.createdById ? memberMap.get(h.createdById) : null) || 'Publisher';
+      const contributorName = isMine ? 'You' : 'Publisher';
 
       items.push({
         id: `house-${h.id}`,
@@ -125,14 +108,10 @@ export function RecentActivityFeed({
         territoryName,
         s.householdAddress
       );
-      const shareDirection = isMine
-        ? `Shared with ${s.toUserName}`
-        : `Received from ${s.fromUserName}`;
+      const shareDirection = isMine ? 'Shared record' : 'Received share';
       const subtitle = householdSub ? `${householdSub} • ${shareDirection}` : shareDirection;
 
-      const contributorName = isMine
-        ? 'You'
-        : s.fromUserName || (s.fromUserId ? memberMap.get(s.fromUserId) : null) || 'Publisher';
+      const contributorName = isMine ? 'You' : 'Publisher';
 
       items.push({
         id: `share-${s.id}`,
@@ -151,16 +130,7 @@ export function RecentActivityFeed({
 
     // Sort by newest date first and take top 6
     return items.sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 6);
-  }, [
-    visits,
-    households,
-    incomingShares,
-    outgoingShares,
-    user.id,
-    user.name,
-    territoryMap,
-    memberMap,
-  ]);
+  }, [visits, households, incomingShares, outgoingShares, user.id, user.name, territoryMap]);
 
   const isLoading = visitsLoading && sharesLoading;
 
@@ -258,9 +228,9 @@ export function RecentActivityFeed({
                         <span>You</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 font-medium text-foreground bg-muted/70 px-1.5 py-0.5 rounded-md text-[10px] truncate max-w-[140px]">
+                      <span className="inline-flex items-center gap-1 font-medium text-muted-foreground bg-muted/70 px-1.5 py-0.5 rounded-md text-[10px]">
                         <User size={10} className="text-muted-foreground shrink-0" />
-                        <span className="truncate">{act.contributorName}</span>
+                        <span>Publisher</span>
                       </span>
                     )}
 
