@@ -12,13 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
 import { formatDateTime } from '@/lib/date-utils';
-import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
-  getContactsByHousehold,
-  getEncountersByHousehold,
   getHouseholdById,
   getVisitsByHousehold,
-  toEncounterView,
   toHouseholdView,
   toVisitView,
 } from '@/lib/local-first';
@@ -26,27 +22,10 @@ import {
   getPersonalCallByHousehold,
   type PersonalCallRecord,
 } from '@/lib/local-first/personal-calls';
-import type {
-  LocalContact,
-  LocalEncounter,
-  LocalHousehold,
-  LocalVisit,
-} from '@/lib/local-first/types';
+import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
 import { timeAgo } from '@/lib/time-ago';
-import type { Encounter, Household, Visit } from '@/types/api';
-
-const responseBadgeColors: Record<string, string> = {
-  receptive: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-  study_accepted: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
-  neutral: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-  busy: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
-  foreign_language: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20',
-  not_interested: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  hostile: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
-  do_not_visit: 'bg-destructive/10 text-destructive border-destructive/20',
-  moved: 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20',
-};
+import type { Household, Visit } from '@/types/api';
 
 const outcomeBadgeColors: Record<string, string> = {
   answered: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
@@ -72,8 +51,6 @@ export default function HouseholdDetailPage() {
 
   const [rawHousehold, setRawHousehold] = useState<LocalHousehold | null>(null);
   const [rawVisits, setRawVisits] = useState<LocalVisit[]>([]);
-  const [rawEncounters, setRawEncounters] = useState<LocalEncounter[]>([]);
-  const [rawContacts, setRawContacts] = useState<LocalContact[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Dialog states
@@ -87,16 +64,12 @@ export default function HouseholdDetailPage() {
     if (!householdId) return;
     setLoading(true);
     try {
-      const [hResult, vResult, eResult, cResult] = await Promise.all([
+      const [hResult, vResult] = await Promise.all([
         getHouseholdById(householdId),
         getVisitsByHousehold(householdId),
-        getEncountersByHousehold(householdId),
-        getContactsByHousehold(householdId),
       ]);
       setRawHousehold(hResult ?? null);
       setRawVisits(vResult);
-      setRawEncounters(eResult);
-      setRawContacts(cResult);
 
       if (user?.id) {
         try {
@@ -123,45 +96,6 @@ export default function HouseholdDetailPage() {
   const visitsView: Visit[] = useMemo(() => {
     return rawVisits.map((v) => toVisitView(v, rawHousehold));
   }, [rawVisits, rawHousehold]);
-
-  const encountersView: Encounter[] = useMemo(() => {
-    return rawEncounters.map((e) => toEncounterView(e, rawHousehold, null));
-  }, [rawEncounters, rawHousehold]);
-
-  // Group encounters by person, merged with Firestore contacts
-  const contacts: HouseholdContactSummary[] = useMemo(() => {
-    const fromEncounters = extractHouseholdContacts(encountersView);
-    const namesSet = new Set(fromEncounters.map((c) => c.normalizedName));
-
-    const combined: HouseholdContactSummary[] = [...fromEncounters];
-    for (const fc of rawContacts) {
-      const normalized = fc.name.trim().toLowerCase();
-      if (!namesSet.has(normalized)) {
-        combined.push({
-          id: fc.id,
-          name: fc.name,
-          normalizedName: normalized,
-          encountersCount: 0,
-          gender: (fc.gender as any) || 'unknown',
-          ageGroup: (fc.ageGroup as any) || 'adult',
-          role: fc.role || undefined,
-          language: fc.language || undefined,
-          phoneNumber: fc.phoneNumber || undefined,
-          email: fc.email || undefined,
-          bestTimeToCall: fc.bestTimeToCall || undefined,
-          bibleStudyPublication: fc.bibleStudyPublication || undefined,
-          bibleStudyLesson: fc.bibleStudyLesson || undefined,
-          lastVisitDate: '',
-          lastResponse: 'receptive',
-          bibleStudyInterest: Boolean(fc.bibleStudyInterest),
-          latestEncounter: {} as any,
-          allEncounters: [],
-        });
-        namesSet.add(normalized);
-      }
-    }
-    return combined;
-  }, [encountersView, rawContacts]);
 
   const canLog = canLogVisitOrEncounter(user, householdView);
   const canShare = canShareHousehold(user, householdView);

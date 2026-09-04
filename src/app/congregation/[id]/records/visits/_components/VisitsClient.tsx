@@ -1,16 +1,6 @@
 'use client';
 
-import {
-  Bookmark,
-  BookOpen,
-  Calendar,
-  Clock,
-  Home,
-  Pencil,
-  Search,
-  Trash2,
-  Users,
-} from 'lucide-react';
+import { Bookmark, BookOpen, Calendar, Clock, Home, Pencil, Search, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
@@ -29,7 +19,6 @@ import {
   useCurrentUser,
   useGroupMateUserIds,
   useKeyboardShortcuts,
-  useMyEncounters,
   useMyVisits,
 } from '@/hooks';
 import { formatDate, formatDateTime } from '@/lib/date-utils';
@@ -37,7 +26,7 @@ import { canDeleteVisit, canEditVisit, canViewAllCongregationRecords } from '@/l
 import { deleteVisitRecord, updateVisitRecord } from '@/lib/record-writes';
 import { normalizeVisitOutcome } from '@/lib/status-rules';
 import { timeAgo } from '@/lib/time-ago';
-import type { Encounter, Visit } from '@/types/api';
+import type { Visit } from '@/types/api';
 
 const outcomeColors: Record<string, string> = {
   answered: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
@@ -65,21 +54,6 @@ const outcomeColors: Record<string, string> = {
   do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
   moved: 'text-muted-foreground border-border bg-muted/30',
   other: 'text-muted-foreground border-border bg-muted/30',
-};
-
-const responseColors: Record<string, string> = {
-  receptive: 'text-green-700 border-green-200 bg-green-50 dark:bg-green-950/40 dark:text-green-400',
-  study_accepted:
-    'text-violet-700 border-violet-200 bg-violet-50 dark:bg-violet-950/40 dark:text-violet-400',
-  neutral: 'text-blue-700 border-blue-200 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-400',
-  busy: 'text-orange-700 border-orange-200 bg-orange-50 dark:bg-orange-950/40 dark:text-orange-400',
-  foreign_language:
-    'text-cyan-700 border-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 dark:text-cyan-400',
-  not_interested:
-    'text-amber-700 border-amber-200 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400',
-  hostile: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
-  do_not_visit: 'text-red-700 border-red-200 bg-red-50 dark:bg-red-950/40 dark:text-red-400',
-  moved: 'text-muted-foreground border-border bg-muted/30',
 };
 
 export default function VisitsClient() {
@@ -192,29 +166,6 @@ export default function VisitsClient() {
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [members, groups, recordScope, groupMateUserIds, user]);
-
-  const { encounters = [] } = useMyEncounters({
-    congregationId,
-    userId: user?.id,
-    userRole: user?.role,
-    congregationRole: user?.congregationRole,
-    scope: recordScope,
-    publisherId: publisherFilter !== 'all' ? publisherFilter : null,
-    groupMateUserIds,
-  });
-
-  // Group encounters by visitId
-  const encountersByVisit = useMemo(() => {
-    const map = new Map<string, Encounter[]>();
-    for (const enc of encounters) {
-      if (enc.visitId) {
-        const list = map.get(enc.visitId) ?? [];
-        list.push(enc);
-        map.set(enc.visitId, list);
-      }
-    }
-    return map;
-  }, [encounters]);
 
   const filtered = useMemo(() => {
     let list = visits;
@@ -485,7 +436,6 @@ export default function VisitsClient() {
       ) : (
         <div className="space-y-3">
           {filtered.map((v, idx) => {
-            const linkedEncounters = encountersByVisit.get(v.id) ?? [];
             const household = households.find((h) => h.id === v.householdId);
             const isFocused = selectedIndex === idx;
 
@@ -632,30 +582,6 @@ export default function VisitsClient() {
                   {v.notes && (
                     <div className="p-2.5 rounded-xl bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
                       <p className="italic line-clamp-3">&ldquo;{v.notes}&rdquo;</p>
-                    </div>
-                  )}
-
-                  {/* Linked Encounters / People Met (Clean, compact, non-redundant) */}
-                  {linkedEncounters.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 shrink-0">
-                        <Users size={12} className="text-primary" />
-                        <span>Contact met:</span>
-                      </span>
-                      {linkedEncounters.map((enc) => (
-                        <div
-                          key={enc.id}
-                          className="inline-flex items-center gap-1.5 bg-muted/50 border border-border px-2 py-0.5 rounded-lg text-xs"
-                        >
-                          <span className="font-semibold text-foreground">{enc.name}</span>
-                          <Badge
-                            variant="outline"
-                            className={`text-[9px] capitalize py-0 px-1 ${responseColors[enc.response] ?? ''}`}
-                          >
-                            {enc.response.replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                      ))}
                     </div>
                   )}
 
