@@ -95,6 +95,7 @@ html {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--muted);
@@ -111,7 +112,9 @@ html {
 }
 .scrollbar-none::-webkit-scrollbar,
 .no-scrollbar::-webkit-scrollbar {
-  display: none;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Bottom sheet slide-up animation */

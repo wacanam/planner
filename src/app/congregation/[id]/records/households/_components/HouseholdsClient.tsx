@@ -499,16 +499,16 @@ export default function HouseholdsClient() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="space-y-0.5 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-foreground">
             {recordScope === 'mine'
               ? 'My Household Directory'
               : recordScope === 'group'
                 ? 'Group Household Directory'
                 : 'Congregation Household Directory'}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             {recordScope === 'mine'
               ? 'Physical household addresses, access notes, and coverage status'
               : recordScope === 'group'
@@ -519,9 +519,9 @@ export default function HouseholdsClient() {
         <Button
           size="sm"
           onClick={() => setAddHouseholdOpen(true)}
-          className="rounded-2xl text-xs font-semibold gap-1.5 h-9"
+          className="rounded-2xl text-xs font-semibold gap-1.5 h-9 w-full sm:w-auto justify-center shrink-0 whitespace-nowrap"
         >
-          <Plus size={14} />
+          <Plus size={14} className="shrink-0" />
           <span>Add Household</span>
         </Button>
       </div>

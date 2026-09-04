@@ -87,7 +87,10 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
       <div className="border-b border-border bg-background sticky top-16 z-30 shadow-2xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
-            <nav className="flex space-x-2 py-2 overflow-x-auto" aria-label="Records navigation">
+            <nav
+              className="flex space-x-2 py-2 overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Records navigation"
+            >
               {tabs.map(({ href, label, icon: Icon, badgeCount, shortcut, isPrivate }) => {
                 const isActive =
                   pathname === href ||
@@ -99,16 +102,16 @@ export default function RecordsLayout({ children }: { children: React.ReactNode 
                     key={href}
                     href={href}
                     title={`${label} (Press ${shortcut})`}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                       isActive
                         ? 'bg-primary/15 text-primary font-bold'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    <Icon size={14} />
+                    <Icon size={14} className="shrink-0" />
                     <span>{label}</span>
                     {isPrivate && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium shrink-0 whitespace-nowrap">
                         Device Only
                       </span>
                     )}

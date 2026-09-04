@@ -129,21 +129,21 @@ export default function DncClient() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <ShieldAlert className="h-6 w-6 text-destructive" />
-              Do Not Call (DNC) Registry
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 sm:h-6 sm:w-6 text-destructive shrink-0" />
+              <span className="whitespace-nowrap">Do Not Call (DNC) Registry</span>
             </h1>
             <Badge
               variant="outline"
-              className="text-[11px] gap-1 border-destructive/40 text-destructive bg-destructive/10 font-medium"
+              className="text-[10px] sm:text-[11px] gap-1 border-destructive/40 text-destructive bg-destructive/10 font-medium shrink-0 whitespace-nowrap"
             >
               {dncHouseholds.length} Registered Household{dncHouseholds.length === 1 ? '' : 's'}
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Mandatory skip list. Field service groups must never knock on or contact these
             addresses.
           </p>
@@ -154,10 +154,10 @@ export default function DncClient() {
             onClick={() => setDialogOpen(true)}
             size="sm"
             variant="destructive"
-            className="h-9 gap-1.5 text-xs shadow-xs"
+            className="h-9 gap-1.5 text-xs shadow-xs w-full sm:w-auto justify-center shrink-0"
           >
-            <Plus className="h-4 w-4" />
-            <span>Register DNC Address</span>
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">Register DNC Address</span>
           </Button>
         )}
       </div>

@@ -191,33 +191,37 @@ export default function PersonalNotebookClient() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0 w-full">
       {/* Header & Privacy Notice */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-primary" />
-              My Personal Notebook
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
+              <span className="whitespace-nowrap">My Personal Notebook</span>
             </h1>
             <Badge
               variant="outline"
-              className="text-[11px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 font-medium"
+              className="text-[10px] sm:text-[11px] gap-1 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 font-medium shrink-0 whitespace-nowrap"
             >
-              <Lock className="h-3 w-3" />
-              On-Device Only
+              <Lock className="h-3 w-3 shrink-0" />
+              <span>On-Device Only</span>
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Your private ministry notes, initial contacts, return visits, and Bible studies stored
             strictly in this browser.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs">
-                <Download className="h-3.5 w-3.5" />
-                <span>Export Backup</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 text-xs w-full sm:w-auto justify-center"
+              >
+                <Download className="h-3.5 w-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Export Backup</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -232,9 +236,13 @@ export default function PersonalNotebookClient() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button onClick={handleOpenNew} size="sm" className="h-9 gap-1.5 text-xs shadow-xs">
-            <Plus className="h-4 w-4" />
-            <span>Add Note</span>
+          <Button
+            onClick={handleOpenNew}
+            size="sm"
+            className="h-9 gap-1.5 text-xs shadow-xs w-full sm:w-auto justify-center"
+          >
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap">Add Note</span>
           </Button>
         </div>
       </div>
@@ -304,7 +312,7 @@ export default function PersonalNotebookClient() {
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {(
               [
                 { id: 'all', label: 'All' },
@@ -320,7 +328,7 @@ export default function PersonalNotebookClient() {
                 type="button"
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                   statusFilter === tab.id
                     ? 'bg-primary text-primary-foreground shadow-2xs'
                     : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'
