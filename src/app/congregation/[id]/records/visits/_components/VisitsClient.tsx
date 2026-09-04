@@ -1,6 +1,16 @@
 'use client';
 
-import { BookOpen, Calendar, Clock, Home, Pencil, Search, Trash2, Users } from 'lucide-react';
+import {
+  Bookmark,
+  BookOpen,
+  Calendar,
+  Clock,
+  Home,
+  Pencil,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
@@ -22,7 +32,7 @@ import {
   useMyEncounters,
   useMyVisits,
 } from '@/hooks';
-import { formatDate } from '@/lib/date-utils';
+import { formatDate, formatDateTime } from '@/lib/date-utils';
 import { canDeleteVisit, canEditVisit, canViewAllCongregationRecords } from '@/lib/permissions';
 import { deleteVisitRecord, updateVisitRecord } from '@/lib/record-writes';
 import { normalizeVisitOutcome } from '@/lib/status-rules';
@@ -398,8 +408,8 @@ export default function VisitsClient() {
       )}
 
       {/* Search & Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
+      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+        <div className="relative flex-1">
           <Search
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -409,48 +419,52 @@ export default function VisitsClient() {
             placeholder="Search by address, street, city, notes, topic, publisher… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 rounded-xl text-xs bg-card"
+            className="pl-8 h-9 rounded-xl text-xs bg-card w-full"
           />
         </div>
 
-        {recordScope !== 'mine' && (
-          <select
-            value={publisherFilter}
-            onChange={(e) => setPublisherFilter(e.target.value)}
-            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
-          >
-            <option value="all">All Publishers</option>
-            {availablePublishers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <select
-          value={outcomeFilter}
-          onChange={(e) => setOutcomeFilter(e.target.value)}
-          className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium"
+        <div
+          className={`grid ${recordScope !== 'mine' ? 'grid-cols-2' : 'grid-cols-1'} sm:flex gap-2`}
         >
-          <option value="all">All Outcomes</option>
-          <option value="answered">Answered / Conversation</option>
-          <option value="return_visit_completed">Return Visit (Visited / Completed)</option>
-          <option value="return_visit_missed">Return Visit Missed</option>
-          <option value="study_conducted">Bible Study Conducted</option>
-          <option value="study_offered">Bible Study Offered</option>
-          <option value="study_missed">Bible Study Missed</option>
-          <option value="literature_placed">Literature Placed</option>
-          <option value="not_home">Not Home</option>
-          <option value="busy">Busy / Call Back</option>
-          <option value="minor_only">Minor / Youth Only</option>
-          <option value="foreign_language">Foreign Language</option>
-          <option value="inaccessible">Inaccessible / Gated</option>
-          <option value="vacant">Vacant / Unoccupied</option>
-          <option value="do_not_visit">Do Not Visit</option>
-          <option value="moved">Moved Away</option>
-          <option value="other">Other Outcome</option>
-        </select>
+          {recordScope !== 'mine' && (
+            <select
+              value={publisherFilter}
+              onChange={(e) => setPublisherFilter(e.target.value)}
+              className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium w-full sm:w-auto"
+            >
+              <option value="all">All Publishers</option>
+              {availablePublishers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <select
+            value={outcomeFilter}
+            onChange={(e) => setOutcomeFilter(e.target.value)}
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground h-9 font-medium w-full sm:w-auto"
+          >
+            <option value="all">All Outcomes</option>
+            <option value="answered">Answered / Conversation</option>
+            <option value="return_visit_completed">Return Visit (Visited / Completed)</option>
+            <option value="return_visit_missed">Return Visit Missed</option>
+            <option value="study_conducted">Bible Study Conducted</option>
+            <option value="study_offered">Bible Study Offered</option>
+            <option value="study_missed">Bible Study Missed</option>
+            <option value="literature_placed">Literature Placed</option>
+            <option value="not_home">Not Home</option>
+            <option value="busy">Busy / Call Back</option>
+            <option value="minor_only">Minor / Youth Only</option>
+            <option value="foreign_language">Foreign Language</option>
+            <option value="inaccessible">Inaccessible / Gated</option>
+            <option value="vacant">Vacant / Unoccupied</option>
+            <option value="do_not_visit">Do Not Visit</option>
+            <option value="moved">Moved Away</option>
+            <option value="other">Other Outcome</option>
+          </select>
+        </div>
       </div>
 
       {/* Visits List */}
@@ -475,163 +489,178 @@ export default function VisitsClient() {
             const household = households.find((h) => h.id === v.householdId);
             const isFocused = selectedIndex === idx;
 
+            const houseNumberDisplay = v.houseNumber
+              ? v.houseNumber.startsWith('#')
+                ? v.houseNumber
+                : `#${v.houseNumber}`
+              : '';
+
+            const streetOrAddress =
+              v.streetName || household?.streetName || v.householdAddress || 'Household Record';
+
             return (
               <Card
                 key={v.id}
                 onClick={() => setSelectedIndex(idx)}
-                className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all ${
+                className={`bg-card border-border shadow-xs hover:border-primary/40 transition-all rounded-2xl overflow-hidden ${
                   isFocused
                     ? 'ring-2 ring-primary border-primary bg-primary/5 dark:bg-primary/10'
                     : ''
                 }`}
               >
-                <CardContent className="p-4 sm:p-5 flex flex-col justify-between gap-3.5">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    {/* Household Details */}
-                    <div className="flex items-center gap-2 flex-wrap">
+                <CardContent className="p-4 sm:p-5 space-y-3">
+                  {/* Header: Household Title on Left, Badges on Right */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <Link
                         href={
                           v.householdId
                             ? `/congregation/${congregationId}/records/households/${v.householdId}`
-                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(v.streetName || household?.streetName || v.householdAddress || '')}`
+                            : `/congregation/${congregationId}/records/households?search=${encodeURIComponent(
+                                v.streetName || household?.streetName || v.householdAddress || ''
+                              )}`
                         }
-                        className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                        className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center gap-1.5 min-w-0 group"
                       >
-                        <Home size={14} className="text-primary shrink-0" />
-                        <span>
-                          {v.houseNumber ? `#${v.houseNumber} ` : ''}
-                          {v.streetName ||
-                            household?.streetName ||
-                            v.householdAddress ||
-                            'Household Record'}
+                        <Home
+                          size={15}
+                          className="text-primary shrink-0 group-hover:scale-105 transition-transform"
+                        />
+                        <span className="truncate">
+                          {houseNumberDisplay ? `${houseNumberDisplay} ` : ''}
+                          {streetOrAddress}
                           {v.unitNumber ? ` (Unit ${v.unitNumber})` : ''}
                         </span>
                       </Link>
-                      {v.householdCity && (
-                        <span className="text-xs text-muted-foreground">· {v.householdCity}</span>
-                      )}
+
+                      {/* Location & Clean Formatted Date & Relative Time */}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                        {v.householdCity && (
+                          <>
+                            <span className="font-medium text-foreground/75">
+                              {v.householdCity}
+                            </span>
+                            <span className="text-muted-foreground/40">•</span>
+                          </>
+                        )}
+                        <Calendar size={12} className="shrink-0 text-muted-foreground/70" />
+                        <span>{formatDateTime(v.visitDate)}</span>
+                        <span className="text-muted-foreground/60">({timeAgo(v.visitDate)})</span>
+                      </div>
+                    </div>
+
+                    {/* Badges on Right: Outcome + Publisher */}
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] font-bold capitalize py-0 ${outcomeColors[v.outcome] ?? ''}`}
+                        className={`text-[10px] font-bold capitalize py-0.5 px-2 rounded-lg ${
+                          outcomeColors[v.outcome] ?? ''
+                        }`}
                       >
                         {v.outcome.replace(/_/g, ' ')}
                       </Badge>
 
-                      {/* Ownership Badge */}
+                      {/* Ownership / Publisher Badge */}
                       {v.userId === user?.id ? (
                         <Badge
                           variant="outline"
-                          className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0 font-bold"
+                          className="border-primary/40 text-primary bg-primary/10 text-[10px] py-0.5 px-1.5 font-bold rounded-lg shrink-0"
                         >
                           👤 My Visit
                         </Badge>
                       ) : v.userId && groupMateUserIds.has(v.userId) ? (
                         <Badge
                           variant="outline"
-                          className="border-indigo-300 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-[10px] py-0 font-bold"
+                          className="border-indigo-300 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 text-[10px] py-0.5 px-1.5 font-bold rounded-lg shrink-0 max-w-[140px] truncate"
                         >
                           👥 {v.publisherName || 'Group'}
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
-                          className="border-slate-300 text-slate-700 bg-slate-50 dark:bg-slate-950/40 text-[10px] py-0 font-bold"
+                          className="border-slate-300 text-slate-700 bg-slate-50 dark:bg-slate-950/40 text-[10px] py-0.5 px-1.5 font-bold rounded-lg shrink-0 max-w-[140px] truncate"
                         >
                           🏛️ {v.publisherName || 'Congregation'}
                         </Badge>
                       )}
                     </div>
-
-                    {/* Visit Date & Relative time */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
-                      <Calendar size={12} className="shrink-0" />
-                      <span>
-                        {new Date(v.visitDate).toLocaleString()} · {timeAgo(v.visitDate)}
-                      </span>
-                      {v.userId !== user?.id && (household?.creatorName || v.publisherName) && (
-                        <span className="text-foreground/80 font-medium">
-                          · Logged by {v.publisherName || household?.creatorName}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Topic & Literature */}
-                    {(v.bibleTopicDiscussed || v.literaturePlaced || v.literatureLeft) && (
-                      <div className="flex items-center gap-3 flex-wrap text-xs text-foreground">
-                        {v.bibleTopicDiscussed && (
-                          <div className="flex items-center gap-1 font-medium text-foreground">
-                            <BookOpen size={12} className="text-primary shrink-0" />
-                            <span>Scripture/Topic: {v.bibleTopicDiscussed}</span>
-                          </div>
-                        )}
-                        {(v.literaturePlaced || v.literatureLeft) && (
-                          <span className="text-primary font-medium">
-                            Literature: {v.literaturePlaced || v.literatureLeft}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Return Visit Planned */}
-                    {v.returnVisitPlanned && v.nextVisitDate && (
-                      <p className="text-xs font-semibold text-purple-700 dark:text-purple-300">
-                        📅 Return Visit Scheduled: {formatDate(v.nextVisitDate)}
-                        {v.nextVisitTime ? ` at ${v.nextVisitTime}` : ''}
-                      </p>
-                    )}
-
-                    {/* Visit Notes */}
-                    {v.notes && (
-                      <p className="text-xs text-muted-foreground/90 italic line-clamp-2">
-                        &ldquo;{v.notes}&rdquo;
-                      </p>
-                    )}
-
-                    {/* Linked Encounters / People Met */}
-                    {linkedEncounters.length > 0 && (
-                      <div className="pt-2 border-t border-border/60 space-y-1.5">
-                        <p className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                          <Users size={11} className="text-primary" />
-                          <span>People Met during Visit ({linkedEncounters.length}):</span>
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {linkedEncounters.map((enc) => (
-                            <div
-                              key={enc.id}
-                              className="flex items-center gap-1.5 bg-muted/40 border border-border px-2 py-1 rounded-lg text-xs"
-                            >
-                              <span className="font-semibold text-foreground">{enc.name}</span>
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] capitalize py-0 ${responseColors[enc.response] ?? ''}`}
-                              >
-                                {enc.response.replace(/_/g, ' ')}
-                              </Badge>
-                              {enc.returnVisitRequested && (
-                                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                                  · 📅 Next Visit
-                                </span>
-                              )}
-                              {enc.bibleStudyInterest && (
-                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                                  · 📖 Study
-                                </span>
-                              )}
-                              {(enc.literatureAccepted || enc.literatureOffered) && (
-                                <span className="text-[10px] text-primary">
-                                  · {enc.literatureAccepted || enc.literatureOffered}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
+                  {/* Topic & Literature & Return Visit (Pills) */}
+                  {(v.bibleTopicDiscussed ||
+                    v.literaturePlaced ||
+                    v.literatureLeft ||
+                    (v.returnVisitPlanned && v.nextVisitDate)) && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+                      {v.bibleTopicDiscussed && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-primary/10 border border-primary/20 text-primary font-medium text-xs">
+                          <BookOpen size={12} className="shrink-0" />
+                          <span className="font-semibold">Topic:</span>
+                          <span className="truncate max-w-[200px]">{v.bibleTopicDiscussed}</span>
+                        </div>
+                      )}
+
+                      {(v.literaturePlaced || v.literatureLeft) && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-700 dark:text-teal-300 font-medium text-xs">
+                          <Bookmark
+                            size={12}
+                            className="shrink-0 text-teal-600 dark:text-teal-400"
+                          />
+                          <span className="font-semibold">Left:</span>
+                          <span className="truncate max-w-[220px]">
+                            {v.literaturePlaced || v.literatureLeft}
+                          </span>
+                        </div>
+                      )}
+
+                      {v.returnVisitPlanned && v.nextVisitDate && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold text-xs">
+                          <Calendar
+                            size={12}
+                            className="shrink-0 text-purple-600 dark:text-purple-400"
+                          />
+                          <span>
+                            Return Visit: {formatDate(v.nextVisitDate)}
+                            {v.nextVisitTime ? ` at ${v.nextVisitTime}` : ''}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Visit Notes */}
+                  {v.notes && (
+                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
+                      <p className="italic line-clamp-3">&ldquo;{v.notes}&rdquo;</p>
+                    </div>
+                  )}
+
+                  {/* Linked Encounters / People Met (Clean, compact, non-redundant) */}
+                  {linkedEncounters.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 shrink-0">
+                        <Users size={12} className="text-primary" />
+                        <span>Contact met:</span>
+                      </span>
+                      {linkedEncounters.map((enc) => (
+                        <div
+                          key={enc.id}
+                          className="inline-flex items-center gap-1.5 bg-muted/50 border border-border px-2 py-0.5 rounded-lg text-xs"
+                        >
+                          <span className="font-semibold text-foreground">{enc.name}</span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] capitalize py-0 px-1 ${responseColors[enc.response] ?? ''}`}
+                          >
+                            {enc.response.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Bottom Action Bar: Management icons on left, Primary actions on right */}
-                  <div className="pt-3 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap w-full">
-                    {/* Management / Record actions */}
+                  <div className="pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
                       {canEditVisit(user, v, household) && (
                         <Button

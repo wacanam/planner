@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
+import { formatDateTime } from '@/lib/date-utils';
 import { extractHouseholdContacts, type HouseholdContactSummary } from '@/lib/household-contacts';
 import {
   getContactsByHousehold,
@@ -32,6 +33,7 @@ import type {
   LocalVisit,
 } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
+import { timeAgo } from '@/lib/time-ago';
 import type { Encounter, Household, Visit } from '@/types/api';
 
 const responseBadgeColors: Record<string, string> = {
@@ -486,7 +488,7 @@ export default function HouseholdDetailPage() {
                         )}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        {new Date(visit.visitDate).toLocaleString()}
+                        {formatDateTime(visit.visitDate)} ({timeAgo(visit.visitDate)})
                       </p>
                     </div>
 
