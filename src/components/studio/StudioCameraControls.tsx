@@ -123,8 +123,8 @@ export function StudioCameraControls({
           }`}
           title={
             isTrackingLocation
-              ? 'Tracking current location & compass flashlight beam (Click to stop)'
-              : 'Show my location with compass flashlight beam'
+              ? 'Center on My Location (Click to turn off)'
+              : 'Show My Location (On-device only)'
           }
         >
           <Navigation

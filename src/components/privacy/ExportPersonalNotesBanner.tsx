@@ -216,8 +216,8 @@ export function ExportPersonalNotesBanner({ className }: ExportPersonalNotesBann
           <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
             In accordance with branch privacy guidelines, congregation territory records are
             transitioning to strict data minimization. Personal return visit notes and scriptures
-            will now be stored <strong>securely on your local device (IndexedDB)</strong> with zero
-            cloud sharing.
+            will now be stored <strong>securely on your local device only</strong> with zero cloud
+            sharing.
           </p>
           {transferredCount !== null && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 pt-0.5">
