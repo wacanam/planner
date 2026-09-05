@@ -660,14 +660,24 @@ export default function HouseholdDetailScreen() {
             />
 
             <Input
-              label="Notes (Optional)"
-              placeholder="e.g. Spanish speaking, best time Saturday morning"
+              label="Safety / Access Notes (Optional)"
+              placeholder="e.g. Beware of dog, locked gate, top buzzer (no resident names)"
               value={editNotes}
               onChangeText={setEditNotes}
               multiline
               numberOfLines={3}
               style={{ minHeight: 60 }}
             />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Physical access notes only. Do not record resident names, phone numbers, or personal info.
+            </Text>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md }}>
               <Button

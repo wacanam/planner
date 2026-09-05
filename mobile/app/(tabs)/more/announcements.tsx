@@ -233,18 +233,18 @@ export default function AnnouncementsScreen() {
         setFormScope('system');
         setFormCategory('feature_update');
         setFormPriority('normal');
-        setFormTitle('New App Features & Improvements Available');
+        setFormTitle('Territory Map Updates & Improvements Available');
         setFormContent(
-          'We have updated the Kanataran platform with new enhancements! Explore the latest tools including audio feedback, offline sync, map boundary annotations, and territory reporting.'
+          'Recent enhancements to territory map viewing, offline access, and coverage reporting are now available. Thank you for your warm cooperation!'
         );
         break;
       case 'maintenance':
         setFormScope('system');
         setFormCategory('maintenance');
         setFormPriority('important');
-        setFormTitle('Scheduled System Maintenance Notice');
+        setFormTitle('Scheduled Maintenance Notice');
         setFormContent(
-          'Please note that system maintenance is scheduled to optimize server performance and cloud backups. The app will remain available in offline mode during this window.'
+          'Please note that temporary scheduled maintenance is underway to ensure smooth map loading and reliable offline use. You may continue viewing your territory maps normally during this window.'
         );
         break;
       case 'bug_fix':

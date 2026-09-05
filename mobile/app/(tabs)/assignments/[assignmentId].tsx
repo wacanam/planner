@@ -714,11 +714,21 @@ export default function AssignmentDetailScreen() {
             />
 
             <Input
-              label="Notes"
-              placeholder="e.g. Red gate, dog on premises"
+              label="Safety / Access Notes (Optional)"
+              placeholder="e.g. Red gate, dog on premises (no resident names)"
               value={newDoorNotes}
               onChangeText={setNewDoorNotes}
             />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Physical access notes only. Do not record resident names or personal data.
+            </Text>
 
             <Text
               style={{

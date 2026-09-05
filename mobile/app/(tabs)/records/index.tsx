@@ -6,7 +6,6 @@ import {
   Filter,
   Home,
   MapPin,
-  MessageSquare,
   Plus,
   Search,
   Sparkles,
@@ -33,7 +32,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
 import {
-  RecordsEncountersSkeleton,
   RecordsHouseholdsSkeleton,
   RecordsVisitsSkeleton,
 } from '@/components/ui/ScreenSkeletons';
@@ -41,7 +39,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useCongregationGroups } from '@/hooks/useCongregationGroups';
 import { useCongregationMembers } from '@/hooks/useCongregationMembers';
-import { useEncounters } from '@/hooks/useEncounters';
 import { useCreateHousehold, useHouseholds } from '@/hooks/useHouseholds';
 import { useVisits } from '@/hooks/useVisits';
 import { findDuplicateHouseholdByNumber, getNextCongregationHouseNumber } from '@/lib/households';
@@ -56,7 +53,7 @@ import { formatDate } from '@/lib/date-utils';
 import { triggerHaptic } from '@/lib/sound';
 import { normalizeHouseholdStatus, normalizeVisitOutcome } from '@/lib/status-rules';
 
-type Tab = 'households' | 'visits' | 'encounters';
+type Tab = 'households' | 'visits';
 type RecordScope = 'mine' | 'group' | 'congregation';
 
 export default function RecordsScreen() {
@@ -82,9 +79,6 @@ export default function RecordsScreen() {
     congregationId: activeCongregationId,
   });
   const { visits = [], isLoading: visitsLoading } = useVisits(
-    activeCongregationId ? { congregationId: activeCongregationId } : undefined
-  );
-  const { encounters = [], isLoading: encountersLoading } = useEncounters(
     activeCongregationId ? { congregationId: activeCongregationId } : undefined
   );
   const { groups = [] } = useCongregationGroups(activeCongregationId);
@@ -264,46 +258,6 @@ export default function RecordsScreen() {
     isOverseer,
   ]);
 
-  // Scope-Filtered Encounters
-  const scopedEncounters = useMemo(() => {
-    if (!user?.id) return [];
-    let list = encounters;
-
-    if (recordScope === 'mine') {
-      list = list.filter((e) => e.userId === user.id);
-    } else if (recordScope === 'group') {
-      if (canViewCongregation || isOverseer) {
-        list = list.filter((e) => e.userId === user.id || (e.userId && groupMateIds.has(e.userId)));
-      } else {
-        list = list.filter((e) => e.userId === user.id);
-      }
-    } else if (recordScope === 'congregation') {
-      if (!canViewCongregation) {
-        list = list.filter((e) => e.userId === user.id);
-      }
-    }
-
-    if (publisherFilter !== 'all') {
-      list = list.filter((e) => e.userId === publisherFilter);
-    }
-
-    return [...list].sort((a, b) => {
-      const aMine = a.userId === user.id;
-      const bMine = b.userId === user.id;
-      if (aMine && !bMine) return -1;
-      if (!aMine && bMine) return 1;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
-  }, [
-    encounters,
-    recordScope,
-    publisherFilter,
-    user?.id,
-    groupMateIds,
-    canViewCongregation,
-    isOverseer,
-  ]);
-
   // Search filtered results
   const filteredHouseholds = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -330,18 +284,6 @@ export default function RecordsScreen() {
         v.publisherName?.toLowerCase().includes(q)
     );
   }, [scopedVisits, searchQuery]);
-
-  const filteredEncounters = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return scopedEncounters;
-    return scopedEncounters.filter(
-      (e) =>
-        e.name?.toLowerCase().includes(q) ||
-        e.response.toLowerCase().includes(q) ||
-        e.topicDiscussed?.toLowerCase().includes(q) ||
-        e.notes?.toLowerCase().includes(q)
-    );
-  }, [scopedEncounters, searchQuery]);
 
   const handleOpenAddHouseholdModal = () => {
     setHouseNumber(getNextCongregationHouseNumber(households));
@@ -466,9 +408,7 @@ export default function RecordsScreen() {
                       (h) =>
                         h.createdById === user?.id || h.collaboratorIds?.includes(user?.id || '')
                     ).length
-                  : activeTab === 'visits'
-                    ? visits.filter((v) => v.userId === user?.id).length
-                    : encounters.filter((e) => e.userId === user?.id).length
+                  : visits.filter((v) => v.userId === user?.id).length
                 : scope.id === 'group'
                   ? activeTab === 'households'
                     ? households.filter(
@@ -476,18 +416,12 @@ export default function RecordsScreen() {
                           h.createdById === user?.id ||
                           (h.createdById && groupMateIds.has(h.createdById))
                       ).length
-                    : activeTab === 'visits'
-                      ? visits.filter(
-                          (v) => v.userId === user?.id || (v.userId && groupMateIds.has(v.userId))
-                        ).length
-                      : encounters.filter(
-                          (e) => e.userId === user?.id || (e.userId && groupMateIds.has(e.userId))
-                        ).length
+                    : visits.filter(
+                        (v) => v.userId === user?.id || (v.userId && groupMateIds.has(v.userId))
+                      ).length
                   : activeTab === 'households'
                     ? households.length
-                    : activeTab === 'visits'
-                      ? visits.length
-                      : encounters.length;
+                    : visits.length;
 
             return (
               <TouchableOpacity
@@ -586,37 +520,6 @@ export default function RecordsScreen() {
             ]}
           >
             Visits ({scopedVisits.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => {
-            triggerHaptic('light');
-            setActiveTab('encounters');
-          }}
-          style={[
-            styles.tabItem,
-            activeTab === 'encounters' && {
-              borderBottomColor: colors.primary,
-              borderBottomWidth: 2.5,
-            },
-          ]}
-        >
-          <MessageSquare
-            size={15}
-            color={activeTab === 'encounters' ? colors.primary : colors.mutedForeground}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              {
-                color: activeTab === 'encounters' ? colors.primary : colors.mutedForeground,
-                fontWeight: activeTab === 'encounters' ? '700' : '500',
-                fontSize: typography.xs,
-              },
-            ]}
-          >
-            Encounters ({scopedEncounters.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -990,98 +893,6 @@ export default function RecordsScreen() {
           />
         ))}
 
-      {/* Tab 3: Encounters List */}
-      {activeTab === 'encounters' &&
-        (encountersLoading ? (
-          <RecordsEncountersSkeleton />
-        ) : filteredEncounters.length === 0 ? (
-          <EmptyState
-            icon={<MessageSquare size={44} color={colors.mutedForeground} />}
-            title="No Encounters Logged"
-            description="Person-level conversations recorded in the field will appear here."
-          />
-        ) : (
-          <FlatList
-            data={filteredEncounters}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              padding: spacing.md,
-              paddingBottom: insets.bottom + spacing.xxl,
-            }}
-            renderItem={({ item }) => {
-              const isMine = item.userId === user?.id;
-
-              return (
-                <Card
-                  style={[
-                    styles.recordCard,
-                    {
-                      marginBottom: spacing.sm,
-                      borderColor: isMine ? `${colors.primary}40` : colors.border,
-                    },
-                  ]}
-                >
-                  <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text
-                          style={[
-                            styles.addressText,
-                            { color: colors.foreground, fontSize: typography.base },
-                          ]}
-                        >
-                          {item.name || 'Anonymous Person'}
-                        </Text>
-                        {isMine && <Badge label="👤 Mine" variant="primary" size="sm" />}
-                      </View>
-
-                      <Text
-                        style={{
-                          color: colors.mutedForeground,
-                          fontSize: typography.xs,
-                          marginTop: 2,
-                        }}
-                      >
-                        {item.gender ? `${item.gender} • ` : ''}
-                        {item.ageGroup ? `${item.ageGroup} • ` : ''}
-                        {formatDate(item.createdAt)}
-                      </Text>
-                    </View>
-                    <Badge
-                      label={item.response}
-                      variant={item.bibleStudyInterest ? 'success' : 'primary'}
-                    />
-                  </View>
-
-                  {item.topicDiscussed && (
-                    <Text
-                      style={{
-                        color: colors.primary,
-                        fontSize: typography.xs,
-                        marginTop: 6,
-                        fontWeight: '600',
-                      }}
-                    >
-                      Discussed: {item.topicDiscussed}
-                    </Text>
-                  )}
-
-                  {item.notes && (
-                    <Text
-                      style={[
-                        styles.notesSnippet,
-                        { color: colors.foreground, fontSize: typography.xs },
-                      ]}
-                    >
-                      "{item.notes}"
-                    </Text>
-                  )}
-                </Card>
-              );
-            }}
-          />
-        ))}
-
       {/* Publisher Filter Modal */}
       <Modal visible={publisherModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -1228,14 +1039,24 @@ export default function RecordsScreen() {
             />
 
             <Input
-              label="Notes (Optional)"
-              placeholder="e.g. Spanish speaking, best time Saturday morning"
+              label="Safety / Access Notes (Optional)"
+              placeholder="e.g. Beware of dog, locked gate (no resident names)"
               value={notes}
               onChangeText={setNotes}
               multiline
               numberOfLines={3}
               style={{ minHeight: 60 }}
             />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Physical access notes only. Do not record resident names, phone numbers, or personal info.
+            </Text>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: spacing.md }}>
               <Button
