@@ -3,66 +3,31 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from '@/lib/firebase/admin';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
+import {
+  cleanStreetOrAddress,
+  detectSpiAndPiiViolations,
+  sanitizeOpenText,
+} from './open-text-guard';
 
-// ─── Regular Expressions for PII Detection & Cleansing ────────────────────────
-
-const RESIDENCE_PATTERNS = [
-  /\b(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Atty\.?|Engr\.?)\s+[A-Za-z'-]+(?:\s+[A-Za-z'-]+)*(?:'s)?\s*(?:residence|house)?\b/gi,
-  /\b(?:(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?|Atty\.?|Engr\.?)\s+)?[A-Za-z'-]+(?:\s+[A-Za-z'-]+)*\s+Residence\b/gi,
-  /\bResidence\s+(?:of|ni)\s+(?:(?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?)\s+)?[A-Za-z'-]+(?:\s+[A-Za-z'-]+)*\b/gi,
-  /\b(?:(?:Mr\.?|Mrs\.?|Ms\.?)\s+)?[A-Za-z'-]+\s+Family\b/gi,
-  /\bFamily\s+[A-Za-z'-]+\b/gi,
-];
-
-// Matches common Philippine mobile numbers and standard formatted numbers
-const PHONE_REGEX =
-  /(?:\+?63\s*|0)?9\d{2}[-\s]?\d{3}[-\s]?\d{4}|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b|\b09\d{9}\b/g;
-
-// Matches email addresses
-const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
-
-/**
- * Strips family or resident names from street/address fields (e.g. "Santos Residence, Purok 3" -> "Purok 3").
- */
-export function cleanStreetOrAddress(text: string | null | undefined): string | null {
-  if (text === null || text === undefined) return null;
-  if (!text.trim()) return '';
-
-  let cleaned = text;
-  for (const pattern of RESIDENCE_PATTERNS) {
-    cleaned = cleaned.replace(pattern, '');
-  }
-
-  // Clean up dangling delimiters like leading/trailing commas, slashes, dashes, extra spaces
-  cleaned = cleaned
-    .replace(/^\s*[,/\\-]\s*/g, '')
-    .replace(/\s*[,/\\-]\s*$/g, '')
-    .replace(/\s*[,/\\-]\s*[,/\\-]\s*/g, ', ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-
-  return cleaned;
-}
-
-/**
- * Replaces phone numbers and email addresses in freeform notes with [REDACTED] placeholders.
- */
-export function redactPiiFromNotes(text: string | null | undefined): string | null {
-  if (text === null || text === undefined) return null;
-  if (!text.trim()) return '';
-
-  let sanitized = text.replace(EMAIL_REGEX, '[REDACTED EMAIL]');
-  sanitized = sanitized.replace(PHONE_REGEX, '[REDACTED PHONE]');
-  return sanitized;
-}
-
-/**
- * Checks if notes contain phone numbers or email addresses.
- */
-export function hasPiiInNotes(text: string | null | undefined): boolean {
-  if (!text) return false;
-  return EMAIL_REGEX.test(text) || PHONE_REGEX.test(text);
-}
+// Re-export all guard definitions and utilities for backwards compatibility
+export {
+  CONTACT_HANDLE_REGEX,
+  cleanStreetOrAddress,
+  containsSpiOrPii,
+  detectSpiAndPiiViolations,
+  EMAIL_REGEX,
+  HONORIFIC_NAME_REGEX,
+  hasPiiInNotes,
+  NAME_CONVERSATIONAL_REGEX,
+  PHONE_REGEX,
+  RESIDENCE_PATTERNS,
+  redactPiiFromNotes,
+  SPI_HEALTH_REGEX,
+  SPI_POLITICAL_REGEX,
+  SPI_RELIGION_REGEX,
+  SPI_SENSITIVE_STATUS_REGEX,
+  sanitizeOpenText,
+} from './open-text-guard';
 
 // ─── Document-Level Sanitizer Rules ──────────────────────────────────────────
 
@@ -78,7 +43,7 @@ export function sanitizeHouseholdDoc(data: Record<string, any>): DocSanitizeResu
   const updates: Record<string, any> = {};
   const summary: string[] = [];
 
-  // 1. Deprecated PII fields to prune
+  // 1. Deprecated PII fields to prune completely
   const fieldsToPrune = [
     'name',
     'occupantsCount',
@@ -113,12 +78,23 @@ export function sanitizeHouseholdDoc(data: Record<string, any>): DocSanitizeResu
     }
   }
 
-  // 4. Redact notes
+  // 4. Clean and sanitize landmark if present
+  if (typeof data.landmark === 'string') {
+    const cleanedLandmark = cleanStreetOrAddress(data.landmark);
+    if (cleanedLandmark !== null && cleanedLandmark !== data.landmark) {
+      updates.landmark = cleanedLandmark;
+      summary.push(`Cleaned landmark: "${data.landmark}" → "${cleanedLandmark}"`);
+    }
+  }
+
+  // 5. Sanitize open text notes for both SPI and PII
   if (typeof data.notes === 'string') {
-    const redactedNotes = redactPiiFromNotes(data.notes);
-    if (redactedNotes !== null && redactedNotes !== data.notes) {
-      updates.notes = redactedNotes;
-      summary.push('Redacted phone/email PII in household notes');
+    const violations = detectSpiAndPiiViolations(data.notes);
+    const sanitizedNotes = sanitizeOpenText(data.notes);
+    if (sanitizedNotes !== null && sanitizedNotes !== data.notes) {
+      updates.notes = sanitizedNotes;
+      const details = violations.length > 0 ? ` (${violations.join(', ')})` : '';
+      summary.push(`Sanitized SPI/PII in household notes${details}`);
     }
   }
 
@@ -158,12 +134,106 @@ export function sanitizeVisitDoc(data: Record<string, any>): DocSanitizeResult {
     }
   }
 
-  // Redact notes
+  // Sanitize open text notes for both SPI and PII
   if (typeof data.notes === 'string') {
-    const redactedNotes = redactPiiFromNotes(data.notes);
-    if (redactedNotes !== null && redactedNotes !== data.notes) {
-      updates.notes = redactedNotes;
-      summary.push('Redacted phone/email PII in visit notes');
+    const violations = detectSpiAndPiiViolations(data.notes);
+    const sanitizedNotes = sanitizeOpenText(data.notes);
+    if (sanitizedNotes !== null && sanitizedNotes !== data.notes) {
+      updates.notes = sanitizedNotes;
+      const details = violations.length > 0 ? ` (${violations.join(', ')})` : '';
+      summary.push(`Sanitized SPI/PII in visit notes${details}`);
+    }
+  }
+
+  return {
+    needsUpdate: deletions.length > 0 || Object.keys(updates).length > 0,
+    deletions,
+    updates,
+    summary,
+  };
+}
+
+export function sanitizeEncounterDoc(data: Record<string, any>): DocSanitizeResult {
+  const deletions: string[] = [];
+  const updates: Record<string, any> = {};
+  const summary: string[] = [];
+
+  // Contact and spiritual fields to prune from shared encounters
+  const fieldsToPrune = [
+    'name',
+    'phoneNumber',
+    'email',
+    'topicsDiscussed',
+    'topicDiscussed',
+    'literatureOffered',
+    'literatureAccepted',
+    'nextVisitNotes',
+    'bestTimeToCall',
+    'bibleStudyPublication',
+    'bibleStudyLesson',
+  ];
+
+  for (const f of fieldsToPrune) {
+    if (data[f] !== undefined && data[f] !== null && data[f] !== '') {
+      deletions.push(f);
+      summary.push(`Removed encounter field: ${f}`);
+    }
+  }
+
+  // Sanitize notes
+  if (typeof data.notes === 'string') {
+    const violations = detectSpiAndPiiViolations(data.notes);
+    const sanitized = sanitizeOpenText(data.notes);
+    if (sanitized !== null && sanitized !== data.notes) {
+      updates.notes = sanitized;
+      const details = violations.length > 0 ? ` (${violations.join(', ')})` : '';
+      summary.push(`Sanitized SPI/PII in encounter notes${details}`);
+    }
+  }
+
+  // Clean locationDescription
+  if (typeof data.locationDescription === 'string') {
+    const cleaned = cleanStreetOrAddress(data.locationDescription);
+    if (cleaned !== null && cleaned !== data.locationDescription) {
+      updates.locationDescription = cleaned;
+      summary.push(
+        `Cleaned encounter locationDescription: "${data.locationDescription}" → "${cleaned}"`
+      );
+    }
+  }
+
+  return {
+    needsUpdate: deletions.length > 0 || Object.keys(updates).length > 0,
+    deletions,
+    updates,
+    summary,
+  };
+}
+
+export function sanitizeTerritoryDoc(data: Record<string, any>): DocSanitizeResult {
+  const deletions: string[] = [];
+  const updates: Record<string, any> = {};
+  const summary: string[] = [];
+
+  // Sanitize description
+  if (typeof data.description === 'string') {
+    const violations = detectSpiAndPiiViolations(data.description);
+    const sanitized = sanitizeOpenText(data.description);
+    if (sanitized !== null && sanitized !== data.description) {
+      updates.description = sanitized;
+      const details = violations.length > 0 ? ` (${violations.join(', ')})` : '';
+      summary.push(`Sanitized SPI/PII in territory description${details}`);
+    }
+  }
+
+  // Sanitize notes
+  if (typeof data.notes === 'string') {
+    const violations = detectSpiAndPiiViolations(data.notes);
+    const sanitized = sanitizeOpenText(data.notes);
+    if (sanitized !== null && sanitized !== data.notes) {
+      updates.notes = sanitized;
+      const details = violations.length > 0 ? ` (${violations.join(', ')})` : '';
+      summary.push(`Sanitized SPI/PII in territory notes${details}`);
     }
   }
 
@@ -180,7 +250,7 @@ export function sanitizeVisitDoc(data: Record<string, any>): DocSanitizeResult {
 export interface SanitizerOptions {
   mode: 'dry_run' | 'execute';
   congregationId?: string | null;
-  targets?: Array<'households' | 'visits' | 'legacy'>;
+  targets?: Array<'households' | 'visits' | 'encounters' | 'territories' | 'legacy'>;
 }
 
 export interface SanitizerReport {
@@ -191,6 +261,10 @@ export interface SanitizerReport {
   householdsSanitized: number;
   visitsScanned: number;
   visitsSanitized: number;
+  encountersScanned: number;
+  encountersSanitized: number;
+  territoriesScanned: number;
+  territoriesSanitized: number;
   contactsDeleted: number;
   memberLocationsDeleted: number;
   sampleChanges: Array<{
@@ -203,7 +277,13 @@ export interface SanitizerReport {
 export async function runPrivacySanitizer(options: SanitizerOptions): Promise<SanitizerReport> {
   const db = getAdminDb();
   const isExecute = options.mode === 'execute';
-  const targets = options.targets || ['households', 'visits', 'legacy'];
+  const targets = options.targets || [
+    'households',
+    'visits',
+    'encounters',
+    'territories',
+    'legacy',
+  ];
 
   const report: SanitizerReport = {
     timestamp: new Date().toISOString(),
@@ -213,6 +293,10 @@ export async function runPrivacySanitizer(options: SanitizerOptions): Promise<Sa
     householdsSanitized: 0,
     visitsScanned: 0,
     visitsSanitized: 0,
+    encountersScanned: 0,
+    encountersSanitized: 0,
+    territoriesScanned: 0,
+    territoriesSanitized: 0,
     contactsDeleted: 0,
     memberLocationsDeleted: 0,
     sampleChanges: [],
@@ -316,7 +400,105 @@ export async function runPrivacySanitizer(options: SanitizerOptions): Promise<Sa
     }
   }
 
-  // 3. Prune Legacy Collections (contacts, memberLocations)
+  // 3. Sanitize Encounters
+  if (targets.includes('encounters')) {
+    let q: FirebaseFirestore.Query = db.collection(FIRESTORE_COLLECTIONS.encounters);
+    if (options.congregationId && options.congregationId !== 'all') {
+      q = q.where('congregationId', '==', options.congregationId);
+    }
+
+    const snap = await q.get();
+    report.encountersScanned = snap.size;
+
+    let batch = db.batch();
+    let batchCount = 0;
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const res = sanitizeEncounterDoc(data);
+
+      if (res.needsUpdate) {
+        report.encountersSanitized++;
+        if (report.sampleChanges.length < 75) {
+          report.sampleChanges.push({
+            collection: 'encounters',
+            id: doc.id,
+            summary: res.summary,
+          });
+        }
+
+        if (isExecute) {
+          const updatePayload: Record<string, any> = { ...res.updates };
+          for (const d of res.deletions) {
+            updatePayload[d] = FieldValue.delete();
+          }
+          batch.update(doc.ref, updatePayload);
+          batchCount++;
+
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = db.batch();
+            batchCount = 0;
+          }
+        }
+      }
+    }
+
+    if (isExecute && batchCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  // 4. Sanitize Territories
+  if (targets.includes('territories')) {
+    let q: FirebaseFirestore.Query = db.collection(FIRESTORE_COLLECTIONS.territories);
+    if (options.congregationId && options.congregationId !== 'all') {
+      q = q.where('congregationId', '==', options.congregationId);
+    }
+
+    const snap = await q.get();
+    report.territoriesScanned = snap.size;
+
+    let batch = db.batch();
+    let batchCount = 0;
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const res = sanitizeTerritoryDoc(data);
+
+      if (res.needsUpdate) {
+        report.territoriesSanitized++;
+        if (report.sampleChanges.length < 100) {
+          report.sampleChanges.push({
+            collection: 'territories',
+            id: doc.id,
+            summary: res.summary,
+          });
+        }
+
+        if (isExecute) {
+          const updatePayload: Record<string, any> = { ...res.updates };
+          for (const d of res.deletions) {
+            updatePayload[d] = FieldValue.delete();
+          }
+          batch.update(doc.ref, updatePayload);
+          batchCount++;
+
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = db.batch();
+            batchCount = 0;
+          }
+        }
+      }
+    }
+
+    if (isExecute && batchCount > 0) {
+      await batch.commit();
+    }
+  }
+
+  // 5. Prune Legacy Collections (contacts, memberLocations)
   if (targets.includes('legacy')) {
     // Contacts
     let contactsQ: FirebaseFirestore.Query = db.collection('contacts');
