@@ -966,7 +966,9 @@ export function CongregationGoogleMap({
       wrapper.style.height = '0px';
       wrapper.style.cursor = 'pointer';
       const label = getHouseholdMapLabel(h);
-      wrapper.title = `${label} (${h.status.replace(/_/g, ' ')})`;
+      wrapper.title = label
+        ? `${label} (${h.status.replace(/_/g, ' ')})`
+        : `House (${h.status.replace(/_/g, ' ')})`;
 
       const pinContainer = document.createElement('div');
       pinContainer.style.position = 'absolute';
@@ -1021,7 +1023,7 @@ export function CongregationGoogleMap({
       const shouldShowLabel =
         layerSettings.showHouseLabels !== false && (currentZoom >= 15 || isSelected);
 
-      if (shouldShowLabel) {
+      if (shouldShowLabel && label) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '14px';
@@ -1050,7 +1052,7 @@ export function CongregationGoogleMap({
       const marker = new AdvancedMarkerElement({
         map,
         position: { lat, lng },
-        title: label,
+        title: label || 'House',
         content: wrapper,
         zIndex: isSelected ? 60 : 35,
       });

@@ -61,7 +61,7 @@ describe('mobile households library', () => {
   });
 
   describe('getHouseholdMapLabel', () => {
-    it('formats house number + resident name primarily', () => {
+    it('formats only house number when house number is set (ignoring resident name)', () => {
       expect(
         getHouseholdMapLabel({
           houseNumber: '104',
@@ -69,10 +69,10 @@ describe('mobile households library', () => {
           streetName: 'Maple Street',
           address: '104 Maple Street, Springfield',
         })
-      ).toBe('#104 Smith');
+      ).toBe('#104');
     });
 
-    it('formats house number + street name when resident name is missing', () => {
+    it('formats only house number instead of street name', () => {
       expect(
         getHouseholdMapLabel({
           houseNumber: '104',
@@ -80,30 +80,28 @@ describe('mobile households library', () => {
           streetName: 'Maple Street',
           address: '104 Maple Street, Springfield',
         })
-      ).toBe('#104 Maple Street');
+      ).toBe('#104');
     });
 
-    it('prioritizes name over street name and full address', () => {
+    it('never displays street or resident name when house number is missing', () => {
       expect(
         getHouseholdMapLabel({
           name: 'Dela Cruz Residence',
           streetName: 'Pine Ave',
           address: '123 Pine Ave, Quezon City',
         })
-      ).toBe('Dela Cruz Residence');
-    });
+      ).toBe('');
 
-    it('prioritizes street name over full address when name is missing', () => {
       expect(
         getHouseholdMapLabel({
           name: null,
           streetName: 'Pine Ave',
           address: '123 Pine Ave, Quezon City, Metro Manila',
         })
-      ).toBe('Pine Ave');
+      ).toBe('');
     });
 
-    it('prioritizes street name over name when name is merely identical to the address', () => {
+    it('displays only house number even when name and street name are present', () => {
       expect(
         getHouseholdMapLabel({
           houseNumber: '30',
@@ -111,17 +109,17 @@ describe('mobile households library', () => {
           streetName: 'Iza bungcal family',
           address: 'Lower Calanawan',
         })
-      ).toBe('#30 Iza bungcal family');
+      ).toBe('#30');
     });
 
-    it('falls back to full address without truncation when name and street name are missing', () => {
+    it('returns empty string when name, street name, and house number are missing', () => {
       expect(
         getHouseholdMapLabel({
           name: null,
           streetName: null,
           address: 'Block 2 Lot 5, Zone 3, Barangay San Jose',
         })
-      ).toBe('Block 2 Lot 5, Zone 3, Barangay San Jose');
+      ).toBe('');
 
       expect(
         getHouseholdMapLabel({
@@ -129,23 +127,23 @@ describe('mobile households library', () => {
           streetName: undefined,
           householdAddress: '742 Evergreen Terrace, Springfield, OR',
         })
-      ).toBe('742 Evergreen Terrace, Springfield, OR');
+      ).toBe('');
     });
 
-    it('formats house number with full address fallback without doubling', () => {
+    it('formats house number without address fallback', () => {
       expect(
         getHouseholdMapLabel({
           houseNumber: '104',
           address: '104 Maple Street, Springfield, IL',
         })
-      ).toBe('#104 Maple Street, Springfield, IL');
+      ).toBe('#104');
 
       expect(
         getHouseholdMapLabel({
           houseNumber: '5',
           address: 'Block 2 Lot 5, Zone 3',
         })
-      ).toBe('#5 Block 2 Lot 5, Zone 3');
+      ).toBe('#5');
     });
 
     it('preserves existing # prefix on house number without doubling', () => {
@@ -154,7 +152,7 @@ describe('mobile households library', () => {
           houseNumber: '#12B',
           name: 'Johnson',
         })
-      ).toBe('#12B Johnson');
+      ).toBe('#12B');
     });
 
     it('handles house number only when all else missing', () => {
@@ -165,10 +163,10 @@ describe('mobile households library', () => {
       ).toBe('#104');
     });
 
-    it('falls back to "House" for empty or null objects', () => {
-      expect(getHouseholdMapLabel({})).toBe('House');
-      expect(getHouseholdMapLabel(null)).toBe('House');
-      expect(getHouseholdMapLabel(undefined)).toBe('House');
+    it('returns empty string for empty or null objects', () => {
+      expect(getHouseholdMapLabel({})).toBe('');
+      expect(getHouseholdMapLabel(null)).toBe('');
+      expect(getHouseholdMapLabel(undefined)).toBe('');
     });
   });
 });

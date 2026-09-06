@@ -150,8 +150,8 @@ export function extractHouseholdContacts(
 
 /**
  * Formats a concise map label for a pinned household on the map.
- * Displays only the house number (e.g. "#104" or "#12B") instead of street/purok/resident name.
- * Falls back to name, street name, address, or "House" when house number is not set.
+ * Strictly displays only the house number (e.g. "#104" or "#12B").
+ * Returns an empty string if house number is not set, never displaying street, resident name, or address.
  */
 export function getHouseholdMapLabel(
   h?: {
@@ -162,7 +162,7 @@ export function getHouseholdMapLabel(
     householdAddress?: string | null;
   } | null
 ): string {
-  if (!h) return 'House';
+  if (!h) return '';
 
   const rawNum = (h.houseNumber || '').trim();
   const cleanNum = rawNum.replace(/^#\s*/, '').trim();
@@ -170,29 +170,5 @@ export function getHouseholdMapLabel(
     return `#${cleanNum}`;
   }
 
-  const rawName = (h.name || '').trim();
-  const rawStreet = (h.streetName || '').trim();
-  const fullAddress = (h.address || h.householdAddress || '').trim();
-
-  // If name is identical to the address (e.g. from legacy default values), prefer distinct streetName
-  const isNameSameAsAddress = Boolean(
-    rawName && fullAddress && rawName.toLowerCase() === fullAddress.toLowerCase()
-  );
-  const isStreetSameAsAddress = Boolean(
-    rawStreet && fullAddress && rawStreet.toLowerCase() === fullAddress.toLowerCase()
-  );
-
-  let primaryNameOrStreet = '';
-  if (rawName && !isNameSameAsAddress) {
-    primaryNameOrStreet = rawName;
-  } else if (rawStreet && !isStreetSameAsAddress) {
-    primaryNameOrStreet = rawStreet;
-  } else if (rawName) {
-    primaryNameOrStreet = rawName;
-  } else if (rawStreet) {
-    primaryNameOrStreet = rawStreet;
-  }
-
-  const primaryText = primaryNameOrStreet || fullAddress;
-  return primaryText || 'House';
+  return '';
 }

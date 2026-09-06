@@ -392,7 +392,7 @@ export function StudioBasemapPopup({
                   className="text-xs cursor-pointer flex items-center gap-2"
                 >
                   <Tag size={14} className="text-slate-500" />
-                  <span>House Numbers & Labels</span>
+                  <span>House Numbers</span>
                 </Label>
                 <input
                   id="layer-house-labels"

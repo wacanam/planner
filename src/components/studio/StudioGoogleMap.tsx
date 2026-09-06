@@ -2046,7 +2046,9 @@ export function StudioGoogleMap({
             : 'pointer';
       wrapper.style.pointerEvents = isPrintViewportActive ? 'none' : 'auto';
       const label = getHouseholdMapLabel(h);
-      wrapper.title = `${label} (${h.status.replace(/_/g, ' ')})`;
+      wrapper.title = label
+        ? `${label} (${h.status.replace(/_/g, ' ')})`
+        : `House (${h.status.replace(/_/g, ' ')})`;
 
       const pinCircle = document.createElement('div');
       pinCircle.style.backgroundColor = pinColor;
@@ -2091,7 +2093,7 @@ export function StudioGoogleMap({
       const shouldShowLabel =
         layerSettings.showHouseLabels !== false && (currentZoom >= 15 || isSelected);
 
-      if (shouldShowLabel) {
+      if (shouldShowLabel && label) {
         const labelWrapper = document.createElement('div');
         labelWrapper.style.position = 'absolute';
         labelWrapper.style.left = '15px';
@@ -2118,7 +2120,7 @@ export function StudioGoogleMap({
       const marker = new AdvancedMarkerElement({
         map,
         position: { lat, lng },
-        title: label,
+        title: label || 'House',
         content: wrapper,
         gmpDraggable: false,
         zIndex: isSelected ? 50 : 35,

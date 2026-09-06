@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,6 @@ import {
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { useBasemapPreference } from '@/lib/map-preferences';
 import { updateHouseholdRecord } from '@/lib/record-writes';
-import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import type { Congregation, Household, MapLandmark, MapRoad, Territory } from '@/types/api';
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
@@ -583,7 +583,7 @@ export function CongregationStudioLayout({
                 </div>
                 <div>
                   <p className="font-bold text-sm text-foreground leading-snug">
-                    {getHouseholdMapLabel(selectedHousehold)}
+                    {getHouseholdMapLabel(selectedHousehold) || 'Household'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {selectedHousehold.address || selectedHousehold.streetName}

@@ -310,7 +310,7 @@ export default function AssignmentDetailScreen() {
       .map((h) => ({
         id: h.id,
         coordinate: { latitude: Number(h.latitude), longitude: Number(h.longitude) },
-        title: getHouseholdMapLabel(h),
+        title: getHouseholdMapLabel(h) || 'House',
         description: h.status,
         color: getMarkerColor(h),
         onPress: () => setSelectedHousehold(h),
@@ -415,7 +415,7 @@ export default function AssignmentDetailScreen() {
                       { color: colors.foreground, fontSize: typography.base },
                     ]}
                   >
-                    {getHouseholdMapLabel(selectedHousehold)}
+                    {getHouseholdMapLabel(selectedHousehold) || 'House'}
                   </Text>
                   {selectedHousehold.address &&
                     getHouseholdMapLabel(selectedHousehold) !== selectedHousehold.address && (

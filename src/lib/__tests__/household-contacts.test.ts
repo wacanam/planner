@@ -204,34 +204,34 @@ describe('getHouseholdMapLabel', () => {
     ).toBe('#104');
   });
 
-  it('falls back to name or street if house number is not set', () => {
+  it('does NOT fall back to name or street if house number is not set, returning empty string', () => {
     expect(
       getHouseholdMapLabel({
         name: 'Dela Cruz Residence',
         streetName: 'Pine Ave',
       })
-    ).toBe('Dela Cruz Residence');
+    ).toBe('');
 
     expect(
       getHouseholdMapLabel({
         name: null,
         streetName: 'Pine Ave',
       })
-    ).toBe('Pine Ave');
+    ).toBe('');
   });
 
-  it('falls back to full address or House if name and street name are missing', () => {
+  it('returns empty string when house number is missing, never displaying full address', () => {
     expect(
       getHouseholdMapLabel({
         address: 'Block 2 Lot 5, Zone 3, Barangay San Jose',
       })
-    ).toBe('Block 2 Lot 5, Zone 3, Barangay San Jose');
+    ).toBe('');
 
     expect(
       getHouseholdMapLabel({
         householdAddress: '742 Evergreen Terrace, Springfield, OR',
       })
-    ).toBe('742 Evergreen Terrace, Springfield, OR');
+    ).toBe('');
 
     expect(
       getHouseholdMapLabel({
@@ -247,29 +247,27 @@ describe('getHouseholdMapLabel', () => {
       })
     ).toBe('#5');
 
-    expect(getHouseholdMapLabel({})).toBe('House');
-    expect(getHouseholdMapLabel(null)).toBe('House');
-    expect(getHouseholdMapLabel(undefined)).toBe('House');
+    expect(getHouseholdMapLabel({})).toBe('');
+    expect(getHouseholdMapLabel(null)).toBe('');
+    expect(getHouseholdMapLabel(undefined)).toBe('');
   });
 
-  it('prioritizes name over street name and full address when house number is missing', () => {
+  it('never displays street or resident name when house number is missing', () => {
     expect(
       getHouseholdMapLabel({
         name: 'Garcia Family',
         streetName: 'Oak Street',
         address: '123 Oak Street, City',
       })
-    ).toBe('Garcia Family');
-  });
+    ).toBe('');
 
-  it('prioritizes street name over name when name is merely identical to the address and house number is missing', () => {
     expect(
       getHouseholdMapLabel({
         name: 'Lower Calanawan',
         streetName: 'Iza bungcal family',
         address: 'Lower Calanawan',
       })
-    ).toBe('Iza bungcal family');
+    ).toBe('');
   });
 
   it('displays only house number even when name and street name are present', () => {
@@ -281,5 +279,13 @@ describe('getHouseholdMapLabel', () => {
         address: 'Lower Calanawan',
       })
     ).toBe('#30');
+
+    expect(
+      getHouseholdMapLabel({
+        houseNumber: 'JW',
+        name: null,
+        streetName: 'Faithful Serano',
+      })
+    ).toBe('#JW');
   });
 });

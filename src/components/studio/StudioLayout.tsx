@@ -19,11 +19,11 @@ import { toast } from 'sonner';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -1228,7 +1228,7 @@ export function StudioLayout({
                 </div>
                 <div>
                   <p className="font-bold text-sm text-foreground leading-snug">
-                    {getHouseholdMapLabel(selectedHousehold)}
+                    {getHouseholdMapLabel(selectedHousehold) || 'Household'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {selectedHousehold.address || selectedHousehold.streetName}

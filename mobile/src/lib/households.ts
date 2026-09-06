@@ -1,7 +1,7 @@
 // mobile/src/lib/households.ts
 import { collection, type Firestore, getDocs, query, where } from 'firebase/firestore';
-import { FIRESTORE_COLLECTIONS } from './schema';
 import type { Household } from '@/types/api';
+import { FIRESTORE_COLLECTIONS } from './schema';
 
 /**
  * Normalizes a house number by trimming leading/trailing whitespace
@@ -131,8 +131,9 @@ export async function checkHouseholdNumberDuplicateInFirestore(
 }
 
 /**
- * Formats a concise, informative map label for a pinned household (e.g. "#104 Smith", "#104 Maple St", or full address).
- * Displays house number + name / street name primarily, falling back to full address if null or undefined.
+ * Formats a concise map label for a pinned household on the map.
+ * Strictly displays only the house number (e.g. "#104" or "#12B").
+ * Returns an empty string if house number is not set, never displaying street, resident name, or address.
  */
 export function getHouseholdMapLabel(
   h?: {
@@ -143,44 +144,13 @@ export function getHouseholdMapLabel(
     householdAddress?: string | null;
   } | null
 ): string {
-  if (!h) return 'House';
+  if (!h) return '';
 
   const rawNum = (h.houseNumber || '').trim();
-  const rawName = (h.name || '').trim();
-  const rawStreet = (h.streetName || '').trim();
-  const fullAddress = (h.address || h.householdAddress || '').trim();
-
-  // If name is identical to the address (e.g. from legacy default values), prefer distinct streetName
-  const isNameSameAsAddress = Boolean(
-    rawName && fullAddress && rawName.toLowerCase() === fullAddress.toLowerCase()
-  );
-  const isStreetSameAsAddress = Boolean(
-    rawStreet && fullAddress && rawStreet.toLowerCase() === fullAddress.toLowerCase()
-  );
-
-  let primaryNameOrStreet = '';
-  if (rawName && !isNameSameAsAddress) {
-    primaryNameOrStreet = rawName;
-  } else if (rawStreet && !isStreetSameAsAddress) {
-    primaryNameOrStreet = rawStreet;
-  } else if (rawName) {
-    primaryNameOrStreet = rawName;
-  } else if (rawStreet) {
-    primaryNameOrStreet = rawStreet;
+  const cleanNum = rawNum.replace(/^#\s*/, '').trim();
+  if (cleanNum) {
+    return `#${cleanNum}`;
   }
 
-  const primaryText = primaryNameOrStreet || fullAddress;
-  const num = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
-
-  if (num && primaryText) {
-    const cleanNum = rawNum.replace(/^#/, '').trim();
-    const cleanPrimary = primaryText.replace(/^#/, '').trim();
-    if (cleanPrimary.toLowerCase().startsWith(cleanNum.toLowerCase())) {
-      return primaryText.startsWith('#') ? primaryText : `#${primaryText}`;
-    }
-    return `${num} ${primaryText}`;
-  }
-
-  if (num) return num;
-  return primaryText || 'House';
+  return '';
 }
