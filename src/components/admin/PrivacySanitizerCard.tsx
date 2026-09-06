@@ -3,7 +3,6 @@
 
 import {
   AlertTriangle,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -100,35 +99,38 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
 
   return (
     <Card className="bg-card border-border shadow-xs overflow-hidden">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-                <ShieldCheck className="h-4 w-4" />
-              </div>
-              <span>Data Privacy & S-13 Territory Sanitizer</span>
-              <Badge
-                variant="outline"
-                className="text-[10px] uppercase tracking-wider py-0 px-1.5 border-primary/30 text-primary"
-              >
-                Governance
-              </Badge>
+      <CardHeader className="pb-4 space-y-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <CardTitle className="text-base font-bold">
+              Data Privacy & S-13 Territory Sanitizer
             </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-              Audits and cleans publisher-entered data in Firestore to ensure full alignment with
-              Branch S-13 guidelines and privacy regulations. Strips family names from addresses,
-              redacts phone numbers from notes, and prunes shared spiritual/demographic fields.
-            </CardDescription>
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase tracking-wider py-0.5 px-2 border-primary/30 text-primary font-bold"
+            >
+              Governance
+            </Badge>
           </div>
+          <CardDescription className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+            Audits and cleans publisher-entered data in Firestore to ensure full alignment with
+            Branch S-13 guidelines and privacy regulations. Strips family names from addresses,
+            redacts phone numbers from notes, and prunes shared spiritual/demographic fields.
+          </CardDescription>
+        </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            {isSuperAdmin && (
+        {/* Responsive Controls Bar */}
+        <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {isSuperAdmin && (
+            <div className="w-full sm:w-auto shrink-0">
               <Select
                 value={selectedCongregationId}
                 onValueChange={(val) => setSelectedCongregationId(val)}
               >
-                <SelectTrigger className="h-8.5 rounded-xl text-xs w-[180px]">
+                <SelectTrigger className="h-9 rounded-xl text-xs w-full sm:w-[210px] bg-background">
                   <SelectValue placeholder="Target workspace" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
@@ -140,31 +142,33 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
                   ))}
                 </SelectContent>
               </Select>
-            )}
+            </div>
+          )}
 
+          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto sm:ml-auto">
             <Button
               size="sm"
               variant="outline"
               onClick={() => runSanitization('dry_run')}
               disabled={isRunning}
-              className="h-8.5 rounded-xl text-xs font-semibold gap-1.5 border-border"
+              className="h-auto min-h-[38px] py-2 px-3.5 rounded-xl text-xs font-semibold gap-2 border-border w-full sm:w-auto whitespace-normal text-center leading-snug justify-center"
             >
               {isRunning ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <RefreshCw className="h-3.5 w-3.5 animate-spin shrink-0" />
               ) : (
-                <Eye className="h-3.5 w-3.5 text-primary" />
+                <Eye className="h-3.5 w-3.5 text-primary shrink-0" />
               )}
-              <span>Audit & Preview</span>
+              <span className="break-words">Audit &amp; Preview</span>
             </Button>
 
             <Button
               size="sm"
               onClick={() => setConfirmOpen(true)}
               disabled={isRunning}
-              className="h-8.5 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs"
+              className="h-auto min-h-[38px] py-2 px-3.5 rounded-xl text-xs font-semibold gap-2 shadow-2xs w-full sm:w-auto whitespace-normal text-center leading-snug justify-center"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Sanitize Records</span>
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span className="break-words">Sanitize Records</span>
             </Button>
           </div>
         </div>
@@ -238,7 +242,7 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
                 <button
                   type="button"
                   onClick={() => setShowSamples(!showSamples)}
-                  className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1"
                 >
                   <span>Sample Changes ({report.sampleChanges.length} records)</span>
                   {showSamples ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -249,17 +253,24 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
                     {report.sampleChanges.map((sample, idx) => (
                       <div
                         key={idx}
-                        className="p-2 rounded-xl bg-background/80 border border-border/50 text-[11px] space-y-1"
+                        className="p-2.5 rounded-xl bg-background/80 border border-border/50 text-[11px] space-y-1"
                       >
-                        <div className="flex items-center gap-1.5 font-bold text-foreground">
-                          <Badge variant="outline" className="text-[9px] uppercase px-1 py-0">
+                        <div className="flex items-center gap-1.5 font-bold text-foreground flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] uppercase px-1 py-0 shrink-0"
+                          >
                             {sample.collection}
                           </Badge>
-                          <span className="text-muted-foreground text-[10px]">ID: {sample.id}</span>
+                          <span className="text-muted-foreground text-[10px] font-mono break-all">
+                            ID: {sample.id}
+                          </span>
                         </div>
                         <ul className="pl-4 list-disc space-y-0.5 text-muted-foreground">
                           {sample.summary.map((item, itemIdx) => (
-                            <li key={itemIdx}>{item}</li>
+                            <li key={itemIdx} className="break-words">
+                              {item}
+                            </li>
                           ))}
                         </ul>
                       </div>
@@ -290,7 +301,9 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
               <strong className="underline">{selectedCongName}</strong>:
             </p>
             <ul className="pl-5 list-disc space-y-1 text-amber-800 dark:text-amber-300">
-              <li>Strips family names (e.g. &ldquo;Santos Residence&rdquo;) from address fields.</li>
+              <li>
+                Strips family names (e.g. &ldquo;Santos Residence&rdquo;) from address fields.
+              </li>
               <li>Prunes deprecated fields (occupantsCount, resident name, letter notes).</li>
               <li>Redacts phone numbers and email addresses in access notes.</li>
               <li>Clears spiritual topics and literature placements from shared visit logs.</li>
@@ -298,12 +311,12 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
             </ul>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs"
+              className="h-auto min-h-[38px] py-2 px-4 rounded-xl text-xs w-full sm:w-auto whitespace-normal text-center leading-snug font-medium"
               onClick={() => setConfirmOpen(false)}
               disabled={isRunning}
             >
@@ -312,14 +325,14 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
             <Button
               type="button"
               size="sm"
-              className="rounded-xl text-xs font-semibold gap-1.5"
+              className="h-auto min-h-[38px] py-2 px-4 rounded-xl text-xs font-semibold gap-2 w-full sm:w-auto whitespace-normal text-center leading-snug"
               onClick={() => runSanitization('execute')}
               disabled={isRunning}
             >
               {isRunning ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <RefreshCw className="h-3.5 w-3.5 animate-spin shrink-0" />
               ) : (
-                <Play className="h-3.5 w-3.5" />
+                <Play className="h-3.5 w-3.5 shrink-0" />
               )}
               <span>{isRunning ? 'Sanitizing…' : 'Confirm & Execute'}</span>
             </Button>

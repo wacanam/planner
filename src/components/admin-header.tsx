@@ -7,6 +7,7 @@ import {
   Inbox,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Shield,
   User,
@@ -78,6 +79,12 @@ export function AdminHeader() {
       icon: Inbox,
       badge: pendingCount > 0 ? pendingCount : null,
       active: pathname.startsWith('/admin/requests'),
+    },
+    {
+      href: '/admin/announcements',
+      label: 'Announcements',
+      icon: Megaphone,
+      active: pathname.startsWith('/admin/announcements'),
     },
   ];
 
