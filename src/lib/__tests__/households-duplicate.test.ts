@@ -1,10 +1,12 @@
 // src/lib/__tests__/households-duplicate.test.ts
-import { describe, expect, it, vi } from 'vitest';
+
 import { getDocs } from 'firebase/firestore';
+import { describe, expect, it, vi } from 'vitest';
 import {
   checkHouseholdNumberDuplicateInFirestore,
   findDuplicateHouseholdByNumber,
   getNextCongregationHouseNumber,
+  isDuplicateAllowedHouseNumber,
   normalizeHouseNumber,
   toCanonicalHouseNumber,
 } from '@/lib/households';
@@ -102,6 +104,22 @@ describe('Household Number & Duplicate Prevention Utilities', () => {
     it('handles empty or blank number without false positive match', () => {
       expect(findDuplicateHouseholdByNumber('', existingList)).toBeNull();
       expect(findDuplicateHouseholdByNumber('   ', existingList)).toBeNull();
+    });
+
+    it('allows duplicate JW house numbers as an allowed exception', () => {
+      const listWithJW = [
+        { id: 'h-jw1', houseNumber: 'JW', address: 'Zone 4', congregationId: 'cong-1' },
+      ];
+      expect(isDuplicateAllowedHouseNumber('JW')).toBe(true);
+      expect(isDuplicateAllowedHouseNumber('jw')).toBe(true);
+      expect(isDuplicateAllowedHouseNumber('#JW')).toBe(true);
+      expect(isDuplicateAllowedHouseNumber('# jw')).toBe(true);
+      expect(isDuplicateAllowedHouseNumber('104')).toBe(false);
+
+      expect(findDuplicateHouseholdByNumber('JW', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('jw', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('#JW', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('# jw', listWithJW)).toBeNull();
     });
   });
 
@@ -228,6 +246,18 @@ describe('Household Number & Duplicate Prevention Utilities', () => {
         fakeFirestore,
         'cong-123',
         '105'
+      );
+
+      expect(result.isDuplicate).toBe(false);
+      expect(result.duplicate).toBeNull();
+    });
+
+    it('returns isDuplicate: false for JW house number without querying Firestore', async () => {
+      const fakeFirestore = {} as any;
+      const result = await checkHouseholdNumberDuplicateInFirestore(
+        fakeFirestore,
+        'cong-123',
+        'JW'
       );
 
       expect(result.isDuplicate).toBe(false);

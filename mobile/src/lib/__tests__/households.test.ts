@@ -43,6 +43,14 @@ describe('mobile households library', () => {
       expect(findDuplicateHouseholdByNumber('30', listWithServerId, 'server-1')).toBeNull();
       expect(findDuplicateHouseholdByNumber('30', listWithServerId, ['server-1'])).toBeNull();
     });
+
+    it('allows duplicate JW house numbers as an exception', () => {
+      const listWithJW = [{ id: 'h-jw1', houseNumber: 'JW' }];
+      expect(findDuplicateHouseholdByNumber('JW', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('jw', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('#JW', listWithJW)).toBeNull();
+      expect(findDuplicateHouseholdByNumber('# jw', listWithJW)).toBeNull();
+    });
   });
 
   describe('getNextCongregationHouseNumber', () => {

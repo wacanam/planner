@@ -22,6 +22,17 @@ export function toCanonicalHouseNumber(number: string): string {
   return normalized.replace(/^#\s*/, '').toLowerCase();
 }
 
+/**
+ * Set of canonical house numbers that are exempt from uniqueness constraints.
+ * For example, "JW" (Jehovah's Witness household) can be used across multiple homes.
+ */
+export const ALLOWED_DUPLICATE_HOUSE_NUMBERS = new Set(['jw']);
+
+export function isDuplicateAllowedHouseNumber(number: string): boolean {
+  const canonical = toCanonicalHouseNumber(number);
+  return ALLOWED_DUPLICATE_HOUSE_NUMBERS.has(canonical);
+}
+
 export interface HouseholdNumberLike {
   id?: string;
   serverId?: string | null;
@@ -39,7 +50,7 @@ export function findDuplicateHouseholdByNumber<T extends HouseholdNumberLike>(
   excludeId?: string | string[] | null
 ): T | null {
   const canonical = toCanonicalHouseNumber(number);
-  if (!canonical) return null;
+  if (!canonical || isDuplicateAllowedHouseNumber(number)) return null;
 
   const excludeSet = new Set(
     Array.isArray(excludeId)
@@ -103,7 +114,7 @@ export async function checkHouseholdNumberDuplicateInFirestore(
   excludeId?: string
 ): Promise<{ isDuplicate: boolean; duplicate: Household | null }> {
   const canonical = toCanonicalHouseNumber(houseNumber);
-  if (!canonical || !congregationId) {
+  if (!canonical || !congregationId || isDuplicateAllowedHouseNumber(houseNumber)) {
     return { isDuplicate: false, duplicate: null };
   }
 
