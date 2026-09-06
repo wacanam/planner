@@ -65,7 +65,7 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
         body: JSON.stringify({
           mode,
           congregationId: selectedCongregationId === 'all' ? null : selectedCongregationId,
-          targets: ['households', 'visits', 'legacy'],
+          targets: ['households', 'visits', 'encounters', 'territories', 'legacy'],
         }),
       });
 
@@ -235,6 +235,32 @@ export function PrivacySanitizerCard({ congregations }: PrivacySanitizerCardProp
                   {report.mode === 'execute' ? 'pruned' : 'to prune'}
                 </div>
               </div>
+
+              {typeof report.encountersScanned === 'number' && report.encountersScanned > 0 && (
+                <div className="p-2.5 rounded-xl bg-background border border-border/60">
+                  <div className="text-[11px] text-muted-foreground">Encounters</div>
+                  <div className="text-base font-extrabold text-foreground mt-0.5">
+                    {report.encountersScanned}
+                  </div>
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                    {report.encountersSanitized}{' '}
+                    {report.mode === 'execute' ? 'sanitized' : 'flagged'}
+                  </div>
+                </div>
+              )}
+
+              {typeof report.territoriesScanned === 'number' && report.territoriesScanned > 0 && (
+                <div className="p-2.5 rounded-xl bg-background border border-border/60">
+                  <div className="text-[11px] text-muted-foreground">Territories</div>
+                  <div className="text-base font-extrabold text-foreground mt-0.5">
+                    {report.territoriesScanned}
+                  </div>
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                    {report.territoriesSanitized}{' '}
+                    {report.mode === 'execute' ? 'sanitized' : 'flagged'}
+                  </div>
+                </div>
+              )}
             </div>
 
             {report.sampleChanges.length > 0 && (

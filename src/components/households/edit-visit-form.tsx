@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useKeyboardShortcuts } from '@/hooks';
+import { detectSpiAndPiiViolations, sanitizeOpenText } from '@/lib/privacy/open-text-guard';
 import type { Visit } from '@/types/api';
 
 export const editVisitSchema = z.object({
@@ -58,17 +59,24 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
     },
   });
 
+  const handleFormSubmit = async (values: EditVisitFormValues) => {
+    await onSubmit({
+      ...values,
+      notes: values.notes ? sanitizeOpenText(values.notes) || '' : '',
+    });
+  };
+
   useKeyboardShortcuts([
     {
       key: 'Mod+Enter',
       handler: () => {
-        void form.handleSubmit(onSubmit)();
+        void form.handleSubmit(handleFormSubmit)();
       },
     },
   ]);
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
       <div className="space-y-1">
         <Label className="text-xs font-semibold">Visit Outcome *</Label>
         <Select
@@ -110,6 +118,14 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
           className="rounded-xl text-xs resize-none h-20"
           {...form.register('notes')}
         />
+        {Boolean(form.watch('notes')) &&
+          detectSpiAndPiiViolations(form.watch('notes') || '').length > 0 && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium leading-tight">
+              ⚠️ Privacy notice: Notes contain personal or sensitive details (
+              {detectSpiAndPiiViolations(form.watch('notes') || '').join(', ')}). They will be
+              automatically sanitized to protect resident privacy.
+            </p>
+          )}
       </div>
 
       {/* Private Personal Notebook Callout */}
@@ -119,7 +135,8 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
           Personal Return Visits & Studies
         </div>
         <p>
-          Scriptures discussed, literature placements, and return visit notes should be kept in your private on-device Personal Notebook.
+          Scriptures discussed, literature placements, and return visit notes should be kept in your
+          private on-device Personal Notebook.
         </p>
       </div>
 

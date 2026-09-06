@@ -20,6 +20,11 @@ import {
   getNextCongregationHouseNumber,
   toCanonicalHouseNumber,
 } from '@/lib/households';
+import {
+  cleanStreetOrAddress,
+  detectSpiAndPiiViolations,
+  sanitizeOpenText,
+} from '@/lib/privacy/open-text-guard';
 import type { Household } from '@/types/api';
 
 export const householdFormSchema = z.object({
@@ -120,7 +125,13 @@ export function HouseholdForm({
         }
       }
     }
-    await onSubmit(values);
+    const sanitizedValues: HouseholdFormValues = {
+      ...values,
+      streetName: cleanStreetOrAddress(values.streetName) || values.streetName,
+      address: cleanStreetOrAddress(values.address) || values.address,
+      notes: values.notes ? sanitizeOpenText(values.notes) || '' : '',
+    };
+    await onSubmit(sanitizedValues);
   };
 
   useKeyboardShortcuts([
@@ -163,7 +174,8 @@ export function HouseholdForm({
             {...form.register('streetName')}
           />
           <p className="text-[10px] text-muted-foreground leading-tight">
-            Street, Purok, or physical landmark. Strictly no family names (do not enter &ldquo;X Residence&rdquo;).
+            Street, Purok, or physical landmark. Strictly no family names (do not enter &ldquo;X
+            Residence&rdquo;).
           </p>
           {form.formState.errors.streetName && (
             <p className="text-[10px] text-destructive">
@@ -305,8 +317,17 @@ export function HouseholdForm({
           {...form.register('notes')}
         />
         <p className="text-[10px] text-muted-foreground">
-          Physical access notes only (gate code, hazards). Do not enter resident names, phone numbers, or personal information.
+          Physical access notes only (gate code, hazards). Do not enter resident names, phone
+          numbers, or personal information.
         </p>
+        {Boolean(form.watch('notes')) &&
+          detectSpiAndPiiViolations(form.watch('notes') || '').length > 0 && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium leading-tight">
+              ⚠️ Privacy notice: Notes contain potential personal or sensitive details (
+              {detectSpiAndPiiViolations(form.watch('notes') || '').join(', ')}). They will be
+              automatically sanitized to protect resident privacy.
+            </p>
+          )}
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

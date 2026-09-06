@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentUser, useKeyboardShortcuts } from '@/hooks';
+import { detectSpiAndPiiViolations, sanitizeOpenText } from '@/lib/privacy/open-text-guard';
 import { saveVisitRecord, updateHouseholdRecord } from '@/lib/record-writes';
 import { resolveHouseholdStatusAfter } from '@/lib/status-rules';
 import { type LogVisitFormData, logVisitSchema } from '@/schemas/visit';
@@ -101,7 +102,7 @@ export function HouseholdLogVisitSheet({
         assignmentId: assignmentId ?? undefined,
         outcome: data.outcome,
         householdStatusAfter: data.status,
-        notes: data.notes || undefined,
+        notes: data.notes ? sanitizeOpenText(data.notes) || undefined : undefined,
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
         publisherName: user?.name || null,
@@ -218,6 +219,14 @@ export function HouseholdLogVisitSheet({
             className="rounded-xl text-xs resize-none h-20 bg-background"
             {...form.register('notes')}
           />
+          {Boolean(form.watch('notes')) &&
+            detectSpiAndPiiViolations(form.watch('notes') || '').length > 0 && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium leading-tight">
+                ⚠️ Privacy notice: Notes contain personal or sensitive details (
+                {detectSpiAndPiiViolations(form.watch('notes') || '').join(', ')}). They will be
+                automatically sanitized to protect resident privacy.
+              </p>
+            )}
         </div>
 
         {/* Private Personal Notebook Callout */}
@@ -227,7 +236,8 @@ export function HouseholdLogVisitSheet({
             Personal Return Visits & Studies
           </div>
           <p>
-            Scriptures discussed, literature placements, and return visit notes should be kept in your private on-device Personal Notebook.
+            Scriptures discussed, literature placements, and return visit notes should be kept in
+            your private on-device Personal Notebook.
           </p>
         </div>
 
