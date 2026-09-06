@@ -46,7 +46,7 @@ async function main() {
   const report = await runPrivacySanitizer({
     mode,
     congregationId,
-    targets: ['households', 'visits', 'legacy'],
+    targets: ['households', 'visits', 'encounters', 'territories', 'legacy'],
   });
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -57,6 +57,10 @@ async function main() {
   console.log(`- Households Needing Fix:   ${report.householdsSanitized}`);
   console.log(`- Visits Scanned:           ${report.visitsScanned}`);
   console.log(`- Visits Needing Fix:       ${report.visitsSanitized}`);
+  console.log(`- Encounters Scanned:       ${report.encountersScanned}`);
+  console.log(`- Encounters Needing Fix:   ${report.encountersSanitized}`);
+  console.log(`- Territories Scanned:      ${report.territoriesScanned}`);
+  console.log(`- Territories Needing Fix:  ${report.territoriesSanitized}`);
   console.log(`- Legacy Contacts Pruned:   ${report.contactsDeleted}`);
   console.log(`- Member Locations Pruned:  ${report.memberLocationsDeleted}`);
   console.log(`- Execution Time:           ${elapsed}s\n`);

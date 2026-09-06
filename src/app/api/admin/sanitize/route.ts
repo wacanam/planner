@@ -56,7 +56,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const mode: 'dry_run' | 'execute' = body.mode === 'execute' ? 'execute' : 'dry_run';
     let congregationId: string | null = body.congregationId ?? null;
-    const targets = Array.isArray(body.targets) ? body.targets : ['households', 'visits', 'legacy'];
+    const targets = Array.isArray(body.targets)
+      ? body.targets
+      : ['households', 'visits', 'encounters', 'territories', 'legacy'];
 
     // Enforce congregation boundaries for regular admins
     const isSuperAdmin = callerRole === 'SUPER_ADMIN' || callerRole === 'super_admin';
