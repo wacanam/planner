@@ -153,15 +153,18 @@ export function HouseholdForm({
         </div>
         <div className="space-y-1 col-span-2">
           <Label htmlFor="streetName" className="text-xs font-semibold">
-            Street / Building Name *
+            Street / Landmark / Purok *
           </Label>
           <Input
             id="streetName"
             autoFocus
-            placeholder="e.g. Maple Street"
+            placeholder="e.g. Maple Street, Purok 3 (no family names)"
             className="h-9 rounded-xl text-xs"
             {...form.register('streetName')}
           />
+          <p className="text-[10px] text-muted-foreground leading-tight">
+            Street, Purok, or physical landmark. Strictly no family names (do not enter &ldquo;X Residence&rdquo;).
+          </p>
           {form.formState.errors.streetName && (
             <p className="text-[10px] text-destructive">
               {form.formState.errors.streetName.message}

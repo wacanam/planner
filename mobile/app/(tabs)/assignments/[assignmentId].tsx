@@ -673,12 +673,22 @@ export default function AssignmentDetailScreen() {
             </Text>
 
             <Input
-              label="Street Name / Address *"
-              placeholder="e.g. Jasmine St."
+              label="Street Name / Purok / Landmark *"
+              placeholder="e.g. Jasmine St, Purok 2 (no family names)"
               value={newDoorAddress}
               onChangeText={setNewDoorAddress}
               autoFocus
             />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Street, Purok, or physical landmark. Strictly no family names (do not enter &ldquo;X Residence&rdquo;).
+            </Text>
 
             <Input
               label="Safety / Access Notes (Optional)"

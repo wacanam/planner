@@ -615,14 +615,24 @@ export default function HouseholdDetailScreen() {
             />
 
             <Input
-              label="Street Name / Address *"
-              placeholder="e.g. 742 Evergreen Terrace"
+              label="Street Name / Purok / Landmark *"
+              placeholder="e.g. Maple Street, Purok 3 (no family names)"
               value={editStreetName || editAddress}
               onChangeText={(val) => {
                 setEditStreetName(val);
                 setEditAddress(val);
               }}
             />
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontSize: typography.xs,
+                marginTop: -4,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Street, Purok, or physical landmark. Strictly no family names (do not enter &ldquo;X Residence&rdquo;).
+            </Text>
 
             <Input
               label="City / Locality"
