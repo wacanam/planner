@@ -46,6 +46,8 @@ import {
   useTerritoryVisits,
 } from '@/hooks';
 import { formatDate } from '@/lib/date-utils';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
+import { updateVisitRecord } from '@/lib/record-writes';
 import {
   canAdjustAssignmentDates,
   canLogVisitOrEncounter,
@@ -879,9 +881,20 @@ export default function AssignmentVisitsClient() {
                     )}
 
                     {v.notes && (
-                      <p className="text-[11px] text-muted-foreground italic line-clamp-2">
-                        &ldquo;{v.notes}&rdquo;
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[11px] text-muted-foreground italic line-clamp-2 flex-1">
+                          &ldquo;{v.notes}&rdquo;
+                        </p>
+                        <InlineRedactButton
+                          value={v.notes}
+                          fieldType="notes"
+                          user={user}
+                          onRedact={async (newVal) => {
+                            await updateVisitRecord(v.id, { notes: newVal });
+                            v.notes = newVal;
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>

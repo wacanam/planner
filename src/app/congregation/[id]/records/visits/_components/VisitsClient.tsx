@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -580,8 +581,16 @@ export default function VisitsClient() {
 
                   {/* Visit Notes */}
                   {v.notes && (
-                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed">
-                      <p className="italic line-clamp-3">&ldquo;{v.notes}&rdquo;</p>
+                    <div className="p-2.5 rounded-xl bg-muted/40 border border-border/50 text-xs text-foreground/85 leading-relaxed flex items-start justify-between gap-2">
+                      <p className="italic line-clamp-3 flex-1">&ldquo;{v.notes}&rdquo;</p>
+                      <InlineRedactButton
+                        value={v.notes}
+                        fieldType="notes"
+                        user={user}
+                        onRedact={async (newVal) => {
+                          await updateVisitRecord(v.id, { notes: newVal });
+                        }}
+                      />
                     </div>
                   )}
 

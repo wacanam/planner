@@ -12,6 +12,7 @@ import {
   canEditTerritoryInStudio,
   canManageDoNotCallList,
   canManageGroups,
+  canRedactPrivacyFields,
   canModifyBoundary,
   canModifyMapAnnotation,
   canReturnAssignment,
@@ -158,6 +159,20 @@ describe('Action Capability Checks', () => {
     expect(canManageGroups(UserRole.SECRETARY)).toBe(true);
     expect(canManageGroups(UserRole.TERRITORY_SERVANT)).toBe(false);
     expect(canManageGroups(UserRole.USER)).toBe(false);
+  });
+
+  it('allows privacy field redaction strictly to service overseers, admins, and super admins', () => {
+    expect(canRedactPrivacyFields(UserRole.SUPER_ADMIN)).toBe(true);
+    expect(canRedactPrivacyFields(UserRole.ADMIN)).toBe(true);
+    expect(canRedactPrivacyFields(UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canRedactPrivacyFields(UserRole.USER, UserRole.SERVICE_OVERSEER)).toBe(true);
+    expect(canRedactPrivacyFields(UserRole.USER, UserRole.ADMIN)).toBe(true);
+    expect(canRedactPrivacyFields(UserRole.SECRETARY)).toBe(false);
+    expect(canRedactPrivacyFields(UserRole.TERRITORY_SERVANT)).toBe(false);
+    expect(canRedactPrivacyFields(UserRole.CIRCUIT_OVERSEER)).toBe(false);
+    expect(canRedactPrivacyFields(UserRole.USER)).toBe(false);
+    expect(canRedactPrivacyFields(UserRole.VISITING_PUBLISHER)).toBe(false);
+    expect(canRedactPrivacyFields(null, null)).toBe(false);
   });
 
   it('allows Do Not Call list management to admins, service overseers, secretaries, territory servants, and circuit overseers', () => {

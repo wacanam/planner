@@ -24,6 +24,8 @@ import {
 } from '@/lib/local-first/personal-calls';
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
+import { updateHouseholdRecord, updateVisitRecord } from '@/lib/record-writes';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -242,11 +244,21 @@ export default function HouseholdDetailPage() {
               </div>
 
               {householdView.notes && (
-                <div className="p-3 bg-muted/30 rounded-xl border border-border text-xs text-muted-foreground">
-                  <p className="font-semibold text-foreground mb-1">
-                    Physical Access Notes & Directions:
-                  </p>
-                  <p>{householdView.notes}</p>
+                <div className="p-3 bg-muted/30 rounded-xl border border-border text-xs text-muted-foreground flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground mb-1">
+                      Physical Access Notes & Directions:
+                    </p>
+                    <p>{householdView.notes}</p>
+                  </div>
+                  <InlineRedactButton
+                    value={householdView.notes}
+                    fieldType="notes"
+                    onRedact={async (newVal) => {
+                      await updateHouseholdRecord(householdView.id, { notes: newVal });
+                      await reload();
+                    }}
+                  />
                 </div>
               )}
             </CardContent>
@@ -435,7 +447,19 @@ export default function HouseholdDetailPage() {
                       </p>
                     )}
 
-                    {visit.notes && <p className="text-xs text-muted-foreground">{visit.notes}</p>}
+                    {visit.notes && (
+                      <div className="flex items-start justify-between gap-2 mt-1">
+                        <p className="text-xs text-muted-foreground flex-1">{visit.notes}</p>
+                        <InlineRedactButton
+                          value={visit.notes}
+                          fieldType="notes"
+                          onRedact={async (newVal) => {
+                            await updateVisitRecord(visit.id, { notes: newVal });
+                            reload();
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

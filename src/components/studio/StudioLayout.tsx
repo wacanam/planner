@@ -23,6 +23,7 @@ import { KeyboardShortcutsDialog } from '@/components/shared/keyboard-shortcuts-
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -1273,9 +1274,19 @@ export function StudioLayout({
             </div>
 
             {selectedHousehold.notes && (
-              <p className="text-xs bg-muted/40 p-2.5 rounded-xl text-muted-foreground border border-border/50 leading-relaxed">
-                {selectedHousehold.notes}
-              </p>
+              <div className="text-xs bg-muted/40 p-2.5 rounded-xl text-muted-foreground border border-border/50 leading-relaxed flex items-start justify-between gap-2">
+                <p className="flex-1">{selectedHousehold.notes}</p>
+                <InlineRedactButton
+                  value={selectedHousehold.notes}
+                  fieldType="notes"
+                  user={user}
+                  onRedact={async (newVal) => {
+                    await updateHouseholdRecord(selectedHousehold.id, { notes: newVal });
+                    setSelectedHousehold((prev) => (prev ? { ...prev, notes: newVal } : null));
+                    onHouseholdSaved?.();
+                  }}
+                />
+              </div>
             )}
 
             {(() => {

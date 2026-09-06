@@ -29,6 +29,8 @@ import {
 } from '@/hooks';
 import { getHouseholdMapLabel } from '@/lib/household-contacts';
 import { useBasemapPreference } from '@/lib/map-preferences';
+import { updateHouseholdRecord } from '@/lib/record-writes';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import type { Congregation, Household, MapLandmark, MapRoad, Territory } from '@/types/api';
 import { CongregationGoogleMap } from './CongregationGoogleMap';
 import { CongregationTopBar } from './CongregationTopBar';
@@ -632,9 +634,18 @@ export function CongregationStudioLayout({
             </div>
 
             {selectedHousehold.notes && (
-              <p className="text-xs bg-muted/40 p-2.5 rounded-xl text-muted-foreground border border-border leading-relaxed">
-                {selectedHousehold.notes}
-              </p>
+              <div className="text-xs bg-muted/40 p-2.5 rounded-xl text-muted-foreground border border-border leading-relaxed flex items-start justify-between gap-2">
+                <p className="flex-1">{selectedHousehold.notes}</p>
+                <InlineRedactButton
+                  value={selectedHousehold.notes}
+                  fieldType="notes"
+                  user={user}
+                  onRedact={async (newVal) => {
+                    await updateHouseholdRecord(selectedHousehold.id, { notes: newVal });
+                    setSelectedHousehold((prev) => (prev ? { ...prev, notes: newVal } : null));
+                  }}
+                />
+              </div>
             )}
 
             {selectedHousehold.territoryId && (

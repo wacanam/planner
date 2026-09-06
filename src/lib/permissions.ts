@@ -170,6 +170,22 @@ export function canApproveAssignments(
   );
 }
 
+/**
+ * Returns true if the user can one-click redact PII / SPI fields
+ * (Service Overseer, Admin, or Super Admin).
+ */
+export function canRedactPrivacyFields(
+  role?: string | null,
+  congregationRole?: string | null
+): boolean {
+  return (
+    isSystemAdmin(role) ||
+    isSystemAdmin(congregationRole) ||
+    isServiceOverseer(role) ||
+    isServiceOverseer(congregationRole)
+  );
+}
+
 export function canCreateTerritory(
   role?: string | null,
   congregationRole?: string | null

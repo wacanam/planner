@@ -23,6 +23,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -792,9 +793,19 @@ export default function HouseholdsClient() {
                       {h.address}, {h.city} {h.postalCode ? `(${h.postalCode})` : ''}
                     </p>
                     {h.notes && (
-                      <p className="text-xs text-muted-foreground/80 mt-1 italic line-clamp-1">
-                        &ldquo;{h.notes}&rdquo;
-                      </p>
+                      <div className="flex items-start justify-between gap-2 mt-1">
+                        <p className="text-xs text-muted-foreground/80 italic line-clamp-1 flex-1">
+                          &ldquo;{h.notes}&rdquo;
+                        </p>
+                        <InlineRedactButton
+                          value={h.notes}
+                          fieldType="notes"
+                          user={user}
+                          onRedact={async (newVal) => {
+                            await updateHouseholdRecord(h.id, { notes: newVal });
+                          }}
+                        />
+                      </div>
                     )}
                     <div className="flex gap-2 mt-2 text-[11px] text-muted-foreground items-center flex-wrap">
                       {visitCountByHousehold[h.id] ? (
