@@ -413,7 +413,7 @@ export function PersonalCallDialog({
             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               <strong className="text-foreground">100% On-Device Privacy:</strong> This note is
-              stored only in this browser&apos;s IndexedDB. Other publishers, servants, and
+              stored only on your device&apos;s private storage. Other publishers, servants, and
               overseers cannot see this information.
             </p>
           </div>

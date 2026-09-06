@@ -301,7 +301,7 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
     title: 'Congregation Oversight & S-13 Reports',
     subtitle: 'Overseer Tools, Service Groups & Reports',
     description:
-      'Service Overseers and Territory Servants have powerful administrative controls to manage members, service groups, and official congregation reporting.',
+      'Service Overseers and Territory Servants have comprehensive tools to manage members, service groups, and congregation territory reporting.',
     targetSelector: '[data-tour="dashboard-header"]',
     iconName: 'ShieldCheck',
     highlights: [
@@ -321,7 +321,7 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
         icon: 'FileSpreadsheet',
         title: 'S-13 Coverage Reports',
         description:
-          'Generate official S-13 territory assignment records, coverage summaries, and export to CSV or PDF.',
+          'Generate S-13 territory assignment records, coverage summaries, and export to CSV or PDF.',
       },
     ],
     tip: 'Administrative pages appear automatically in the navigation for Service Overseers and Servants.',

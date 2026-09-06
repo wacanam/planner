@@ -86,7 +86,7 @@ The Kanataran Team
           Hello <strong>${name}</strong>,
         </p>
         <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #334155;">
-          Great news! Your request to join <strong>${congName}</strong> has been approved by the Service Overseer. You are now officially registered as a publisher in this congregation workspace.
+          Great news! Your request to join <strong>${congName}</strong> has been approved by the Service Overseer. You are now active as a publisher in this congregation workspace.
         </p>
 
         <!-- Action Button -->

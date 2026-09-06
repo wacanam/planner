@@ -117,7 +117,7 @@ const sections = [
             accurately.
           </li>
           <li>
-            Generating official congregation reports, S-13 territory assignment registers, and
+            Generating congregation reports, S-13 territory assignment registers, and
             territory coverage summaries for Service Overseers and Territory Servants without collecting personal profiles.
           </li>
           <li>
@@ -138,14 +138,13 @@ const sections = [
     content: (
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
         <p>
-          We employ industry-standard security practices to protect both in-transit and at-rest
-          congregation data:
+          We implement strong technical and organizational measures to safeguard congregation data:
         </p>
         <ul className="list-disc pl-5 space-y-2">
           <li>
-            <strong className="text-foreground">Encryption:</strong> All network communication uses
-            HTTPS/TLS encryption. Cloud data is encrypted at rest within enterprise cloud
-            infrastructure (Firebase Firestore).
+            <strong className="text-foreground">Encrypted Data in Transit:</strong> All data sent
+            between your browser and our servers is encrypted using industry-standard TLS 1.3
+            cryptographic protocols.
           </li>
           <li>
             <strong className="text-foreground">Strict Database Rules:</strong> Granular security
@@ -154,14 +153,13 @@ const sections = [
           </li>
           <li>
             <strong className="text-foreground">Offline Storage:</strong> When working offline,
-            visits and territory notes are stored in your browser&apos;s isolated IndexedDB storage,
+            visits and territory notes are stored in your browser&apos;s private local storage,
             protected by standard browser sandboxing mechanisms.
           </li>
           <li>
             <strong className="text-foreground">Client-Side Notebook Sandboxing:</strong> Personal
-            ministry notes remain sandboxed inside your local device&apos;s browser storage
-            (IndexedDB). They cannot be accessed by cloud database queries, security rules, or
-            congregation overseers.
+            ministry notes remain sandboxed strictly inside your local device&apos;s private storage.
+            They cannot be accessed by cloud database queries, security rules, or congregation overseers.
           </li>
         </ul>
       </div>
@@ -256,7 +254,7 @@ const sections = [
     title: '8. Cookies & Local Storage',
     content: (
       <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-        <p>Kanataran uses essential cookies and browser LocalStorage / IndexedDB solely to:</p>
+        <p>Kanataran uses essential cookies and local browser storage solely to:</p>
         <ul className="list-disc pl-5 space-y-2">
           <li>Maintain your authenticated user session.</li>
           <li>Preserve user theme preferences (light/dark mode).</li>

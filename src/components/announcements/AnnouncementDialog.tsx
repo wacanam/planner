@@ -252,7 +252,7 @@ export function AnnouncementDialog({
             {announcement ? 'Edit Announcement' : 'Post New Announcement'}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Broadcast an official notice to the congregation, a service group, or across the system.
+            Share a notice with the congregation, a service group, or across the system.
           </DialogDescription>
         </DialogHeader>
 

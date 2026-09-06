@@ -158,7 +158,7 @@ export default function CongregationAnnouncementsPage() {
               Announcements & Notices
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {congregation?.name ? `${congregation.name} • ` : ''}Official congregation updates and system broadcasts
+              {congregation?.name ? `${congregation.name} • ` : ''}Congregation notices and updates
             </p>
           </div>
 

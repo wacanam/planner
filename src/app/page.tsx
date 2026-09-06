@@ -115,7 +115,7 @@ const userTypes = [
       'Manage assigned territory cards and inventory',
       'Assign territories to publishers and groups',
       'Track check-outs, returns, and completion',
-      'Print and export official territory cards',
+      'Print and export territory cards',
       'Mobile-optimized servant workflow',
     ],
   },

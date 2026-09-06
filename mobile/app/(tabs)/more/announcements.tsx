@@ -538,7 +538,7 @@ export default function AnnouncementsScreen() {
                   {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, marginTop: 2 }}>
-                  Post an official notice for the congregation or system
+                  Post a notice for the congregation or system
                 </Text>
               </View>
 

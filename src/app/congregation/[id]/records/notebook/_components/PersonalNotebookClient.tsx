@@ -267,8 +267,8 @@ export default function PersonalNotebookClient() {
             Zero Cloud Sync Guarantee
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Data in your Personal Notebook belongs exclusively to you and is stored directly in your
-            browser&apos;s IndexedDB. Congregation administrators, elders, and servers have{' '}
+            Data in your Personal Notebook belongs exclusively to you and is stored directly on your
+            device&apos;s private local storage. Congregation administrators, elders, and servers have{' '}
             <strong className="text-foreground">zero access</strong> to your notes, contact names,
             or study records.
           </p>

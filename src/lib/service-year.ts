@@ -187,7 +187,7 @@ export function getServiceYearCountdown(
   if (isPastServiceYear) {
     phase = 'transition';
     phaseTitle = 'Service Year Concluded';
-    phaseDescription = 'Annual period completed. Review official S-13 registers.';
+    phaseDescription = 'Annual period completed. Review S-13 assignment registers.';
   } else if (isFutureServiceYear) {
     phase = 'early';
     phaseTitle = 'Upcoming Service Year';

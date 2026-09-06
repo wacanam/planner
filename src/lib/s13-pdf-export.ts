@@ -141,7 +141,7 @@ export function exportS13ToPDF(
     doc.setTextColor(148, 163, 184); // Slate-400
 
     const footerY = pageHeight - 7;
-    doc.text(`Kanataran • Official S-13 Territory Assignment Record`, marginLeft, footerY);
+    doc.text(`Kanataran • S-13 Territory Assignment Record`, marginLeft, footerY);
     doc.text(`Page ${pageNum}`, marginLeft + contentWidth, footerY, { align: 'right' });
   };
 

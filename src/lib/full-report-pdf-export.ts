@@ -282,14 +282,14 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   drawPageFooter(pageNumber, '3+');
 
   // =========================================================================
-  // PAGE 2: OFFICIAL S-13 CONGREGATION TERRITORY RECORD (PAGE BREAK)
+  // PAGE 2: S-13 CONGREGATION TERRITORY RECORD (PAGE BREAK)
   // =========================================================================
   doc.addPage();
   pageNumber++;
   currentY = marginTop;
 
   drawSectionHeader(
-    'OFFICIAL S-13 CONGREGATION TERRITORY ASSIGNMENT RECORD',
+    'S-13 CONGREGATION TERRITORY ASSIGNMENT RECORD',
     `Congregation: ${congregationName}   •   Total Records: ${s13Records.length}`,
     'FORM S-13 (8/19)'
   );

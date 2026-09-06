@@ -273,7 +273,7 @@ export default function ReportsClient() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Official S-13 territory records, coverage summaries, and field service activity
+              S-13 territory records, coverage summaries, and field service activity
             </p>
           </div>
 
@@ -896,7 +896,7 @@ export default function ReportsClient() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-sm sm:text-base font-bold">
-                      Official S-13 Congregation Territory Record
+                      S-13 Congregation Territory Record
                     </CardTitle>
                     <Badge
                       variant="outline"
@@ -1225,7 +1225,7 @@ export default function ReportsClient() {
           {editingS13Record && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Service Overseers and Territory Servants can adjust the official assignment, return,
+                Service Overseers and Territory Servants can adjust the territory assignment, return,
                 or due dates.
               </p>
 

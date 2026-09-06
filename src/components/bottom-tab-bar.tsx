@@ -131,7 +131,7 @@ export function BottomTabBar() {
     {
       href: `/congregation/${id}/records/dnc`,
       label: 'Do Not Call Registry',
-      description: 'Official address-only skip list',
+      description: 'Address-only Do Not Call list',
       icon: ShieldAlert,
     },
     {

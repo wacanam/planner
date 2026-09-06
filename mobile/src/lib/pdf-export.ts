@@ -100,7 +100,7 @@ export function generateS13Html(
         </table>
 
         <div class="footer">
-          <div>Kanataran Mobile &bull; Official Territory Record</div>
+          <div>Kanataran Mobile &bull; Territory Record</div>
           <div>Page 1</div>
         </div>
       </body>

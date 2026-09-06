@@ -360,7 +360,7 @@ export default function ReportsScreen() {
                     Export Form S-13 (8/19)
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: typography.xs }}>
-                    Generate official congregation territory assignment PDF
+                    Generate congregation territory assignment PDF
                   </Text>
                 </View>
               </View>
