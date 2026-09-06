@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { AdminNav } from '@/components/admin-nav';
+import { PrivacySanitizerCard } from '@/components/admin/PrivacySanitizerCard';
 import { ProtectedPage } from '@/components/protected-page';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { StatCard } from '@/components/stat-card';
@@ -163,6 +164,9 @@ export default function AdminDashboardPage() {
             color="purple"
           />
         </div>
+
+        {/* Data Privacy & S-13 Territory Sanitizer */}
+        <PrivacySanitizerCard congregations={congregations} />
 
         {/* Pending Account & Congregation Requests Section */}
         <Card className="bg-card border-border shadow-xs">
