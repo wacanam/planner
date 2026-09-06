@@ -800,9 +800,6 @@ export default function AssignmentVisitsClient() {
                           • Not yet worked
                         </span>
                       )}
-                      {h.occupantsCount && h.occupantsCount > 1 && (
-                        <span>• {h.occupantsCount} occupants</span>
-                      )}
                     </div>
 
                     {h.notes && (

@@ -1258,11 +1258,6 @@ export function StudioLayout({
               >
                 {selectedHousehold.type}
               </Badge>
-              {selectedHousehold.occupantsCount && selectedHousehold.occupantsCount > 1 && (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                  {selectedHousehold.occupantsCount} occupants
-                </Badge>
-              )}
             </div>
 
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-0.5">
