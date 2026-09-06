@@ -6,6 +6,7 @@ import { Building2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -227,9 +228,20 @@ export function HouseholdForm({
           )}
         </div>
         <div className="space-y-1 col-span-2">
-          <Label htmlFor="streetName" className="text-xs font-semibold">
-            Street / Purok / Landmark *
-          </Label>
+          <div className="flex items-center justify-between gap-1">
+            <Label htmlFor="streetName" className="text-xs font-semibold">
+              Street / Purok / Landmark *
+            </Label>
+            {Boolean(form.watch('streetName')?.trim()) && (
+              <InlineRedactButton
+                value={form.watch('streetName')}
+                fieldType="address"
+                onRedact={(newVal) => {
+                  form.setValue('streetName', newVal || '[REDACTED]', { shouldValidate: true });
+                }}
+              />
+            )}
+          </div>
           <Input
             id="streetName"
             autoFocus={!initialValues?.id}
@@ -288,7 +300,9 @@ export function HouseholdForm({
       {/* Row 3: Territory (Optional) */}
       {territories.length > 0 && (
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-muted-foreground">Territory (Optional)</Label>
+          <Label className="text-xs font-semibold text-muted-foreground">
+            Territory (Optional)
+          </Label>
           <Select
             value={form.watch('territoryId') || 'none'}
             onValueChange={(val) => form.setValue('territoryId', val === 'none' ? null : val)}
@@ -310,9 +324,20 @@ export function HouseholdForm({
 
       {/* Row 4: Property Notes */}
       <div className="space-y-1">
-        <Label htmlFor="notes" className="text-xs font-semibold">
-          Property / Access Notes (Optional)
-        </Label>
+        <div className="flex items-center justify-between gap-1">
+          <Label htmlFor="notes" className="text-xs font-semibold">
+            Property / Access Notes (Optional)
+          </Label>
+          {Boolean(form.watch('notes')?.trim()) && (
+            <InlineRedactButton
+              value={form.watch('notes')}
+              fieldType="notes"
+              onRedact={(newVal) => {
+                form.setValue('notes', newVal || '', { shouldValidate: true });
+              }}
+            />
+          )}
+        </div>
         <Textarea
           id="notes"
           placeholder="e.g. Ring top buzzer, beware of dog (no resident names)"
@@ -354,9 +379,7 @@ export function HouseholdForm({
                 <Label className="text-xs font-semibold">Structure Type</Label>
                 <Select
                   value={form.watch('type')}
-                  onValueChange={(val) =>
-                    form.setValue('type', val as HouseholdFormValues['type'])
-                  }
+                  onValueChange={(val) => form.setValue('type', val as HouseholdFormValues['type'])}
                 >
                   <SelectTrigger className="h-9 rounded-xl text-xs bg-background">
                     <SelectValue placeholder="Select type" />

@@ -19,11 +19,11 @@ import { HouseholdLogVisitSheet } from '@/components/households/household-action
 import { HouseholdForm, type HouseholdFormValues } from '@/components/households/household-form';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -731,6 +731,19 @@ export default function HouseholdsClient() {
                           className="text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5"
                         />
                       </Link>
+
+                      <InlineRedactButton
+                        value={h.streetName || h.address}
+                        fieldType="address"
+                        user={user}
+                        onRedact={async (newVal) => {
+                          const fallbackStreet = newVal || '[REDACTED]';
+                          await updateHouseholdRecord(h.id, {
+                            streetName: fallbackStreet,
+                            address: fallbackStreet,
+                          });
+                        }}
+                      />
 
                       {/* Collaboration / Transfer / Read-Only / Group Record / Owner Badges */}
                       {isTransferred && (

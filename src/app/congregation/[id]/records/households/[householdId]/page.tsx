@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HouseholdLogVisitSheet } from '@/components/households/household-action-sheets';
 import { PersonalCallDialog } from '@/components/households/PersonalCallDialog';
 import { ShareHouseholdDialog } from '@/components/households/ShareHouseholdDialog';
+import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +26,6 @@ import {
 import type { LocalHousehold, LocalVisit } from '@/lib/local-first/types';
 import { canLogVisitOrEncounter, canShareHousehold } from '@/lib/permissions';
 import { updateHouseholdRecord, updateVisitRecord } from '@/lib/record-writes';
-import { InlineRedactButton } from '@/components/privacy/InlineRedactButton';
 import { timeAgo } from '@/lib/time-ago';
 import type { Household, Visit } from '@/types/api';
 
@@ -201,10 +201,24 @@ export default function HouseholdDetailPage() {
             <CardContent className="p-6 space-y-4">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
-                    {householdView.houseNumber ? `${householdView.houseNumber} ` : ''}
-                    {householdView.streetName || householdView.address}
-                  </h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                      {householdView.houseNumber ? `${householdView.houseNumber} ` : ''}
+                      {householdView.streetName || householdView.address}
+                    </h1>
+                    <InlineRedactButton
+                      value={householdView.streetName || householdView.address}
+                      fieldType="address"
+                      onRedact={async (newVal) => {
+                        const fallbackStreet = newVal || '[REDACTED]';
+                        await updateHouseholdRecord(householdView.id, {
+                          streetName: fallbackStreet,
+                          address: fallbackStreet,
+                        });
+                        await reload();
+                      }}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {householdView.address}, {householdView.city}
                     {householdView.postalCode ? ` (${householdView.postalCode})` : ''}

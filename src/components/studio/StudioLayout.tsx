@@ -1226,17 +1226,41 @@ export function StudioLayout({
                 <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
                   <Home size={16} />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-foreground leading-snug">
                     {getHouseholdMapLabel(selectedHousehold) || 'Household'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedHousehold.address || selectedHousehold.streetName}
-                    {selectedHousehold.city &&
-                    !(selectedHousehold.address || '').includes(selectedHousehold.city)
-                      ? `, ${selectedHousehold.city}`
-                      : ''}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedHousehold.address || selectedHousehold.streetName}
+                      {selectedHousehold.city &&
+                      !(selectedHousehold.address || '').includes(selectedHousehold.city)
+                        ? `, ${selectedHousehold.city}`
+                        : ''}
+                    </p>
+                    <InlineRedactButton
+                      value={selectedHousehold.streetName || selectedHousehold.address}
+                      fieldType="address"
+                      user={user}
+                      onRedact={async (newVal) => {
+                        const fallbackStreet = newVal || '[REDACTED]';
+                        await updateHouseholdRecord(selectedHousehold.id, {
+                          streetName: fallbackStreet,
+                          address: fallbackStreet,
+                        });
+                        setSelectedHousehold((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                streetName: fallbackStreet,
+                                address: fallbackStreet,
+                              }
+                            : null
+                        );
+                        onHouseholdSaved?.();
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <Button
