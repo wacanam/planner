@@ -163,7 +163,7 @@ describe('extractHouseholdContacts', () => {
 });
 
 describe('getHouseholdMapLabel', () => {
-  it('formats house number + resident name', () => {
+  it('formats only house number when house number is set (ignoring resident name)', () => {
     expect(
       getHouseholdMapLabel({
         houseNumber: '104',
@@ -171,10 +171,10 @@ describe('getHouseholdMapLabel', () => {
         streetName: 'Maple Street',
         address: '104 Maple Street, City',
       })
-    ).toBe('#104 Smith');
+    ).toBe('#104');
   });
 
-  it('formats house number + street name when resident name is missing', () => {
+  it('formats only house number instead of street/purok name', () => {
     expect(
       getHouseholdMapLabel({
         houseNumber: '104',
@@ -182,7 +182,7 @@ describe('getHouseholdMapLabel', () => {
         streetName: 'Maple Street',
         address: '104 Maple Street, City',
       })
-    ).toBe('#104 Maple Street');
+    ).toBe('#104');
   });
 
   it('preserves existing # prefix on house number without doubling', () => {
@@ -191,17 +191,17 @@ describe('getHouseholdMapLabel', () => {
         houseNumber: '#12B',
         name: 'Johnson',
       })
-    ).toBe('#12B Johnson');
+    ).toBe('#12B');
   });
 
-  it('avoids duplicating house number if name already begins with it', () => {
+  it('handles house number with leading # and whitespace', () => {
     expect(
       getHouseholdMapLabel({
-        houseNumber: '104',
+        houseNumber: '# 104',
         streetName: '104 Maple Street',
         name: null,
       })
-    ).toBe('#104 Maple Street');
+    ).toBe('#104');
   });
 
   it('falls back to name or street if house number is not set', () => {
@@ -238,21 +238,21 @@ describe('getHouseholdMapLabel', () => {
         houseNumber: '104',
         address: '104 Maple Street, Springfield',
       })
-    ).toBe('#104 Maple Street, Springfield');
+    ).toBe('#104');
 
     expect(
       getHouseholdMapLabel({
         houseNumber: '5',
         address: 'Block 2 Lot 5, Zone 3',
       })
-    ).toBe('#5 Block 2 Lot 5, Zone 3');
+    ).toBe('#5');
 
     expect(getHouseholdMapLabel({})).toBe('House');
     expect(getHouseholdMapLabel(null)).toBe('House');
     expect(getHouseholdMapLabel(undefined)).toBe('House');
   });
 
-  it('prioritizes name over street name and full address', () => {
+  it('prioritizes name over street name and full address when house number is missing', () => {
     expect(
       getHouseholdMapLabel({
         name: 'Garcia Family',
@@ -262,7 +262,17 @@ describe('getHouseholdMapLabel', () => {
     ).toBe('Garcia Family');
   });
 
-  it('prioritizes street name over name when name is merely identical to the address', () => {
+  it('prioritizes street name over name when name is merely identical to the address and house number is missing', () => {
+    expect(
+      getHouseholdMapLabel({
+        name: 'Lower Calanawan',
+        streetName: 'Iza bungcal family',
+        address: 'Lower Calanawan',
+      })
+    ).toBe('Iza bungcal family');
+  });
+
+  it('displays only house number even when name and street name are present', () => {
     expect(
       getHouseholdMapLabel({
         houseNumber: '30',
@@ -270,6 +280,6 @@ describe('getHouseholdMapLabel', () => {
         streetName: 'Iza bungcal family',
         address: 'Lower Calanawan',
       })
-    ).toBe('#30 Iza bungcal family');
+    ).toBe('#30');
   });
 });

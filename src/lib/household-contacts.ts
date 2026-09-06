@@ -149,8 +149,9 @@ export function extractHouseholdContacts(
 }
 
 /**
- * Formats a concise, informative map label for a pinned household (e.g. "#104 Smith", "#104 Maple St", or full address).
- * Displays house number + name / street name primarily, falling back to full address if null or undefined.
+ * Formats a concise map label for a pinned household on the map.
+ * Displays only the house number (e.g. "#104" or "#12B") instead of street/purok/resident name.
+ * Falls back to name, street name, address, or "House" when house number is not set.
  */
 export function getHouseholdMapLabel(
   h?: {
@@ -164,6 +165,11 @@ export function getHouseholdMapLabel(
   if (!h) return 'House';
 
   const rawNum = (h.houseNumber || '').trim();
+  const cleanNum = rawNum.replace(/^#\s*/, '').trim();
+  if (cleanNum) {
+    return `#${cleanNum}`;
+  }
+
   const rawName = (h.name || '').trim();
   const rawStreet = (h.streetName || '').trim();
   const fullAddress = (h.address || h.householdAddress || '').trim();
@@ -188,17 +194,5 @@ export function getHouseholdMapLabel(
   }
 
   const primaryText = primaryNameOrStreet || fullAddress;
-  const num = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
-
-  if (num && primaryText) {
-    const cleanNum = rawNum.replace(/^#/, '').trim();
-    const cleanPrimary = primaryText.replace(/^#/, '').trim();
-    if (cleanPrimary.toLowerCase().startsWith(cleanNum.toLowerCase())) {
-      return primaryText.startsWith('#') ? primaryText : `#${primaryText}`;
-    }
-    return `${num} ${primaryText}`;
-  }
-
-  if (num) return num;
   return primaryText || 'House';
 }
