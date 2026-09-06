@@ -1,12 +1,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ResponsiveDialog } from '@/components/shared/responsive-dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -54,14 +53,7 @@ export function HouseholdLogVisitSheet({
       assignmentId: assignmentId ?? undefined,
       outcome: initialOutcome || 'answered',
       status: 'available',
-      bibleTopicDiscussed: '',
-      literaturePlaced: '',
       notes: '',
-      returnVisitPlanned: false,
-      returnVisitDate: '',
-      nextVisitTime: '',
-      nextVisitNotes: '',
-      scheduledAppointmentType: 'return_visit',
     },
   });
 
@@ -79,109 +71,37 @@ export function HouseholdLogVisitSheet({
               ? 'busy'
               : (household?.status as LogVisitFormData['status']) || 'available';
 
-    const isRV =
-      defaultOutcome === 'return_visit' ||
-      defaultOutcome === 'return_visit_completed' ||
-      defaultOutcome === 'return_visit_missed';
-    const isStudy =
-      defaultOutcome === 'study_conducted' ||
-      defaultOutcome === 'study_offered' ||
-      defaultOutcome === 'study_missed';
-
     form.reset({
       householdId: household?.id ?? '',
       assignmentId: assignmentId ?? undefined,
       outcome: defaultOutcome,
       status: defaultStatus,
-      bibleTopicDiscussed: '',
-      literaturePlaced: '',
       notes: '',
-      returnVisitPlanned: isRV || isStudy,
-      returnVisitDate: '',
-      nextVisitTime: '',
-      nextVisitNotes: '',
-      scheduledAppointmentType: isStudy ? 'bible_study' : 'return_visit',
     });
   }, [open, household, assignmentId, initialOutcome, form]);
 
   const handleOutcomeChange = (val: LogVisitFormData['outcome']) => {
     form.setValue('outcome', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-
-    const isRV =
-      val === 'return_visit' || val === 'return_visit_completed' || val === 'return_visit_missed';
-    const isStudy = val === 'study_conducted' || val === 'study_offered' || val === 'study_missed';
-    const isMissed = val === 'return_visit_missed' || val === 'study_missed';
-
     const resolvedStatus = resolveHouseholdStatusAfter(val, null, household?.status);
     form.setValue('status', resolvedStatus, { shouldValidate: true, shouldDirty: true });
-
-    if (isStudy) {
-      form.setValue('returnVisitPlanned', true);
-      form.setValue('scheduledAppointmentType', 'bible_study');
-      form.setValue(
-        'bibleStudyStatus',
-        val === 'study_conducted' ? 'conducted' : val === 'study_offered' ? 'offered' : 'missed'
-      );
-      form.setValue('studyOffered', val === 'study_offered');
-      form.setValue('isAppointmentMissed', isMissed);
-    } else if (isRV) {
-      form.setValue('returnVisitPlanned', true);
-      form.setValue('scheduledAppointmentType', 'return_visit');
-      form.setValue('isAppointmentMissed', isMissed);
-    } else {
-      form.setValue('isAppointmentMissed', false);
-    }
   };
 
   const handleStatusChange = (val: LogVisitFormData['status']) => {
     form.setValue('status', val, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
-    if (val === 'return_visit' || val === 'bible_study') {
-      form.setValue('returnVisitPlanned', true);
-      form.setValue(
-        'scheduledAppointmentType',
-        val === 'bible_study' ? 'bible_study' : 'return_visit'
-      );
-    }
   };
 
   const onSubmit = async (data: LogVisitFormData) => {
     if (!household) return;
     setSubmitting(true);
     try {
-      const followUpDate = data.returnVisitPlanned ? data.returnVisitDate || undefined : undefined;
-
-      // 1. Save Visit Record (Zero personal info - PII is strictly kept in Personal Notebook)
+      // 1. Save Visit Record (strictly territory coverage - personal spiritual notes stay in Personal Notebook)
       await saveVisitRecord({
         householdId: household.id,
         congregationId: household.congregationId ?? user?.congregationId ?? undefined,
         assignmentId: assignmentId ?? undefined,
         outcome: data.outcome,
+        householdStatusAfter: data.status,
         notes: data.notes || undefined,
-        literaturePlaced: data.literaturePlaced || undefined,
-        bibleTopicDiscussed: data.bibleTopicDiscussed || undefined,
-        returnVisitDate: followUpDate,
-        nextVisitDate: followUpDate,
-        nextVisitTime: data.returnVisitPlanned ? data.nextVisitTime || undefined : undefined,
-        nextVisitNotes: data.returnVisitPlanned ? data.nextVisitNotes || undefined : undefined,
-        returnVisitPlanned: Boolean(data.returnVisitPlanned),
-        scheduledAppointmentType:
-          data.scheduledAppointmentType ??
-          (data.outcome.includes('study') ? 'bible_study' : 'return_visit'),
-        bibleStudyStatus:
-          data.bibleStudyStatus ??
-          (data.outcome === 'study_conducted'
-            ? 'conducted'
-            : data.outcome === 'study_offered'
-              ? 'offered'
-              : data.outcome === 'study_missed'
-                ? 'missed'
-                : undefined),
-        studyOffered: Boolean(data.studyOffered || data.outcome === 'study_offered'),
-        isAppointmentMissed: Boolean(
-          data.isAppointmentMissed ||
-            data.outcome === 'return_visit_missed' ||
-            data.outcome === 'study_missed'
-        ),
         visitDate: new Date().toISOString(),
         userId: user?.id || null,
         publisherName: user?.name || null,
@@ -287,101 +207,28 @@ export function HouseholdLogVisitSheet({
           </Select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label htmlFor="bibleTopicDiscussed" className="text-xs font-semibold">
-              Topic / Scripture Discussed
-            </Label>
-            <Input
-              id="bibleTopicDiscussed"
-              placeholder="e.g. Psalm 37:29, Paradise"
-              className="h-9 rounded-xl text-xs"
-              {...form.register('bibleTopicDiscussed')}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="literaturePlaced" className="text-xs font-semibold">
-              Literature Left / Video Shown
-            </Label>
-            <Input
-              id="literaturePlaced"
-              placeholder="e.g. Watchtower, brochure, tract"
-              className="h-9 rounded-xl text-xs"
-              {...form.register('literaturePlaced')}
-            />
-          </div>
-        </div>
-
-        {/* Schedule Return Visit / Follow-up */}
-        <div className="space-y-3 pt-2 border-t border-border/60">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="returnVisitPlanned"
-              checked={form.watch('returnVisitPlanned')}
-              onCheckedChange={(checked) => form.setValue('returnVisitPlanned', Boolean(checked))}
-            />
-            <Label
-              htmlFor="returnVisitPlanned"
-              className="text-xs font-semibold cursor-pointer text-foreground"
-            >
-              Schedule Follow-up / Return Visit
-            </Label>
-          </div>
-
-          {form.watch('returnVisitPlanned') && (
-            <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-2.5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="returnVisitDate" className="text-xs font-semibold">
-                    Next Visit Date
-                  </Label>
-                  <Input
-                    id="returnVisitDate"
-                    type="date"
-                    className="h-9 rounded-xl text-xs bg-background"
-                    {...form.register('returnVisitDate')}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="nextVisitTime" className="text-xs font-semibold">
-                    Next Visit Time
-                  </Label>
-                  <Input
-                    id="nextVisitTime"
-                    type="time"
-                    className="h-9 rounded-xl text-xs bg-background"
-                    {...form.register('nextVisitTime')}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="nextVisitNotes" className="text-xs font-semibold">
-                  Objective / Question for Next Visit
-                </Label>
-                <Input
-                  id="nextVisitNotes"
-                  placeholder="e.g. Answer question about suffering"
-                  className="h-9 rounded-xl text-xs bg-background"
-                  {...form.register('nextVisitNotes')}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Visit Notes */}
-        <div className="space-y-1 pt-2 border-t border-border/60">
+        {/* Property / Access Notes */}
+        <div className="space-y-1">
           <Label htmlFor="visitNotes" className="text-xs font-semibold text-foreground">
-            Visit Notes
+            Property / Access Notes (Optional)
           </Label>
           <Textarea
             id="visitNotes"
-            placeholder="Summary of visit attempt, topics discussed (no personal names or contact details)…"
+            placeholder="e.g. Gate code, loose dog on premises (strictly no resident names or spiritual details)"
             className="rounded-xl text-xs resize-none h-20 bg-background"
             {...form.register('notes')}
           />
+        </div>
+
+        {/* Private Personal Notebook Callout */}
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+          <div className="font-semibold text-foreground flex items-center gap-1.5">
+            <BookOpen className="h-3.5 w-3.5 text-primary" />
+            Personal Return Visits & Studies
+          </div>
+          <p>
+            Scriptures discussed, literature placements, and return visit notes should be kept in your private on-device Personal Notebook.
+          </p>
         </div>
 
         {/* Footer Actions */}

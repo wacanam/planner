@@ -1,11 +1,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { BookOpen } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -38,13 +37,7 @@ export const editVisitSchema = z.object({
     'moved',
     'other',
   ]),
-  bibleTopicDiscussed: z.string().optional(),
-  literatureLeft: z.string().optional(),
   notes: z.string().optional(),
-  returnVisitPlanned: z.boolean().optional(),
-  nextVisitDate: z.string().optional(),
-  nextVisitTime: z.string().optional(),
-  nextVisitNotes: z.string().optional(),
 });
 
 export type EditVisitFormValues = z.infer<typeof editVisitSchema>;
@@ -61,17 +54,9 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
     resolver: zodResolver(editVisitSchema) as any,
     defaultValues: {
       outcome: (visit.outcome as EditVisitFormValues['outcome']) || 'answered',
-      bibleTopicDiscussed: visit.bibleTopicDiscussed || '',
-      literatureLeft: visit.literatureLeft || visit.literaturePlaced || '',
       notes: visit.notes || '',
-      returnVisitPlanned: Boolean(visit.returnVisitPlanned),
-      nextVisitDate: visit.nextVisitDate || '',
-      nextVisitTime: visit.nextVisitTime || '',
-      nextVisitNotes: visit.nextVisitNotes || '',
     },
   });
-
-  const returnVisitPlanned = form.watch('returnVisitPlanned');
 
   useKeyboardShortcuts([
     {
@@ -116,83 +101,26 @@ export function EditVisitForm({ visit, onSubmit, loading = false, onCancel }: Ed
       </div>
 
       <div className="space-y-1">
-        <Label htmlFor="bibleTopicDiscussed" className="text-xs font-semibold">
-          Topic / Scripture Discussed
-        </Label>
-        <Input
-          id="bibleTopicDiscussed"
-          placeholder="e.g. Matthew 24:14, Good News"
-          className="h-9 rounded-xl text-xs"
-          {...form.register('bibleTopicDiscussed')}
-        />
-      </div>
-
-      <div className="space-y-1">
-        <Label htmlFor="literatureLeft" className="text-xs font-semibold">
-          Literature Left / Placed
-        </Label>
-        <Input
-          id="literatureLeft"
-          placeholder="e.g. Watchtower, tract"
-          className="h-9 rounded-xl text-xs"
-          {...form.register('literatureLeft')}
-        />
-      </div>
-
-      <div className="space-y-1">
         <Label htmlFor="notes" className="text-xs font-semibold">
-          Visit Notes
+          Property / Access Notes (Optional)
         </Label>
         <Textarea
           id="notes"
-          placeholder="Summary of visit attempt, topics discussed (no personal names or contact details)…"
+          placeholder="e.g. Gate code, loose dog on premises (strictly no resident names or spiritual details)"
           className="rounded-xl text-xs resize-none h-20"
           {...form.register('notes')}
         />
       </div>
 
-      <div className="space-y-3 pt-2 border-t border-border/50">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="returnVisitPlanned"
-            checked={returnVisitPlanned}
-            onCheckedChange={(checked) => form.setValue('returnVisitPlanned', Boolean(checked))}
-          />
-          <Label htmlFor="returnVisitPlanned" className="text-xs font-semibold cursor-pointer">
-            Schedule Return Visit
-          </Label>
+      {/* Private Personal Notebook Callout */}
+      <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+        <div className="font-semibold text-foreground flex items-center gap-1.5">
+          <BookOpen className="h-3.5 w-3.5 text-primary" />
+          Personal Return Visits & Studies
         </div>
-
-        {returnVisitPlanned && (
-          <div className="grid grid-cols-2 gap-2 pl-6">
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-muted-foreground">Date</Label>
-              <Input
-                type="date"
-                className="h-8 rounded-xl text-xs"
-                {...form.register('nextVisitDate')}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[11px] font-medium text-muted-foreground">Time</Label>
-              <Input
-                type="time"
-                className="h-8 rounded-xl text-xs"
-                {...form.register('nextVisitTime')}
-              />
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label className="text-[11px] font-medium text-muted-foreground">
-                Next Visit Topic / Note
-              </Label>
-              <Input
-                placeholder="Question to answer on next visit"
-                className="h-8 rounded-xl text-xs"
-                {...form.register('nextVisitNotes')}
-              />
-            </div>
-          </div>
-        )}
+        <p>
+          Scriptures discussed, literature placements, and return visit notes should be kept in your private on-device Personal Notebook.
+        </p>
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

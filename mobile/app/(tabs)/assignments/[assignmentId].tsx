@@ -1,7 +1,6 @@
 // mobile/app/(tabs)/assignments/[assignmentId].tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  Check,
   Compass,
   Crosshair,
   List as ListIcon,
@@ -97,9 +96,6 @@ export default function AssignmentDetailScreen() {
   const [visitModalVisible, setVisitModalVisible] = useState(false);
   const [outcome, setOutcome] = useState('answered');
   const [notes, setNotes] = useState('');
-  const [topicDiscussed, setTopicDiscussed] = useState('');
-  const [literatureLeft, setLiteratureLeft] = useState('');
-  const [returnVisitPlanned, setReturnVisitPlanned] = useState(false);
 
   // Add Household Modal State
   const [addDoorModalVisible, setAddDoorModalVisible] = useState(false);
@@ -193,19 +189,12 @@ export default function AssignmentDetailScreen() {
     setSelectedHousehold(h);
     setOutcome('answered');
     setNotes('');
-    setTopicDiscussed('');
-    setLiteratureLeft('');
-    setReturnVisitPlanned(false);
     setVisitModalVisible(true);
   };
 
   const handleSubmitVisit = async () => {
     if (!selectedHousehold || !user) return;
     try {
-      const isRV = outcome === 'return_visit' || outcome === 'return_visit_missed';
-      const isStudy =
-        outcome === 'study_conducted' || outcome === 'study_offered' || outcome === 'study_missed';
-
       await createVisit({
         householdId: selectedHousehold.id,
         userId: user.id,
@@ -214,20 +203,6 @@ export default function AssignmentDetailScreen() {
         outcome,
         householdStatusAfter: resolveHouseholdStatusAfter(outcome, null, selectedHousehold.status),
         notes: notes || null,
-        bibleTopicDiscussed: topicDiscussed || null,
-        literatureLeft: literatureLeft || null,
-        returnVisitPlanned: returnVisitPlanned || isRV || isStudy,
-        scheduledAppointmentType: isStudy ? 'bible_study' : isRV ? 'return_visit' : null,
-        bibleStudyStatus:
-          outcome === 'study_conducted'
-            ? 'conducted'
-            : outcome === 'study_offered'
-              ? 'offered'
-              : outcome === 'study_missed'
-                ? 'missed'
-                : null,
-        studyOffered: outcome === 'study_offered',
-        isAppointmentMissed: outcome === 'return_visit_missed' || outcome === 'study_missed',
       });
       await triggerHaptic('success');
       setVisitModalVisible(false);
@@ -618,22 +593,8 @@ export default function AssignmentDetailScreen() {
               </View>
 
               <Input
-                label="Bible Topic / Scripture Discussed"
-                placeholder="e.g. Hope for the dead, Psalm 37:29"
-                value={topicDiscussed}
-                onChangeText={setTopicDiscussed}
-              />
-
-              <Input
-                label="Literature Placed / Left"
-                placeholder="e.g. Awake! No. 1, Enjoy Life tract"
-                value={literatureLeft}
-                onChangeText={setLiteratureLeft}
-              />
-
-              <Input
-                label="Visit Notes"
-                placeholder="Summary of visit attempt, topics discussed (no personal names)…"
+                label="Property / Access Notes (Optional)"
+                placeholder="e.g. Gate code, loose dog (strictly no resident names or spiritual details)"
                 value={notes}
                 onChangeText={setNotes}
                 multiline
@@ -641,25 +602,31 @@ export default function AssignmentDetailScreen() {
                 style={{ minHeight: 60 }}
               />
 
-              <TouchableOpacity
-                onPress={() => setReturnVisitPlanned(!returnVisitPlanned)}
-                style={[styles.checkboxRow, { marginTop: spacing.xs, marginBottom: spacing.md }]}
+              <View
+                style={{
+                  backgroundColor: colors.muted + '25',
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: radius.md,
+                  padding: spacing.sm,
+                  marginTop: spacing.xs,
+                  marginBottom: spacing.md,
+                }}
               >
-                <View
-                  style={[
-                    styles.checkbox,
-                    {
-                      borderColor: returnVisitPlanned ? colors.primary : colors.border,
-                      backgroundColor: returnVisitPlanned ? colors.primary : 'transparent',
-                    },
-                  ]}
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontSize: typography.xs,
+                    fontWeight: '600',
+                    marginBottom: 2,
+                  }}
                 >
-                  {returnVisitPlanned && <Check size={14} color="#ffffff" />}
-                </View>
-                <Text style={{ color: colors.foreground, fontSize: typography.sm, marginLeft: 8 }}>
-                  Plan a Return Visit
+                  Personal Return Visits & Studies
                 </Text>
-              </TouchableOpacity>
+                <Text style={{ color: colors.mutedForeground, fontSize: typography.xs, lineHeight: 16 }}>
+                  Scriptures discussed, literature placements, and return visit notes should be kept in your private on-device Personal Notebook.
+                </Text>
+              </View>
 
               <Button
                 title="Save Visit"
