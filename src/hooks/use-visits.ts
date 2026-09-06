@@ -1,5 +1,5 @@
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getPlannerFirestore } from '@/lib/firebase/client';
 import { FIRESTORE_COLLECTIONS } from '@/lib/firebase/schema';
 import { toHouseholdView, toVisitView, watchHouseholds, watchVisits } from '@/lib/local-first';
@@ -300,6 +300,8 @@ export function useHouseholds(filters?: HouseholdFilters) {
   const groupMateUserIds = filters?.groupMateUserIds ?? null;
 
   const [records, setRecords] = useState<LocalHousehold[]>([]);
+  const recordsRef = useRef<LocalHousehold[]>([]);
+  recordsRef.current = records;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -310,7 +312,9 @@ export function useHouseholds(filters?: HouseholdFilters) {
       return;
     }
 
-    setIsLoading(true);
+    if (recordsRef.current.length === 0) {
+      setIsLoading(true);
+    }
     const unsubscribe = watchHouseholds(
       {
         congregationId,

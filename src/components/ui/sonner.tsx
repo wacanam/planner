@@ -5,13 +5,14 @@ import { Toaster as Sonner } from 'sonner';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
-export function Toaster({ ...props }: ToasterProps) {
+export function Toaster({ closeButton = true, ...props }: ToasterProps) {
   const { theme = 'system' } = useTheme();
 
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
+      closeButton={closeButton}
       toastOptions={{
         classNames: {
           toast:
@@ -19,6 +20,8 @@ export function Toaster({ ...props }: ToasterProps) {
           description: 'group-[.toast]:text-muted-foreground',
           actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
           cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+          closeButton:
+            'group-[.toast]:bg-background group-[.toast]:text-foreground group-[.toast]:border-border group-[.toast]:hover:bg-muted',
         },
       }}
       {...props}

@@ -61,7 +61,7 @@ export default function RootLayout({
             <Header />
             <main className="flex-1 flex flex-col overflow-x-hidden">{children}</main>
             <Footer />
-            <Toaster richColors />
+            <Toaster richColors closeButton />
           </Providers>
         </ThemeProvider>
       </body>

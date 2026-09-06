@@ -308,7 +308,17 @@ export default function HouseholdsClient() {
       const bMine = b.createdById === user?.id;
       if (aMine && !bMine) return -1;
       if (!aMine && bMine) return 1;
-      return (a.streetName || a.address).localeCompare(b.streetName || b.address);
+
+      const aName = a.streetName || a.address || '';
+      const bName = b.streetName || b.address || '';
+
+      // Keep [REDACTED] from jumping ahead of "A" to the very top of the list
+      const aIsRedacted = aName.startsWith('[REDACTED]');
+      const bIsRedacted = bName.startsWith('[REDACTED]');
+      if (aIsRedacted && !bIsRedacted) return 1;
+      if (!aIsRedacted && bIsRedacted) return -1;
+
+      return aName.localeCompare(bName);
     });
   }, [households, search, statusFilter, user?.id]);
 
@@ -669,7 +679,7 @@ export default function HouseholdsClient() {
       </div>
 
       {/* Household List */}
-      {isLoading ? (
+      {isLoading && households.length === 0 ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />

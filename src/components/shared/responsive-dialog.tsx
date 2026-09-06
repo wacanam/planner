@@ -40,6 +40,7 @@ export function ResponsiveDialog({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
+          onCloseAutoFocus={(e) => e.preventDefault()}
           className={`max-w-lg bg-card border-border shadow-2xl rounded-2xl p-6 ${className ?? ''}`}
         >
           <DialogHeader>
@@ -60,6 +61,7 @@ export function ResponsiveDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
+        onCloseAutoFocus={(e) => e.preventDefault()}
         className={`bg-card border-t border-border rounded-t-3xl p-5 sm:p-6 max-h-[90vh] overflow-y-auto ${className ?? ''}`}
       >
         <div className="mx-auto w-12 h-1.5 bg-muted-foreground/25 rounded-full mb-3.5 shrink-0" />

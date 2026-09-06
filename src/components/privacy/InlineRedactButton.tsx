@@ -1,8 +1,8 @@
 // src/components/privacy/InlineRedactButton.tsx
 'use client';
 
-import { useState } from 'react';
 import { Eraser, Loader2, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { canRedactPrivacyFields } from '@/lib/permissions';
@@ -31,10 +31,7 @@ export function InlineRedactButton({
   const effectiveUser = userProp ?? authUser;
   const [loading, setLoading] = useState(false);
 
-  const canRedact = canRedactPrivacyFields(
-    effectiveUser?.role,
-    effectiveUser?.congregationRole
-  );
+  const canRedact = canRedactPrivacyFields(effectiveUser?.role, effectiveUser?.congregationRole);
 
   const currentText = (value || '').trim();
   if (!canRedact || !currentText || currentText === '[REDACTED]') {
@@ -48,6 +45,9 @@ export function InlineRedactButton({
     e.stopPropagation();
     e.preventDefault();
     if (loading) return;
+
+    // Blur button before disabling/unmounting to prevent browser from reverting focus to document.body and jumping scroll
+    (e.currentTarget as HTMLElement)?.blur();
 
     setLoading(true);
     try {
