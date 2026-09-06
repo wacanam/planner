@@ -524,7 +524,7 @@ export default function AssignmentVisitsClient() {
         <div>
           <h2 className="text-sm font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
             <BarChart2 size={15} className="text-primary" />
-            <span>Territory Statistics & Demographics</span>
+            <span>Territory Household & Door Statuses</span>
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* KPI 1: Total Households */}

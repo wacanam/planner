@@ -60,7 +60,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
 
     const footerY = pageHeight - 7;
     doc.text(
-      `Kanataran • Congregation Ministry Intelligence Report • ${congregationName}`,
+      `Kanataran • Congregation Territory Summary Report • ${congregationName}`,
       marginLeft,
       footerY
     );
@@ -92,7 +92,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   };
 
   // =========================================================================
-  // PAGE 1: EXECUTIVE OVERVIEW & TERRITORY HEALTH
+  // PAGE 1: CONGREGATION TERRITORY OVERVIEW & ACTIVITY
   // =========================================================================
   let pageNumber = 1;
 
@@ -102,9 +102,9 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
       : '';
 
   drawSectionHeader(
-    'CONGREGATION EXECUTIVE OVERVIEW & TERRITORY HEALTH',
+    'CONGREGATION TERRITORY OVERVIEW & ACTIVITY',
     `Congregation: ${congregationName}${sySubtitle}   •   Generated: ${formatDate(new Date())}`,
-    'EXECUTIVE SUMMARY'
+    'TERRITORY SUMMARY'
   );
 
   let currentY = marginTop + 21;
@@ -581,16 +581,16 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   drawPageFooter(pageNumber, '4+');
 
   // =========================================================================
-  // PAGE 4: TEACHING & FOLLOW-UP MINISTRY INTELLIGENCE (PAGE BREAK)
+  // PAGE 4: TEACHING & FOLLOW-UP MINISTRY SUMMARY (PAGE BREAK)
   // =========================================================================
   doc.addPage();
   pageNumber++;
   currentY = marginTop;
 
   drawSectionHeader(
-    'TEACHING & FOLLOW-UP MINISTRY INTELLIGENCE',
+    'TEACHING & FOLLOW-UP MINISTRY SUMMARY',
     `Congregation: ${congregationName}   •   Interested Contacts, Return Visits & Bible Studies`,
-    'MINISTRY EFFECTIVENESS'
+    'MINISTRY SUMMARY'
   );
 
   currentY += 21;
@@ -846,26 +846,26 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
   drawPageFooter(pageNumber, '5+');
 
   // =========================================================================
-  // PAGE 5: HOUSEHOLD DEMOGRAPHICS & EVENT AUDIT TIMELINE (PAGE BREAK)
+  // PAGE 5: HOUSEHOLD STATUS & RECENT MINISTRY ACTIVITY (PAGE BREAK)
   // =========================================================================
   doc.addPage();
   pageNumber++;
   currentY = marginTop;
 
   drawSectionHeader(
-    'DOOR DEMOGRAPHICS & MINISTRY EVENT AUDIT TIMELINE',
+    'HOUSEHOLD STATUS & RECENT MINISTRY ACTIVITY',
     `Congregation: ${congregationName}   •   Total Mapped Doors: ${doorData?.totalDoors ?? 0}`,
-    'FIELD INTELLIGENCE'
+    'ACTIVITY OVERVIEW'
   );
 
   currentY += 21;
 
-  // Left Column: Door Demographics (width = 130mm)
+  // Left Column: Door Statuses (width = 130mm)
   const leftColWidth = 128;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text('Visit Outcome Demographics', marginLeft, currentY);
+  doc.text('Household Status Summary', marginLeft, currentY);
 
   let leftY = currentY + 4;
   const outcomes = [
@@ -981,7 +981,7 @@ export function exportFullCongregationReportPDF(data: FullReportExportData): jsP
     coverageData?.serviceYear && coverageData.serviceYear !== 'all'
       ? `_SY${coverageData.serviceYear}`
       : '';
-  const filename = `Congregation_Reports_Analytics_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const filename = `Congregation_Territory_Report_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.pdf`;
   if (typeof window !== 'undefined') {
     doc.save(filename);
   }

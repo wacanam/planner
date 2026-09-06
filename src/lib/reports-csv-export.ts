@@ -199,7 +199,7 @@ export function exportGroupsToCSV(
 }
 
 /**
- * Generates and downloads the Teaching & Follow-up Ministry Analytics CSV.
+ * Generates and downloads the Teaching & Follow-up Ministry Summary CSV.
  */
 export function exportTeachingAnalyticsToCSV(
   report: {
@@ -269,6 +269,6 @@ export function exportTeachingAnalyticsToCSV(
   const allRows = [totalRow, ...groupRows, ...publisherRows];
   const csv = [headers.join(','), ...allRows.map((row) => row.join(','))].join('\r\n');
   const sySuffix = serviceYear && serviceYear !== 'all' ? `_SY${serviceYear}` : '';
-  const filename = `Teaching_Ministry_Analytics_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `Teaching_Ministry_Summary_${congregationName.replace(/\s+/g, '_')}${sySuffix}_${new Date().toISOString().slice(0, 10)}.csv`;
   triggerCsvDownload(filename, csv);
 }

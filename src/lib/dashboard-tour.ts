@@ -103,9 +103,9 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
     id: 'live-stats',
     category: 'Live Metrics',
     title: 'Real-time Ministry Overview',
-    subtitle: 'Congregation Stats & Territory Health',
+    subtitle: 'Congregation Stats & Territory Activity',
     description:
-      'Stay updated with live metrics tracking territory availability, personal assignments, door records, and congregation publishers.',
+      'Stay updated with live summaries showing territory availability, personal assignments, door records, and congregation publishers.',
     targetSelector: '[data-tour="stats-grid"]',
     iconName: 'BarChart3',
     highlights: [
@@ -298,8 +298,8 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
     id: 'administration-and-reports',
     category: 'Administration',
-    title: 'Congregation Governance & S-13 Reports',
-    subtitle: 'Overseer Tools, Service Groups & Analytics',
+    title: 'Congregation Oversight & S-13 Reports',
+    subtitle: 'Overseer Tools, Service Groups & Reports',
     description:
       'Service Overseers and Territory Servants have powerful administrative controls to manage members, service groups, and official congregation reporting.',
     targetSelector: '[data-tour="dashboard-header"]',
@@ -321,7 +321,7 @@ export const DASHBOARD_TOUR_STEPS: TourStep[] = [
         icon: 'FileSpreadsheet',
         title: 'S-13 Coverage Reports',
         description:
-          'Generate official S-13 territory assignment records, turnaround analytics, and export to CSV or PDF.',
+          'Generate official S-13 territory assignment records, coverage summaries, and export to CSV or PDF.',
       },
     ],
     tip: 'Administrative pages appear automatically in the navigation for Service Overseers and Servants.',

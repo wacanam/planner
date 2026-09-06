@@ -262,7 +262,7 @@ export default function ReportsClient() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                Congregation Reports & Analytics
+                Congregation Territory Reports
               </h1>
               <Badge
                 variant="outline"
@@ -273,8 +273,7 @@ export default function ReportsClient() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Executive ministry intelligence, official S-13 territory records, and publisher
-              activity
+              Official S-13 territory records, coverage summaries, and field service activity
             </p>
           </div>
 
@@ -366,7 +365,7 @@ export default function ReportsClient() {
                   className="cursor-pointer gap-2 py-2 font-semibold text-purple-600 dark:text-purple-400"
                 >
                   <BookOpen size={14} className="text-purple-600" />
-                  <span>Export Teaching Analytics (CSV)</span>
+                  <span>Export Teaching Summary (CSV)</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => exportS13ToCSV(s13Records, congregationName, selectedServiceYear)}
@@ -557,7 +556,7 @@ export default function ReportsClient() {
               }`}
             >
               <BarChart2 size={14} />
-              <span>Executive Overview</span>
+              <span>Coverage Overview</span>
             </button>
 
             <button
@@ -621,7 +620,7 @@ export default function ReportsClient() {
               }`}
             >
               <Home size={14} />
-              <span>Door Demographics</span>
+              <span>Door Statuses</span>
             </button>
 
             <button
@@ -637,7 +636,7 @@ export default function ReportsClient() {
               }`}
             >
               <Activity size={14} />
-              <span>Audit Timeline</span>
+              <span>Activity History</span>
             </button>
           </div>
         </div>
@@ -1476,7 +1475,7 @@ export default function ReportsClient() {
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Active Studies Pipeline
+                      Active Bible Studies
                     </span>
                     <Users size={15} className="text-violet-500" />
                   </div>
@@ -1490,7 +1489,7 @@ export default function ReportsClient() {
                   </div>
                   <div className="text-[11px] text-muted-foreground flex items-center justify-between pt-1 border-t border-border/50">
                     <span>Across all groups</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Live Pipeline</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">Ongoing Studies</span>
                   </div>
                 </CardContent>
               </Card>
@@ -1938,7 +1937,7 @@ export default function ReportsClient() {
               <Card className="bg-card border-border shadow-xs overflow-hidden min-w-0">
                 <CardContent className="p-4 space-y-1 min-w-0">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground truncate">
-                    Return Visits Pipeline
+                    Active Return Visits
                   </p>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
                     {doorData?.returnVisitsCount ?? 0}
@@ -2223,10 +2222,10 @@ export default function ReportsClient() {
             <Card className="bg-card border-border shadow-xs overflow-hidden w-full min-w-0 max-w-full">
               <CardHeader className="p-4 sm:p-6 pb-3 min-w-0">
                 <CardTitle className="text-base font-bold">
-                  Ministry Event &amp; Audit Log
+                  Ministry Activity History
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Real-time chronological activity feed for assignments, completions, and returns
+                  Chronological record of territory assignments, completions, and returns
                 </p>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 w-full min-w-0 max-w-full">

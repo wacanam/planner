@@ -46,14 +46,14 @@ Hello ${name},
 
 Great news! Your request to join ${congName} has been approved by the Service Overseer.
 
-You are now an active publisher in the congregation workspace. You can access your congregation dashboard, request territory assignments, and track your ministry records seamlessly even when offline.
+You are now an active publisher in the congregation workspace. You can access your congregation dashboard, request territory assignments, and keep your ministry notes seamlessly even when offline.
 
 Get started by visiting your congregation dashboard:
 ${dashboardUrl}
 
 Key Features:
 - Territory Management: View and navigate your assigned territory boundaries.
-- Offline-First Tracking: Record visits and encounters without an active internet connection.
+- Offline-First Recording: Record visits and notes without an active internet connection.
 - Service Groups: Collaborate with your field service group and overseers.
 
 Best regards,

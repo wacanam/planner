@@ -41,7 +41,7 @@ export function RecordsAndResourcesDock({
           <FileText size={16} className="text-primary shrink-0" />
           <span className="truncate">
             {isExecutiveTier
-              ? 'Executive Hub & Records'
+              ? 'Oversight Hub & Records'
               : isTerritoryServantTier
                 ? 'Territory Hub'
                 : isGroupLeaderTier

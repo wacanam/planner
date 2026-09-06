@@ -80,7 +80,7 @@ export default function ReportsScreen() {
       <Header
         showBack
         title="Congregation Reports"
-        subtitle="S-13 Assignment record & coverage analytics"
+        subtitle="S-13 Assignment record & coverage summary"
         rightAction={
           <TouchableOpacity
             onPress={handleExportS13Pdf}
@@ -536,7 +536,7 @@ export default function ReportsScreen() {
                   Active Studies
                 </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 10, marginTop: 2 }}>
-                  Live pipeline
+                  Ongoing studies
                 </Text>
               </Card>
             </View>

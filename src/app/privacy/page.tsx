@@ -91,13 +91,13 @@ const sections = [
               Personal Ministry Notebook (100% On-Device Only):
             </strong>
             Personal return visit notes, contact references, phone numbers, and follow-up reminders
-            are stored strictly and exclusively on your local device (in browser IndexedDB). They
+            are stored strictly and exclusively on your local device (in your browser's private local storage). They
             are never transmitted to, backed up by, or accessible through the congregation cloud or
             overseers.
           </li>
           <li>
             <strong className="text-foreground">Device & Offline Cache:</strong> Local cache records
-            stored in IndexedDB on your device to allow seamless offline access, sync status logs,
+            stored securely on your device to allow seamless offline access, sync status logs,
             and essential diagnostic error logs.
           </li>
         </ul>
@@ -117,8 +117,8 @@ const sections = [
             accurately.
           </li>
           <li>
-            Generating official congregation reports, S-13 assignment registers, and coverage
-            analytics for Service Overseers and Territory Servants without demographic profiling.
+            Generating official congregation reports, S-13 territory assignment registers, and
+            territory coverage summaries for Service Overseers and Territory Servants without collecting personal profiles.
           </li>
           <li>
             Enabling seamless offline data entry and automatic background synchronization when

@@ -195,7 +195,7 @@ export function BottomTabBar() {
           {
             href: `/congregation/${id}/reports`,
             label: 'Congregation Reports',
-            description: 'Coverage analytics & S-13 summaries',
+            description: 'Coverage reports & S-13 records',
             icon: BarChart2,
           },
         ]

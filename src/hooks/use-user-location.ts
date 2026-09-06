@@ -138,7 +138,7 @@ export function useUserLocation() {
       (err) => {
         console.warn('Geolocation error:', err.message);
         setError(err.message);
-        toast.error(`Location tracking error: ${err.message}`);
+        toast.error(`Location error: ${err.message}`);
         setIsTracking(false);
       },
       {
@@ -150,7 +150,7 @@ export function useUserLocation() {
 
     watchIdRef.current = id;
     setIsTracking(true);
-    toast.success('Live location & compass tracking active');
+    toast.success('Current location centered');
   }, [handleDeviceOrientation, updateHeading]);
 
   const stopTracking = useCallback(() => {
@@ -175,7 +175,7 @@ export function useUserLocation() {
   const toggleTracking = useCallback(() => {
     if (isTracking) {
       stopTracking();
-      toast.info('Location tracking stopped');
+      toast.info('Location centering stopped');
     } else {
       startTracking();
     }

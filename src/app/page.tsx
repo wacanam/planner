@@ -42,21 +42,21 @@ const features = [
   },
   {
     icon: ClipboardCheck,
-    title: 'Visit Tracking',
+    title: 'Visit Records',
     description:
-      'Log every door, note responses, and track follow-ups. Comprehensive records for every territory.',
+      'Log every door worked, note responses, and organize follow-ups. Clear records for every territory.',
     color: 'bg-secondary/40 text-secondary-foreground',
   },
   {
     icon: BarChart3,
-    title: 'Coverage Analytics',
+    title: 'Coverage Reports',
     description:
       'See which areas need attention. Visual completion rates and activity dashboards at a glance.',
     color: 'bg-primary/15 text-primary',
   },
   {
     icon: ShieldCheck,
-    title: 'RBAC & Security',
+    title: 'Secure Access & Roles',
     description:
       'Role-based access for Service Overseers, Territory Servants, Group Overseers, and Publishers. Secure by design.',
     color: 'bg-accent/30 text-accent-foreground',
@@ -101,9 +101,9 @@ const userTypes = [
     benefits: [
       'Full territory management dashboard',
       'Assign and track all congregation members',
-      'Coverage reports and S-13 export analytics',
+      'Coverage reports and S-13 territory records',
       'User role and member permission management',
-      'Territory history and audit logs',
+      'Territory history and activity records',
     ],
   },
   {
@@ -141,7 +141,7 @@ const userTypes = [
       'Request territories directly from your phone or tablet',
       'Interactive map navigation with street boundaries',
       'Log door-to-door visits and notes completely offline',
-      'Track revisit notes, placements, and interest records',
+      'Keep return visit notes, placements, and return records',
       'Share or transfer territory cards with ministry partners',
     ],
   },
